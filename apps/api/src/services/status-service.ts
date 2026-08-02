@@ -1,4 +1,4 @@
-import type { ServiceStatus } from '@ricambi/contracts';
+import type { EnvironmentMode, ServiceStatus } from '@ricambi/contracts';
 import type { Clock } from '../platform/clock.js';
 import type { SystemRepository } from '../repositories/system-repository.js';
 
@@ -9,9 +9,10 @@ export interface StatusService {
 export function createStatusService(dependencies: {
   clock: Clock;
   environmentName: string;
+  environmentMode: EnvironmentMode;
   systemRepository: SystemRepository;
 }): StatusService {
-  const { clock, environmentName, systemRepository } = dependencies;
+  const { clock, environmentName, environmentMode, systemRepository } = dependencies;
 
   return {
     async read() {
@@ -20,6 +21,7 @@ export function createStatusService(dependencies: {
       return {
         status: reachable ? 'ok' : 'degraded',
         environment: environmentName,
+        mode: environmentMode,
         time: clock.now().toISOString(),
         database: reachable ? 'reachable' : 'unreachable',
       };

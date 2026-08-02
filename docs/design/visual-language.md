@@ -65,6 +65,26 @@ this archive was printed once; that is the only reference the interface makes to
 
 **English throughout.** The Club website is German. Neither borrows the other's language.
 
+**The one element that does not recede is the proof stamp.** A non-production system wears a
+band across the top — orange, hatched along its bottom edge like the margin of a printer's proof
+sheet, carrying `DEMO` and one plain sentence. Everything else in this interface gets out of the
+drawing's way; this does not, because the failure it prevents is someone taking practice data
+for the archive. It is the same orange in light and dark, because it is a mark printed *on* the
+archive rather than part of it, and it must look identical in a screenshot however the reader's
+phone is set. Its hue is one the Club uses nowhere — that is what makes it legible as
+"not the real thing" — and it is far enough from the amber focus ring to be read as a caution
+label rather than as a focused control.
+
+**And the surfaces go warm with it.** In a non-production system `surface`, `surface-raised`,
+`surface-sunken` and the rules take a warm cast, so no screenshot of any part of any screen can
+pass for the archive. Production wears the Club's own cool graphite, or its white paper; a
+practice system deliberately does not wear the Club's colour. **Hue and chroma carry the
+difference; lightness is production's**, which is what keeps it safe: contrast is carried by
+lightness, so every ratio measured for production holds here and no token had to be re-argued.
+Two values in the light theme are forced exceptions — paper already sits at the top of the
+lightness scale and white cannot be warm, so `surface` drops 0.007 and `surface-raised` 0.012,
+the least that leaves them in gamut. Both were re-measured.
+
 ## Type
 
 The Club's own two faces, so the archive and the Club site read as one organisation.
@@ -100,6 +120,11 @@ body grey and its one accent. Those sRGB values were converted to OKLCH and are 
 could not carry text at 4.5:1 — the teal as a fill under white, the teal as text on paper, and
 the body grey as this archive's `muted`. Each was moved along its own lightness axis until it
 cleared the bar and no further. Hue and chroma are the Club's throughout.
+
+A fourth was found later, doing the same arithmetic for the non-production surfaces: dark
+`text-faint` cleared 4.5:1 against the page but reached only 4.20 against `surface-raised`,
+which is where it is actually used — the status strip in the footer. It was lifted from 0.625 to
+0.645. **Measure a token against the surface it sits on, not against the page.**
 
 **What is deliberately not here: the Club's logo file.** It carries the association's name, and
 this repository does not hold client-identifying assets (`AGENTS.md`, Security). The *treatment*

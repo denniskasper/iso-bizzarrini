@@ -57,6 +57,21 @@
   /* Amber, in both themes, so "focused" never reads as "this is the action" — and never as
      the Club's teal either. Dark enough here to clear 3:1 against paper. */
   --focus: oklch(0.575 0.15 70);
+
+  /*
+   * The stamp a non-production system wears. Deliberately **not** themed: it is the same
+   * orange in light and dark, because it is a mark printed on top of the archive rather than
+   * part of it, and it must look identical in a screenshot however the reader's phone is set.
+   *
+   * The hue is one the Club uses nowhere — that is the point. It is far enough from the amber
+   * focus ring (55° against 70°) to read as a caution label rather than as a focused control.
+   * The ink sits on the band at 6.6:1.
+   */
+  --demo-band: oklch(0.74 0.145 55);
+  --demo-band-ink: oklch(0.26 0.07 50);
+  /* Clears 3:1 on the band, like every other non-text mark, even though it carries no
+     information the words do not. */
+  --demo-hatch: oklch(0.45 0.12 45);
 }
 
 .dark {
@@ -70,7 +85,9 @@
 
   --text: oklch(0.97 0.002 264);
   --text-muted: oklch(0.72 0.009 264);
-  --text-faint: oklch(0.625 0.009 264);
+  /* Lifted from 0.625: `faint` cleared 4.5:1 against the page but only reached 4.20 against
+     `surface-raised`, which is where it is actually used — the status strip in the footer. */
+  --text-faint: oklch(0.645 0.009 264);
 
   --accent: oklch(0.53 0.11 198);
   --accent-hover: oklch(0.53 0.132 198);
@@ -78,6 +95,47 @@
   --accent-contrast: oklch(0.99 0 0);
 
   --focus: oklch(0.78 0.16 75);
+}
+
+/* ---------------------------------------------------------------------------
+ * The non-production surfaces
+ *
+ * A practice system must be unmistakable from any part of any screen, not only from the band
+ * at the top — so the surfaces themselves change: production is the Club's cool graphite (or
+ * its white paper), and the non-production system is warm throughout. It is the plainest
+ * possible statement of the difference, because a demo is precisely *not* wearing the Club's
+ * chrome.
+ *
+ * **Hue and chroma carry the difference; lightness is production's.** That is what keeps this
+ * safe: contrast is carried by lightness, so every text, rule and focus ratio measured for
+ * production holds here and no token had to be re-argued.
+ *
+ * There are two exceptions, both in the light theme, both forced: paper already sits at the top
+ * of the lightness scale, and white cannot be warm. `surface` drops 0.007 and `surface-raised`
+ * 0.012 — the least that leaves them in gamut at all. Re-measured: the faintest token clears
+ * 4.93:1 and 4.99:1 on them. Every other value, and the whole dark theme, is exact.
+ *
+ * The attribute is written by whatever serves the document, and is *absent* in `vite dev` —
+ * which the pre-paint script settles as non-production, because an app served by something
+ * that has not been taught to declare itself gets marked rather than trusted.
+ * ------------------------------------------------------------------------ */
+
+html[data-environment-mode='non-production'] {
+  --surface: oklch(0.978 0.017 75);
+  --surface-raised: oklch(0.988 0.01 80);
+  --surface-sunken: oklch(0.965 0.022 75);
+
+  --line: oklch(0.917 0.014 70);
+  --line-strong: oklch(0.76 0.016 70);
+}
+
+html.dark[data-environment-mode='non-production'] {
+  --surface: oklch(0.205 0.019 60);
+  --surface-raised: oklch(0.272 0.024 58);
+  --surface-sunken: oklch(0.168 0.016 60);
+
+  --line: oklch(0.345 0.018 60);
+  --line-strong: oklch(0.47 0.02 60);
 }
 
 @theme inline {

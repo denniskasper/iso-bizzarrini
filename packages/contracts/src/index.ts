@@ -22,11 +22,21 @@ export interface ApiErrorBody {
   };
 }
 
+/**
+ * Whether this is the real archive. The distinction the whole non-production environment hangs
+ * on — the banner, the chrome, the title, and every refusal to mail a member or touch a mandate.
+ * There are two of them and there will only ever be two: an environment either is the members'
+ * archive or it is not.
+ */
+export type EnvironmentMode = 'production' | 'non-production';
+
 /** `GET /api/status` */
 export interface ServiceStatus {
   status: 'ok' | 'degraded';
-  /** Which deployment this is. The non-production banner hangs on this. */
+  /** Which deployment this is — free text, an operations name rather than a rule. */
   environment: string;
+  /** Whether it is the real archive. Assume `non-production` when nothing says otherwise. */
+  mode: EnvironmentMode;
   /** ISO 8601, from the injected clock — never the browser's idea of now. */
   time: string;
   database: 'reachable' | 'unreachable';

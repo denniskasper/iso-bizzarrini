@@ -100,6 +100,27 @@
   }
 
   /*
+   * The mark a non-production system wears: a proof stamp. Everything in this archive is
+   * printed matter, and a proof sheet is a print that is explicitly not the finished one —
+   * hatched along its edge so that nobody files it as the real thing. It is the only element
+   * in the interface whose job is to be noticed rather than to recede.
+   */
+  .demo-band {
+    background-color: var(--demo-band);
+    color: var(--demo-band-ink);
+    /* The hatch is the bottom edge of the band, so the band needs the room for it. */
+    padding-bottom: 4px;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--demo-hatch) 0 5px,
+      transparent 5px 10px
+    );
+    background-repeat: repeat-x;
+    background-size: 100% 4px;
+    background-position: bottom left;
+  }
+
+  /*
    * The registration mark: the corner ticks a printer aligns a plate with. Used as the
    * archive's one ornament — on the wordmark and on empty states — because it is the mark of
    * something printed, which is what this whole archive is.

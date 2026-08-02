@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm setup && pnpm db:up && pnpm db:migrate && pnpm --parallel --filter \"./apps/*\" dev",
     "setup": "node scripts/prepare-env.mjs",
+    "demo": "node scripts/run-demo.mjs",
     "build": "pnpm --filter @ricambi/web build && pnpm --filter @ricambi/api build",
     "start": "pnpm --filter @ricambi/api start",
     "typecheck": "pnpm -r typecheck",
@@ -18,6 +19,7 @@
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @ricambi/api db:migrate",
+    "db:seed": "pnpm --filter @ricambi/api db:seed",
     "db:generate": "pnpm --filter @ricambi/api db:generate",
     "test": "pnpm test:api && pnpm test:e2e",
     "test:api": "pnpm --filter @ricambi/api test",

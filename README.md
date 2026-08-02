@@ -15,15 +15,14 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [02](.scratch/ricambi/issues/02-non-production-environment.md) and
-[03](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md)** — both were blocked
-only by 01. Ticket 03 is the critical path: it decides tiled-or-not by *measuring real scans*,
-and everything from the viewer onward waits on it.
+**Next up: [03](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md)** — the
+critical path: it decides tiled-or-not by *measuring real scans*, and everything from the viewer
+onward waits on it.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
 | 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
-| 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | Not started | `ready-for-agent` | 01 |
+| 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | 10 of 11 | `done` | 01 |
 | 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | Not started | `ready-for-agent` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | Not started | `ready-for-agent` | 03 |
 | 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Not started | `ready-for-agent` | 04 |
@@ -46,6 +45,11 @@ and everything from the viewer onward waits on it.
 | 22 | [Search](.scratch/ricambi/issues/22-search.md) | Not started | `ready-for-agent` | 08 |
 | 23 | [Category filters](.scratch/ricambi/issues/23-category-filters.md) | Not started | `ready-for-agent` | 03 |
 | 24 | [Platform legal pages and data-protection records](.scratch/ricambi/issues/24-platform-legal-pages-and-gdpr-records.md) | Not started | `ready-for-agent` | 15, 21 |
+
+Ticket 02's one open box — the practice system *deployed* alongside production, behind the same
+sign-in gate — is carried by [ticket 14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md),
+which lists it. The environment itself is built and runs today; there is simply nothing yet to
+stand it beside.
 
 ### Two things worth knowing about ticket 01
 
@@ -90,6 +94,22 @@ Configuration lives in `.env`, described by [`.env.example`](.env.example). Noth
 environment-specific is compiled in: the same image runs in development, in the non-production
 system and in production, and differs only by what it is handed.
 
+### The practice archive
+
+```sh
+pnpm demo
+```
+
+The **built** app, served by the API on `http://localhost:3200` exactly as a deployment serves
+it, with a database of its own and an invented catalog — and a permanent banner, a warm chrome
+and `DEMO` in the tab, so nobody mistakes it for the archive. It refuses to start if it has been
+handed anything that could reach a real member or a real mandate.
+
+An environment is the real archive only if it says `ENVIRONMENT_MODE=production`; everything
+else is practice, deliberately ([ADR 0012](docs/adr/0012-non-production-is-the-default.md)). How
+it is run and the written check that no production data is in it are in
+[`docs/operations/non-production-environment.md`](docs/operations/non-production-environment.md).
+
 ## Shape
 
 One deployable, not a service split (ADR 0008). In production the API serves the built app from
@@ -116,6 +136,9 @@ untestable or unsafe:
   neutralise it;
 - **the payment provider** (`platform/payments.ts`) — the provider owns subscriptions, retries,
   dunning and mandates; we only need to trust what it tells us.
+
+The latter two also declare what they can reach — `reachesRealPeople`, `reachesRealMandates` —
+and a non-production environment refuses to start holding one that can reach anything real.
 
 ## Testing
 

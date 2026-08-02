@@ -1,6 +1,8 @@
 /*
- * Decides the theme before first paint, so the archive never flashes the wrong one at someone
- * working in a dark garage.
+ * Settles what the document is before first paint: which theme it wears, and which environment
+ * it belongs to. Both have to be decided here — the theme so the archive never flashes the
+ * wrong one at someone working in a dark garage, the environment so a practice system is never
+ * for an instant indistinguishable from the real archive.
  *
  * A separate file rather than an inline script on purpose: the API serves this app behind a
  * Content-Security-Policy of `script-src 'self'`, which blocks inline scripts outright. Inline,
@@ -12,6 +14,20 @@
  */
 (function () {
   var STORAGE_KEY = 'ricambi.theme';
+
+  /*
+   * Whatever serves this document declares the environment on the <html> element. If nothing
+   * did — `vite dev`, or a static host that has not been taught to — it is not the archive.
+   * The default is the safe direction: an unmarked system gets marked, never trusted.
+   */
+  if (!document.documentElement.dataset.environmentMode) {
+    document.documentElement.dataset.environmentMode = 'non-production';
+    // The server stamps the title as well as the element; when nothing stamped either, the tab
+    // has to be marked here, or this is the one case where the page says DEMO and the tab does
+    // not. Prefixed, because a tab truncates from the right.
+    document.title = 'DEMO — ' + document.title;
+  }
+
   try {
     var stored = localStorage.getItem(STORAGE_KEY);
     var explicit = stored === 'light' || stored === 'dark';

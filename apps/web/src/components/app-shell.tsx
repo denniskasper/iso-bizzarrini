@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { EnvironmentBanner } from '@/components/environment-banner';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Wordmark } from '@/components/wordmark';
 import { ServiceStatusStrip } from '@/components/service-status-strip';
@@ -10,20 +11,26 @@ import { ServiceStatusStrip } from '@/components/service-status-strip';
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      {/* `surface-raised` is the Club's own chrome colour, measured from its site — so the
-          band across the top of the archive is the band across the top of the Club's. */}
-      <header className="sticky top-0 z-10 border-b border-line bg-surface-raised">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-gutter py-2">
-          <a
-            href="/"
-            className="-mx-2 flex h-control items-center rounded-sm px-2 text-text transition-opacity hover:opacity-70"
-            aria-label="Ricambi — the Club's parts reference"
-          >
-            <Wordmark />
-          </a>
-          <ThemeToggle />
-        </div>
-      </header>
+      {/* The stamp travels with the chrome: a mark you can scroll away from is a mark you can
+          forget. In production nothing is rendered above the header at all. */}
+      <div className="sticky top-0 z-10">
+        <EnvironmentBanner />
+
+        {/* `surface-raised` is the Club's own chrome colour, measured from its site — so the
+            band across the top of the archive is the band across the top of the Club's. */}
+        <header className="border-b border-line bg-surface-raised">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-gutter py-2">
+            <a
+              href="/"
+              className="-mx-2 flex h-control items-center rounded-sm px-2 text-text transition-opacity hover:opacity-70"
+              aria-label="Ricambi — the Club's parts reference"
+            >
+              <Wordmark />
+            </a>
+            <ThemeToggle />
+          </div>
+        </header>
+      </div>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-gutter py-16 sm:py-24">{children}</main>
 

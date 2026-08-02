@@ -3,8 +3,9 @@ import { api } from '@/lib/api';
 
 /**
  * Proof, in the smallest type on the page, that the browser reached the API and the API
- * reached the database. Plain and dense — a tool, not a feature. Ticket 02 hangs the
- * non-production banner on the environment this reports.
+ * reached the database. Plain and dense — a tool, not a feature. It reports which environment
+ * the *API* believes it is; the banner is stamped on the document instead, so that it does not
+ * depend on a request coming back.
  */
 export function ServiceStatusStrip() {
   const { data, isPending, isError } = useQuery({

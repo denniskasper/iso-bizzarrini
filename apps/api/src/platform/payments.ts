@@ -29,6 +29,16 @@ export class WebhookVerificationError extends Error {
 
 export interface PaymentProvider {
   readonly name: string;
+  /**
+   * Whether this provider is pointed at real money — a live mandate, a real member's bank
+   * account. A non-production environment refuses to start with one that is (see
+   * `composition/environment-safety.ts`), which is how "the keys here are test-mode" becomes a
+   * property the system enforces rather than one an operator remembers.
+   *
+   * When Stripe arrives at ticket 18 this is read off the key itself: a live key says `true`,
+   * a test key says `false`. Nothing else should be allowed to decide it.
+   */
+  readonly reachesRealMandates: boolean;
   /** Verifies the signature and decodes the delivery, or throws `WebhookVerificationError`. */
   readWebhookEvent(delivery: WebhookDelivery): PaymentEvent;
 }
@@ -39,6 +49,7 @@ export interface PaymentProvider {
  */
 export class UnconfiguredPaymentProvider implements PaymentProvider {
   readonly name = 'unconfigured';
+  readonly reachesRealMandates = false;
 
   readWebhookEvent(): PaymentEvent {
     throw new WebhookVerificationError(

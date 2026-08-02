@@ -38,7 +38,7 @@ export default defineConfig({
     command: [
       'pnpm --filter @ricambi/web build',
       'pnpm --filter @ricambi/api build',
-      'pnpm --filter @ricambi/api db:seed:e2e',
+      'pnpm --filter @ricambi/api db:seed',
       'pnpm --filter @ricambi/api start',
     ].join(' && '),
     url: `${baseURL}/api/status`,
@@ -52,6 +52,9 @@ export default defineConfig({
     env: {
       NODE_ENV: 'production',
       ENVIRONMENT_NAME: 'end-to-end',
+      // Declared, not defaulted: the seeder empties tables and will only do that for a system
+      // that has said out loud what it is. The default itself is covered at the API seam.
+      ENVIRONMENT_MODE: 'non-production',
       PORT: String(port),
       DATABASE_URL: databaseUrl,
       WEB_DIST_PATH: webDistPath,

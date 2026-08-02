@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate-cli.ts",
-    "db:seed:e2e": "tsx scripts/seed-e2e.ts",
+    "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

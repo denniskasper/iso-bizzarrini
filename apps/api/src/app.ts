@@ -1,6 +1,7 @@
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
+import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import type { AppConfig } from './config/config.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createStatusController } from './controllers/status-controller.js';
@@ -49,6 +50,11 @@ export interface PlatformLocals {
 
 export function createApp(dependencies: AppDependencies): Express {
   const { config, clock, db, emailSender, paymentProvider } = dependencies;
+
+  // Before anything else. A non-production environment that could reach a real member or a real
+  // mandate does not get to exist — every way of starting this application comes through here.
+  assertSafeForEnvironment({ config, emailSender, paymentProvider });
+
   const logger = dependencies.logger ?? createLogger(config);
 
   // repositories → services → controllers → routes
@@ -58,6 +64,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const statusService = createStatusService({
     clock,
     environmentName: config.environmentName,
+    environmentMode: config.environmentMode,
     systemRepository,
   });
   const catalogService = createCatalogService({ modelRepository });
@@ -80,12 +87,24 @@ export function createApp(dependencies: AppDependencies): Express {
     }),
   );
   app.use(pinoHttp({ logger }));
+
+  // Members-only, in every environment: nothing here is for a search engine, and the
+  // non-production system least of all. The markup says the same thing; this covers what a
+  // crawler reaches that is not markup.
+  app.use((_request, response, next) => {
+    response.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    next();
+  });
+
   app.use(express.json({ limit: '1mb' }));
 
   app.use('/api', createApiRouter({ statusController, catalogController }));
   app.use('/api', notFoundHandler);
 
-  const staticSite = createStaticSiteHandler(config.webDistPath);
+  const staticSite = createStaticSiteHandler({
+    webDistPath: config.webDistPath,
+    environmentMode: config.environmentMode,
+  });
   if (staticSite) {
     app.use(staticSite);
   }

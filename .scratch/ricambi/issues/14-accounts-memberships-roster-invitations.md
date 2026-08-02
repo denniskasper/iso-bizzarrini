@@ -16,6 +16,8 @@ invitations cannot. So this ticket carries the first deployment and the sending 
 - [ ] Session cookie scoped to the Ricambi host, so the public club site never receives it
 - [ ] A transactional e-mail provider configured for Ricambi's sending domain, with SPF, DKIM and DMARC validating. It may share an account with the club website's provider, but neither project blocks the other — this is a credential and some DNS records, not a shared component
 - [ ] Invitation mail delivered to a real inbox, not spam, before any member is invited
+- [ ] **The non-production system deployed alongside it, behind the same sign-in gate** — the last box of ticket 02, which built the environment but had no production to stand it beside and no gate to put it behind. It is the same image with `ENVIRONMENT_MODE=non-production`, its own database and its own generated roster; no real member's address is loaded into it. Run ticket 02's written check (`docs/operations/non-production-environment.md`) before anyone is shown it
+- [ ] Reconsider the error-tracking decision (ADR 0011), which was deferred to this ticket because it carries the first deployment and the first real members
 
 - [ ] Account (one per person, keyed by e-mail), Membership (with a Paid-through date) and Club (one row) exist; access requires at least one Membership whose Paid-through has not passed
 - [ ] Roles: Member, Editor, Administrator

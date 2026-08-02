@@ -5,7 +5,7 @@ import { createApp } from '../../src/app.js';
 import { loadConfig, type AppConfig } from '../../src/config/config.js';
 import type { Db } from '../../src/db/client.js';
 import { MutableClock } from '../../src/platform/clock.js';
-import { InMemoryEmailSender } from '../../src/platform/email.js';
+import { InMemoryEmailSender, type EmailSender } from '../../src/platform/email.js';
 import { UnconfiguredPaymentProvider, type PaymentProvider } from '../../src/platform/payments.js';
 import { createTestDatabase, type TestDatabase } from './test-database.js';
 
@@ -33,6 +33,12 @@ export interface TestAppOptions {
   /** Environment overrides, applied on top of the test defaults. */
   env?: Record<string, string>;
   now?: Date;
+  /**
+   * A sender other than the in-memory capture. Only the environment-safety tests need this, to
+   * hand the application something that says it can reach a real person; `emails` below stays
+   * the capture either way.
+   */
+  emailSender?: EmailSender;
   paymentProvider?: PaymentProvider;
 }
 
@@ -40,8 +46,6 @@ export interface TestAppOptions {
 export const DEFAULT_TEST_NOW = new Date('2026-01-15T09:00:00.000Z');
 
 export async function startTestApp(options: TestAppOptions = {}): Promise<TestApp> {
-  const database: TestDatabase = await createTestDatabase();
-
   const config = loadConfig({
     NODE_ENV: 'test',
     ENVIRONMENT_NAME: 'test',
@@ -53,14 +57,25 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
 
   const clock = new MutableClock(options.now ?? DEFAULT_TEST_NOW);
   const emails = new InMemoryEmailSender();
+  const emailSender = options.emailSender ?? emails;
+  const paymentProvider = options.paymentProvider ?? new UnconfiguredPaymentProvider();
 
-  const app = createApp({
-    config,
-    clock,
-    db: database.db,
-    emailSender: emails,
-    paymentProvider: options.paymentProvider ?? new UnconfiguredPaymentProvider(),
-  });
+  const database: TestDatabase = await createTestDatabase();
+
+  let app: Express;
+  try {
+    app = createApp({
+      config,
+      clock,
+      db: database.db,
+      emailSender,
+      paymentProvider,
+    });
+  } catch (error) {
+    // The application refuses to start in an unsafe environment. Leave no connection behind it.
+    await database.close();
+    throw error;
+  }
 
   return {
     app,
