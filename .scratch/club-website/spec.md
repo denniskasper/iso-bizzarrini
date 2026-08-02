@@ -108,11 +108,20 @@ It lives in **its own repository** on **its own host** (`<CLUB_DOMAIN>`), separa
 
 ### Sequencing
 
-This is **M0**, delivered together with the shared infrastructure and before Ricambi's vertical
-slice: VPS in an EU region, Caddy, Docker Compose, offsite backups with a restore actually
-performed, transactional e-mail with SPF/DKIM/DMARC, DNS and TLS. Doing the small, low-risk
-project first retires the live security liability early and proves the shared infrastructure
-before any member data exists on the machine.
+This stream carries the shared infrastructure: VPS in an EU region, Caddy, Docker Compose,
+offsite backups with a restore actually performed, transactional e-mail with SPF/DKIM/DMARC,
+DNS and TLS. Doing the small, low-risk project on it first retires the live security liability
+early and proves the infrastructure before any member data exists on the machine.
+
+**It does not gate the parts archive.** Ricambi's first twelve tickets run against a local
+Postgres and need no server at all, so the two streams proceed in parallel. Ricambi converges
+here only when it first has to be reachable by real members — it takes the Ricambi hostname and
+its own sending domain at that point, sharing this infrastructure without depending on this
+project's content work.
+
+The genuine shared dependency is the **club's domain**, since it lives inside the same hosting
+bundle as the club's e-mail. Tickets 04 and 11 untangle that, and nothing on either side goes
+live under the club's name until they have.
 
 ## Testing Decisions
 

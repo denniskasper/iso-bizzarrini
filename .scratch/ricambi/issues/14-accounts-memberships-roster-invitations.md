@@ -3,9 +3,19 @@
 **What to build:** An Administrator adds a person to the roster; they receive an invitation,
 choose their own password, and sign in. Nobody but the member ever knows their password.
 
-**Blocked by:** 01 — App skeleton with both test seams; club-website 03 — Transactional e-mail.
+**This is where Ricambi first needs to exist on the internet.** Tickets 01–12 run locally;
+invitations cannot. So this ticket carries the first deployment and the sending domain.
+
+**Blocked by:** 01 — App skeleton with both test seams; club-website 01 — VPS, Caddy and DNS.
 
 **Status:** ready-for-agent
+
+## First deployment
+
+- [ ] Deployed to the Ricambi hostname behind Caddy, with automatic TLS
+- [ ] Session cookie scoped to the Ricambi host, so the public club site never receives it
+- [ ] A transactional e-mail provider configured for Ricambi's sending domain, with SPF, DKIM and DMARC validating. It may share an account with the club website's provider, but neither project blocks the other — this is a credential and some DNS records, not a shared component
+- [ ] Invitation mail delivered to a real inbox, not spam, before any member is invited
 
 - [ ] Account (one per person, keyed by e-mail), Membership (with a Paid-through date) and Club (one row) exist; access requires at least one Membership whose Paid-through has not passed
 - [ ] Roles: Member, Editor, Administrator

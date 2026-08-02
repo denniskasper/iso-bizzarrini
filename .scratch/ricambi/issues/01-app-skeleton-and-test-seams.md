@@ -1,13 +1,18 @@
 # 01 — App skeleton with both test seams
 
-**What to build:** The application runs end to end — browser to API to database — deployed on its
-own hostname, with both testing seams established and running in CI. Nothing user-facing yet
-beyond proof that every layer is wired together.
+**What to build:** The application runs end to end — browser to API to database — with both
+testing seams established and running in CI. Nothing user-facing yet beyond proof that every
+layer is wired together.
 
 Everything after this ticket is written against these seams, so getting them right matters more
 than the feature they carry.
 
-**Blocked by:** club-website 01 — VPS, Caddy and DNS serving both hosts.
+**Runs locally. No server required.** Tickets 01–12 — the whole domain model, the viewer, the
+marking tool, parts, listings, navigation, editor tooling — need nothing but a laptop and a
+local Postgres. First deployment lands with ticket 14, where real members first need to reach
+it. This stream therefore runs fully in parallel with the club website.
+
+**Blocked by:** None — can start immediately.
 
 **Status:** ready-for-agent
 
@@ -22,7 +27,8 @@ than the feature they carry.
 - [ ] Interfaces stubbed for the two external edges that will be faked in tests: the payment provider and the e-mail sender
 - [ ] Sentry configured in its EU data region with PII scrubbing enabled
 - [ ] Configuration and secrets are per-environment; nothing environment-specific is compiled in
-- [ ] Deployed to the Ricambi hostname behind Caddy
+- [ ] Runs locally with one command, against a local Postgres — no VPS, no Caddy, no DNS
+- [ ] Containerised so that deploying it later is configuration rather than rework
 - [ ] UI and design work uses the `/frontend-design` skill
 
 ## Visual language

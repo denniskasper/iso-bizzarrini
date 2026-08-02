@@ -265,10 +265,18 @@ Around 100 members. Platform language is English.
 
 ### Build order
 
-- **M0** — infrastructure: VPS, Caddy, Docker Compose, backups with a restore actually performed, transactional e-mail, DNS/TLS. Delivered with the club website (separate spec).
-- **M1** — vertical slice on **a real Tavola**, not sample data: Model, Tavola, Positions, Marks, Parts, Listings; scan ingest and tiling; the marking tool; the viewer with working hotspots; the Part page. Single hard-coded admin login.
+**This project and the club website are independent.** No shared code, separate repositories,
+separate deployables, separate test suites. M1 and M2 below need **no infrastructure at all** —
+they run against a local Postgres on a laptop — so the two streams proceed in parallel and only
+converge when Ricambi first has to be reachable by real members, at M3.
+
+The one thing neither project can route around is the club's **domain**: it lives inside the
+same hosting bundle as the club's e-mail, and nothing goes live under the club's name until
+that is safely untangled (club-website tickets 04 and 11).
+
+- **M1** — vertical slice on **a real Tavola**, not sample data: Model, Tavola, Positions, Marks, Parts, Listings; scan ingest; the marking tool; the viewer with working hotspots; the Part page. Single hard-coded admin login, running locally.
 - **M2** — editor tooling at scale plus migration of the existing spreadsheets. **This is what unblocks volunteers**, and marking Tavole is the project's critical path.
-- **M3** — the gate: roster, invitations, passwords, expiry, reminders, Stripe, auto-renewal. Runs in parallel with M2.
+- **M3** — the gate: roster, invitations, passwords, expiry, reminders, Stripe, auto-renewal. **Carries the first deployment**, since invitations cannot be sent from a laptop. Needs the VPS, the Ricambi hostname and a sending domain.
 - **M4** — Contributions and moderation.
 - **M5** — search, Category filters, polish.
 

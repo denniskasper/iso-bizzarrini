@@ -8,8 +8,8 @@ Paid-through dates nobody has checked, some of them within the reminder window. 
 would then mail the whole membership, on the Club's behalf, demanding money, from unverified data.
 That is unrecallable and it is the Club's reputation.
 
-**Blocked by:** 14 — Accounts, Memberships, roster and invitations; club-website 03 —
-Transactional e-mail.
+**Blocked by:** 14 — Accounts, Memberships, roster and invitations (which carries the sending
+domain).
 
 **Status:** ready-for-agent
 
