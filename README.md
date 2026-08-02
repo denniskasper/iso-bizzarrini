@@ -99,9 +99,30 @@ the marking tool and the editor tooling need nothing but a laptop.
 | API | http://localhost:3000/api/status |
 | Postgres | `localhost:5433`, user `ricambi` |
 
+**You will land on "The archive is members-only", and that is the archive working.** Everything
+is behind the sign-in gate, so use the passphrase in `EDITOR_PASSWORD` — `.env.example` starts it
+at `change-this-passphrase`, and a `.env` written before ticket 03 will not have the key at all.
+Unset admits nobody, which is the safe direction and not a bug.
+
+Signed in, you can record a car, record a drawing and upload a scan. If you would rather start
+from something, **`pnpm db:seed` empties the catalog and writes an invented one** — it is
+destructive on purpose, which is why it is a command a person runs rather than anything a
+deployment does to itself.
+
 Configuration lives in `.env`, described by [`.env.example`](.env.example). Nothing
 environment-specific is compiled in: the same image runs in development, in the non-production
 system and in production, and differs only by what it is handed.
+
+### The commands worth knowing
+
+| | |
+| --- | --- |
+| `pnpm dev` | Postgres, migrations, API and app, from nothing |
+| `pnpm demo` | the built app as a practice system, with an invented catalog |
+| `pnpm test` | both seams |
+| `pnpm db:seed` | empty the catalog and write the invented one — a laptop command, never a deployment's |
+| `pnpm db:generate` | a migration from a change to `schema.ts` (then rename it, and strip `"public".`) |
+| `pnpm scans:measure` | what the archive's own scans say about the tiling question (ADR 0013) |
 
 ### The practice archive
 
@@ -121,20 +142,20 @@ it is run and the written check that no production data is in it are in
 
 ## Showing it to somebody
 
-```sh
-docker compose -f docker/preview/compose.yml up -d --build
-```
+A preview host — Dokploy, or anything that runs a Compose file behind a reverse proxy — gets the
+built app, a Postgres of its own and a volume for the scans, from
+[`docker/preview/compose.yml`](docker/preview/compose.yml).
 
-A preview host — Dokploy, or anything that can run a Compose file behind a reverse proxy — gets
-the built app, a Postgres of its own and a volume for the scans. It applies its own migrations,
-writes itself an invented catalog **only if there is nothing there**, and is a non-production
-system throughout: the DEMO band, the warm chrome, and refusals in front of everything that
-could reach a real person. Setting `ENVIRONMENT_MODE=production` on it will not start, because
-production refuses the stand-in Editor gate.
+It applies its own migrations, writes itself an invented catalog **only if there is nothing
+there** — so nothing recorded through the Editor screens is lost to a redeployment — and is a
+non-production system throughout: the DEMO band, the warm chrome, and refusals in front of
+everything that could reach a real person. Setting `ENVIRONMENT_MODE=production` on it **will
+not start**, because production refuses the stand-in Editor gate. The promotion path from
+preview to archive is deliberately not a configuration flag.
 
-The procedure, the secrets it needs and what to check before anybody sees it are in
-[`docs/operations/preview-deployment.md`](docs/operations/preview-deployment.md). No hostname is
-committed to this repository.
+The procedure, the three secrets it needs and what to check before anybody sees it are in
+[`docs/operations/preview-deployment.md`](docs/operations/preview-deployment.md). **No hostname
+and no secret is committed to this repository** (`AGENTS.md`); they live on the host.
 
 ## Shape
 
@@ -144,8 +165,13 @@ the same origin; in development Vite serves it and proxies `/api`.
 ```
 apps/api             Express + TypeScript + Zod, Drizzle on Postgres
                      routes → controllers → services → repositories
+    access/          who may ask — the gate, and the cookie it remembers by
+    catalog/         rules about catalog text that belong to no layer
+    images/          what a scan becomes at ingest, and how it is addressed
+    storage/         where the files are, behind an interface that hides where
 apps/web             Vite + React + Tailwind + shadcn/ui, TanStack Router and Query
 packages/contracts   What the API promises the browser, declared once
+docker/preview/      the stack a preview host runs
 ```
 
 ### The drawings are private, and that is load-bearing
@@ -181,12 +207,16 @@ untestable or unsafe:
 The latter two also declare what they can reach — `reachesRealPeople`, `reachesRealMandates` —
 and a non-production environment refuses to start holding one that can reach anything real.
 
+The image store is injectable too, but it is **not** one of these: nothing fakes it. It is a
+directory, and a real one in every test.
+
 ## Testing
 
 Two seams, and new tests are added at them rather than at new ones.
 
 **The API seam** drives the Express app in-process over real HTTP against a **real Postgres**,
-with none of our own code mocked. Each worker gets its own schema, so it runs in parallel.
+with none of our own code mocked. Each worker gets its own schema, so it runs in parallel. Scan
+ingest really runs and the files really land — in a temporary directory the suite throws away.
 
 ```sh
 pnpm db:up
@@ -194,11 +224,16 @@ pnpm test:api
 ```
 
 **The browser seam** runs Playwright against the **built** app, served by the API exactly as it
-is in production. Deliberately thin: it is for what the API seam cannot see.
+is in production. Deliberately thin: it is for what the API seam cannot see — that a drawing
+actually renders, that a signed-out browser is told why rather than shown a broken picture, that
+a deep link survives the gate.
 
 ```sh
 pnpm test:e2e
 ```
+
+Neither seam is handed a cookie: both go through the sign-in form or the sign-in route, because
+a suite that stepped around the gate would be exercising an application nobody can reach.
 
 Both run in CI on every push, along with typechecking, linting, formatting and a container
 build.
