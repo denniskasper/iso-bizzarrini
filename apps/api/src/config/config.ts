@@ -8,9 +8,9 @@ import { z } from 'zod';
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /**
-   * Which deployment this is. Shown to the operator, tagged on error reports, and the hook a
-   * non-production environment hangs its banner on. A free string, not an enum, because
-   * naming environments is an operations decision rather than a code change.
+   * Which deployment this is. Shown to the operator, and the hook a non-production environment
+   * hangs its banner on. A free string, not an enum, because naming environments is an
+   * operations decision rather than a code change.
    */
   ENVIRONMENT_NAME: z.string().min(1).default('development'),
   PORT: z.coerce.number().int().positive().max(65535).default(3000),
@@ -18,9 +18,6 @@ const environmentSchema = z.object({
   /** Where the built single-page app lives. Unset means the API serves no static files. */
   WEB_DIST_PATH: z.string().min(1).optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-
-  SENTRY_DSN: z.string().url().optional(),
-  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
 
   /** `memory` captures mail for inspection; `none` refuses to send at all. */
   EMAIL_TRANSPORT: z.enum(['none', 'memory']).default('none'),
@@ -38,10 +35,6 @@ export interface AppConfig {
   databaseUrl: string;
   webDistPath: string | undefined;
   logLevel: Environment['LOG_LEVEL'];
-  sentry: {
-    dsn: string | undefined;
-    tracesSampleRate: number;
-  };
   email: {
     transport: Environment['EMAIL_TRANSPORT'];
   };
@@ -76,10 +69,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: env.DATABASE_URL,
     webDistPath: env.WEB_DIST_PATH,
     logLevel: env.LOG_LEVEL,
-    sentry: {
-      dsn: env.SENTRY_DSN,
-      tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
-    },
     email: {
       transport: env.EMAIL_TRANSPORT,
     },

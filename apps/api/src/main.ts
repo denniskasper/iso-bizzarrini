@@ -4,7 +4,6 @@ import { loadConfig } from './config/config.js';
 import { loadEnvFile } from './config/env-file.js';
 import { createDatabase } from './db/client.js';
 import { systemClock } from './platform/clock.js';
-import { attachErrorReportingTo, initialiseErrorReporting } from './platform/error-reporting.js';
 import { createLogger } from './platform/logger.js';
 
 /**
@@ -15,7 +14,6 @@ loadEnvFile();
 
 const config = loadConfig();
 const logger = createLogger(config);
-const errorReportingEnabled = initialiseErrorReporting(config);
 
 const database = createDatabase(config.databaseUrl);
 
@@ -26,14 +24,10 @@ const app = createApp({
   emailSender: createEmailSender(config),
   paymentProvider: createPaymentProvider(config),
   logger,
-  ...(errorReportingEnabled ? { attachErrorReporting: attachErrorReportingTo } : {}),
 });
 
 const server = app.listen(config.port, () => {
-  logger.info(
-    { port: config.port, environment: config.environmentName, errorReportingEnabled },
-    'Ricambi API listening',
-  );
+  logger.info({ port: config.port, environment: config.environmentName }, 'Ricambi API listening');
 });
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {

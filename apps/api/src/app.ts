@@ -29,8 +29,13 @@ export interface AppDependencies {
   paymentProvider: PaymentProvider;
   logger?: Logger;
   /**
-   * Hook for the error reporter, called after the routes and before our own error handler —
-   * which is the only place it can see a failure and still let us answer with clean JSON.
+   * Where an error reporter would attach: after the routes, before our own error handler —
+   * the only place it can see a failure and still let us answer with clean JSON.
+   *
+   * Nothing supplies this today. Ricambi has no error-tracking vendor (ADR 0011): unhandled
+   * errors are logged to the box through pino, and adding a third party that receives stack
+   * traces from a members-only archive was not worth a processor agreement before there is
+   * even a deployment. This hook is the seam to reconsider at ticket 14, when there is one.
    */
   attachErrorReporting?: (app: Express) => void;
 }

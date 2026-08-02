@@ -14,7 +14,7 @@ it. This stream therefore runs fully in parallel with the club website.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Express and TypeScript API with Zod validation, layered routes → controllers → services → repositories
 - [x] Drizzle on Postgres, with migrations under version control
@@ -25,7 +25,7 @@ it. This stream therefore runs fully in parallel with the club website.
 - [x] Both suites run in CI on every push
 - [x] **The clock is injected**, never read from the system in domain code — expiry, reminder windows and retention all depend on it
 - [x] Interfaces stubbed for the two external edges that will be faked in tests: the payment provider and the e-mail sender
-- [ ] Sentry configured in its EU data region with PII scrubbing enabled — *code done and enforced; needs a Sentry project and DSN*
+- [x] Sentry configured in its EU data region with PII scrubbing enabled — *built and tested, then removed by decision; there is no error-tracking vendor (ADR 0011)*
 - [x] Configuration and secrets are per-environment; nothing environment-specific is compiled in
 - [x] Runs locally with one command, against a local Postgres — no VPS, no Caddy, no DNS
 - [x] Containerised so that deploying it later is configuration rather than rework
@@ -48,8 +48,9 @@ Google's plainness.**
 
 ## Comments
 
-**Implemented.** Everything above is done except the two items left unchecked, both of which
-need a person rather than an agent.
+**Delivered.** Every box above is answered. Two of them were answered by a decision rather than
+by code — the error-tracking vendor was removed (ADR 0011) and the Club's logo asset is
+deliberately not committed — and both are explained below.
 
 **What was built.** A pnpm workspace with `apps/api` (Express 5, Zod, Drizzle on Postgres,
 layered routes → controllers → services → repositories) and `apps/web` (Vite, React, Tailwind
@@ -77,19 +78,21 @@ nothing sends mail or takes money until tickets 14 and 18. Their default impleme
 *refuse* rather than no-op, so a misconfigured environment fails loudly instead of silently
 dropping an invitation or accepting an unverified webhook.
 
-**Sentry.** The code is written and both rules are now *tested*
-(`apps/api/tests/error-reporting.test.ts`): a DSN on `sentry.io` outside the EU ingest is a
-startup failure, and scrubbing strips user, server name, headers, cookies, body and query
-string before an event leaves. The check's limit is deliberate and stated in the test: a
-**self-hosted** Sentry passes, because where it lives is an operations decision this code
-cannot see. What remains is an account action — create the project in the EU region and set
-`SENTRY_DSN`.
+**Sentry was built, tested, and then removed.** The code existed and both of its rules were
+tested: a DSN on `sentry.io` outside the EU ingest was a startup failure, and scrubbing stripped
+user, server name, headers, cookies, body and query string before an event left. It went anyway,
+and ADR 0011 records why — a processor agreement with a third party that receives stack traces
+from a members-only archive, plus 44 MB of image, could not be earned back by tickets 01–13,
+which run on a laptop where the console is right there.
 
-These two rules are tested directly rather than at the API seam, which the spec's "no third
-layer of unit tests" rule would otherwise discourage. The rule's stated reasons — coupling to
-internals, duplicating existing coverage — apply to neither: one refuses to start the process
-and the other runs on the way out to a third party, so neither has an HTTP surface to be
-reached through, and neither is covered anywhere else.
+What is lost is aggregation and alerting, and that is a real gap rather than a non-issue: with
+around a hundred members visiting twice a year, an error in the evening is discovered when
+someone e-mails the Club office, or not at all. Unhandled errors are logged on the box through
+pino. The seam a reporter attaches to — `AppDependencies.attachErrorReporting`, after the
+routes and before our error handler — is kept and documented, and the decision is to be
+reconsidered at ticket 14, which carries the first deployment and the first real members.
+
+**This closes the ticket.** Nothing on it now waits for a person.
 
 **The Club's identity was captured, and it corrected the design.** The live Club site was
 loaded in a real browser and its *computed* styles read — every element's font, colour,

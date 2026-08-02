@@ -5,6 +5,9 @@ Tailwind, routed and fetched with TanStack Router and Query; the API is Express 
 TypeScript with Zod validation and Sentry (EU data region, PII scrubbing on); persistence is
 Drizzle ORM on Postgres. **One deployable**, not a service split.
 
+> **The Sentry clause is superseded by ADR 0011.** There is no error-tracking vendor; unhandled
+> errors are logged on the box. Everything else here stands.
+
 Server-side rendering was not adopted: every page sits behind a login, so there is nothing to
 render for an anonymous visitor and no SEO to serve. The public-facing content lives in a
 separate static site entirely (see ADR 0010).

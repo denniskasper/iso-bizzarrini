@@ -22,7 +22,7 @@ and everything from the viewer onward waits on it.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
-| 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Implemented — 1 item needs a human | `ready-for-human` | — |
+| 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
 | 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | Not started | `ready-for-agent` | 01 |
 | 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | Not started | `ready-for-agent` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | Not started | `ready-for-agent` | 03 |
@@ -47,19 +47,17 @@ and everything from the viewer onward waits on it.
 | 23 | [Category filters](.scratch/ricambi/issues/23-category-filters.md) | Not started | `ready-for-agent` | 03 |
 | 24 | [Platform legal pages and data-protection records](.scratch/ricambi/issues/24-platform-legal-pages-and-gdpr-records.md) | Not started | `ready-for-agent` | 15, 21 |
 
-### What ticket 01 still needs from a person
+### Two things worth knowing about ticket 01
 
-One thing, and it is an account matter rather than code:
+**There is no error-tracking vendor** (ADR 0011). Sentry was specified, built and tested, then
+removed: it could not earn a processor agreement and 44 MB of image before there was even a
+deployment. Unhandled errors are logged on the box through pino. The seam a reporter would
+attach to is kept, and the decision is to be reconsidered at ticket 14, which carries the first
+deployment and the first real members.
 
-- **A Sentry project in the EU data region**, and its DSN in `SENTRY_DSN`. The code is written
-  and tested — a non-EU `sentry.io` DSN is a startup failure, and every event is scrubbed before
-  it leaves — but the project itself has to be created by someone with the association's
-  account, along with the processor agreement that goes with it.
-
-Also worth knowing: **the Club's logo file is deliberately not in this repository.** It carries
-the association's name, and `AGENTS.md` forbids client-identifying material here. The colour and
-typography *are* the Club's, measured from its live site; the logo asset is dropped in at deploy
-time.
+**The Club's logo file is deliberately not in this repository.** It carries the association's
+name, and `AGENTS.md` forbids client-identifying material here. The colour and typography *are*
+the Club's, measured from its live site; the logo asset is dropped in at deploy time.
 
 ### The club website
 
