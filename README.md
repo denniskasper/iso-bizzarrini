@@ -15,15 +15,15 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [03](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md)** — the
-critical path: it decides tiled-or-not by *measuring real scans*, and everything from the viewer
-onward waits on it.
+**Next up: [04](.scratch/ricambi/issues/04-drawing-viewer.md)** — the drawing viewer, the
+product's defining surface. Ticket 03 left it one private image per Tavola to zoom rather than a
+tile pyramid ([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)).
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
 | 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
 | 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | 10 of 11 | `done` | 01 |
-| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | Not started | `ready-for-agent` | 01 |
+| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 14 of 18 | `ready-for-human` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | Not started | `ready-for-agent` | 03 |
 | 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Not started | `ready-for-agent` | 04 |
 | 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Not started | `ready-for-agent` | 05 |
@@ -50,6 +50,15 @@ Ticket 02's one open box — the practice system *deployed* alongside production
 sign-in gate — is carried by [ticket 14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md),
 which lists it. The environment itself is built and runs today; there is simply nothing yet to
 stand it beside.
+
+**Ticket 03's four open boxes need a person, not code.** It asks for at least a dozen *real*
+scans from the club archive to be measured before the deep-zoom question is settled, and none has
+been obtained — the only genuine drawing anyone has seen was supplied downsized. Two more boxes
+are conditional on that measurement, and the fourth belongs to ticket 05, which places the first
+Mark. Everything the ticket asks for in code is built, and the measurement is now taken by the
+archive itself: ingest records every scan's dimensions and byte sizes, and `pnpm scans:measure`
+reads them back and applies the threshold. See
+[ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md).
 
 ### Two things worth knowing about ticket 01
 
@@ -121,6 +130,21 @@ apps/api             Express + TypeScript + Zod, Drizzle on Postgres
 apps/web             Vite + React + Tailwind + shadcn/ui, TanStack Router and Query
 packages/contracts   What the API promises the browser, declared once
 ```
+
+### The drawings are private, and that is load-bearing
+
+Members contribute what they know on the understanding that only the Club sees the archive, so
+the scans are never on a public path ([ADR 0006](docs/adr/0006-private-image-storage.md)). The
+original and both derived images go into a directory nothing serves — `FILE_STORAGE_PATH`, a
+mounted volume in any deployment — and come back out only through `/api/scans/:id/:variant`,
+which refuses a request that has not signed in. The address carries the scan's id, so a
+re-upload is a new address and every image is cached for a year, immutable.
+
+The gate in front of it is **a stand-in**: one shared passphrase in `EDITOR_PASSWORD`, which is
+the whole of M1's "single hard-coded admin login". Accounts, Memberships and a live-membership
+check on every request arrive with tickets 14 and 15. The application **refuses to start in
+production** while that passphrase is set, so the stand-in cannot become the real gate by nobody
+getting round to it.
 
 `packages/contracts` is **types only** — it emits no JavaScript, is consumed with `import type`,
 and so needs no build step and appears in neither bundle. That is what makes it free; put a

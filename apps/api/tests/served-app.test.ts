@@ -69,7 +69,7 @@ describe('the app as it is served', () => {
 
     beforeAll(async () => {
       app = await startTestApp({
-        env: { WEB_DIST_PATH: distPath, ENVIRONMENT_MODE: 'production' },
+        env: { WEB_DIST_PATH: distPath, ENVIRONMENT_MODE: 'production', EDITOR_PASSWORD: '' },
       });
     });
 

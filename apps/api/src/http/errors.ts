@@ -33,6 +33,30 @@ export class ValidationError extends HttpError {
   }
 }
 
+/**
+ * Nobody is signed in. The archive is members-only, so this is the answer to a request for a
+ * scan from a browser that has not been through the gate.
+ */
+export class NotSignedInError extends HttpError {
+  constructor(message = 'Sign in to reach the archive.') {
+    super(401, 'not_signed_in', message);
+  }
+}
+
+/** The request contradicts something already recorded — a Tavola number used twice on a Model. */
+export class ConflictError extends HttpError {
+  constructor(message: string, details?: unknown) {
+    super(409, 'conflict', message, details);
+  }
+}
+
+/** The request carried something we cannot make sense of — a scan that is not an image. */
+export class UnsupportedMediaTypeError extends HttpError {
+  constructor(message: string) {
+    super(415, 'unsupported_media_type', message);
+  }
+}
+
 export const notFoundHandler: RequestHandler = (_request, _response, next) => {
   next(new NotFoundError());
 };
@@ -56,9 +80,32 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
       return;
     }
 
+    // Body parsers refuse before a handler ever sees the request, and the two ways they refuse
+    // are both the sender's fault rather than ours: an oversized upload and unreadable JSON.
+    // Without this they arrive here indistinguishable from a bug and are answered with a 500.
+    if (isBodyParserRefusal(error, 'entity.too.large')) {
+      response
+        .status(413)
+        .json(body('payload_too_large', 'That was larger than this archive accepts.'));
+      return;
+    }
+    if (isBodyParserRefusal(error, 'entity.parse.failed')) {
+      response.status(400).json(body('validation_failed', 'That request body was not valid JSON.'));
+      return;
+    }
+
     logger.error({ err: error }, 'Unhandled error');
     response.status(500).json(body('internal_error', 'Something went wrong.'));
   };
+}
+
+function isBodyParserRefusal(error: unknown, type: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    (error as { type: unknown }).type === type
+  );
 }
 
 function body(code: string, message: string, details?: unknown): ApiErrorBody {

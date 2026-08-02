@@ -8,6 +8,13 @@
       "when": 1785699803227,
       "tag": "0000_models",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785706755844,
+      "tag": "0001_tavole_categories_scans",
+      "breakpoints": true
     }
   ]
 }

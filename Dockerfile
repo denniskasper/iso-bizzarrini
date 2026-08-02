@@ -43,5 +43,12 @@ ENV WEB_DIST_PATH=/app/web
 ENV PORT=3000
 EXPOSE 3000
 
+# The archive's scans. A directory nothing serves — the images are reachable only through the
+# authenticated route (ADR 0006) — and one that must be a mounted volume in any deployment,
+# since a container that keeps the Club's drawings inside itself loses them on the next deploy.
+ENV FILE_STORAGE_PATH=/app/data
+RUN mkdir -p /app/data && chown node:node /app/data
+VOLUME ["/app/data"]
+
 USER node
 CMD ["node", "dist/main.js"]

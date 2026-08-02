@@ -37,6 +37,14 @@
   --line: oklch(0.917 0.007 277);
   --line-strong: oklch(0.76 0.008 264);
 
+  /*
+   * Paper. **The one token that is identical in both themes and in a practice system**, because
+   * a factory drawing is black lines on white and the sheet it was printed on does not care what
+   * the reader's phone is set to. Every scan sits on this, so the drawing is the brightest thing
+   * on a dark screen — which is the whole argument for dark chrome, made literal.
+   */
+  --paper: oklch(1 0 0);
+
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);
   --text-muted: oklch(0.45 0.009 261);
@@ -146,6 +154,7 @@ html.dark[data-environment-mode='non-production'] {
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-paper: var(--paper);
 
   --color-text: var(--text);
   --color-muted: var(--text-muted);

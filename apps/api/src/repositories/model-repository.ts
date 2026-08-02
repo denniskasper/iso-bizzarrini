@@ -1,14 +1,15 @@
 import { asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { models, type ModelRow } from '../db/schema.js';
+import { models, type ModelRow, type NewModelRow } from '../db/schema.js';
 
 /**
- * Reading Models. The repository knows about rows; nothing above it does. Creating a Model is
- * an Editor's job and arrives with ticket 03.
+ * Models. The repository knows about rows; nothing above it does.
  */
 export interface ModelRepository {
   listAll(): Promise<ModelRow[]>;
   listByBrand(brand: string): Promise<ModelRow[]>;
+  findById(id: string): Promise<ModelRow | null>;
+  add(model: NewModelRow): Promise<ModelRow>;
 }
 
 export function createModelRepository(db: Db): ModelRepository {
@@ -28,6 +29,19 @@ export function createModelRepository(db: Db): ModelRepository {
         .from(models)
         .where(eq(models.brand, brand))
         .orderBy(...ordered);
+    },
+
+    async findById(id) {
+      const [row] = await db.select().from(models).where(eq(models.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async add(model) {
+      const [row] = await db.insert(models).values(model).returning();
+      if (!row) {
+        throw new Error('Inserting a Model returned nothing.');
+      }
+      return row;
     },
   };
 }

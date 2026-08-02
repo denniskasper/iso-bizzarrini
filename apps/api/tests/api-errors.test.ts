@@ -13,13 +13,19 @@ describe('how the API fails', () => {
   });
 
   it('answers an unknown API path with JSON, never an HTML error page', async () => {
-    const response = await app
-      .request()
-      .get('/api/tavole')
-      .expect('Content-Type', /json/)
-      .expect(404);
+    const member = await app.editor();
+
+    const response = await member.get('/api/tavole').expect('Content-Type', /json/).expect(404);
 
     expect(response.body.error).toMatchObject({ code: 'not_found' });
+  });
+
+  // Signed out, the same path is a 401 rather than a 404 — the gate is in front of the whole
+  // API surface, so a stranger cannot map which addresses exist by reading the refusals.
+  it('does not tell a stranger which API paths exist', async () => {
+    const response = await app.request().get('/api/tavole').expect(401);
+
+    expect(response.body.error).toMatchObject({ code: 'not_signed_in' });
   });
 
   it('does not announce the server it runs on', async () => {

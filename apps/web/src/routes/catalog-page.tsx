@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+import { NewModelForm } from '@/components/editor/new-model-form';
 import { Roundel } from '@/components/wordmark';
 import { api, type CatalogModel } from '@/lib/api';
 
 /**
- * The catalog index — the skeleton's one route that travels the whole path, browser to API to
- * database and back.
+ * The catalog index — where a member starts, by finding their car.
  *
  * Laid out as the index page of a printed catalog rather than as a table: the brand is a
  * running head, each Model a ruled row, and every number the factory printed is set in mono.
@@ -23,6 +24,8 @@ export function CatalogPage() {
         Choose a car, open the factory drawing, click the numbered position, read the part.
       </p>
 
+      <NewModelForm className="mt-12" />
+
       <div className="mt-16">
         {isPending && <Notice>Reading the catalog…</Notice>}
         {isError && <Notice tone="alarm">The archive could not be reached. {error.message}</Notice>}
@@ -37,10 +40,9 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
     return (
       <div className="registration-mark border border-line px-8 py-16 text-center sm:py-24">
         <Roundel className="mx-auto size-7 text-line-strong" />
-        <p className="mt-6 text-xl">No Models have been recorded yet.</p>
+        <p className="mt-6 text-xl">No cars have been recorded yet.</p>
         <p className="mx-auto mt-3 max-w-measure text-pretty text-muted">
-          Every layer is wired together — this page reached the API, and the API reached the
-          database to ask. Models, Tavole and their scans arrive with the next ticket.
+          An Editor records a car first, then the drawings the factory made of it.
         </p>
       </div>
     );
@@ -62,13 +64,18 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
           <ul className="mt-2 border-b border-line">
             {brandModels.map((model) => (
               <li key={model.id} data-testid="model-row">
-                <div className="catalog-row">
+                <Link
+                  to="/models/$modelId"
+                  params={{ modelId: model.id }}
+                  className="catalog-row"
+                  aria-label={`${model.brand} ${model.name}`}
+                >
                   <span className="text-xl">{model.name}</span>
                   <span className="tabular text-sm text-muted">{model.series ?? ''}</span>
                   <span className="tabular text-sm text-faint sm:text-right">
                     {model.modelYears ?? ''}
                   </span>
-                </div>
+                </Link>
               </li>
             ))}
           </ul>

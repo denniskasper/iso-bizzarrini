@@ -1,13 +1,25 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './support/gate.js';
 
 test.describe('the application shell', () => {
   test('serves the app for a deep link, so a shared address survives a reload', async ({
     page,
   }) => {
-    // Nothing lives here yet, but the *archive* must answer — not the web server.
+    // Nothing lives here, but the *archive* must answer — not the web server.
     const response = await page.goto('/tavola/207');
 
     expect(response?.status()).toBe(200);
+    // Signed out, even an address that does not exist is answered by the gate rather than by a
+    // page saying what is not there. A stranger learns nothing about the archive's shape.
+    await expect(page.getByRole('heading', { name: 'The archive is members-only.' })).toBeVisible();
+  });
+
+  test('says plainly when a signed-in member follows an address that leads nowhere', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto('/tavola/207');
+
     await expect(page.getByRole('heading', { name: 'There is nothing here.' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to the catalog' })).toBeVisible();
   });

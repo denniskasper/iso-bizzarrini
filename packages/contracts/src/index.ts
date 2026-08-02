@@ -59,3 +59,116 @@ export interface CatalogModel {
 export interface CatalogModelsResponse {
   models: CatalogModel[];
 }
+
+/** `GET /api/models/:modelId` — a Model and every Tavola drawn for it. */
+export interface CatalogModelResponse {
+  model: CatalogModel;
+  tavole: TavolaSummary[];
+}
+
+/**
+ * A Category is the system of the car a Tavola belongs to — Brakes, Electrical, Fuel System.
+ * It groups tavole within a Model and across Models, and it is what navigation uses.
+ */
+export interface Category {
+  id: string;
+  /** As an Editor wrote it. */
+  name: string;
+  /** What decides whether two typed names are the same Category. */
+  slug: string;
+}
+
+/** `GET /api/categories` */
+export interface CategoriesResponse {
+  categories: Category[];
+}
+
+/**
+ * A Tavola's scan, as the browser may reach it.
+ *
+ * Every address here is authenticated and immutable: a signed-out request is refused, and a
+ * re-upload produces a new scan and therefore a new address, so a browser may keep what it has
+ * for as long as it likes (ADR 0006, ADR 0013).
+ */
+export interface TavolaScan {
+  id: string;
+  /** The dimensions of what `displayUrl` serves, so a viewer knows the aspect ratio up front. */
+  width: number;
+  height: number;
+  /** The whole drawing, prepared at ingest. */
+  displayUrl: string;
+  /** A thumbnail, so listing a Model's Tavole never downloads a drawing. */
+  previewUrl: string;
+}
+
+/** A Tavola as a Model's list reports it. */
+export interface TavolaSummary {
+  id: string;
+  /** As printed on the sheet — an opaque string, never arithmetic. */
+  number: string;
+  nameIt: string;
+  nameEn: string;
+  category: Category;
+  /** `null` until a scan is uploaded. A Tavola without one is a legitimate state. */
+  scan: TavolaScan | null;
+}
+
+/**
+ * The factory's own classification, printed on the sheet as *Sezione*, *Gruppo* and
+ * *Sottogruppo*, reported exactly as the factory wrote it.
+ *
+ * **Provenance, not navigation.** It is here so a member can match the screen against a paper
+ * catalog; nothing filters or groups by it. That is the Category's job.
+ */
+export interface CatalogProvenance {
+  section: string | null;
+  group: string | null;
+  subgroup: string | null;
+}
+
+/** `GET /api/tavole/:tavolaId` */
+export interface TavolaResponse {
+  tavola: TavolaSummary & {
+    model: CatalogModel;
+    provenance: CatalogProvenance;
+  };
+}
+
+/**
+ * `POST /api/models` — what an Editor records about a car.
+ *
+ * The **wire** shape, which is why every field is a plain string: a form sends what was typed,
+ * and blank means "the catalog does not go that far" rather than a value. The API narrows it to
+ * its own shape on the way in, and that narrowing is the API's business.
+ */
+export interface NewModelRequest {
+  brand: string;
+  name: string;
+  series: string;
+  modelYears: string;
+}
+
+/** `POST /api/models/:modelId/tavole` — what an Editor records about a drawing. */
+export interface NewTavolaRequest {
+  /** As printed on the sheet. */
+  number: string;
+  nameIt: string;
+  nameEn: string;
+  /** Typed, not chosen: its slug decides whether this is a new Category or one already used. */
+  category: string;
+  /** The factory's own header, as printed. Blank where the sheet prints none. */
+  catalogSection: string;
+  catalogGroup: string;
+  catalogSubgroup: string;
+}
+
+/**
+ * `GET /api/session`
+ *
+ * The stand-in gate that stands in front of the scans until ticket 14 brings Accounts and
+ * Memberships. It admits Editors and nobody else, so being signed in is what "may edit" means
+ * for as long as it exists.
+ */
+export interface SessionResponse {
+  signedIn: boolean;
+}

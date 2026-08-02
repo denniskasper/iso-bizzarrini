@@ -80,7 +80,7 @@ describe('production', () => {
     let app: TestApp | undefined;
     try {
       app = await startTestApp({
-        env: { ENVIRONMENT_MODE: 'production', REMINDERS_ENABLED: 'true' },
+        env: { ENVIRONMENT_MODE: 'production', REMINDERS_ENABLED: 'true', EDITOR_PASSWORD: '' },
         emailSender: senderThatReachesMembers,
         paymentProvider: providerThatReachesRealMandates,
       });

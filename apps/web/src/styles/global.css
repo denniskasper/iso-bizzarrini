@@ -100,6 +100,30 @@
   }
 
   /*
+   * A plate: one drawing on the sheet it was printed on.
+   *
+   * A Model's Tavole are laid out as a **contact sheet** — the way anyone with a box of plates
+   * actually looks through them, by looking rather than by reading a list of numbers. So the
+   * drawing sits on paper white in both themes, ruled, and the chrome around it does nothing
+   * but hold it. `object-contain` because a factory drawing may not be distorted to fill a
+   * box, and a fixed ratio because a contact sheet whose cells are all different heights is a
+   * pile, not a sheet.
+   */
+  .plate {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background-color: var(--paper);
+    border: 1px solid var(--line);
+  }
+
+  .plate > img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /*
    * The mark a non-production system wears: a proof stamp. Everything in this archive is
    * printed matter, and a proof sheet is a print that is explicitly not the finished one —
    * hatched along its edge so that nobody files it as the real thing. It is the only element

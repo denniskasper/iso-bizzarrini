@@ -30,6 +30,19 @@ export function assertSafeForEnvironment(assembled: {
   const { config, emailSender, paymentProvider } = assembled;
 
   if (config.environmentMode === 'production') {
+    // The one rule that points the other way. `EDITOR_PASSWORD` is M1's stand-in for a sign-in
+    // gate — one shared passphrase, no Accounts, no Memberships, no expiry — and it exists so
+    // the scans are not readable by the whole internet while ticket 14 is being built. A shared
+    // passphrase guarding the members' archive is a different thing entirely, and the way that
+    // happens is nobody getting round to replacing it. So it cannot start.
+    if (config.editorGate.password !== undefined) {
+      throw new EnvironmentSafetyError(
+        `"${config.environmentName}" is production and will not start with EDITOR_PASSWORD set. ` +
+          'That is the stand-in Editor gate: one shared passphrase for everyone, with no ' +
+          'Account, no Membership and no expiry behind it. Production is gated by the roster ' +
+          '(ticket 14). Unset EDITOR_PASSWORD.',
+      );
+    }
     return;
   }
 

@@ -11,6 +11,12 @@ long, immutable cache headers so that panning around a drawing re-requests almos
 this membership's scale the per-request check costs nothing, and revocation stays immediate,
 which is what "access blocked on expiry" requires.
 
+**Decided, in [ADR 0013](0013-one-private-image-not-a-tile-pyramid.md): one private image per
+Tavola, no tile pyramid** — and ingest now records every scan's dimensions and byte sizes, so
+the measurement this ADR wanted is taken by the archive itself rather than by hand. The section
+below is the reasoning that deferral rested on, kept because the threshold in 0013 is measured
+against it.
+
 ## Whether the scans are tiled is deliberately not decided here
 
 This ADR fixes **privacy and access**, not the delivery format. Deep-zoom tiling was chosen on

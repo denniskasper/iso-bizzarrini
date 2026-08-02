@@ -8,6 +8,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# The archive's own image files. Private by design (ADR 0006) and never in a repository.
+.data/
+
 # Test output
 test-results/
 playwright-report/

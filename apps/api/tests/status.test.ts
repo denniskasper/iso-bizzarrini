@@ -33,7 +33,9 @@ describe('service status', () => {
   });
 
   it('calls itself production only when the environment says so', async () => {
-    const production = await startTestApp({ env: { ENVIRONMENT_MODE: 'production' } });
+    const production = await startTestApp({
+      env: { ENVIRONMENT_MODE: 'production', EDITOR_PASSWORD: '' },
+    });
     try {
       const response = await production.request().get('/api/status').expect(200);
 

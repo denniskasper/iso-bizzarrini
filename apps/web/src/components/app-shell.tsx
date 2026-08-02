@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { EnvironmentBanner } from '@/components/environment-banner';
+import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Wordmark } from '@/components/wordmark';
 import { ServiceStatusStrip } from '@/components/service-status-strip';
@@ -27,7 +28,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Wordmark />
             </a>
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <SessionControl />
+              <ThemeToggle />
+            </div>
           </div>
         </header>
       </div>

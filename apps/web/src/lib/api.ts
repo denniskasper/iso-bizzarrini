@@ -1,4 +1,17 @@
-import type { ApiErrorBody, CatalogModelsResponse, ServiceStatus } from '@ricambi/contracts';
+import type {
+  ApiErrorBody,
+  CategoriesResponse,
+  CatalogModel,
+  CatalogModelResponse,
+  CatalogModelsResponse,
+  NewModelRequest,
+  NewTavolaRequest,
+  ServiceStatus,
+  SessionResponse,
+  TavolaResponse,
+  TavolaScan,
+  TavolaSummary,
+} from '@ricambi/contracts';
 
 /**
  * The API client. Same-origin always: in development Vite proxies /api, in production the API
@@ -38,9 +51,50 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function send<T>(method: string, path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 export const api = {
   status: () => request<ServiceStatus>('/status'),
+
+  session: () => request<SessionResponse>('/session'),
+  signIn: (passphrase: string) => send<SessionResponse>('POST', '/session', { passphrase }),
+  signOut: () => request<SessionResponse>('/session', { method: 'DELETE' }),
+
   models: () => request<CatalogModelsResponse>('/models'),
+  model: (modelId: string) => request<CatalogModelResponse>(`/models/${modelId}`),
+  createModel: (model: NewModelRequest) => send<{ model: CatalogModel }>('POST', '/models', model),
+
+  categories: () => request<CategoriesResponse>('/categories'),
+
+  tavola: (tavolaId: string) => request<TavolaResponse>(`/tavole/${tavolaId}`),
+  createTavola: (modelId: string, tavola: NewTavolaRequest) =>
+    send<{ tavola: TavolaSummary }>('POST', `/models/${modelId}/tavole`, tavola),
+
+  /**
+   * The scan is the request body rather than a form field: there is nothing else on this
+   * request to name, so the bytes go up as they are instead of being field-parsed on the way.
+   */
+  uploadScan: (tavolaId: string, file: File) =>
+    request<{ scan: TavolaScan }>(`/tavole/${tavolaId}/scan`, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
 };
 
-export type { CatalogModel, ServiceStatus } from '@ricambi/contracts';
+export type {
+  CatalogModel,
+  CatalogProvenance,
+  Category,
+  NewModelRequest,
+  NewTavolaRequest,
+  ServiceStatus,
+  TavolaScan,
+  TavolaSummary,
+} from '@ricambi/contracts';

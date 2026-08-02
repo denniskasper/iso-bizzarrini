@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import type { EnvironmentMode } from '@ricambi/contracts';
 import { z } from 'zod';
 
@@ -6,6 +7,14 @@ import { z } from 'zod';
  * Nothing environment-specific is compiled in: the same image runs in development, in the
  * non-production system and in production, and differs only by what it is handed here.
  */
+/**
+ * A variable written in a `.env` file with nothing after the `=` is a variable somebody meant
+ * to leave unset — an empty string is not a passphrase and not a signing key.
+ */
+function blankAsUnset(value: unknown): unknown {
+  return typeof value === 'string' && value.trim() === '' ? undefined : value;
+}
+
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /**
@@ -44,6 +53,50 @@ const environmentSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+
+  /**
+   * The **stand-in** Editor gate: one shared passphrase, which is the whole of M1's
+   * "single hard-coded admin login". Accounts, Memberships, invitations and per-person
+   * passwords arrive with ticket 14 and replace this entirely.
+   *
+   * Unset means nobody can sign in, and therefore nobody can reach a scan. That is the safe
+   * direction: an archive that refuses everyone is a nuisance, an archive that admits everyone
+   * is the promise the Club made to its members, broken.
+   *
+   * The application refuses to start in **production** while this is set, so the stand-in
+   * cannot become the thing that guards the real archive by nobody getting round to it.
+   */
+  EDITOR_PASSWORD: z.preprocess(
+    blankAsUnset,
+    z.string().min(10, 'EDITOR_PASSWORD must be at least 10 characters').optional(),
+  ),
+
+  /**
+   * Signs the session cookie. Unset means one is generated at startup, so sessions simply do
+   * not survive a restart — which is right for a laptop and obvious in a deployment. There is
+   * deliberately no default value to leave in place by accident.
+   */
+  SESSION_SECRET: z.preprocess(
+    blankAsUnset,
+    z.string().min(32, 'SESSION_SECRET must be at least 32 characters').optional(),
+  ),
+
+  /**
+   * Where scans and their derived images are written. A directory, not a URL and not inside
+   * anything served statically: the archive's images are reachable only through the
+   * authenticated route (ADR 0006).
+   */
+  FILE_STORAGE_PATH: z.string().min(1).default('.data/files'),
+
+  /**
+   * The largest scan ingest will accept. An A3 sheet scanned at 600 dpi and kept uncompressed
+   * is around 100 MB, which is the most anyone has suggested this archive might hold.
+   */
+  MAX_SCAN_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(100 * 1024 * 1024),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -75,6 +128,16 @@ export interface AppConfig {
    * not go through `createApp`, owes `assertSafeForEnvironment` a call of its own (ADR 0012).
    */
   remindersEnabled: boolean;
+  /** The stand-in Editor gate. `password` unset means nobody can sign in. */
+  editorGate: {
+    password: string | undefined;
+    sessionSecret: string | undefined;
+  };
+  files: {
+    /** Absolute, so nothing depends on where the process happens to have been started. */
+    storagePath: string;
+    maxScanBytes: number;
+  };
 }
 
 export class ConfigurationError extends Error {
@@ -112,5 +175,13 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       provider: env.PAYMENT_PROVIDER,
     },
     remindersEnabled: env.REMINDERS_ENABLED,
+    editorGate: {
+      password: env.EDITOR_PASSWORD,
+      sessionSecret: env.SESSION_SECRET,
+    },
+    files: {
+      storagePath: resolve(env.FILE_STORAGE_PATH),
+      maxScanBytes: env.MAX_SCAN_BYTES,
+    },
   };
 }
