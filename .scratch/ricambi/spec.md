@@ -343,10 +343,20 @@ an Italian factory catalog would make the *last* column the Disegno Origine and 
 catalog number. One uncropped catalog page settles it. Both fields exist either way, so if the
 labels are swapped, the change is which field carries the uniqueness rule.
 
-**Scan resolution.** The sample supplied was 1245 × 809 and clearly downsized; at that size the
-position numbers are illegible on a phone, which is precisely story 40's case. Confirm the real
-archive's resolution — deep-zoom tiling is justified for A3-at-300dpi scans and is overkill if
-the originals really are around 1200px.
+**Scan resolution is still completely unknown, and it decides the viewer.** The only genuine
+drawing seen so far was supplied downsized at 1245 × 809; the sample tavole in the earlier
+implementation of this product are artificial images and prove nothing. Deep-zoom tiling was
+chosen on an assumption — A3 at 300 dpi — that nothing has verified. **Ticket 03 measures real
+scans and decides**, and ADR 0006 defers to it. Marks are stored in fractional image
+coordinates precisely so the decision can be reversed without re-marking anything.
+
+**A previous implementation of this product exists**, built on Payload CMS and Postgres, and
+several requirements here were recovered from it rather than invented: the treasurer digest,
+the platform's own legal pages, the depth of the data-protection obligations, part condition on
+a Source, camera capture when contributing, and the manual reminder trigger. Two of its
+decisions we have deliberately reversed — it stored one part row per Tavola-and-Position (to
+avoid deciding identity, which we have now decided), and it typed the Position number as an
+integer capped at three digits, which cannot store `210 S`.
 
 **Whether Iso and Bizzarrini numbers encode a category** in their prefixes, as Lamborghini's do,
 is worth someone checking against the scans. It changes nothing structurally — numbers are

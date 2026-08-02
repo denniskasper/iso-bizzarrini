@@ -17,6 +17,8 @@ valuable content the archive will hold.
 - [ ] Each Equivalent carries a kind: OE Supplier, OEM, Industry Standard, or **Donor Vehicle**
 - [ ] Donor Vehicle equivalents may have no reference number, because often nobody knows it — the car alone is the useful fact
 - [ ] Sources are an unbounded list with name, URL, optional price, currency, observed date and note
-- [ ] **A price can never be rendered without its observed date** — enforced by the model, not by whoever builds the page
+- [ ] **A price can never be rendered without its observed date** — enforced by the model, not by whoever builds the page. Entering a price without a date is refused at the point of entry, not merely hidden at display
+- [ ] Currency is a fixed set covering where these cars actually trade — at minimum EUR, USD, GBP, CHF
+- [ ] A Source records the **condition** of what is offered: new old stock, used, or reproduction. A restorer's decision changes completely depending on which, and it is the first thing they ask
 - [ ] All three are editable by an Editor
 - [ ] UI and design work uses the `/frontend-design` skill

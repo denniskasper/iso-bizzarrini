@@ -14,5 +14,7 @@ redirect map and the test fixture that protects inbound links and search results
 - [ ] Every URL the site currently serves is harvested into a machine-readable inventory
 - [ ] The inventory includes pages, news and event items, category and tag listings, and directly-linked media
 - [ ] The size and file count of the uploads directory is recorded, since it decides whether "migrate only what is used" is a rule of thumb or a page-by-page judgement
+- [ ] Mailboxes, forwarders and the full DNS zone are inventoried here too — the hosting bundle contains the domain and the Club's e-mail, and ticket 11 cannot proceed safely without this list
+- [ ] Expect roughly **36 GB installed, ~9 GB of it media, 16 pages and 54 posts**, last new content around August 2024, per an earlier survey — confirm rather than assume, but size the work from it
 - [ ] The premium theme's licence status is recorded — not to keep using it, but because it may be the only reference for how a page is meant to look once the shortcodes stop rendering
 - [ ] Nothing on the live site is changed by this work

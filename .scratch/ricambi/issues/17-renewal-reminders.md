@@ -19,7 +19,22 @@ Transactional e-mail.
 - [ ] **Sending is disabled by default and per environment**, and must be deliberately enabled by an Administrator
 - [ ] A preview screen shows exactly who would receive a reminder in the coming period, before anything is enabled
 - [ ] Terms shorter than the reminder window get **no** reminder — a backfilled Membership must not receive a demand
-- [ ] Content comes from the Club row: amount, bank details, payment reference, deadline — editable without a deployment
+- [ ] Content comes from the Club row: amount, account holder, IBAN, BIC, payment reference, deadline — editable without a deployment
+- [ ] The reminder is sent **in the platform's name**, not the Club's — confirmed with the customer
 - [ ] Driven by the injected clock, so the window, term boundaries and the once-only rule are all testable
 - [ ] Tested against the in-memory transport: fires once, never twice, never for short terms, and never at all while disabled
+- [ ] A **manual trigger** exists so an Administrator can run the job on demand rather than waiting for the nightly schedule
+- [ ] In development, outbound mail is captured somewhere inspectable, so reminder content can be checked without sending
+
+## Treasurer digest
+
+The customer was asked directly whether the treasurer should receive an overview of expiring
+memberships and answered **yes**. It is the same job and the same data as the member reminder,
+so it belongs here rather than in a ticket of its own.
+
+- [ ] The treasurer receives a periodic digest of memberships expiring soon and recently lapsed
+- [ ] The digest names the members, their Paid-through dates and the payment reference to expect, so incoming transfers can be matched
+- [ ] The treasurer's address is a Club setting, editable without a deployment
+- [ ] The digest is covered by the same enable switch and preview as member reminders — it must not fire from unverified data either
+- [ ] An equivalent view exists in the interface, so the treasurer is not dependent on an e-mail arriving
 - [ ] UI and design work uses the `/frontend-design` skill

@@ -18,6 +18,7 @@ collecting the association's dues on its behalf.
 - [ ] Cancelling leaves access running to the date already paid for, rather than cutting it
 - [ ] The member can see when their Membership runs to, and whether it will renew
 - [ ] A receipt is available to the member
+- [ ] **What the association's auditors (Kassenprüfer) require** of payment confirmations and invoices is established *before* the format is fixed — this is a question for the treasurer, and getting it wrong means a year of records that fail review
 - [ ] **Manual recording by an Administrator remains fully supported** — members who will not sign a mandate must never be locked out
 - [ ] Keys are per-environment; the non-production system cannot reach a real mandate
 - [ ] Tested by driving webhook payloads directly against a faked provider edge

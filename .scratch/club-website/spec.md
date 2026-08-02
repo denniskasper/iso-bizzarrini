@@ -176,3 +176,21 @@ German before the old site is switched off — not afterwards.
 **Timing.** The old site should not be decommissioned until the new one is verified against the
 URL list and the archived mirror is confirmed complete. Until then both can run, with DNS
 deciding which is live.
+
+**The hosting bundle is not just the website — this is the project's largest single risk.** The
+**domain registration** and the **Club's e-mail** live inside the same package as the WordPress.
+Cancelling it without preparation takes the Club's address and its mail down, and unlike a
+broken page that is not reversible in an afternoon. The safe order is set out in ticket 11:
+inventory mailboxes and DNS, detach the domain into a standalone registration with the e.V. as
+holder, re-home e-mail (never onto the VPS), verify mail flows both ways, migrate and archive
+content, cancel the prototype hosting, and only then cancel the package — respecting its notice
+period. **MX records are not to be touched** by any DNS work along the way.
+
+**Access may not exist yet.** Earlier work on this project established that the people involved
+held WordPress administrator credentials but not the hosting control panel, which is where DNS
+is managed. Ticket 01 carries this as a precondition; it can stall the whole stream at step one.
+
+**Ownership.** The hosting account should belong to the Club, with the developer invited as a
+technical administrator holding console and SSH access but no billing or account access — so
+either side can end the arrangement without holding the other's assets. The same principle
+applies to the repository. Recorded on ticket 01.
