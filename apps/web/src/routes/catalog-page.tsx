@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { RegistrationGlyph } from '@/components/wordmark';
+import { Roundel } from '@/components/wordmark';
 import { api, type CatalogModel } from '@/lib/api';
 
 /**
@@ -36,7 +36,7 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
   if (models.length === 0) {
     return (
       <div className="registration-mark border border-line px-8 py-16 text-center sm:py-24">
-        <RegistrationGlyph className="mx-auto size-6 text-line-strong" />
+        <Roundel className="mx-auto size-7 text-line-strong" />
         <p className="mt-6 text-xl">No Models have been recorded yet.</p>
         <p className="mx-auto mt-3 max-w-measure text-pretty text-muted">
           Every layer is wired together — this page reached the API, and the API reached the

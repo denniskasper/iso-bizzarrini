@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ricambi/contracts": "workspace:*",
     "@sentry/node": "^10.24.0",
     "drizzle-orm": "^0.44.7",
     "express": "^5.1.0",

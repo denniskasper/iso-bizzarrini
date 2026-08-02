@@ -37,7 +37,7 @@ Establish the design foundation here, once, so every later ticket inherits it ra
 inventing its own. The direction: **the Club's own identity, rendered with Apple's restraint and
 Google's plainness.**
 
-- [ ] Colour, typography and logo treatment lifted from the live Club site, so the two properties read as one organisation — capture them from the site before it is retired — *not done; stand-ins are in place and isolated for replacement*
+- [x] Colour, typography and logo treatment lifted from the live Club site, so the two properties read as one organisation — capture them from the site before it is retired — *measured from the live site; the logo asset itself is deliberately not committed, see below*
 - [x] **Apple**: the drawing is the hero and the interface recedes around it. Generous whitespace, large confident type, a restrained palette with very few accents, chrome that gets out of the way of the artwork
 - [x] **Google**: the tools are plain and unambiguous. One dominant action per screen, high-contrast legible type, dense information presented calmly, no decoration on anything functional
 - [x] Design tokens defined once — colour, type scale, spacing, radii — and consumed by every component; no ad-hoc values in feature code
@@ -91,12 +91,41 @@ internals, duplicating existing coverage — apply to neither: one refuses to st
 and the other runs on the way out to a third party, so neither has an HTTP surface to be
 reached through, and neither is covered anywhere else.
 
-**The Club's identity was not captured.** It was not reachable from here, and the ticket is
-right that it should be taken from the live site before that site is retired
-(club-website ticket 04). Stand-ins are in place and deliberately contained: the accent is
-three token values and the wordmark is one component, so replacing them touches no feature
-code. `docs/design/visual-language.md` records the direction, the reasoning behind every token,
-and exactly what is still provisional.
+**The Club's identity was captured, and it corrected the design.** The live Club site was
+loaded in a real browser and its *computed* styles read — every element's font, colour,
+background and border, ranked by how often each value actually appears — so the tokens are the
+Club's real palette rather than whatever is left in a decade-old stylesheet. Converted to
+OKLCH, they are now the tokens.
+
+It changed three things and confirmed a fourth:
+
+- **The accent was wrong.** The invented Italian red is gone. The Club is monochrome apart from
+  one teal, which it uses for links; that teal is now the accent.
+- **The typefaces were wrong.** Archivo is gone. The Club sets display and its own lockup in
+  **Raleway** and body in **Open Sans**; both are now used, self-hosted. IBM Plex Mono stays for
+  factory numbers — that is Ricambi's own functional decision and additive, since the Club site
+  has no numbers to compare.
+- **The chrome is now literally the Club's.** `surface-raised` is its measured chrome value, so
+  the band across the top of the archive is the band across the top of the Club's site.
+- **Dark-first was confirmed, not assumed.** The Club's own site is dark chrome with a
+  near-black hero. The hypothesis this ticket asked to test early turns out to agree with the
+  organisation it has to sit beside.
+
+Only *lightness* was adjusted, and only where contrast demanded it: the measured teal carries
+white text at 3.15:1, so the fill was darkened until white cleared 4.5:1. Hue and chroma are
+the Club's throughout. Doing that arithmetic also caught a defect in the previous palette — the
+light-theme focus ring was at 2.1:1, under the 3:1 non-text minimum.
+
+**The Club's logo file is deliberately not committed.** It carries the association's name, and
+`AGENTS.md` forbids client-identifying material in this repository. What makes the two
+properties look alike is the *treatment* — wide-tracked uppercase Raleway beside a thin-ruled
+roundel — and that is all in `wordmark.tsx` and the tokens. The asset is dropped in at deploy
+time.
+
+**Worth re-running before the Club site is retired.** This is a snapshot of a WordPress theme
+that club-website tickets 04 and 05 replace. If the rebuild changes the palette, these tokens
+are the one place that has to follow. Method and reasoning are in
+`docs/design/visual-language.md`.
 
 **Two contrast defects were found and fixed while reviewing the rendered screens** rather than
 the code: white-on-red on the primary action reached only 3.6:1, and the faintest text token
@@ -144,10 +173,13 @@ skeleton, and this ticket asks for "Express and TypeScript API with **Zod valida
 deliberately, so that requirement is demonstrated and tested rather than declared, and the
 error handler's 400-on-invalid-input contract has something exercising it.
 
-**Left as a decision for a human.** The API's response shapes are declared twice — once in
-`apps/api/src/services/`, once in `apps/web/src/lib/api.ts`. That is twelve lines today and
-will multiply with every ticket. Fixing it properly means a third workspace package that both
-apps depend on, which changes the Dockerfile, CI, the dev script and both tsconfigs. It is
-worth doing, it is worth doing *early* given what this ticket is for, and it is a real
-architectural choice rather than a cleanup — so it is flagged here rather than slipped in at
-the end of an unrelated change.
+**Done, after being raised as a decision.** The API's response shapes were declared twice —
+once where they are produced, once where they are consumed — with nothing keeping the two
+honest, and every ticket from here adds Tavole, Positions, Marks, Parts and Listings to that
+surface. They now live once, in `packages/contracts`.
+
+The reason it was worth doing here rather than later is that it cost almost nothing: the
+package is **types only**, so it emits no JavaScript, needs no build step, appears in neither
+bundle, and adds no ordering constraint to the dev loop, CI or the Dockerfile. That constraint
+is written into the package and is load-bearing — the moment something in there has to exist at
+runtime, both apps need a compiled dependency and the calculation changes.

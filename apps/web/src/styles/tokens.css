@@ -5,6 +5,12 @@
  * plainness. The drawing is the hero; this is the instrument around it. See
  * docs/design/visual-language.md for the reasoning behind every value below.
  *
+ * **The colour and type here are the Club's own, measured from the live Club site** rather
+ * than invented — the computed values of its chrome, its rules, its body text and its link
+ * colour, converted to OKLCH. Where a measured value could not carry text at 4.5:1 it was
+ * moved along its own lightness axis until it could, and nowhere else: the hue and chroma are
+ * the Club's.
+ *
  * Feature code consumes the semantic names (`bg-surface`, `text-muted`, `border-line`) and
  * never the raw values. If a colour, size or radius is written inline in a component, it is a
  * bug in this file, not a shortcut.
@@ -15,55 +21,60 @@
 /* ---------------------------------------------------------------------------
  * Theme surfaces
  *
- * Dark is the default. A scan is black lines on white paper, so graphite chrome makes the
- * drawing the brightest thing on screen — and it is what a phone in a dim garage wants.
- * Light is the paper theme, warmed slightly so it sits beside a scan rather than glaring
- * next to it.
+ * Dark is the default, and the Club's own site agrees: its chrome is a cool graphite and its
+ * hero is near-black. A scan is black lines on white paper, so graphite chrome also makes the
+ * drawing the brightest thing on screen, which is what a phone in a dim garage wants.
+ * `surface-raised` is the Club's chrome exactly; the page sits a step below it.
  * ------------------------------------------------------------------------ */
 
 :root {
-  /* Paper (light) */
-  --surface: oklch(0.982 0.003 85);
+  /* Paper (light) — the Club's site is dark chrome on white. */
+  --surface: oklch(0.985 0.002 264);
   --surface-raised: oklch(1 0 0);
-  --surface-sunken: oklch(0.952 0.004 85);
+  --surface-sunken: oklch(0.965 0.003 264);
 
-  --line: oklch(0.885 0.005 85);
-  --line-strong: oklch(0.7 0.007 85);
+  /* The Club's own rule colour. */
+  --line: oklch(0.917 0.007 277);
+  --line-strong: oklch(0.76 0.008 264);
 
-  --text: oklch(0.21 0.006 250);
-  --text-muted: oklch(0.46 0.006 250);
-  /* Faint still clears 4.5:1 against the surface — this is read in poor light at arm's length. */
-  --text-faint: oklch(0.535 0.006 250);
+  /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
+  --text: oklch(0.279 0.015 257);
+  --text-muted: oklch(0.45 0.009 261);
+  --text-faint: oklch(0.535 0.009 264);
 
   /*
-   * The single accent. Two of them, because one red cannot both carry white text and be read
-   * as text itself: `accent` is a fill, `accent-ink` is the same red made legible on a surface.
+   * The Club's teal — the one colour on an otherwise monochrome site, where it marks links.
+   * Two of them, because the measured teal carries white text at only 3.15:1: `accent` is a
+   * fill darkened until white sits on it at 4.5:1, `accent-ink` is the same teal made legible
+   * as text on a surface. Hover deepens the chroma rather than the lightness, so the contrast
+   * the fill was chosen for survives the interaction.
    */
-  --accent: oklch(0.495 0.19 27);
-  --accent-hover: oklch(0.44 0.185 27);
-  --accent-ink: oklch(0.47 0.19 27);
+  --accent: oklch(0.53 0.11 198);
+  --accent-hover: oklch(0.53 0.132 198);
+  --accent-ink: oklch(0.52 0.11 198);
   --accent-contrast: oklch(0.99 0 0);
 
-  /* Amber, in both themes, so "focused" never reads as "this is the action". */
-  --focus: oklch(0.72 0.165 72);
+  /* Amber, in both themes, so "focused" never reads as "this is the action" — and never as
+     the Club's teal either. Dark enough here to clear 3:1 against paper. */
+  --focus: oklch(0.575 0.15 70);
 }
 
 .dark {
-  /* Graphite (dark) */
-  --surface: oklch(0.176 0.006 255);
-  --surface-raised: oklch(0.216 0.007 255);
-  --surface-sunken: oklch(0.142 0.006 255);
+  /* Graphite — `surface-raised` is the Club's chrome, measured. */
+  --surface: oklch(0.205 0.012 264);
+  --surface-raised: oklch(0.272 0.012 264);
+  --surface-sunken: oklch(0.168 0.011 264);
 
-  --line: oklch(0.305 0.008 255);
-  --line-strong: oklch(0.44 0.01 255);
+  --line: oklch(0.345 0.012 264);
+  --line-strong: oklch(0.47 0.013 264);
 
-  --text: oklch(0.965 0.003 85);
-  --text-muted: oklch(0.735 0.007 255);
-  --text-faint: oklch(0.645 0.008 255);
+  --text: oklch(0.97 0.002 264);
+  --text-muted: oklch(0.72 0.009 264);
+  --text-faint: oklch(0.625 0.009 264);
 
-  --accent: oklch(0.52 0.19 27);
-  --accent-hover: oklch(0.545 0.215 27);
-  --accent-ink: oklch(0.735 0.155 27);
+  --accent: oklch(0.53 0.11 198);
+  --accent-hover: oklch(0.53 0.132 198);
+  --accent-ink: oklch(0.62 0.1 198);
   --accent-contrast: oklch(0.99 0 0);
 
   --focus: oklch(0.78 0.16 75);
@@ -90,14 +101,17 @@
   --color-focus: var(--focus);
 
   /* ---- Type ------------------------------------------------------------
-   * Archivo: a grotesque with a tall x-height and no ornament — legible at arm's length on a
-   * phone, and confident enough to carry a page with almost nothing else on it.
+   * The Club's own two faces, so the archive and the Club site read as one organisation:
+   * Raleway for display and the wordmark (the Club sets its lockup in it, wide-tracked and
+   * uppercase), Open Sans for body and interface.
    *
-   * IBM Plex Mono: every number the factory printed. Catalog Number, Disegno Origine, Tavola
-   * and Position numbers are identifiers to be compared character by character against a
-   * stamped bracket, so they are always monospace, always tabular, never proportional.
+   * IBM Plex Mono is ours, and additive: every number the factory printed. Catalog Number,
+   * Disegno Origine, Tavola and Position numbers are identifiers to be compared character by
+   * character against a stamped bracket, so they are always monospace, always tabular, never
+   * proportional. The Club site has no such need and therefore no opinion.
    * -------------------------------------------------------------------- */
-  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Open Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Raleway Variable', 'Open Sans Variable', ui-sans-serif, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
 
   --text-2xs: 0.6875rem;

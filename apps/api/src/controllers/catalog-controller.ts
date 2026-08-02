@@ -1,3 +1,4 @@
+import type { CatalogModelsResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { CatalogService } from '../services/catalog-service.js';
@@ -26,7 +27,8 @@ export function createCatalogController(dependencies: {
         query.brand === undefined ? {} : { brand: query.brand },
       );
 
-      response.json({ models });
+      const body: CatalogModelsResponse = { models };
+      response.json(body);
     },
   };
 }

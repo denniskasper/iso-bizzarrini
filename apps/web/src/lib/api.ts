@@ -1,11 +1,12 @@
+import type { ApiErrorBody, CatalogModelsResponse, ServiceStatus } from '@ricambi/contracts';
+
 /**
  * The API client. Same-origin always: in development Vite proxies /api, in production the API
  * serves the app itself, so nothing here ever needs to know a hostname.
+ *
+ * The response shapes come from `@ricambi/contracts`, which the API produces against — so a
+ * field renamed on one side stops typechecking on the other.
  */
-export interface ApiErrorBody {
-  error: { code: string; message: string; details?: unknown };
-}
-
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -37,22 +38,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export interface ServiceStatus {
-  status: 'ok' | 'degraded';
-  environment: string;
-  time: string;
-  database: 'reachable' | 'unreachable';
-}
-
-export interface CatalogModel {
-  id: string;
-  brand: string;
-  name: string;
-  series: string | null;
-  modelYears: string | null;
-}
-
 export const api = {
   status: () => request<ServiceStatus>('/status'),
-  models: () => request<{ models: CatalogModel[] }>('/models'),
+  models: () => request<CatalogModelsResponse>('/models'),
 };
+
+export type { CatalogModel, ServiceStatus } from '@ricambi/contracts';

@@ -1,12 +1,6 @@
+import type { ServiceStatus } from '@ricambi/contracts';
 import type { Clock } from '../platform/clock.js';
 import type { SystemRepository } from '../repositories/system-repository.js';
-
-export interface ServiceStatus {
-  status: 'ok' | 'degraded';
-  environment: string;
-  time: string;
-  database: 'reachable' | 'unreachable';
-}
 
 export interface StatusService {
   read(): Promise<ServiceStatus>;

@@ -10,7 +10,9 @@ import { ServiceStatusStrip } from '@/components/service-status-strip';
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="sticky top-0 z-10 border-b border-line bg-surface">
+      {/* `surface-raised` is the Club's own chrome colour, measured from its site — so the
+          band across the top of the archive is the band across the top of the Club's. */}
+      <header className="sticky top-0 z-10 border-b border-line bg-surface-raised">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-gutter py-2">
           <a
             href="/"
@@ -25,7 +27,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-gutter py-16 sm:py-24">{children}</main>
 
-      <footer className="border-t border-line">
+      <footer className="border-t border-line bg-surface-raised">
         <div className="mx-auto w-full max-w-6xl px-gutter py-6">
           <ServiceStatusStrip />
         </div>

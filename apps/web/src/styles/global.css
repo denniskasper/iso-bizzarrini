@@ -1,10 +1,12 @@
 @import 'tailwindcss';
 
 /*
- * Self-hosted, so no request ever leaves for a font and no consent is owed for one.
- * Weight axis only, Latin only — this platform is English and uses no width axis.
+ * The Club's own two faces, self-hosted — so no request ever leaves for a font and no consent
+ * is owed for one, which is the same rule the Club site is being rebuilt to satisfy. Weight
+ * axis only, Latin only: this platform is English and uses no width axis.
  */
-@import '@fontsource-variable/archivo/wght.css';
+@import '@fontsource-variable/open-sans/wght.css';
+@import '@fontsource-variable/raleway/wght.css';
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-500.css';
 @import '@fontsource/ibm-plex-mono/latin-600.css';
@@ -28,6 +30,13 @@
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* The Club sets its headings in Raleway. Applied once here, so no feature component ever
+     names a typeface. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
   }
 
   /* Every number in this archive is an identifier. Tabular figures keep columns of them

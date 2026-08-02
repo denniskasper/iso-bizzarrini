@@ -1,19 +1,12 @@
+import type { ApiErrorBody } from '@ricambi/contracts';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import type { Logger } from '../platform/logger.js';
 
 /**
  * One error shape for the whole API, so the browser never has to guess and a member never sees
- * an HTML stack trace where JSON was expected.
+ * an HTML stack trace where JSON was expected. The shape itself lives in `@ricambi/contracts`.
  */
-export interface ErrorBody {
-  error: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-}
-
 export class HttpError extends Error {
   readonly status: number;
   readonly code: string;
@@ -68,6 +61,6 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
   };
 }
 
-function body(code: string, message: string, details?: unknown): ErrorBody {
+function body(code: string, message: string, details?: unknown): ApiErrorBody {
   return { error: details === undefined ? { code, message } : { code, message, details } };
 }

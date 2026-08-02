@@ -22,7 +22,7 @@ and everything from the viewer onward waits on it.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
-| 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Implemented — 2 items need a human | `ready-for-human` | — |
+| 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Implemented — 1 item needs a human | `ready-for-human` | — |
 | 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | Not started | `ready-for-agent` | 01 |
 | 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | Not started | `ready-for-agent` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | Not started | `ready-for-agent` | 03 |
@@ -49,12 +49,17 @@ and everything from the viewer onward waits on it.
 
 ### What ticket 01 still needs from a person
 
-Both are account or access matters rather than code, and both are recorded on the ticket:
+One thing, and it is an account matter rather than code:
 
 - **A Sentry project in the EU data region**, and its DSN in `SENTRY_DSN`. The code is written
-  and tested — a non-EU `sentry.io` DSN is a startup failure — but there is no project yet.
-- **The Club's colour, typography and logo**, lifted from the live Club site so the two
-  properties read as one organisation. Stand-ins are in place and deliberately isolated.
+  and tested — a non-EU `sentry.io` DSN is a startup failure, and every event is scrubbed before
+  it leaves — but the project itself has to be created by someone with the association's
+  account, along with the processor agreement that goes with it.
+
+Also worth knowing: **the Club's logo file is deliberately not in this repository.** It carries
+the association's name, and `AGENTS.md` forbids client-identifying material here. The colour and
+typography *are* the Club's, measured from its live site; the logo asset is dropped in at deploy
+time.
 
 ### The club website
 
@@ -93,10 +98,15 @@ One deployable, not a service split (ADR 0008). In production the API serves the
 the same origin; in development Vite serves it and proxies `/api`.
 
 ```
-apps/api    Express + TypeScript + Zod, Drizzle on Postgres
-            routes → controllers → services → repositories
-apps/web    Vite + React + Tailwind + shadcn/ui, TanStack Router and Query
+apps/api             Express + TypeScript + Zod, Drizzle on Postgres
+                     routes → controllers → services → repositories
+apps/web             Vite + React + Tailwind + shadcn/ui, TanStack Router and Query
+packages/contracts   What the API promises the browser, declared once
 ```
+
+`packages/contracts` is **types only** — it emits no JavaScript, is consumed with `import type`,
+and so needs no build step and appears in neither bundle. That is what makes it free; put a
+constant or a function in there and both apps suddenly need a compiled dependency.
 
 Three things are injected rather than reached for, because every one of them is otherwise
 untestable or unsafe:

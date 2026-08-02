@@ -12,11 +12,13 @@ FROM base AS dependencies
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
+COPY packages/contracts/package.json ./packages/contracts/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # ---- Build ------------------------------------------------------------------
 FROM dependencies AS build
 COPY tsconfig.base.json ./
+COPY packages ./packages
 COPY apps ./apps
 RUN pnpm --filter @ricambi/web build \
   && pnpm --filter @ricambi/api build
