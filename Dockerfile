@@ -31,6 +31,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM base AS runtime
 ENV NODE_ENV=production
 
+# Fonts, because the image has to be able to run what it contains. A practice system draws its
+# own tavole in SVG, and on a slim base librsvg has no fontconfig and no typeface to render
+# `<text>` with — so it silently draws everything *except* the words. That produced a
+# demonstration archive of numbered circles with no numbers in them, which is the one thing a
+# parts catalog may not be. Around 4 MB, and it fails visibly rather than silently if removed.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build --chown=node:node /runtime/node_modules ./node_modules
 COPY --from=build --chown=node:node /runtime/package.json ./package.json
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist

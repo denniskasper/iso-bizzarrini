@@ -1,0 +1,75 @@
+# The preview stack: Ricambi and a Postgres of its own, for showing the work to somebody.
+#
+# **This is not the archive and cannot become it.** It runs as a non-production system, which
+# is what puts the DEMO band on every page and the refusals in front of the e-mail sender, the
+# payment provider and the reminders — and a production environment refuses to start with the
+# stand-in Editor gate configured, so this configuration cannot quietly be promoted.
+#
+# It is deployed on Dokploy, which supplies Traefik, the certificate and the hostname; nothing
+# here binds a public port or knows a domain name. `docs/operations/preview-deployment.md` is
+# the procedure. Every value below comes from the environment — there are no defaults for
+# anything secret, so a missing one fails loudly rather than deploying something guessable.
+#
+# The club's real deployment (ADR 0009) is its own VPS with its own Caddy and its own backups.
+# This is a developer's preview host and deliberately simpler: one volume, no offsite backup,
+# nothing on it that anybody would mind losing.
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Not the archive. Everything else in this file follows from that.
+      ENVIRONMENT_MODE: non-production
+      ENVIRONMENT_NAME: ${ENVIRONMENT_NAME:?set it, it is shown in the footer}
+      PORT: 3000
+      DATABASE_URL: postgres://ricambi:${POSTGRES_PASSWORD:?required}@postgres:5432/ricambi
+      LOG_LEVEL: info
+
+      # The stand-in Editor gate. Everything in this archive is behind it, so this is what you
+      # give the person you are showing it to. Refused outright in production.
+      EDITOR_PASSWORD: ${EDITOR_PASSWORD:?required, at least 10 characters}
+      # Fixed, so a redeployment does not sign everyone out mid-demonstration.
+      SESSION_SECRET: ${SESSION_SECRET:?required, at least 32 characters}
+
+      # The scans, on the volume below. Never inside the image: a container that keeps the
+      # drawings in its own filesystem loses them on the next deployment.
+      FILE_STORAGE_PATH: /app/data
+
+      # Applies the schema before listening, and writes an invented catalog **only if there is
+      # nothing there** — so whatever is recorded through the Editor screens survives a deploy.
+      MIGRATE_ON_START: 'true'
+      SEED_PRACTICE_ARCHIVE: 'true'
+    volumes:
+      - scans:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Dokploy attaches the domain and the certificate to this service, and Traefik reaches it
+    # on the internal network. Nothing is published to the host.
+    expose:
+      - '3000'
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ricambi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ricambi
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ricambi -d ricambi']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  # The drawings and the database outlive every deployment. Losing `scans` loses the uploads;
+  # losing `database` loses what they were uploaded against.
+  scans:
+  database:

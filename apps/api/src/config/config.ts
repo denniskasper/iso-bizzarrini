@@ -97,6 +97,30 @@ const environmentSchema = z.object({
     .int()
     .positive()
     .default(100 * 1024 * 1024),
+
+  /**
+   * Whether the application applies its own migrations before it starts listening.
+   *
+   * On by default, and that direction is deliberate too: a deployment whose schema has not
+   * been applied does not fail loudly, it answers every request with a 500 against tables that
+   * are not there. There is one container (ADR 0009), so nothing races it.
+   */
+  MIGRATE_ON_START: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+
+  /**
+   * Whether an **empty** practice system writes itself an invented catalog at startup, so that
+   * a preview deployment has something in it to open. Off unless it says otherwise, and
+   * refused outright by `assertSeedable` outside a declared non-production environment.
+   *
+   * It never truncates: a redeployment must not take away what an Editor recorded.
+   */
+  SEED_PRACTICE_ARCHIVE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -138,6 +162,8 @@ export interface AppConfig {
     storagePath: string;
     maxScanBytes: number;
   };
+  migrateOnStart: boolean;
+  seedPracticeArchive: boolean;
 }
 
 export class ConfigurationError extends Error {
@@ -183,5 +209,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       storagePath: resolve(env.FILE_STORAGE_PATH),
       maxScanBytes: env.MAX_SCAN_BYTES,
     },
+    migrateOnStart: env.MIGRATE_ON_START,
+    seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,
   };
 }

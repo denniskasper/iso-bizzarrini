@@ -119,6 +119,23 @@ else is practice, deliberately ([ADR 0012](docs/adr/0012-non-production-is-the-d
 it is run and the written check that no production data is in it are in
 [`docs/operations/non-production-environment.md`](docs/operations/non-production-environment.md).
 
+## Showing it to somebody
+
+```sh
+docker compose -f docker/preview/compose.yml up -d --build
+```
+
+A preview host — Dokploy, or anything that can run a Compose file behind a reverse proxy — gets
+the built app, a Postgres of its own and a volume for the scans. It applies its own migrations,
+writes itself an invented catalog **only if there is nothing there**, and is a non-production
+system throughout: the DEMO band, the warm chrome, and refusals in front of everything that
+could reach a real person. Setting `ENVIRONMENT_MODE=production` on it will not start, because
+production refuses the stand-in Editor gate.
+
+The procedure, the secrets it needs and what to check before anybody sees it are in
+[`docs/operations/preview-deployment.md`](docs/operations/preview-deployment.md). No hostname is
+committed to this repository.
+
 ## Shape
 
 One deployable, not a service split (ADR 0008). In production the API serves the built app from

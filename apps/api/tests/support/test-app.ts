@@ -9,6 +9,7 @@ import { loadConfig, type AppConfig } from '../../src/config/config.js';
 import type { Db } from '../../src/db/client.js';
 import { MutableClock } from '../../src/platform/clock.js';
 import { InMemoryEmailSender, type EmailSender } from '../../src/platform/email.js';
+import { createLogger, type Logger } from '../../src/platform/logger.js';
 import { UnconfiguredPaymentProvider, type PaymentProvider } from '../../src/platform/payments.js';
 import { createTestDatabase, type TestDatabase } from './test-database.js';
 
@@ -27,6 +28,7 @@ export interface TestApp {
   readonly db: Db;
   readonly clock: MutableClock;
   readonly emails: InMemoryEmailSender;
+  readonly logger: Logger;
   /** Where this app's scans are written, for a test that wants to look at the store itself. */
   readonly filesPath: string;
   /** A fresh request with no cookies. */
@@ -81,6 +83,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
   });
 
   const clock = new MutableClock(options.now ?? DEFAULT_TEST_NOW);
+  const logger = createLogger(config);
   const emails = new InMemoryEmailSender();
   const emailSender = options.emailSender ?? emails;
   const paymentProvider = options.paymentProvider ?? new UnconfiguredPaymentProvider();
@@ -95,6 +98,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       db: database.db,
       emailSender,
       paymentProvider,
+      logger,
     });
   } catch (error) {
     // The application refuses to start in an unsafe environment. Leave nothing behind it.
@@ -109,6 +113,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
     db: database.db,
     clock,
     emails,
+    logger,
     filesPath,
     request: () => supertest(app),
     agent: () => supertest.agent(app),
