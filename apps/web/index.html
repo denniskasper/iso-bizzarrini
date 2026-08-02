@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="Ricambi — the Club's parts reference for Iso and Bizzarrini cars."
+    />
+    <title>Ricambi</title>
+    <!--
+      Render-blocking and deliberately not inline: the API serves this app under a
+      Content-Security-Policy of `script-src 'self'`, which blocks inline scripts. See
+      public/theme.js.
+    -->
+    <script src="/theme.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

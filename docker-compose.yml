@@ -1,0 +1,25 @@
+# Local development and test dependencies. Nothing here is a deployment (ADR 0009 owns that);
+# it exists so `pnpm db:up && pnpm dev` is the whole setup on a laptop.
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: ricambi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ricambi
+      POSTGRES_PASSWORD: ricambi
+      POSTGRES_DB: ricambi
+    ports:
+      # 5433 on the host so a Postgres already running on 5432 is left alone.
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ricambi -d ricambi']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres-data:

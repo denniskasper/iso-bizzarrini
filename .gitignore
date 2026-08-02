@@ -3,6 +3,17 @@
 # Claude Code local overrides (settings.json is shared, .local is per-machine)
 .claude/settings.local.json
 
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Test output
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # Secrets
 .env
 .env.*

@@ -1,0 +1,37 @@
+{
+  "name": "ricambi",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm setup && pnpm db:up && pnpm db:migrate && pnpm --parallel --filter \"./apps/*\" dev",
+    "setup": "node scripts/prepare-env.mjs",
+    "build": "pnpm --filter @ricambi/web build && pnpm --filter @ricambi/api build",
+    "start": "pnpm --filter @ricambi/api start",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @ricambi/api db:migrate",
+    "db:generate": "pnpm --filter @ricambi/api db:generate",
+    "test": "pnpm test:api && pnpm test:e2e",
+    "test:api": "pnpm --filter @ricambi/api test",
+    "test:e2e": "pnpm --filter @ricambi/web test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2"
+  }
+}

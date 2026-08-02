@@ -1,0 +1,165 @@
+/*
+ * Ricambi design tokens — defined once, consumed everywhere.
+ *
+ * The direction: the Club's own identity, rendered with Apple's restraint and Google's
+ * plainness. The drawing is the hero; this is the instrument around it. See
+ * docs/design/visual-language.md for the reasoning behind every value below.
+ *
+ * Feature code consumes the semantic names (`bg-surface`, `text-muted`, `border-line`) and
+ * never the raw values. If a colour, size or radius is written inline in a component, it is a
+ * bug in this file, not a shortcut.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+ * Theme surfaces
+ *
+ * Dark is the default. A scan is black lines on white paper, so graphite chrome makes the
+ * drawing the brightest thing on screen — and it is what a phone in a dim garage wants.
+ * Light is the paper theme, warmed slightly so it sits beside a scan rather than glaring
+ * next to it.
+ * ------------------------------------------------------------------------ */
+
+:root {
+  /* Paper (light) */
+  --surface: oklch(0.982 0.003 85);
+  --surface-raised: oklch(1 0 0);
+  --surface-sunken: oklch(0.952 0.004 85);
+
+  --line: oklch(0.885 0.005 85);
+  --line-strong: oklch(0.7 0.007 85);
+
+  --text: oklch(0.21 0.006 250);
+  --text-muted: oklch(0.46 0.006 250);
+  /* Faint still clears 4.5:1 against the surface — this is read in poor light at arm's length. */
+  --text-faint: oklch(0.535 0.006 250);
+
+  /*
+   * The single accent. Two of them, because one red cannot both carry white text and be read
+   * as text itself: `accent` is a fill, `accent-ink` is the same red made legible on a surface.
+   */
+  --accent: oklch(0.495 0.19 27);
+  --accent-hover: oklch(0.44 0.185 27);
+  --accent-ink: oklch(0.47 0.19 27);
+  --accent-contrast: oklch(0.99 0 0);
+
+  /* Amber, in both themes, so "focused" never reads as "this is the action". */
+  --focus: oklch(0.72 0.165 72);
+}
+
+.dark {
+  /* Graphite (dark) */
+  --surface: oklch(0.176 0.006 255);
+  --surface-raised: oklch(0.216 0.007 255);
+  --surface-sunken: oklch(0.142 0.006 255);
+
+  --line: oklch(0.305 0.008 255);
+  --line-strong: oklch(0.44 0.01 255);
+
+  --text: oklch(0.965 0.003 85);
+  --text-muted: oklch(0.735 0.007 255);
+  --text-faint: oklch(0.645 0.008 255);
+
+  --accent: oklch(0.52 0.19 27);
+  --accent-hover: oklch(0.545 0.215 27);
+  --accent-ink: oklch(0.735 0.155 27);
+  --accent-contrast: oklch(0.99 0 0);
+
+  --focus: oklch(0.78 0.16 75);
+}
+
+@theme inline {
+  /* ---- Colour ---------------------------------------------------------- */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-contrast: var(--accent-contrast);
+
+  --color-focus: var(--focus);
+
+  /* ---- Type ------------------------------------------------------------
+   * Archivo: a grotesque with a tall x-height and no ornament — legible at arm's length on a
+   * phone, and confident enough to carry a page with almost nothing else on it.
+   *
+   * IBM Plex Mono: every number the factory printed. Catalog Number, Disegno Origine, Tavola
+   * and Position numbers are identifiers to be compared character by character against a
+   * stamped bracket, so they are always monospace, always tabular, never proportional.
+   * -------------------------------------------------------------------- */
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-2xs--letter-spacing: 0.08em;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-2xl--letter-spacing: -0.015em;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 3rem;
+  --text-4xl--line-height: 3.25rem;
+  --text-4xl--letter-spacing: -0.025em;
+  --text-5xl: 4rem;
+  --text-5xl--line-height: 4.125rem;
+  --text-5xl--letter-spacing: -0.03em;
+
+  /* The wordmark's tracking, so the one piece of lettering that is a logo is not a literal. */
+  --tracking-wordmark: 0.22em;
+
+  /* ---- Shape -----------------------------------------------------------
+   * Small radii. Instruments have edges; only the artwork is allowed to be soft.
+   * -------------------------------------------------------------------- */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ---- Controls --------------------------------------------------------
+   * Built for a garage: nothing interactive is smaller than 44px, because the hands using
+   * this are cold, gloved or covered in grease.
+   * -------------------------------------------------------------------- */
+  --spacing-control: 2.75rem;
+  --spacing-control-lg: 3.25rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-measure: 34rem;
+
+  /* ---- Motion ----------------------------------------------------------
+   * Chrome moves quickly and briefly, or not at all. Nothing animates the artwork.
+   * -------------------------------------------------------------------- */
+  --ease-out-quick: cubic-bezier(0.2, 0, 0, 1);
+  --animate-rise: rise 320ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

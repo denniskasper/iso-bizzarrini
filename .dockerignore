@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+.git
+.github
+.scratch
+.tmp
+.claude
+docs
+.env
+.env.*
+!.env.example

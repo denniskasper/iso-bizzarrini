@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+
+/*
+ * Self-hosted, so no request ever leaves for a font and no consent is owed for one.
+ * Weight axis only, Latin only — this platform is English and uses no width axis.
+ */
+@import '@fontsource-variable/archivo/wght.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
+@import './tokens.css';
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every number in this archive is an identifier. Tabular figures keep columns of them
+     aligned, so two catalog numbers can be compared by eye. */
+  .tabular,
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'zero' 1;
+  }
+
+  /* One focus treatment for the whole application, thick enough to find in poor light. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-contrast);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * One row of a catalog index: the Model, then the numbers the factory printed, ruled off
+   * like the printed page. The column measure lives here rather than in feature code.
+   */
+  .catalog-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: baseline;
+    column-gap: --spacing(6);
+    row-gap: --spacing(1);
+    padding-block: --spacing(5);
+    border-top: 1px solid var(--line);
+    transition: background-color 150ms var(--ease-out-quick);
+  }
+
+  .catalog-row:hover {
+    background-color: var(--surface-sunken);
+  }
+
+  @media (width >= 40rem) {
+    .catalog-row {
+      grid-template-columns: 1fr auto 9rem;
+    }
+  }
+
+  /*
+   * The registration mark: the corner ticks a printer aligns a plate with. Used as the
+   * archive's one ornament — on the wordmark and on empty states — because it is the mark of
+   * something printed, which is what this whole archive is.
+   */
+  .registration-mark {
+    position: relative;
+  }
+
+  .registration-mark::before,
+  .registration-mark::after {
+    content: '';
+    position: absolute;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-color: var(--line-strong);
+    pointer-events: none;
+  }
+
+  .registration-mark::before {
+    top: -1px;
+    left: -1px;
+    border-top-width: 1px;
+    border-left-width: 1px;
+  }
+
+  .registration-mark::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+  }
+}
