@@ -1,0 +1,18 @@
+.tmp/
+
+# Claude Code local overrides (settings.json is shared, .local is per-machine)
+.claude/settings.local.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
