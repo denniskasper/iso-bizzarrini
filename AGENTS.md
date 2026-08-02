@@ -40,3 +40,11 @@ The five canonical triage roles, used verbatim as `Status:` values. See `docs/ag
 ### Domain docs
 
 Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## UI and design
+
+- **Always use the `/frontend-design` skill** for any UI or design work — new components, pages, layout, styling, or beautifying existing screens.
+- **Direction for Ricambi**: the Club's own identity, rendered with Apple's restraint and Google's plainness. Colour, type and logo treatment come from the Club website so the two properties read as one organisation. From Apple: the drawing is the hero and the interface recedes — generous whitespace, large confident type, a restrained palette, chrome that stays out of the artwork's way. From Google: tools are plain and unambiguous — one dominant action per screen, high contrast, dense information presented calmly, no decoration on anything functional.
+- **Built for a garage**: high contrast in poor light, touch targets usable with cold hands, legible at arm's length on a phone.
+- Design tokens are defined once and consumed everywhere. No ad-hoc colour, spacing or type values in feature code.
+- Ricambi is English. The Club website is German. Neither borrows the other's language.
