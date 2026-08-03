@@ -180,6 +180,95 @@ export interface TavolaResponse {
 }
 
 /**
+ * A component, identified in its own right rather than by where it appears (ADR 0001).
+ *
+ * **Every field but the identity is optional, and that is the archive being honest.** A large
+ * part of what arrives has a description and no number at all; a Part with no Catalog Number is
+ * fully legitimate and the interface says so rather than printing a placeholder. What is
+ * guaranteed is that a Part can be *named*: one of the two names is always there.
+ *
+ * `catalogNote` and `note` are two fields and are never merged. One is transcribed from the
+ * factory catalog and nobody may improve it; the other is what the club has worked out. A
+ * member has to be able to tell evidence from interpretation (story 62), and a shape that
+ * concatenated them would make that impossible downstream of here.
+ */
+export interface Part {
+  id: string;
+  /** What a member reads. At least one of the two is present. */
+  nameEn: string | null;
+  /** The factory's own words, as the catalog prints them. */
+  nameIt: string | null;
+  /**
+   * The factory's identifying number, from the catalog's first column. Unique across the
+   * archive when present, which is what keeps "where else does this Part appear" honest — and
+   * absent for a great many Parts, which is ordinary rather than incomplete.
+   */
+  catalogNumber: string | null;
+  /** The original factory drawing number. Prominent, authoritative, and *not* unique. */
+  disegnoOrigine: string | null;
+  description: string | null;
+  dimensions: string | null;
+  materialFinish: string | null;
+  /** Transcribed from the factory catalog, in the factory's words. Evidence, not opinion. */
+  catalogNote: string | null;
+  /** What the club has established, written by an Editor. Never merged with the above. */
+  note: string | null;
+}
+
+/**
+ * One Part's appearance on one Tavola: where it sits, how many are fitted per car *there*, and
+ * whether the drawing shows it.
+ *
+ * **The quantity lives here and not on the Part**, because the same washer legitimately takes
+ * four on one drawing and two on another. `null` means nobody has recorded one — the archive
+ * does not invent a `1`.
+ *
+ * `drawn` is the difference between an alternative and an addition, and it is the field a member
+ * cannot afford to have shown to them ambiguously: several **drawn** Parts at one Position are
+ * fitted instead of one another, while **undrawn** ones — the screws and washers — are all
+ * needed as well. Confusing the two means the wrong parts arrive in the post.
+ */
+export interface PartListing {
+  id: string;
+  quantityPerCar: number | null;
+  drawn: boolean;
+  part: Part;
+  /**
+   * The other Tavole this Part is listed on, so a member learns where else it is used. The
+   * Tavola being read is not among them.
+   */
+  elsewhere: ListedElsewhere[];
+}
+
+/** Somewhere else the same Part is listed — another sheet, and possibly another car. */
+export interface ListedElsewhere {
+  tavolaId: string;
+  /** As printed on that sheet. */
+  tavolaNumber: string;
+  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page. */
+  nameEn: string;
+  /** A Tavola belongs to one Model (ADR 0002), and the Model may not be the one being read. */
+  model: CatalogModel;
+  /** `null` where the Part is listed on that Tavola without a Position of its own. */
+  positionNumber: string | null;
+  quantityPerCar: number | null;
+}
+
+/**
+ * `GET /api/positions/:positionId/listings` — **what sits at a number a member has clicked.**
+ *
+ * The sentence the whole product exists to complete ends here. It is read separately from the
+ * sheet rather than carried on every Position of it: a Tavola may hold two hundred Positions,
+ * each with several Parts and each Part's other appearances, and a member reads one at a time.
+ *
+ * Ordered with the **drawn** Listings first, because they are the alternatives — what the
+ * Position's number actually points at — and the undrawn ones are what is needed as well.
+ */
+export interface PositionListingsResponse {
+  listings: PartListing[];
+}
+
+/**
  * `POST /api/models` — what an Editor records about a car.
  *
  * The **wire** shape, which is why every field is a plain string: a form sends what was typed,
@@ -229,6 +318,65 @@ export interface NewPositionRequest {
 
 /** `PATCH /api/marks/:markId` — a circle an Editor put in the wrong place. */
 export type MoveMarkRequest = MarkPoint;
+
+/**
+ * What an Editor types about a component (story 101).
+ *
+ * The **wire** shape, which is why every field is a plain string: a form sends what was typed,
+ * and blank means "not recorded" rather than a value. The API narrows it on the way in, and the
+ * trim it applies is of the whitespace a form adds around a value and never of the value itself
+ * — a Catalog Number printed `260 03 150` keeps its spacing, because it is an identifier
+ * compared character by character against a printed page.
+ */
+export interface NewPartRequest {
+  nameEn: string;
+  nameIt: string;
+  catalogNumber: string;
+  disegnoOrigine: string;
+  description: string;
+  dimensions: string;
+  materialFinish: string;
+  catalogNote: string;
+  note: string;
+}
+
+/**
+ * `POST /api/tavole/:tavolaId/listings` — placing a Part on a drawing.
+ *
+ * **It names an existing Part or records a new one, never both and never neither.** That is the
+ * whole of ADR 0001 expressed as a request: a Part used on six drawings stays one Part, so
+ * listing it a second time carries its id (story 103); a Part the archive has not met before
+ * arrives whole. Sending a `part` whose Catalog Number is already recorded is refused with the
+ * existing Part in `details`, which is the merge-or-correct rule and not an error to route
+ * around.
+ */
+export interface NewListingRequest {
+  /** Absent for a Part listed on the sheet without a Position of its own. */
+  positionId?: string | null;
+  /** How many are fitted per car *here*. Absent where the catalog prints none. */
+  quantityPerCar?: number | null;
+  /** Whether the Position's number points at this Part. Fasteners are listed undrawn. */
+  drawn: boolean;
+  partId?: string;
+  part?: NewPartRequest;
+}
+
+/**
+ * What a refused Catalog Number carries in `ApiErrorBody.error.details`: **the Part that
+ * already has it.**
+ *
+ * The collision is the deduplication mechanism rather than an obstacle (ADR 0001), so the
+ * refusal has to hand back enough for an Editor to decide between merging into that Part and
+ * correcting the number they typed. A message alone would leave them to go and find it.
+ */
+export interface CatalogNumberConflict {
+  part: Part;
+}
+
+/** What recording a Listing answers with: the Listing, as it will be read. */
+export interface ListingResponse {
+  listing: PartListing;
+}
 
 /**
  * What placing, moving or removing anything answers with: **the whole sheet, re-read.**

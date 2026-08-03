@@ -1,5 +1,7 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
+  boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -196,6 +198,111 @@ export const marks = pgTable(
   (table) => [index('marks_position_id_index').on(table.positionId)],
 );
 
+/**
+ * A Part is a component identified **in its own right** rather than by where it appears, which
+ * is ADR 0001 written as a table: no column here names a Tavola or a Position, because the same
+ * Part is listed on many drawings and fits many cars. Where it appears is a Listing, below.
+ *
+ * **Almost everything is nullable, and that is the archive being honest rather than lax.** Much
+ * of what arrives is a description and nothing else; a Part with no Catalog Number is finished,
+ * not half-recorded, and the interface says so instead of inventing one. The one thing a Part
+ * cannot be is nameless, which the check constraint is here to guarantee — a row that could be
+ * shown to a member as a blank line is not a Part.
+ *
+ * `catalogNumber` is unique **when present**, which is exactly what a Postgres unique constraint
+ * over a nullable column means: any number of Parts may have none, and no two may claim the same
+ * one. That collision is the deduplication mechanism the whole "where else does this Part
+ * appear" question rests on. `disegnoOrigine` is deliberately *not* unique: it is authoritative
+ * when known and is still not what tells two Parts apart.
+ */
+export const parts = pgTable(
+  'parts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    nameEn: text('name_en'),
+    /** The factory's own words, as the catalog prints them. */
+    nameIt: text('name_it'),
+    /** The catalog's first column. An opaque string, printed spacing and all. */
+    catalogNumber: text('catalog_number'),
+    /** The original factory drawing number. Prominent, and not an identity. */
+    disegnoOrigine: text('disegno_origine'),
+    description: text('description'),
+    dimensions: text('dimensions'),
+    materialFinish: text('material_finish'),
+    /**
+     * Transcribed from the factory catalog, in the factory's words.
+     *
+     * **A column of its own, and it stays one.** Evidence and interpretation are two different
+     * things to a member deciding what to buy (story 62), and a schema that let them share a
+     * field would make the distinction unrecoverable no matter what the screens did.
+     */
+    catalogNote: text('catalog_note'),
+    /** What the club has established. Distinct from the above, which nobody may improve. */
+    note: text('note'),
+  },
+  (table) => [
+    unique('parts_catalog_number_unique').on(table.catalogNumber),
+    check('parts_have_a_name', sql`${table.nameEn} is not null or ${table.nameIt} is not null`),
+  ],
+);
+
+/**
+ * A Listing is one Part's appearance on one Tavola: where it sits, how many are fitted per car
+ * *there*, and whether the drawing shows it.
+ *
+ * **The quantity is here and not on the Part**, because one Part legitimately takes four on one
+ * drawing and two on another — the same washer, counted where it is used. A Part carrying a
+ * single quantity would have to be split into two Parts to say that, which is the duplication
+ * ADR 0001 exists to prevent.
+ *
+ * `positionId` is **optional**: a Part may be listed on a sheet the catalog names it on without
+ * anybody having decided which number it sits at. It becomes null rather than taking the Listing
+ * with it when a Position is removed — a mistyped number is cheap to undo, and the Part data
+ * hanging off it is not.
+ *
+ * `drawn` is the load-bearing flag. Several **drawn** Listings at one Position are alternatives,
+ * fitted instead of one another; **undrawn** ones are the fasteners that share the Position and
+ * are needed as well. Getting that backwards is the wrong parts arriving in the post.
+ */
+export const listings = pgTable(
+  'listings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+    tavolaId: uuid('tavola_id')
+      .notNull()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    positionId: uuid('position_id').references(() => positions.id, { onDelete: 'set null' }),
+    /** How many are fitted per car here. Null where the catalog prints no count. */
+    quantityPerCar: integer('quantity_per_car'),
+    drawn: boolean('drawn').notNull().default(true),
+  },
+  (table) => [
+    // One Part is listed once **at one Position**. Listing it twice there is a slip rather than
+    // a statement, and it would be read on the screen as an alternative to itself.
+    //
+    // It does not reach the position-less case, because Postgres counts two NULLs as different:
+    // a Part listed on a Tavola at no Position at all could be listed twice. Nothing creates one
+    // of those yet — the screens always name a Position — and the partial index that would close
+    // it belongs with ticket 07, which is what gives a Tavola's Listings somewhere to be seen.
+    unique('listings_part_id_tavola_id_position_id_unique').on(
+      table.partId,
+      table.tavolaId,
+      table.positionId,
+    ),
+    index('listings_tavola_id_index').on(table.tavolaId),
+    index('listings_position_id_index').on(table.positionId),
+    // What answers "which other Tavole does this Part appear on".
+    index('listings_part_id_index').on(table.partId),
+    check(
+      'listings_quantity_is_a_count',
+      sql`${table.quantityPerCar} is null or ${table.quantityPerCar} > 0`,
+    ),
+  ],
+);
+
 export const modelsRelations = relations(models, ({ many }) => ({
   tavole: many(tavole),
 }));
@@ -205,11 +312,23 @@ export const tavoleRelations = relations(tavole, ({ one, many }) => ({
   category: one(categories, { fields: [tavole.categoryId], references: [categories.id] }),
   scan: one(scans, { fields: [tavole.id], references: [scans.tavolaId] }),
   positions: many(positions),
+  listings: many(listings),
 }));
 
 export const positionsRelations = relations(positions, ({ one, many }) => ({
   tavola: one(tavole, { fields: [positions.tavolaId], references: [tavole.id] }),
   marks: many(marks),
+  listings: many(listings),
+}));
+
+export const partsRelations = relations(parts, ({ many }) => ({
+  listings: many(listings),
+}));
+
+export const listingsRelations = relations(listings, ({ one }) => ({
+  part: one(parts, { fields: [listings.partId], references: [parts.id] }),
+  tavola: one(tavole, { fields: [listings.tavolaId], references: [tavole.id] }),
+  position: one(positions, { fields: [listings.positionId], references: [positions.id] }),
 }));
 
 export const marksRelations = relations(marks, ({ one }) => ({
@@ -236,3 +355,7 @@ export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;
 export type MarkRow = typeof marks.$inferSelect;
 export type NewMarkRow = typeof marks.$inferInsert;
+export type PartRow = typeof parts.$inferSelect;
+export type NewPartRow = typeof parts.$inferInsert;
+export type ListingRow = typeof listings.$inferSelect;
+export type NewListingRow = typeof listings.$inferInsert;

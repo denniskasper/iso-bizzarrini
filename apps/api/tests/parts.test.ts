@@ -1,0 +1,536 @@
+import type TestAgent from 'supertest/lib/agent.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { listings } from '../src/db/schema.js';
+import { givenModel, givenTavola } from './support/fixtures.js';
+import { startTestApp, type TestApp } from './support/test-app.js';
+
+/**
+ * Parts, Listings, and reading a Part from a circle.
+ *
+ * **This is the sentence the whole product exists to complete** — *choose your car, open the
+ * drawing, click the position, read the part* — and the last clause of it is what this file
+ * covers. What is asserted is mostly about telling things apart, because that is what a member
+ * ordering parts actually needs: evidence from interpretation, an alternative from an addition,
+ * a Part that has no factory number from one whose number nobody has typed in yet.
+ *
+ * The identity rule (ADR 0001) is the load-bearing one. A Catalog Number entered twice is not an
+ * error to route around; it is how the archive finds out that two Editors are describing the
+ * same component, and it is the only thing keeping "which other Tavole does this Part appear on"
+ * honest.
+ */
+
+/** What a form sends: every field a plain string, blank meaning "not recorded". */
+function aPart(fields: Partial<Record<string, string>> = {}) {
+  return {
+    nameEn: '',
+    nameIt: '',
+    catalogNumber: '',
+    disegnoOrigine: '',
+    description: '',
+    dimensions: '',
+    materialFinish: '',
+    catalogNote: '',
+    note: '',
+    ...fields,
+  };
+}
+
+describe('reading a Part from a Position', () => {
+  let app: TestApp;
+  let editor: TestAgent;
+  let modelId: string;
+  let tavolaId: string;
+
+  beforeAll(async () => {
+    app = await startTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await app.reset();
+    editor = await app.editor();
+    modelId = (await givenModel(app.db, { brand: 'Iso', name: 'Grifo' })).id;
+    tavolaId = (await givenTavola(app.db, modelId, { number: '2' })).id;
+  });
+
+  /** A number on the sheet, recorded the way an Editor's marking tool records one. */
+  async function givenPosition(number: string, onTavola = tavolaId): Promise<string> {
+    const response = await editor
+      .post(`/api/tavole/${onTavola}/positions`)
+      .send({ number })
+      .expect(201);
+    const recorded = response.body.positions.find(
+      (position: { number: string }) => position.number === number,
+    );
+    return recorded.id;
+  }
+
+  function list(body: object, onTavola = tavolaId) {
+    return editor.post(`/api/tavole/${onTavola}/listings`).send(body);
+  }
+
+  async function read(positionId: string) {
+    const response = await editor.get(`/api/positions/${positionId}/listings`).expect(200);
+    return response.body.listings;
+  }
+
+  describe('what a Part carries', () => {
+    it('is read back whole at the Position it was listed at', async () => {
+      const positionId = await givenPosition('207');
+
+      await list({
+        positionId,
+        quantityPerCar: 2,
+        drawn: true,
+        part: aPart({
+          nameEn: 'Window channel guide rod',
+          nameIt: 'ASTA GUIDA PER CRISTALLO MONTANTE',
+          catalogNumber: '260 03 150',
+          disegnoOrigine: '208503',
+          description: 'Guides the door glass in its channel.',
+          dimensions: '412 mm',
+          materialFinish: 'Steel, cadmium plated',
+          catalogNote: 'Fino al telaio 310',
+          note: 'The later cars use a longer rod; measure before ordering.',
+        }),
+      }).expect(201);
+
+      expect(await read(positionId)).toEqual([
+        {
+          id: expect.any(String),
+          quantityPerCar: 2,
+          drawn: true,
+          elsewhere: [],
+          part: {
+            id: expect.any(String),
+            nameEn: 'Window channel guide rod',
+            nameIt: 'ASTA GUIDA PER CRISTALLO MONTANTE',
+            catalogNumber: '260 03 150',
+            disegnoOrigine: '208503',
+            description: 'Guides the door glass in its channel.',
+            dimensions: '412 mm',
+            materialFinish: 'Steel, cadmium plated',
+            catalogNote: 'Fino al telaio 310',
+            note: 'The later cars use a longer rod; measure before ordering.',
+          },
+        },
+      ]);
+    });
+
+    /**
+     * The factory's words and the club's are two fields and stay two. A member deciding what to
+     * buy has to be able to tell evidence from interpretation (story 62), and nothing may
+     * "improve" a transcription.
+     */
+    it('keeps the Catalog Note apart from the Note', async () => {
+      const positionId = await givenPosition('12');
+
+      await list({
+        positionId,
+        drawn: true,
+        part: aPart({
+          nameEn: 'Brake hose',
+          catalogNote: 'V. TAV. 3',
+          note: 'Braided replacements are available and fit without modification.',
+        }),
+      }).expect(201);
+
+      const [listing] = await read(positionId);
+      expect(listing.part.catalogNote).toBe('V. TAV. 3');
+      expect(listing.part.note).toBe(
+        'Braided replacements are available and fit without modification.',
+      );
+    });
+
+    // "No number is invented. Where a Part has no factory number, it has none." (ADR 0001)
+    it('is legitimate with no Catalog Number at all', async () => {
+      const positionId = await givenPosition('12');
+
+      await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Spring washer' }),
+      }).expect(201);
+
+      const [listing] = await read(positionId);
+      expect(listing.part.catalogNumber).toBeNull();
+    });
+
+    it('is refused when it has no name in either language', async () => {
+      const positionId = await givenPosition('12');
+
+      const response = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ catalogNumber: '260 03 150' }),
+      }).expect(400);
+
+      expect(response.body.error.code).toBe('validation_failed');
+    });
+
+    // The catalog prints `260 03 150` with its spaces, and a member compares it character by
+    // character against a stamped bracket. The trim is of what a form added, never of the value.
+    it('keeps a Catalog Number exactly as the catalog prints it', async () => {
+      const positionId = await givenPosition('12');
+
+      await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose', catalogNumber: '  260 03 150  ' }),
+      }).expect(201);
+
+      const [listing] = await read(positionId);
+      expect(listing.part.catalogNumber).toBe('260 03 150');
+    });
+  });
+
+  describe('a Catalog Number that is already recorded', () => {
+    /**
+     * **The collision is the deduplication mechanism** (ADR 0001), so the refusal has to hand
+     * back the Part that already holds the number — an Editor cannot merge into something they
+     * have not been shown.
+     */
+    it('surfaces the existing Part instead of recording a second one', async () => {
+      const first = await givenPosition('12');
+      const second = await givenPosition('44');
+
+      const recorded = await list({
+        positionId: first,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose', catalogNumber: '260 03 150' }),
+      }).expect(201);
+
+      const refused = await list({
+        positionId: second,
+        drawn: true,
+        part: aPart({ nameEn: 'Flexible brake pipe', catalogNumber: '260 03 150' }),
+      }).expect(409);
+
+      expect(refused.body.error.code).toBe('conflict');
+      expect(refused.body.error.details.part).toMatchObject({
+        id: recorded.body.listing.part.id,
+        nameEn: 'Brake hose',
+        catalogNumber: '260 03 150',
+      });
+
+      // And nothing was written: the second Position is still empty.
+      expect(await read(second)).toEqual([]);
+    });
+
+    // The merge the refusal forces: the same Part, listed at the other Position.
+    it('is merged by listing the Part that already has it', async () => {
+      const first = await givenPosition('12');
+      const second = await givenPosition('44');
+
+      const recorded = await list({
+        positionId: first,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose', catalogNumber: '260 03 150' }),
+      }).expect(201);
+      const partId = recorded.body.listing.part.id;
+
+      await list({ positionId: second, quantityPerCar: 4, drawn: true, partId }).expect(201);
+
+      const [listing] = await read(second);
+      expect(listing.part.id).toBe(partId);
+      expect(listing.quantityPerCar).toBe(4);
+    });
+
+    it('refuses a request that names a Part and describes one at the same time', async () => {
+      const positionId = await givenPosition('12');
+      const recorded = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(201);
+
+      await list({
+        positionId: await givenPosition('44'),
+        drawn: true,
+        partId: recorded.body.listing.part.id,
+        part: aPart({ nameEn: 'Something else' }),
+      }).expect(400);
+    });
+  });
+
+  /** Authoritative when known, and still not what tells two Parts apart (ADR 0001). */
+  it('lets two Parts share a Disegno Origine', async () => {
+    const positionId = await givenPosition('12');
+
+    await list({
+      positionId,
+      drawn: true,
+      part: aPart({
+        nameEn: 'Bracket, left',
+        catalogNumber: '260 03 150',
+        disegnoOrigine: '208503',
+      }),
+    }).expect(201);
+    await list({
+      positionId,
+      drawn: true,
+      part: aPart({
+        nameEn: 'Bracket, right',
+        catalogNumber: '260 03 151',
+        disegnoOrigine: '208503',
+      }),
+    }).expect(201);
+
+    const drawings = (await read(positionId)).map(
+      (listing: { part: { disegnoOrigine: string } }) => listing.part.disegnoOrigine,
+    );
+    expect(drawings).toEqual(['208503', '208503']);
+  });
+
+  describe('the same Part on two Tavole', () => {
+    /**
+     * The quantity lives on the Listing and not on the Part, which is exactly what this asserts:
+     * one washer, counted where it is used.
+     */
+    it('carries a different quantity on each', async () => {
+      const other = (await givenTavola(app.db, modelId, { number: '10' })).id;
+      const here = await givenPosition('12');
+      const there = await givenPosition('44', other);
+
+      const recorded = await list({
+        positionId: here,
+        quantityPerCar: 4,
+        drawn: true,
+        part: aPart({ nameEn: 'Spring washer', catalogNumber: '999 00 001' }),
+      }).expect(201);
+      const partId = recorded.body.listing.part.id;
+
+      await list({ positionId: there, quantityPerCar: 2, drawn: true, partId }, other).expect(201);
+
+      expect((await read(here))[0].quantityPerCar).toBe(4);
+      expect((await read(there))[0].quantityPerCar).toBe(2);
+    });
+
+    it('is reported from each as appearing on the other', async () => {
+      const other = (
+        await givenTavola(app.db, modelId, {
+          number: '10',
+          nameEn: 'Electrical system',
+          nameIt: 'Impianto elettrico',
+        })
+      ).id;
+      const here = await givenPosition('12');
+      const there = await givenPosition('44', other);
+
+      const recorded = await list({
+        positionId: here,
+        quantityPerCar: 4,
+        drawn: true,
+        part: aPart({ nameEn: 'Spring washer' }),
+      }).expect(201);
+
+      await list(
+        {
+          positionId: there,
+          quantityPerCar: 2,
+          drawn: true,
+          partId: recorded.body.listing.part.id,
+        },
+        other,
+      ).expect(201);
+
+      const [washer] = await read(here);
+      expect(washer.elsewhere).toEqual([
+        {
+          tavolaId: other,
+          tavolaNumber: '10',
+          nameEn: 'Electrical system',
+          model: { id: modelId, brand: 'Iso', name: 'Grifo', series: null, modelYears: null },
+          positionNumber: '44',
+          quantityPerCar: 2,
+        },
+      ]);
+    });
+
+    // The sheet being read is where the member already is. Repeating it as somewhere "else"
+    // would be the archive pointing at itself.
+    it('does not report the Tavola being read as somewhere else', async () => {
+      const here = await givenPosition('12');
+      const alsoHere = await givenPosition('44');
+
+      const recorded = await list({
+        positionId: here,
+        drawn: true,
+        part: aPart({ nameEn: 'Spring washer' }),
+      }).expect(201);
+
+      await list({
+        positionId: alsoHere,
+        drawn: true,
+        partId: recorded.body.listing.part.id,
+      }).expect(201);
+
+      expect((await read(here))[0].elsewhere).toEqual([]);
+    });
+  });
+
+  describe('several Parts at one Position', () => {
+    /**
+     * **The distinction a member cannot afford to have shown ambiguously.** Two drawn Parts are
+     * fitted instead of one another; three undrawn ones are all needed as well. Buying one when
+     * three were wanted, or three when one was, is the failure this ordering exists to prevent —
+     * so the drawn ones come first, and every Listing says which it is.
+     */
+    it('reports the drawn alternatives before the undrawn fixings', async () => {
+      const positionId = await givenPosition('12');
+
+      for (const [nameEn, drawn] of [
+        ['Bolt', false],
+        ['Caliper, early', true],
+        ['Washer', false],
+        ['Caliper, late', true],
+        ['Split pin', false],
+      ] as const) {
+        await list({ positionId, drawn, part: aPart({ nameEn }) }).expect(201);
+      }
+
+      const listings = await read(positionId);
+      expect(listings.map((listing: { drawn: boolean }) => listing.drawn)).toEqual([
+        true,
+        true,
+        false,
+        false,
+        false,
+      ]);
+      expect(
+        listings
+          .filter((listing: { drawn: boolean }) => listing.drawn)
+          .map((listing: { part: { nameEn: string } }) => listing.part.nameEn),
+      ).toEqual(['Caliper, early', 'Caliper, late']);
+    });
+
+    it('refuses the same Part listed twice at one Position', async () => {
+      const positionId = await givenPosition('12');
+      const recorded = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(201);
+
+      await list({
+        positionId,
+        drawn: false,
+        partId: recorded.body.listing.part.id,
+      }).expect(409);
+    });
+  });
+
+  describe('a Listing', () => {
+    // A Part the catalog names on a sheet without anybody having decided which number it sits at.
+    it('may be recorded on a Tavola with no Position at all', async () => {
+      await list({ drawn: false, part: aPart({ nameEn: 'Fixing kit' }) }).expect(201);
+    });
+
+    it('cannot be put at a Position on somebody else’s Tavola', async () => {
+      const other = (await givenTavola(app.db, modelId, { number: '10' })).id;
+      const elsewhere = await givenPosition('44', other);
+
+      await list({
+        positionId: elsewhere,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(404);
+    });
+
+    it('refuses a quantity that is not a count', async () => {
+      const positionId = await givenPosition('12');
+
+      await list({
+        positionId,
+        quantityPerCar: 0,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(400);
+    });
+
+    it('is removed when it was recorded in the wrong place', async () => {
+      const positionId = await givenPosition('12');
+      const recorded = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(201);
+
+      await editor.delete(`/api/listings/${recorded.body.listing.id}`).expect(204);
+
+      expect(await read(positionId)).toEqual([]);
+    });
+
+    it('is a 404 once it is gone', async () => {
+      const positionId = await givenPosition('12');
+      const recorded = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(201);
+
+      await editor.delete(`/api/listings/${recorded.body.listing.id}`).expect(204);
+      await editor.delete(`/api/listings/${recorded.body.listing.id}`).expect(404);
+    });
+
+    /**
+     * Removing a Position is how a mistyped number is undone, and it must not take an evening of
+     * part data with it. The Listing stays on the Tavola, without a Position — which is a state
+     * the model already has.
+     */
+    it('survives the Position it was at being removed', async () => {
+      const positionId = await givenPosition('12');
+      const recorded = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose', catalogNumber: '260 03 150' }),
+      }).expect(201);
+
+      await editor.delete(`/api/positions/${positionId}`).expect(200);
+
+      // Read from the database rather than over HTTP: there is no screen that shows a Tavola's
+      // Listings yet — that is ticket 07 — and what this is about is that the row is still there
+      // to be shown when there is one.
+      const remaining = await app.db.select().from(listings);
+      expect(remaining).toEqual([
+        expect.objectContaining({
+          id: recorded.body.listing.id,
+          tavolaId,
+          positionId: null,
+        }),
+      ]);
+    });
+
+    it('cannot be recorded or removed by someone who has not signed in', async () => {
+      const positionId = await givenPosition('12');
+      const recorded = await list({
+        positionId,
+        drawn: true,
+        part: aPart({ nameEn: 'Brake hose' }),
+      }).expect(201);
+
+      await app
+        .request()
+        .post(`/api/tavole/${tavolaId}/listings`)
+        .send({ positionId, drawn: true, part: aPart({ nameEn: 'Anything' }) })
+        .expect(401);
+      await app.request().delete(`/api/listings/${recorded.body.listing.id}`).expect(401);
+      await app.request().get(`/api/positions/${positionId}/listings`).expect(401);
+    });
+  });
+
+  describe('a Position nobody has recorded a Part at', () => {
+    // "Not known" and "not yet clicked" are different things to a member (story 45), and the
+    // archive answers the first one plainly rather than with nothing at all.
+    it('reports no Listings rather than a refusal', async () => {
+      expect(await read(await givenPosition('12'))).toEqual([]);
+    });
+
+    it('is a 404 for a Position that is not in the archive', async () => {
+      await editor.get('/api/positions/00000000-0000-4000-8000-000000000000/listings').expect(404);
+    });
+  });
+});

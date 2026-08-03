@@ -1,14 +1,17 @@
 import type {
   ApiErrorBody,
   CategoriesResponse,
+  ListingResponse,
   CatalogModel,
   CatalogModelResponse,
   CatalogModelsResponse,
   MoveMarkRequest,
   NewMarkRequest,
+  NewListingRequest,
   NewModelRequest,
   NewPositionRequest,
   NewTavolaRequest,
+  PositionListingsResponse,
   PositionsResponse,
   ServiceStatus,
   SessionResponse,
@@ -27,12 +30,21 @@ import type {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  /**
+   * Whatever the refusal carried with it, for the refusals that are not dead ends.
+   *
+   * A Catalog Number that is already recorded answers with the Part that has it, because the
+   * collision is how the archive deduplicates rather than an obstacle (ADR 0001) — and an
+   * Editor cannot merge into something they have not been shown.
+   */
+  readonly details: unknown;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -49,10 +61,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       response.status,
       body?.error.code ?? 'unknown_error',
       body?.error.message ?? `The archive answered with ${response.status}.`,
+      body?.error.details,
     );
   }
 
-  return (await response.json()) as T;
+  // A refusal has a body worth reading and a removal has none — 204 is the archive saying "it
+  // is gone", and asking it for JSON would fail on nothing at all.
+  return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
 function send<T>(method: string, path: string, body: unknown): Promise<T> {
@@ -101,6 +116,23 @@ export const api = {
     request<PositionsResponse>(`/marks/${markId}`, { method: 'DELETE' }),
 
   /**
+   * Reading what sits at a number, and recording it.
+   *
+   * Read one Position at a time rather than with the sheet: a Tavola may carry two hundred of
+   * them, each with several Parts and each Part's other appearances, and a member reads one.
+   *
+   * `createListing` is the merge-or-correct rule's near side. It carries either an existing
+   * Part's id or a whole new Part, and a Catalog Number the archive already holds comes back as
+   * a refusal carrying that Part — which is the answer, not a failure to work around.
+   */
+  positionListings: (positionId: string) =>
+    request<PositionListingsResponse>(`/positions/${positionId}/listings`),
+  createListing: (tavolaId: string, listing: NewListingRequest) =>
+    send<ListingResponse>('POST', `/tavole/${tavolaId}/listings`, listing),
+  removeListing: (listingId: string) =>
+    request<void>(`/listings/${listingId}`, { method: 'DELETE' }),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -116,10 +148,16 @@ export type {
   CatalogModel,
   CatalogProvenance,
   Category,
+  CatalogNumberConflict,
+  ListedElsewhere,
   Mark,
   MarkPoint,
+  NewListingRequest,
   NewModelRequest,
+  NewPartRequest,
   NewTavolaRequest,
+  Part,
+  PartListing,
   Position,
   ServiceStatus,
   TavolaResponse,

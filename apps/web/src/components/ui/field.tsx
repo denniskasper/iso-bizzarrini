@@ -66,6 +66,48 @@ export function Field({
 }
 
 /**
+ * The same field, for the prose an Editor writes rather than the numbers they copy.
+ *
+ * A description, a transcribed catalog note, what the club has worked out — these run to
+ * sentences, and a single-line box that scrolls sideways is one an Editor cannot re-read before
+ * they file it. Everything else about it is the field above: the label is always present, in the
+ * same small uppercase, because the paper catalog is in the Editor's other hand.
+ */
+export function TextArea({
+  label,
+  hint,
+  className,
+  ...props
+}: ComponentProps<'textarea'> & { label: string; hint?: ReactNode }) {
+  const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
+
+  return (
+    <div className={cn('flex flex-col gap-2', className)}>
+      <label htmlFor={id} className="text-2xs text-muted uppercase">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        aria-describedby={hintId}
+        rows={3}
+        className={cn(
+          'w-full rounded-md border border-line-strong bg-surface-raised px-3 py-2',
+          'text-base text-pretty text-text transition-colors duration-150 ease-[var(--ease-out-quick)]',
+          'placeholder:text-faint focus:border-accent-ink',
+        )}
+        {...props}
+      />
+      {hint && (
+        <p id={hintId} className="text-xs text-pretty text-faint">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * A form an Editor opened deliberately, on the panel `.editor-panel` describes: ruled off from
  * the page, headed, and closed by the two actions at its foot.
  */

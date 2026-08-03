@@ -1,12 +1,16 @@
 import type {
   CatalogModel,
   Category,
+  Part,
+  ListedElsewhere,
+  PartListing,
   Position,
   TavolaScan,
   TavolaSummary,
 } from '@ricambi/contracts';
-import type { CategoryRow, ModelRow, ScanRow } from '../db/schema.js';
+import type { CategoryRow, ModelRow, PartRow, ScanRow } from '../db/schema.js';
 import { scanImageUrl } from '../images/scan-addresses.js';
+import type { ElsewhereRow, ListingWithPart } from '../repositories/part-repository.js';
 import type { PositionWithMarks } from '../repositories/position-repository.js';
 import type { TavolaWithCategoryAndScan } from '../repositories/tavola-repository.js';
 
@@ -50,6 +54,52 @@ export function toPosition(row: PositionWithMarks): Position {
     id: row.id,
     number: row.number,
     marks: row.marks.map((mark) => ({ id: mark.id, x: mark.x, y: mark.y })),
+  };
+}
+
+/**
+ * A Part, reported field for field. Nothing is defaulted and nothing is filled in: a Part with
+ * no Catalog Number reports `null` and the screen says so plainly, because a placeholder is how
+ * a member ends up hunting for a number that does not exist (ADR 0001).
+ *
+ * `catalogNote` and `note` come through as the two fields they are. Merging them here would be
+ * the one place in this application where evidence and interpretation could be lost, since
+ * everything downstream reads this shape.
+ */
+export function toPart(row: PartRow): Part {
+  return {
+    id: row.id,
+    nameEn: row.nameEn,
+    nameIt: row.nameIt,
+    catalogNumber: row.catalogNumber,
+    disegnoOrigine: row.disegnoOrigine,
+    description: row.description,
+    dimensions: row.dimensions,
+    materialFinish: row.materialFinish,
+    catalogNote: row.catalogNote,
+    note: row.note,
+  };
+}
+
+/** One Part's appearance on one Tavola, with wherever else that Part is listed. */
+export function toPartListing(row: ListingWithPart, elsewhere: ElsewhereRow[]): PartListing {
+  return {
+    id: row.id,
+    quantityPerCar: row.quantityPerCar,
+    drawn: row.drawn,
+    part: toPart(row.part),
+    elsewhere: elsewhere.map(toListedElsewhere),
+  };
+}
+
+export function toListedElsewhere(row: ElsewhereRow): ListedElsewhere {
+  return {
+    tavolaId: row.tavola.id,
+    tavolaNumber: row.tavola.number,
+    nameEn: row.tavola.nameEn,
+    model: toCatalogModel(row.model),
+    positionNumber: row.position?.number ?? null,
+    quantityPerCar: row.listing.quantityPerCar,
   };
 }
 

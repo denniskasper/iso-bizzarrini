@@ -362,6 +362,39 @@
   }
 
   /*
+   * One component as it is listed at a Position, ruled off down its left edge like a line of a
+   * printed index.
+   *
+   * **The rule is broken when the drawing does not show the Part**, which is the same mark the
+   * sheet's own numbers wear below and means the same thing: listed here, not on the plate. It
+   * is doing real work — an undrawn Part is a fixing that is needed *as well*, while the drawn
+   * ones are fitted instead of one another, and a member who reads that the wrong way round
+   * orders one bolt when they needed a caliper and three.
+   */
+  .part-listed {
+    padding-left: --spacing(4);
+    border-left: 2px solid var(--line-strong);
+  }
+
+  .part-listed[data-drawn='false'] {
+    border-left-style: dashed;
+  }
+
+  /*
+   * The factory's own words, transcribed — and boxed, because it is a quotation from a document
+   * rather than something this archive says.
+   *
+   * The club's Note sits beside it as plain prose, and the difference between the two is
+   * deliberately visible before either is read: evidence and interpretation are what a member is
+   * weighing when they decide what to buy, and nobody may "improve" the left-hand one.
+   */
+  .transcription {
+    padding: --spacing(3) --spacing(4);
+    background-color: var(--surface-sunken);
+    border: 1px solid var(--line);
+  }
+
+  /*
    * A panel an Editor opened deliberately: ruled off from the page, sunk a step below it, and
    * wearing the registration mark. **Not a modal** — the archive is a printed index, and a
    * dialogue over a drawing is exactly the chrome this interface stays out of the way of.

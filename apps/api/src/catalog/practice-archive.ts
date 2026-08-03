@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { AppConfig } from '../config/config.js';
 import type { Db } from '../db/client.js';
-import { categories, marks, models, positions, tavole } from '../db/schema.js';
+import { categories, listings, marks, models, parts, positions, tavole } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { createCategoryRepository } from '../repositories/category-repository.js';
@@ -106,6 +106,107 @@ const practiceCircles = [
  */
 const undrawnPracticePosition = '5';
 
+/**
+ * Invented components, keyed so a Listing below can name one twice.
+ *
+ * **Chosen to be every state a member's screen has to handle**, because a practice archive whose
+ * Parts are all complete is a practice archive that proves nothing: there is one with no Catalog
+ * Number at all, one carrying the factory's words *and* the club's, a pair that are alternatives
+ * to one another, and fixings that no drawing shows. Nothing here is copied from anywhere real —
+ * the names are made up for a system that is not the archive (`AGENTS.md`).
+ */
+const practiceParts = {
+  'caliper-early': {
+    nameEn: 'Front brake caliper, early',
+    nameIt: 'PINZA FRENO ANTERIORE',
+    catalogNumber: '260 03 150',
+    disegnoOrigine: '208503',
+    description: 'Two-piston caliper, cast in one piece.',
+    dimensions: null,
+    materialFinish: 'Cast iron, phosphated',
+    catalogNote: 'FINO AL TELAIO N. 310',
+    note: 'Fitted to the first cars. It takes the narrow pad, which is no longer made.',
+  },
+  'caliper-late': {
+    nameEn: 'Front brake caliper, late',
+    nameIt: 'PINZA FRENO ANTERIORE',
+    catalogNumber: '260 03 151',
+    disegnoOrigine: '208503',
+    description: 'Two-piston caliper, split housing.',
+    dimensions: null,
+    materialFinish: 'Cast iron, phosphated',
+    catalogNote: 'DAL TELAIO N. 311',
+    note: 'The later caliper takes a pad still in production, so most cars have been converted.',
+  },
+  bolt: {
+    nameEn: 'Caliper mounting bolt',
+    nameIt: 'VITE FISSAGGIO PINZA',
+    catalogNumber: '999 01 004',
+    disegnoOrigine: null,
+    description: null,
+    dimensions: 'M10 × 45',
+    materialFinish: 'Steel, cadmium plated',
+    catalogNote: null,
+    note: 'An ordinary fastener; a modern equivalent is fine.',
+  },
+  'lock-washer': {
+    nameEn: 'Lock washer',
+    nameIt: 'ROSETTA ELASTICA',
+    catalogNumber: '999 01 090',
+    disegnoOrigine: null,
+    description: null,
+    dimensions: '10 mm',
+    materialFinish: 'Spring steel',
+    catalogNote: null,
+    note: null,
+  },
+  hose: {
+    nameEn: 'Flexible brake hose, front',
+    nameIt: 'TUBO FLESSIBILE FRENO',
+    catalogNumber: '260 03 210',
+    disegnoOrigine: '208711',
+    description: 'Runs from the body bracket to the caliper.',
+    dimensions: '340 mm',
+    materialFinish: null,
+    catalogNote: 'V. TAV. 3',
+    note: 'Braided replacements are sold in this length and fit without modification.',
+  },
+  'bleed-screw': {
+    // The state ADR 0001 exists for: a component the archive knows about and the factory never
+    // gave a number to. The screen has to say so rather than print a placeholder.
+    nameEn: 'Bleed screw',
+    nameIt: 'VITE SPURGO',
+    catalogNumber: null,
+    disegnoOrigine: null,
+    description: 'Found on both calipers.',
+    dimensions: null,
+    materialFinish: null,
+    catalogNote: null,
+    note: 'No catalog number was ever printed for this. Measure the thread before ordering.',
+  },
+} as const;
+
+/**
+ * Where those components are listed — **the point of the practice archive's Position 1**, which
+ * carries two drawn alternatives and two undrawn fixings at once, so that the one distinction a
+ * member cannot afford to misread has something to be read on.
+ *
+ * The bolt is deliberately listed on two Tavole with different counts, because that is the whole
+ * reason a quantity belongs to a Listing and not to a Part.
+ */
+const practiceListings = [
+  { model: 'Grifo', tavola: '2', position: '1', part: 'caliper-early', quantity: 2, drawn: true },
+  { model: 'Grifo', tavola: '2', position: '1', part: 'caliper-late', quantity: 2, drawn: true },
+  { model: 'Grifo', tavola: '2', position: '1', part: 'bolt', quantity: 4, drawn: false },
+  { model: 'Grifo', tavola: '2', position: '1', part: 'lock-washer', quantity: 4, drawn: false },
+  { model: 'Grifo', tavola: '2', position: '2', part: 'hose', quantity: 2, drawn: true },
+  { model: 'Grifo', tavola: '2', position: '3', part: 'bleed-screw', quantity: 2, drawn: true },
+  // A number the drawing does not print, carrying a Part all the same.
+  { model: 'Grifo', tavola: '2', position: '5', part: 'lock-washer', quantity: 2, drawn: true },
+  // The same fastener on another sheet, in another quantity.
+  { model: 'Grifo', tavola: '10', position: '2', part: 'bolt', quantity: 6, drawn: true },
+] as const;
+
 export interface SeedDependencies {
   db: Db;
   fileStore: FileStore;
@@ -119,6 +220,8 @@ export interface SeedOutcome {
   tavole: number;
   drawings: number;
   positions: number;
+  parts: number;
+  listings: number;
 }
 
 /**
@@ -159,6 +262,11 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
 
   let drawings = 0;
   let marked = 0;
+  /** Every Position that was recorded, so the Listings below can find the one they name. */
+  const sheetPositions = new Map<string, { tavolaId: string; positionId: string }>();
+  const onSheet = (model: string, tavola: string, position: string) =>
+    `${model} / ${tavola} / ${position}`;
+
   for (const seed of practiceTavole) {
     const modelId = modelIdsByName.get(seed.model);
     if (!modelId) {
@@ -185,15 +293,47 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     if (tavola && seed.drawn) {
       await scanService.ingest(tavola.id, await inventedDrawing(seed.number, seed.nameIt));
       drawings += 1;
-      marked += await markPracticeTavola(db, tavola.id);
+
+      const recorded = await markPracticeTavola(db, tavola.id);
+      marked += recorded.size;
+      for (const [number, positionId] of recorded) {
+        sheetPositions.set(onSheet(seed.model, seed.number, number), {
+          tavolaId: tavola.id,
+          positionId,
+        });
+      }
     }
   }
+
+  const partIds = await writePracticeParts(db);
+  const listed = await db
+    .insert(listings)
+    .values(
+      practiceListings.map((seed) => {
+        const partId = partIds.get(seed.part);
+        const at = sheetPositions.get(onSheet(seed.model, seed.tavola, seed.position));
+        if (!partId || !at) {
+          throw new Error(`The practice Listing of ${seed.part} names something not seeded.`);
+        }
+        // A Listing is a Part's appearance on a *drawing*; the Position is where on it.
+        return {
+          partId,
+          tavolaId: at.tavolaId,
+          positionId: at.positionId,
+          quantityPerCar: seed.quantity,
+          drawn: seed.drawn,
+        };
+      }),
+    )
+    .returning();
 
   return {
     models: practiceModels.length,
     tavole: practiceTavole.length,
     drawings,
     positions: marked,
+    parts: partIds.size,
+    listings: listed.length,
   };
 }
 
@@ -205,7 +345,7 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
  * fixture and not a demonstration of the tool — what the tool does is asserted at the API and
  * browser seams, where an Editor's click is what places the circle.
  */
-async function markPracticeTavola(db: Db, tavolaId: string): Promise<number> {
+async function markPracticeTavola(db: Db, tavolaId: string): Promise<Map<string, string>> {
   const rows = await db
     .insert(positions)
     .values(
@@ -226,7 +366,24 @@ async function markPracticeTavola(db: Db, tavolaId: string): Promise<number> {
     }),
   );
 
-  return rows.length;
+  return idsByNumber;
+}
+
+/**
+ * The invented components, written once however many drawings list them.
+ *
+ * Once is the point rather than an economy: a Part is a thing in its own right (ADR 0001), and a
+ * practice archive that wrote the same bolt twice would be demonstrating the duplication the
+ * whole identity rule exists to prevent — and would have nothing to show under "also on".
+ */
+async function writePracticeParts(db: Db): Promise<Map<string, string>> {
+  const keys = Object.keys(practiceParts);
+  const rows = await db
+    .insert(parts)
+    .values(keys.map((key) => practiceParts[key as keyof typeof practiceParts]))
+    .returning();
+
+  return new Map(rows.map((row, index) => [keys[index] as string, row.id]));
 }
 
 /**
@@ -234,7 +391,12 @@ async function markPracticeTavola(db: Db, tavolaId: string): Promise<number> {
  * never does it to itself.
  */
 export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> {
-  await db.execute(sql`TRUNCATE ${models}, ${categories} RESTART IDENTITY CASCADE`);
+  // **Parts are named here explicitly, and that is not belt and braces.** A Part is a component
+  // in its own right (ADR 0001), so no column of it points at a Model — which means emptying the
+  // Models does not cascade to it however far the cascade runs. Left behind, the Catalog Numbers
+  // of the last practice archive collide with the next one's and seeding refuses. The Listings
+  // do cascade, from both ends.
+  await db.execute(sql`TRUNCATE ${models}, ${categories}, ${parts} RESTART IDENTITY CASCADE`);
   // Truncating the tables without taking the files leaves a directory of images nothing points
   // at, growing every time the practice archive is rebuilt.
   await fileStore.remove('scans');

@@ -1,6 +1,7 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { EditorGate } from '../access/editor-gate.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
+import type { PartController } from '../controllers/part-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
@@ -30,6 +31,7 @@ export function createApiRouter(dependencies: {
   catalogController: CatalogController;
   tavolaController: TavolaController;
   positionController: PositionController;
+  partController: PartController;
   scanController: ScanController;
 }): Router {
   const {
@@ -39,6 +41,7 @@ export function createApiRouter(dependencies: {
     catalogController,
     tavolaController,
     positionController,
+    partController,
     scanController,
   } = dependencies;
 
@@ -72,6 +75,14 @@ export function createApiRouter(dependencies: {
   router.delete('/positions/:positionId', positionController.removePosition);
   router.patch('/marks/:markId', positionController.moveMark);
   router.delete('/marks/:markId', positionController.removeMark);
+
+  // **What sits at a number**, read one Position at a time rather than carried on every Position
+  // of the sheet: a Tavola may hold two hundred of them, each with several Parts and each Part's
+  // other appearances, and a member reads one. Recording a Part goes through the Tavola, because
+  // a Listing is a Part's appearance on a *drawing* — the Position is optional.
+  router.get('/positions/:positionId/listings', partController.listAtPosition);
+  router.post('/tavole/:tavolaId/listings', partController.record);
+  router.delete('/listings/:listingId', partController.removeListing);
 
   // The scan is the body, and **nothing here trusts what it says it is**: the parser claims
   // every content type and ingest decides what the bytes actually are. A `.tif` off a flatbed

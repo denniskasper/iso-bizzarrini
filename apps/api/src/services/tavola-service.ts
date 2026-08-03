@@ -1,5 +1,6 @@
 import type { CategoriesResponse, TavolaResponse, TavolaSummary } from '@ricambi/contracts';
 import { categorySlug, numericPrefixOf } from '../catalog/naming.js';
+import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
 import type { CategoryRepository } from '../repositories/category-repository.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
@@ -93,7 +94,7 @@ export function createTavolaService(dependencies: {
           // A Tavola's number is meaningful only within its Model, and two sheets in one
           // catalog cannot both be number 12. The database is what enforces that, so that two
           // Editors filing at the same moment cannot both pass a check and both write.
-          if (isDuplicateNumber(error)) {
+          if (violates(error, 'tavole_model_id_number_unique')) {
             throw new ConflictError(
               `${model.brand} ${model.name} already has a Tavola numbered ${tavola.number}.`,
             );
@@ -104,17 +105,4 @@ export function createTavolaService(dependencies: {
       return toTavolaSummary({ ...row, category, scan: null });
     },
   };
-}
-
-/**
- * Drizzle wraps what Postgres said, so the constraint name is one or two `cause` links down
- * rather than on the error in hand.
- */
-function isDuplicateNumber(error: unknown): boolean {
-  for (let current = error; current instanceof Error; current = current.cause) {
-    if ((current as { constraint?: unknown }).constraint === 'tavole_model_id_number_unique') {
-      return true;
-    }
-  }
-  return false;
 }
