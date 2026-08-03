@@ -124,6 +124,157 @@
   }
 
   /*
+   * The light table: the stage one drawing is read on.
+   *
+   * Tall, because the drawing is the hero and the sheet is landscape — but bounded, so that on a
+   * large screen the page below it is still discoverable rather than a scroll away.
+   *
+   * **The table, and not paper.** A plate on a contact sheet sits on paper because it is a
+   * printed plate; a drawing being read is a sheet lying on something, and it has to be possible
+   * to see where it ends — a scan is white to its own edges, so on white the member panning
+   * around cannot tell the sheet from the surround. The drawing is still the brightest thing on
+   * a dark screen, because the drawing is what is white.
+   */
+  .drawing-stage {
+    position: relative;
+    height: clamp(20rem, 68vh, 46rem);
+    overflow: hidden;
+    background-color: var(--surface-sunken);
+    border: 1px solid var(--line);
+  }
+
+  /*
+   * Full screen, and this is the whole of it where a browser has no element fullscreen — iOS
+   * Safari — so a phone still gets every pixel it has. Where the real API exists it is asked for
+   * as well and this simply fills what it opens.
+   */
+  .drawing-stage[data-expanded='true'] {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    height: 100%;
+    border: 0;
+  }
+
+  html.drawing-expanded {
+    overflow: hidden;
+    /*
+     * And the gutter goes with it. `scrollbar-gutter: stable` reserves a strip that a fixed
+     * element cannot cover, so without this a drawing filling the screen is filling it except
+     * for a bar of chrome down one edge — which is what the browser seam caught.
+     */
+    scrollbar-gutter: auto;
+  }
+
+  .drawing-frame {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+    /* The browser does not get to scroll or zoom this — every gesture over the sheet is the
+       viewer's, or a member's pinch would leave with the page instead of the drawing. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .drawing-frame:active {
+    cursor: grabbing;
+  }
+
+  /*
+   * The sheet itself, laid out at the scan's own pixel size and then moved as a whole. Only
+   * `transform` changes while a member pans, which is the one thing a browser can do without
+   * re-running layout — the difference between a drawing that follows a finger and one that
+   * lags behind it.
+   */
+  .drawing-scene {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  .drawing-scene > img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Against the base rule that keeps images inside their container: here the container is the
+       drawing's own size and the frame is what does the containing. */
+    max-width: none;
+    /*
+     * A browser's own answer to dragging an image is to pick it up and offer it to something
+     * else — which cancels the pointer about fifteen pixels into a pan, so the sheet twitches
+     * and stops. Every image in this viewer is scenery being moved, never a file being carried.
+     */
+    -webkit-user-drag: none;
+  }
+
+  /*
+   * Where you are on the sheet.
+   *
+   * It dims what is *not* in view rather than outlining what is, because "the bright part is the
+   * part you are looking at" needs no explaining and no legend. Absent entirely until something
+   * is off screen — a navigator that always says "all of it" is chrome that never earned its
+   * place over the drawing.
+   */
+  .drawing-navigator {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    /* It is pointed at, so it obeys the same floor every other control does however long and
+       thin the sheet inside it happens to be. */
+    min-width: var(--spacing-control);
+    min-height: var(--spacing-control);
+    transition: opacity 150ms var(--ease-out-quick);
+  }
+
+  .drawing-navigator[data-visible='false'] {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  /* The sheet in miniature, at the drawing's own proportions. */
+  .drawing-map {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--paper);
+    border: 1px solid var(--line-strong);
+  }
+
+  .drawing-map > img {
+    width: 100%;
+    height: 100%;
+    /* The map carries the drawing's own aspect ratio, so this maps image to box exactly and
+       the rectangle below lands where the member is actually looking. */
+    object-fit: fill;
+  }
+
+  .drawing-region {
+    position: absolute;
+    border: 1px solid var(--text);
+    /* Not a shadow — a scrim. Solid, unblurred, and the cheapest way to darken everything
+       outside one rectangle without four elements to keep in step. */
+    box-shadow: 0 0 0 100vmax var(--scrim);
+    pointer-events: none;
+  }
+
+  /*
+   * The instrument panel: one chip of chrome resting on the sheet, in the corner a thumb
+   * reaches. It wears no accent — the drawing is what a member came for, and none of these is
+   * the dominant action on this screen.
+   */
+  .drawing-rail {
+    display: flex;
+    align-items: center;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+  }
+
+  /*
    * The mark a non-production system wears: a proof stamp. Everything in this archive is
    * printed matter, and a proof sheet is a print that is explicitly not the finished one —
    * hatched along its edge so that nobody files it as the real thing. It is the only element

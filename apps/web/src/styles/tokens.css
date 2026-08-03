@@ -45,6 +45,14 @@
    */
   --paper: oklch(1 0 0);
 
+  /*
+   * What dims the part of a drawing that is not in view, in the navigator. Paper's companion,
+   * and like paper it is the same in both themes and in a practice system, because it only ever
+   * sits on paper. Ink at just over half strength: enough that the part in view is obviously the
+   * bright one, light enough that the rest of the sheet is still a drawing rather than a hole.
+   */
+  --scrim: oklch(0.279 0.015 257 / 0.55);
+
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);
   --text-muted: oklch(0.45 0.009 261);

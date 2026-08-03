@@ -15,13 +15,10 @@ export function Plate({
   scan,
   alt,
   className,
-  size = 'preview',
 }: {
   scan: TavolaScan | null;
   alt: string;
   className?: string;
-  /** `display` is the whole drawing; `preview` is the thumbnail a contact sheet is made of. */
-  size?: 'preview' | 'display';
 }) {
   if (!scan) {
     return (
@@ -35,12 +32,13 @@ export function Plate({
   return (
     <div className={cn('plate', className)}>
       <img
-        src={size === 'display' ? scan.displayUrl : scan.previewUrl}
+        src={scan.previewUrl}
         alt={alt}
         width={scan.width}
         height={scan.height}
-        // The drawing is the hero and it is what the member came for, so it is never deferred.
-        loading={size === 'display' ? 'eager' : 'lazy'}
+        // A contact sheet is a page of drawings a member is scrolling past; only the ones that
+        // reach the screen are worth a request.
+        loading="lazy"
         decoding="async"
       />
     </div>

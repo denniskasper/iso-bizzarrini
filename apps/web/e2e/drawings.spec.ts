@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { openFirstDrawing, openGrifo } from './support/archive.js';
 import { PASSPHRASE, signIn } from './support/gate.js';
 
 /**
@@ -6,14 +7,8 @@ import { PASSPHRASE, signIn } from './support/gate.js';
  * proved at the API seam instead. What is here is what only a real browser can show —
  * that the drawing actually renders, that a signed-out browser gets told why it cannot see one
  * rather than a broken picture, and that being sent to the gate does not lose where you were
- * going.
+ * going. Reading the drawing itself is `viewer.spec.ts`.
  */
-async function openGrifo(page: Page): Promise<void> {
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Iso Grifo' }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Grifo');
-}
-
 test.describe('opening a drawing', () => {
   test('a signed-in member sees the scan itself, drawn on the page', async ({ page }) => {
     await signIn(page);
@@ -34,9 +29,7 @@ test.describe('opening a drawing', () => {
   });
 
   test('shows the factory’s own header beside the drawing, as printed', async ({ page }) => {
-    await signIn(page);
-    await openGrifo(page);
-    await page.getByTestId('tavola-plate').first().click();
+    await openFirstDrawing(page);
 
     const provenance = page.getByRole('region', { name: 'On the sheet' });
     await expect(provenance).toContainText('Sezione');
@@ -69,9 +62,7 @@ test.describe('a link into the archive', () => {
   // Story 53. A member sends another member a link to a drawing; opening it signed out must
   // not cost them the thing they were sent.
   test('survives the sign-in screen and lands where it was pointing', async ({ page }) => {
-    await signIn(page);
-    await openGrifo(page);
-    await page.getByTestId('tavola-plate').first().click();
+    await openFirstDrawing(page);
     const drawingUrl = new URL(page.url()).pathname;
 
     // Now arrive at that address the way the member who was sent it does: signed out.

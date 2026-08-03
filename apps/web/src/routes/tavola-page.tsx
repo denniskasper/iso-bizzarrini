@@ -1,16 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { ScanUpload } from '@/components/editor/scan-upload';
-import { Plate } from '@/components/plate';
+import { DrawingViewer } from '@/components/viewer/drawing-viewer';
 import { api, type CatalogProvenance } from '@/lib/api';
 
 /**
  * One drawing, as large as the screen will allow.
  *
  * This is the surface the whole product is for, and it is deliberately almost empty: the sheet,
- * what it is called, and what the factory printed at the top of it. Zooming, panning and the
- * numbered circles arrive with tickets 04 and 05 — on this same plate, which is why the scan's
- * own dimensions are already carried through so nothing reflows when they do.
+ * what it is called, and what the factory printed at the top of it. The numbered circles arrive
+ * with ticket 05, pinned to the same fractional coordinates the viewer already works in.
  */
 export function TavolaPage() {
   const { tavolaId } = useParams({ from: '/tavole/$tavolaId' });
@@ -58,11 +57,10 @@ export function TavolaPage() {
       </p>
 
       {/* The drawing, and nothing beside it. It gets the full measure of the page. */}
-      <Plate
+      <DrawingViewer
         scan={tavola.scan}
-        size="display"
         alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
-        className="mt-10 min-h-64"
+        className="mt-10"
       />
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
