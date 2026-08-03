@@ -15,6 +15,13 @@
       "when": 1785706755844,
       "tag": "0001_tavole_categories_scans",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785759922954,
+      "tag": "0002_positions_and_marks",
+      "breakpoints": true
     }
   ]
 }

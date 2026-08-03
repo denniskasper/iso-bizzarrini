@@ -45,11 +45,13 @@ repository. `scans:measure` says so when it sees it.
 
 ## Why this is safe to reverse
 
-**Marks are stored in fractional image coordinates** (ticket 05 places them; this is the reason
-the column is a fraction rather than a pixel). A Tavola marked up today against one image is
-marked up against a tile pyramid tomorrow, at any resolution, without re-marking a single sheet.
-That is what makes deferring this cheap, and it is the constraint that must survive: a Mark
-stored in pixels would make this decision permanent by accident.
+**Marks are stored in fractional image coordinates** — as of ticket 05, actually and not only in
+principle: `marks.x` and `marks.y` are doubles between 0 and 1, the API refuses anything outside
+that range, and the viewer converts a pointer into a fraction of the sheet before anything leaves
+it. A Tavola marked up today against one image is marked up against a tile pyramid tomorrow, at
+any resolution, without re-marking a single sheet. That is what makes deferring this cheap, and it
+is the constraint that must survive: a Mark stored in pixels would make this decision permanent by
+accident.
 
 The image route is already the shape a tiled archive needs — authenticated, immutable, addressed
 by a scan id that changes when the scan does — so tiling would add derivatives and a route

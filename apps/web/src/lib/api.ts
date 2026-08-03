@@ -4,8 +4,12 @@ import type {
   CatalogModel,
   CatalogModelResponse,
   CatalogModelsResponse,
+  MoveMarkRequest,
+  NewMarkRequest,
   NewModelRequest,
+  NewPositionRequest,
   NewTavolaRequest,
+  PositionsResponse,
   ServiceStatus,
   SessionResponse,
   TavolaResponse,
@@ -77,6 +81,26 @@ export const api = {
     send<{ tavola: TavolaSummary }>('POST', `/models/${modelId}/tavole`, tavola),
 
   /**
+   * Marking up a drawing. **Every one of these answers with the sheet**, so nothing in this
+   * browser ever has to work out where a new number goes in a catalog's order — see
+   * `PositionsResponse`.
+   *
+   * `placeMark` is the whole marking tool in one call: it names the Position by the number the
+   * factory printed, because that is what the Editor knows at the moment they click, and one
+   * click has to cost one request.
+   */
+  placeMark: (tavolaId: string, mark: NewMarkRequest) =>
+    send<PositionsResponse>('POST', `/tavole/${tavolaId}/marks`, mark),
+  addPosition: (tavolaId: string, position: NewPositionRequest) =>
+    send<PositionsResponse>('POST', `/tavole/${tavolaId}/positions`, position),
+  removePosition: (positionId: string) =>
+    request<PositionsResponse>(`/positions/${positionId}`, { method: 'DELETE' }),
+  moveMark: (markId: string, to: MoveMarkRequest) =>
+    send<PositionsResponse>('PATCH', `/marks/${markId}`, to),
+  removeMark: (markId: string) =>
+    request<PositionsResponse>(`/marks/${markId}`, { method: 'DELETE' }),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -92,9 +116,13 @@ export type {
   CatalogModel,
   CatalogProvenance,
   Category,
+  Mark,
+  MarkPoint,
   NewModelRequest,
   NewTavolaRequest,
+  Position,
   ServiceStatus,
+  TavolaResponse,
   TavolaScan,
   TavolaSummary,
 } from '@ricambi/contracts';

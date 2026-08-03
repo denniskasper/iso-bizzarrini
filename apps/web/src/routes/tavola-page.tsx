@@ -1,15 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
+import { useCallback, useMemo, useState } from 'react';
+import { MarkingBar } from '@/components/editor/marking-bar';
 import { ScanUpload } from '@/components/editor/scan-upload';
+import { PositionList } from '@/components/positions/position-list';
+import { PositionPanel } from '@/components/positions/position-panel';
+import { Button } from '@/components/ui/button';
 import { DrawingViewer } from '@/components/viewer/drawing-viewer';
-import { api, type CatalogProvenance } from '@/lib/api';
+import { MarkLayer } from '@/components/viewer/mark-layer';
+import { api, type CatalogProvenance, type Position } from '@/lib/api';
+import { useMarkingTool } from '@/lib/marking';
 
 /**
- * One drawing, as large as the screen will allow.
+ * One drawing, as large as the screen will allow, with the numbered circles on it.
  *
- * This is the surface the whole product is for, and it is deliberately almost empty: the sheet,
- * what it is called, and what the factory printed at the top of it. The numbered circles arrive
- * with ticket 05, pinned to the same fractional coordinates the viewer already works in.
+ * This is the surface the whole product is for, and it stays almost empty: the sheet, what it is
+ * called, and what the factory printed at the top of it. Everything about a Position is *below*
+ * the drawing rather than over it — which is also where the Part goes at ticket 06, so that
+ * reading one never means losing sight of the other.
  */
 export function TavolaPage() {
   const { tavolaId } = useParams({ from: '/tavole/$tavolaId' });
@@ -18,6 +26,33 @@ export function TavolaPage() {
     queryKey: ['tavola', tavolaId],
     queryFn: () => api.tavola(tavolaId),
   });
+
+  /**
+   * What is being read: a Position, and which of its circles was pointed at.
+   *
+   * Held as an id rather than as the Position itself, because the sheet is replaced wholesale
+   * every time anything is marked — a copy kept here would be the one that went stale.
+   */
+  const [selectedId, setSelectedId] = useState<{ position: string; mark: string | null } | null>(
+    null,
+  );
+  const tool = useMarkingTool(tavolaId);
+
+  const positions = useMemo(() => data?.positions ?? [], [data?.positions]);
+  const selectedPosition =
+    positions.find((position) => position.id === selectedId?.position) ?? null;
+  const selected = selectedPosition
+    ? { position: selectedPosition, markId: selectedId?.mark ?? null }
+    : null;
+
+  const select = useCallback((position: Position, markId: string | null) => {
+    setSelectedId({ position: position.id, mark: markId });
+  }, []);
+
+  const selectMark = useCallback(
+    (position: Position, mark: { id: string }) => select(position, mark.id),
+    [select],
+  );
 
   if (isPending) {
     return <p className="text-lg text-muted">Reading the drawing…</p>;
@@ -61,7 +96,50 @@ export function TavolaPage() {
         scan={tavola.scan}
         alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
         className="mt-10"
+        overlay={
+          <MarkLayer
+            positions={positions}
+            selectedPositionId={selectedPosition?.id ?? null}
+            onSelect={selectMark}
+            onMove={tool.on ? tool.moveMark : undefined}
+          />
+        }
+        // The sheet only becomes a tool when an Editor says so. A member's drawing is a
+        // drawing, and a stray tap on it records nothing.
+        onTapPoint={tool.on ? tool.place : undefined}
       />
+
+      {tool.on && (
+        <div className="mt-8">
+          <MarkingBar
+            tool={tool}
+            positions={positions}
+            selected={selected}
+            onDeselect={() => setSelectedId(null)}
+          />
+        </div>
+      )}
+
+      <div className="mt-12 border-t border-line pt-10">
+        <PositionPanel position={selectedPosition} />
+      </div>
+
+      <div className="mt-12">
+        <PositionList
+          positions={positions}
+          selectedPositionId={selectedPosition?.id ?? null}
+          onSelect={(position) => select(position, null)}
+          // A drawing nobody has scanned is not a drawing anybody can click, so the tool that
+          // works by clicking it is not offered.
+          action={
+            tavola.scan && !tool.on ? (
+              <Button variant="outline" onClick={() => tool.start(positions.at(-1)?.number)}>
+                Mark positions
+              </Button>
+            ) : null
+          }
+        />
+      </div>
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
         <Provenance provenance={tavola.provenance} />

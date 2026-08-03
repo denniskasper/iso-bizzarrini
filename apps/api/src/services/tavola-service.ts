@@ -5,6 +5,7 @@ import type { CategoryRepository } from '../repositories/category-repository.js'
 import type { ModelRepository } from '../repositories/model-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
 import { toCatalogModel, toCategory, toTavolaSummary } from './catalog-view.js';
+import type { PositionService } from './position-service.js';
 
 export interface NewTavola {
   number: string;
@@ -28,8 +29,9 @@ export function createTavolaService(dependencies: {
   modelRepository: ModelRepository;
   categoryRepository: CategoryRepository;
   tavolaRepository: TavolaRepository;
+  positionService: PositionService;
 }): TavolaService {
-  const { modelRepository, categoryRepository, tavolaRepository } = dependencies;
+  const { modelRepository, categoryRepository, tavolaRepository, positionService } = dependencies;
 
   return {
     async listCategories() {
@@ -42,7 +44,12 @@ export function createTavolaService(dependencies: {
         throw new NotFoundError('No such Tavola.');
       }
 
+      // With the drawing and not after it. The circles are part of what a member opened the
+      // Tavola to see, and a second request for them is a second chance to arrive late.
+      const positions = await positionService.listForTavola(tavolaId);
+
       return {
+        positions,
         tavola: {
           ...toTavolaSummary(row),
           model: toCatalogModel(row.model),

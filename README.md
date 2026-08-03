@@ -15,18 +15,17 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [05](.scratch/ricambi/issues/05-positions-and-marking-tool.md)** — Positions and the
-marking tool. The viewer it marks on is built, and the region it reports is in fractions of the
-drawing — the units a Mark is stored in — so a Mark lands in the same arithmetic whatever a scan
-is later delivered as ([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)).
+**Next up: [06](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md)** — Parts,
+Listings, and reading a part from a circle. The circles are on the drawing and every one of them
+knows which Position it belongs to; what is missing is the answer a member clicks one to get.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
 | 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
 | 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | 10 of 11 | `done` | 01 |
-| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 14 of 18 | `ready-for-human` | 01 |
+| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 15 of 18 | `ready-for-human` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | 9 of 10 | `done` | 03 |
-| 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Not started | `ready-for-agent` | 04 |
+| 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Done | `done` | 04 |
 | 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Not started | `ready-for-agent` | 05 |
 | 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Not started | `ready-for-agent` | 06 |
 | 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Not started | `ready-for-agent` | 06 |
@@ -52,13 +51,13 @@ sign-in gate — is carried by [ticket 14](.scratch/ricambi/issues/14-accounts-m
 which lists it. The environment itself is built and runs today; there is simply nothing yet to
 stand it beside.
 
-**Ticket 03's four open boxes need a person, not code.** It asks for at least a dozen *real*
+**Ticket 03's three open boxes need a person, not code.** It asks for at least a dozen *real*
 scans from the club archive to be measured before the deep-zoom question is settled, and none has
-been obtained — the only genuine drawing anyone has seen was supplied downsized. Two more boxes
-are conditional on that measurement, and the fourth belongs to ticket 05, which places the first
-Mark. Everything the ticket asks for in code is built, and the measurement is now taken by the
-archive itself: ingest records every scan's dimensions and byte sizes, and `pnpm scans:measure`
-reads them back and applies the threshold. See
+been obtained — the only genuine drawing anyone has seen was supplied downsized. The other two
+are conditional on that measurement. Everything the ticket asks for in code is built, and the
+measurement is now taken by the archive itself: ingest records every scan's dimensions and byte
+sizes, and `pnpm scans:measure` reads them back and applies the threshold. Its fourth box closed
+at ticket 05, which placed the first Mark in fractional image coordinates. See
 [ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md).
 
 **Ticket 04's one open box is the tile box, and it is open because there are no tiles.** The

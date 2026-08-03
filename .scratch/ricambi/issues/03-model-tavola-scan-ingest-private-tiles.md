@@ -31,25 +31,28 @@ choice to this ticket.
 - [ ] Tile only if the scans are large enough that sending a whole one to a phone on poor reception actually hurts — *conditional on the measurement above; the threshold is set and applied automatically, but nothing real has met it*
 - [x] Otherwise serve one private image and pan/zoom client-side — no pyramid, no tile storage
 - [ ] Check the decisive question directly: at the archive's real resolution, **can a position number be read on a phone?** If not, no delivery format saves it and the scanning itself needs revisiting — *the check is built and runs automatically; it has had nothing real to run against*
-- [ ] Either way, Marks are stored in **fractional image coordinates**, so this decision can be reversed later without re-marking a single Tavola — *ticket 05 places the first Mark; ADR 0013 records the commitment and the reason it is load-bearing*
+- [x] Either way, Marks are stored in **fractional image coordinates**, so this decision can be reversed later without re-marking a single Tavola — *closed at ticket 05, which placed the first Mark; see Comments*
 - [x] Record the measurement and the choice, so nobody re-litigates it from the same assumption
 - [x] A Tavola with no scan yet is a legitimate state
 - [x] UI and design work uses the `/frontend-design` skill
 
 ## Comments
 
-**Four boxes are open and none of them is code.** Nobody has obtained a real scan from the club
+**Three boxes are open and none of them is code.** Nobody has obtained a real scan from the club
 archive. The only genuine drawing anyone has seen was supplied downsized to 1245 × 809, and the
 prior implementation's sample tavole are artificial — which is the same evidence the tiling
 assumption was made on, so deciding from it again would be re-litigating rather than measuring.
 
-Three of the four are open *because* of that one: "tile only if the scans are large enough" and
+Two of the three are open *because* of that one: "tile only if the scans are large enough" and
 "can a position number be read on a phone" are both conditional on a measurement that has not
 happened. The machinery for both is built and runs by itself; it has had nothing real to run
-against, and a tick would claim otherwise. The fourth is Marks in fractional coordinates —
-**ticket 05 places the first Mark**, and a tick here would claim stored data that does not exist.
-What this ticket owes that box is the commitment and the reason it is load-bearing, and ADR 0013
-carries both.
+against, and a tick would claim otherwise.
+
+**The fourth box is now closed.** It was open because a tick would have claimed stored data that
+did not exist; ticket 05 placed the first Mark, and `marks.x` and `marks.y` are fractions of the
+drawing in the database, in the API's contract and in the viewer's arithmetic alike. Re-scanning
+a Tavola at any resolution costs nothing an Editor has already done. ADR 0013 carries the
+commitment and the reason it is load-bearing.
 
 Everything the ticket asks for in code is delivered.
 

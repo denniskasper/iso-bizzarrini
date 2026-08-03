@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { AppConfig } from '../config/config.js';
 import type { Db } from '../db/client.js';
-import { categories, models, tavole } from '../db/schema.js';
+import { categories, marks, models, positions, tavole } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { createCategoryRepository } from '../repositories/category-repository.js';
@@ -87,6 +87,25 @@ export const practiceTavole = [
   },
 ];
 
+/**
+ * The numbered circles the invented drawing prints, **as fractions of the sheet** — which is
+ * also the unit a Mark is stored in (ADR 0013), so the drawing below and the Marks seeded onto
+ * it are read off one list and cannot drift apart.
+ */
+const practiceCircles = [
+  { number: '1', x: 0.25, y: 0.3 },
+  { number: '2', x: 0.5, y: 0.43 },
+  { number: '3', x: 0.75, y: 0.3 },
+  { number: '4', x: 0.5, y: 0.71 },
+];
+
+/**
+ * A number the catalog lists that the drawing does not show — the washer behind a bracket. Zero
+ * Marks is an ordinary state for a Position and a practice archive should have one, so that a
+ * screen showing "listed but not drawn" has something to show it with.
+ */
+const undrawnPracticePosition = '5';
+
 export interface SeedDependencies {
   db: Db;
   fileStore: FileStore;
@@ -99,6 +118,7 @@ export interface SeedOutcome {
   models: number;
   tavole: number;
   drawings: number;
+  positions: number;
 }
 
 /**
@@ -138,6 +158,7 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
   });
 
   let drawings = 0;
+  let marked = 0;
   for (const seed of practiceTavole) {
     const modelId = modelIdsByName.get(seed.model);
     if (!modelId) {
@@ -164,10 +185,48 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     if (tavola && seed.drawn) {
       await scanService.ingest(tavola.id, await inventedDrawing(seed.number, seed.nameIt));
       drawings += 1;
+      marked += await markPracticeTavola(db, tavola.id);
     }
   }
 
-  return { models: practiceModels.length, tavole: practiceTavole.length, drawings };
+  return {
+    models: practiceModels.length,
+    tavole: practiceTavole.length,
+    drawings,
+    positions: marked,
+  };
+}
+
+/**
+ * The Positions a marked-up sheet carries: one on each circle the drawing prints, and one the
+ * drawing does not print at all.
+ *
+ * Written straight to the tables rather than through the marking tool, because this is a
+ * fixture and not a demonstration of the tool — what the tool does is asserted at the API and
+ * browser seams, where an Editor's click is what places the circle.
+ */
+async function markPracticeTavola(db: Db, tavolaId: string): Promise<number> {
+  const rows = await db
+    .insert(positions)
+    .values(
+      [...practiceCircles.map((circle) => circle.number), undrawnPracticePosition].map(
+        (number) => ({ tavolaId, number, numberSort: numericPrefixOf(number) }),
+      ),
+    )
+    .returning();
+
+  const idsByNumber = new Map(rows.map((row) => [row.number, row.id]));
+  await db.insert(marks).values(
+    practiceCircles.map((circle) => {
+      const positionId = idsByNumber.get(circle.number);
+      if (!positionId) {
+        throw new Error(`The practice Position ${circle.number} was not inserted.`);
+      }
+      return { positionId, x: circle.x, y: circle.y };
+    }),
+  );
+
+  return rows.length;
 }
 
 /**
@@ -185,16 +244,14 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
  * A drawing that could not be mistaken for a factory one: a ruled sheet with a few numbered
  * circles on it, at roughly the proportions of an A3 page. It exists so a practice archive has
  * something to open, and so the viewer has something to be built against at ticket 04.
+ *
+ * Its circles are printed from `practiceCircles` — the same fractions the seeded Marks are
+ * placed at — so the two cannot be edited apart and a seeded Mark always lands on a number.
  */
 function inventedDrawing(number: string, name: string): Promise<Buffer> {
   const width = 2480;
   const height = 1754;
-  const positions = [
-    { x: 620, y: 520, label: '1' },
-    { x: 1240, y: 760, label: '2' },
-    { x: 1860, y: 520, label: '3' },
-    { x: 1240, y: 1240, label: '4' },
-  ];
+  const middle = { x: width / 2, y: height / 2 };
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     <rect width="100%" height="100%" fill="#ffffff"/>
@@ -205,16 +262,17 @@ function inventedDrawing(number: string, name: string): Promise<Buffer> {
     <text x="90" y="${height - 90}" font-family="DejaVu Serif, Times New Roman, serif" font-size="32" fill="#888888">
       Invented for the practice archive — not a factory drawing
     </text>
-    ${positions
-      .map(
-        (position) => `
-      <line x1="${position.x}" y1="${position.y}" x2="1240" y2="880"
+    ${practiceCircles
+      .map((circle) => {
+        const at = { x: circle.x * width, y: circle.y * height };
+        return `
+      <line x1="${at.x}" y1="${at.y}" x2="${middle.x}" y2="${middle.y}"
         stroke="#111111" stroke-width="3"/>
-      <circle cx="${position.x}" cy="${position.y}" r="52"
+      <circle cx="${at.x}" cy="${at.y}" r="52"
         fill="#ffffff" stroke="#111111" stroke-width="5"/>
-      <text x="${position.x}" y="${position.y + 20}" font-family="DejaVu Serif, Times New Roman, serif" font-size="56"
-        text-anchor="middle" fill="#111111">${position.label}</text>`,
-      )
+      <text x="${at.x}" y="${at.y + 20}" font-family="DejaVu Serif, Times New Roman, serif" font-size="56"
+        text-anchor="middle" fill="#111111">${circle.number}</text>`;
+      })
       .join('')}
   </svg>`;
 

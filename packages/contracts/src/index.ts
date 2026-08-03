@@ -126,12 +126,57 @@ export interface CatalogProvenance {
   subgroup: string | null;
 }
 
+/**
+ * A place on a drawing.
+ *
+ * **Fractions of the drawing, never pixels of a file**: `0` is the left or top edge and `1` the
+ * right or bottom one, whatever resolution the sheet was scanned at (ADR 0013). A Tavola
+ * re-scanned at twice the size keeps every Mark an Editor placed on it.
+ *
+ * It has a name of its own because the same pair travels through every layer on both sides —
+ * the gesture that produces it, the request that carries it, the row that stores it — and a
+ * loose `{ x, y }` written out at each of them is a pair somebody eventually gets the wrong way
+ * round.
+ */
+export interface MarkPoint {
+  x: number;
+  y: number;
+}
+
+/** A place on the scan where a Position's number appears. */
+export interface Mark extends MarkPoint {
+  id: string;
+}
+
+/**
+ * A number printed on a Tavola.
+ *
+ * **It exists in its own right, and nothing here says what sits at it.** Marking a sheet up and
+ * finding out what each number is are separate evenings' work, so a Position about which
+ * nothing whatever is known is an ordinary, finished thing rather than a half-made one. What
+ * sits there arrives with ticket 06, as a Listing, and does not live on this shape.
+ *
+ * `marks` is in reading order down the sheet, and may be empty — a Position with no Mark is
+ * one the catalog lists but the drawing does not show.
+ */
+export interface Position {
+  id: string;
+  /** As printed — `207`, `210 S`, `211 D`. An identifier, never arithmetic. */
+  number: string;
+  marks: Mark[];
+}
+
 /** `GET /api/tavole/:tavolaId` */
 export interface TavolaResponse {
   tavola: TavolaSummary & {
     model: CatalogModel;
     provenance: CatalogProvenance;
   };
+  /**
+   * Every Position on the sheet, in the order the factory printed them, with the drawing —
+   * because circles that arrive after the sheet does are circles a member watches appear.
+   */
+  positions: Position[];
 }
 
 /**
@@ -160,6 +205,45 @@ export interface NewTavolaRequest {
   catalogSection: string;
   catalogGroup: string;
   catalogSubgroup: string;
+}
+
+/**
+ * `POST /api/tavole/:tavolaId/marks` — **the one-click primitive, and the reason it looks like
+ * this.**
+ *
+ * Placing a Mark is the project's critical path: hundreds of Tavole, over two hundred Positions
+ * on some of them, all of it volunteers' evenings. So one click is one request. The number
+ * names the Position rather than an id, because at the moment of the click the Editor knows
+ * what the factory printed and the archive may or may not have heard of it yet — the API finds
+ * that Position or records it, and either way answers with the whole of it.
+ */
+export interface NewMarkRequest extends MarkPoint {
+  /** As printed on the sheet. */
+  number: string;
+}
+
+/** `POST /api/tavole/:tavolaId/positions` — a number the catalog lists but the drawing omits. */
+export interface NewPositionRequest {
+  number: string;
+}
+
+/** `PATCH /api/marks/:markId` — a circle an Editor put in the wrong place. */
+export type MoveMarkRequest = MarkPoint;
+
+/**
+ * What placing, moving or removing anything answers with: **the whole sheet, re-read.**
+ *
+ * Not the one Position that changed, which is what it looks like it should be. A browser handed
+ * a single Position would have to work out where in the catalog's order it belongs, and the
+ * order is the archive's rule — leading digits, then the number as printed, under the database's
+ * own collation. Sorting `12 bis` in two places is two answers waiting to disagree, so this
+ * answers with the list and the browser never sorts a catalog at all.
+ *
+ * The cost is the sheet's Positions on every click, which is a few kilobytes even on a Tavola
+ * carrying two hundred of them, against a scan already measured in megabytes.
+ */
+export interface PositionsResponse {
+  positions: Position[];
 }
 
 /**

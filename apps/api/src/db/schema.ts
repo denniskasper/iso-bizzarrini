@@ -1,5 +1,14 @@
 import { relations } from 'drizzle-orm';
-import { index, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  doublePrecision,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 /**
  * A Model is a vehicle as the factory catalogs distinguish them — brand, model, series and
@@ -128,14 +137,83 @@ export const scans = pgTable('scans', {
   ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull(),
 });
 
+/**
+ * A Position is a number printed on a Tavola, and it **exists in its own right**: no column
+ * here points at a Part, and none ever will. Marking a sheet up and finding out what sits at
+ * each number are separate evenings' work, so a Tavola may carry two hundred Positions about
+ * which nothing whatever is known, indefinitely, and that is a finished state rather than a
+ * half-done one.
+ *
+ * The number is stored **as printed** — `207`, `210 S`, `211 D` — because it is an identifier a
+ * member compares character by character against a stamped bracket, not a quantity. `numberSort`
+ * is the same derived key the Tavola's own number carries, and exists for the same reason: a
+ * list that reads 1, 2, 10 rather than 1, 10, 2.
+ */
+export const positions = pgTable(
+  'positions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tavolaId: uuid('tavola_id')
+      .notNull()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    /** As printed on the sheet, suffix and all. An opaque string, never arithmetic. */
+    number: text('number').notNull(),
+    /** The leading digits of `number`. Derived at write time, never shown. */
+    numberSort: integer('number_sort'),
+  },
+  (table) => [
+    // The factory printed one number once. Two Positions numbered 210 on one sheet would be
+    // two answers to a member's only question, and the database is what makes that impossible
+    // — including for two Editors marking the same drawing at the same moment.
+    unique('positions_tavola_id_number_unique').on(table.tavolaId, table.number),
+    index('positions_tavola_id_index').on(table.tavolaId),
+  ],
+);
+
+/**
+ * A Mark is a place on the scan where a Position's number appears.
+ *
+ * **Zero or more per Position, and both ends of that are ordinary.** The factory printed the
+ * same number wherever the part is used, so a Position with four Marks is four circles a member
+ * can click; a Position with none is one that is listed but not drawn.
+ *
+ * `x` and `y` are **fractions of the drawing**, not pixels of any particular file (ADR 0013).
+ * That is what makes a Tavola re-scanned at a different resolution — or one day delivered as
+ * tiles instead of a single image — keep every evening of marking that has been done on it.
+ */
+export const marks = pgTable(
+  'marks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    positionId: uuid('position_id')
+      .notNull()
+      .references(() => positions.id, { onDelete: 'cascade' }),
+    /** Across the drawing, `0` at its left edge and `1` at its right. */
+    x: doublePrecision('x').notNull(),
+    /** Down the drawing, `0` at its top edge and `1` at its bottom. */
+    y: doublePrecision('y').notNull(),
+  },
+  (table) => [index('marks_position_id_index').on(table.positionId)],
+);
+
 export const modelsRelations = relations(models, ({ many }) => ({
   tavole: many(tavole),
 }));
 
-export const tavoleRelations = relations(tavole, ({ one }) => ({
+export const tavoleRelations = relations(tavole, ({ one, many }) => ({
   model: one(models, { fields: [tavole.modelId], references: [models.id] }),
   category: one(categories, { fields: [tavole.categoryId], references: [categories.id] }),
   scan: one(scans, { fields: [tavole.id], references: [scans.tavolaId] }),
+  positions: many(positions),
+}));
+
+export const positionsRelations = relations(positions, ({ one, many }) => ({
+  tavola: one(tavole, { fields: [positions.tavolaId], references: [tavole.id] }),
+  marks: many(marks),
+}));
+
+export const marksRelations = relations(marks, ({ one }) => ({
+  position: one(positions, { fields: [marks.positionId], references: [positions.id] }),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -154,3 +232,7 @@ export type TavolaRow = typeof tavole.$inferSelect;
 export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
 export type NewScanRow = typeof scans.$inferInsert;
+export type PositionRow = typeof positions.$inferSelect;
+export type NewPositionRow = typeof positions.$inferInsert;
+export type MarkRow = typeof marks.$inferSelect;
+export type NewMarkRow = typeof marks.$inferInsert;

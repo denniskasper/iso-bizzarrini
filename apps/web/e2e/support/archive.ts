@@ -1,6 +1,9 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { signIn } from './gate.js';
 
+/** The Model the practice archive leaves undrawn, which is where a test's own sheet goes. */
+const UNDRAWN_MODEL = 'Rivolta IR 300';
+
 /**
  * Getting to a drawing the way a member does: the catalog, then the car, then the plate. Every
  * step goes through the real screens, so a suite cannot pass against a route nobody can reach.
@@ -27,8 +30,77 @@ export async function openFirstDrawing(page: Page): Promise<void> {
 
   const drawing = drawingOf(page);
   await expect(drawing).toBeVisible();
-  // Rendered, not merely requested: a 404 image is "visible" too.
+  await expectTheSheetIsDrawn(drawing);
+}
+
+/** Rendered, not merely requested: a 404 image is "visible" too. */
+export async function expectTheSheetIsDrawn(drawing: Locator): Promise<void> {
   await expect
     .poll(() => drawing.evaluate((image: HTMLImageElement) => image.naturalWidth))
     .toBeGreaterThan(0);
+}
+
+/**
+ * A drawing of this test's own, opened and ready to be marked up.
+ *
+ * **Tests that write need a sheet nobody else is writing on.** This suite runs its files in
+ * parallel and every one of them twice — once on a desktop and once on a phone — so two runs of
+ * the same test would otherwise be placing circles on each other's Tavola and counting them.
+ *
+ * The sheet is put on the one Model the practice archive leaves undrawn, so nothing that counts
+ * what a *drawn* Model has is disturbed; and it is given the practice archive's own scan, read
+ * back out of the archive and uploaded again. That is deliberate: it is a real drawing, and no
+ * image had to be committed to this repository to get one (`AGENTS.md`).
+ *
+ * The **thumbnail** rather than the full sheet, because every one of these uploads is a real
+ * ingest and this suite runs its files in parallel: a dozen full-size scans being re-encoded
+ * takes the machine away from the browsers, and nothing here is about how large a drawing is.
+ */
+export async function openADrawingOfYourOwn(page: Page, named: string): Promise<Locator> {
+  await signIn(page);
+
+  const models = (await (await page.request.get('/api/models')).json()) as {
+    models: { id: string; name: string }[];
+  };
+  const model = (name: string) => {
+    const found = models.models.find((candidate) => candidate.name === name);
+    if (!found) {
+      throw new Error(`The practice archive has no Model named ${name}.`);
+    }
+    return found;
+  };
+
+  const listed = (await (await page.request.get(`/api/models/${model('Grifo').id}`)).json()) as {
+    tavole: { scan: { previewUrl: string } | null }[];
+  };
+  const drawn = listed.tavole.find((tavola) => tavola.scan !== null);
+  if (!drawn?.scan) {
+    throw new Error('The practice archive has no scan to borrow.');
+  }
+  const sheet = await (await page.request.get(drawn.scan.previewUrl)).body();
+
+  const created = (await (
+    await page.request.post(`/api/models/${model(UNDRAWN_MODEL).id}/tavole`, {
+      data: {
+        number: named,
+        nameIt: 'Foglio di prova',
+        nameEn: 'Practice sheet',
+        category: 'Brakes',
+        catalogSection: '',
+        catalogGroup: '',
+        catalogSubgroup: '',
+      },
+    })
+  ).json()) as { tavola: { id: string } };
+
+  await page.request.put(`/api/tavole/${created.tavola.id}/scan`, {
+    headers: { 'Content-Type': 'image/webp' },
+    data: sheet,
+  });
+
+  await page.goto(`/tavole/${created.tavola.id}`);
+  const drawing = page.getByRole('img', { name: new RegExp(`Tavola ${named} `) });
+  await expect(drawing).toBeVisible();
+  await expectTheSheetIsDrawn(drawing);
+  return drawing;
 }

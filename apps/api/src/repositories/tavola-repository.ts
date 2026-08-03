@@ -26,6 +26,12 @@ export interface TavolaInContext extends TavolaWithCategoryAndScan {
 export interface TavolaRepository {
   listByModel(modelId: string): Promise<TavolaWithCategoryAndScan[]>;
   findById(id: string): Promise<TavolaInContext | null>;
+  /**
+   * Whether there is such a sheet, and nothing more. Placing a Mark is the one request an
+   * Editor makes hundreds of times an evening, and it has no use for a Tavola's Category, its
+   * Model or its scan — only for the difference between a real sheet and a made-up id.
+   */
+  exists(id: string): Promise<boolean>;
   add(tavola: NewTavolaRow): Promise<TavolaRow>;
 }
 
@@ -49,6 +55,15 @@ export function createTavolaRepository(db: Db): TavolaRepository {
         with: { category: true, scan: true, model: true },
       });
       return row ?? null;
+    },
+
+    async exists(id) {
+      const [row] = await db
+        .select({ id: tavole.id })
+        .from(tavole)
+        .where(eq(tavole.id, id))
+        .limit(1);
+      return row !== undefined;
     },
 
     async add(tavola) {

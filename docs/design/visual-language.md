@@ -35,7 +35,9 @@ accent appears, it either does something, points at something, or is the mark of
 organisation. That is the whole list of sanctioned uses:
 
 1. the single dominant action on a screen;
-2. Marks on a drawing;
+2. Marks on a drawing, **and the Position one belongs to wherever else that Position appears** —
+   the circle on the sheet and its number in the list below are one thing being pointed at, and
+   colouring them differently would leave a member to work out that they are the same;
 3. a failure the member needs to notice;
 4. the wordmark, which is identity rather than decoration.
 
@@ -54,7 +56,9 @@ the archive is the band across the top of the Club's site. A stated system prefe
 wins over the default; an explicit choice wins over both, and is remembered.
 
 **Built for a garage.** This is the actual usage context, not an accessibility afterthought.
-Nothing interactive is under 44px in either dimension. Body text clears 4.5:1 against its
+Nothing interactive is under 44px in either dimension — `--spacing-control`, and the one place
+that figure is also written as a number is `MARK_TOUCH` in the drawing viewer, which has to do
+the arithmetic in the drawing's own pixels and cannot read a token to do it. Body text clears 4.5:1 against its
 surface and non-text marks clear 3:1, including the faintest tokens. The focus ring is 3px of
 amber in both themes — amber, not the accent, so "focused" never reads as "this is the action".
 

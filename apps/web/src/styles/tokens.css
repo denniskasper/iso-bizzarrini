@@ -53,6 +53,21 @@
    */
   --scrim: oklch(0.279 0.015 257 / 0.55);
 
+  /*
+   * A Mark on a drawing — the second of the four things sanctioned to wear the Club's teal, and
+   * the one that most obviously earns it: a Mark is a link, and teal is what the Club marks
+   * links with. **The accent itself**, named for the job rather than restated, so the day the
+   * Club's teal is re-measured a circle on a drawing follows it.
+   *
+   * The ring clears 3:1 on paper, which is the bar for a mark that carries no text. The wash is
+   * what makes a ring a *target* rather than another circle the factory printed; `mark-held` is
+   * the same teal at the weight a Position being read deserves, because that is the one
+   * dominant thing on a screen whose dominant thing is otherwise a drawing.
+   */
+  --mark: var(--accent);
+  --mark-wash: color-mix(in oklch, var(--accent) 12%, transparent);
+  --mark-held: color-mix(in oklch, var(--accent) 34%, transparent);
+
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);
   --text-muted: oklch(0.45 0.009 261);
@@ -163,6 +178,7 @@ html.dark[data-environment-mode='non-production'] {
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-paper: var(--paper);
+  --color-mark: var(--mark);
 
   --color-text: var(--text);
   --color-muted: var(--text-muted);

@@ -38,7 +38,7 @@ describe('a practice system writing itself a catalog', () => {
   it('writes an invented catalog into an archive with nothing in it', async () => {
     const written = await seed();
 
-    expect(written).toMatchObject({ models: 3, tavole: 4, drawings: 3 });
+    expect(written).toMatchObject({ models: 3, tavole: 4, drawings: 3, positions: 15 });
 
     const member = await app.editor();
     const response = await member.get('/api/models').expect(200);
@@ -73,5 +73,28 @@ describe('a practice system writing itself a catalog', () => {
     expect(read.body.tavole).toHaveLength(3);
 
     await member.get(drawn[0].scan.displayUrl).expect(200);
+  });
+
+  // A drawing with no circles on it is a picture, and the product is a drawing you can click.
+  it('marks up what it draws, including one Position the drawing does not show', async () => {
+    await seed();
+    const member = await app.editor();
+
+    const models = await member.get('/api/models').expect(200);
+    const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
+    const listed = await member.get(`/api/models/${grifo.id}`).expect(200);
+    const drawn = listed.body.tavole.find((tavola: { scan: unknown }) => tavola.scan !== null);
+
+    const read = await member.get(`/api/tavole/${drawn.id}`).expect(200);
+    const numbers = read.body.positions.map((position: { number: string }) => position.number);
+    expect(numbers).toEqual(['1', '2', '3', '4', '5']);
+
+    // Every circle the sheet prints is clickable, and the one it does not print is listed
+    // without pretending to be anywhere.
+    const marked = read.body.positions.filter(
+      (position: { marks: unknown[] }) => position.marks.length > 0,
+    );
+    expect(marked).toHaveLength(4);
+    expect(marked[0].marks[0]).toMatchObject({ x: expect.any(Number), y: expect.any(Number) });
   });
 });

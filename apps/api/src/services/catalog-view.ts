@@ -1,6 +1,13 @@
-import type { CatalogModel, Category, TavolaScan, TavolaSummary } from '@ricambi/contracts';
+import type {
+  CatalogModel,
+  Category,
+  Position,
+  TavolaScan,
+  TavolaSummary,
+} from '@ricambi/contracts';
 import type { CategoryRow, ModelRow, ScanRow } from '../db/schema.js';
 import { scanImageUrl } from '../images/scan-addresses.js';
+import type { PositionWithMarks } from '../repositories/position-repository.js';
 import type { TavolaWithCategoryAndScan } from '../repositories/tavola-repository.js';
 
 /**
@@ -30,6 +37,19 @@ export function toTavolaSummary(row: TavolaWithCategoryAndScan): TavolaSummary {
     nameEn: row.nameEn,
     category: toCategory(row.category),
     scan: row.scan ? toTavolaScan(row.scan) : null,
+  };
+}
+
+/**
+ * `numberSort` is deliberately not reported. It is a sort key the archive derives so a list
+ * reads 1, 2, 10 — never something to show, and never how two Positions are told apart. What a
+ * member reads is the number as the factory printed it.
+ */
+export function toPosition(row: PositionWithMarks): Position {
+  return {
+    id: row.id,
+    number: row.number,
+    marks: row.marks.map((mark) => ({ id: mark.id, x: mark.x, y: mark.y })),
   };
 }
 

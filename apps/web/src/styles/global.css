@@ -182,6 +182,16 @@
     cursor: grabbing;
   }
 
+  /* A sheet being marked up says so under the pointer: this is a place being chosen, not a
+     drawing being carried. Dragging it still moves it, and the cursor says that too. */
+  .drawing-frame[data-marking='true'] {
+    cursor: crosshair;
+  }
+
+  .drawing-frame[data-marking='true']:active {
+    cursor: grabbing;
+  }
+
   /*
    * The sheet itself, laid out at the scan's own pixel size and then moved as a whole. Only
    * `transform` changes while a member pans, which is the one thing a browser can do without
@@ -210,6 +220,83 @@
      * and stops. Every image in this viewer is scenery being moved, never a file being carried.
      */
     -webkit-user-drag: none;
+  }
+
+  /*
+   * The Marks: the numbered circles a member clicks.
+   *
+   * The layer sits in the drawing's own coordinate space, so the one transform that pans and
+   * magnifies the sheet carries every circle with it — pinned at every zoom level, with nothing
+   * recomputed per circle per frame. It is scenery; only the circles in it are targets.
+   */
+  .drawing-marks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /*
+   * One circle, at two sizes at once — which is the whole design of it.
+   *
+   * What is **seen** is `--mark-ring`: a fixed fraction of the sheet, so the ring sits on the
+   * number the factory printed at every magnification instead of growing to swallow the
+   * drawing. What can be **hit** is `--mark-touch`, which the viewer keeps at whatever the
+   * drawing's own pixels have to be to make 44 of the member's — the same floor every control
+   * in this archive obeys, because the hand doing the hitting is cold.
+   *
+   * A ring rather than a disc, because the number it points at is printed underneath it.
+   */
+  .drawing-mark {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    /* The ring's own size until the viewer has measured a frame — a circle is never sizeless. */
+    width: var(--mark-touch, var(--mark-ring));
+    height: var(--mark-touch, var(--mark-ring));
+    /* Centred on its own point, whatever that size currently is. */
+    translate: -50% -50%;
+    pointer-events: auto;
+    cursor: pointer;
+    /* The circle handles its own gestures, so the browser does not pan the page under one. */
+    touch-action: none;
+  }
+
+  .drawing-mark::before {
+    content: '';
+    box-sizing: border-box;
+    width: var(--mark-ring);
+    height: var(--mark-ring);
+    border: calc(var(--mark-ring) / 14) solid var(--mark);
+    border-radius: 50%;
+    background-color: var(--mark-wash);
+    transition:
+      background-color 120ms var(--ease-out-quick),
+      border-width 120ms var(--ease-out-quick);
+  }
+
+  /*
+   * The one being read.
+   *
+   * It fills *and* wears a band outside itself, because on a sheet carrying two hundred rings a
+   * heavier ring is not findable — the eye has to be able to pick this one out at the
+   * magnification the whole sheet is on screen at, which is where a member starts. The number
+   * under it stays legible: teal at a third strength is a wash, not a lid.
+   */
+  .drawing-mark[data-selected='true']::before {
+    border-width: calc(var(--mark-ring) / 7);
+    background-color: var(--mark-held);
+    box-shadow: 0 0 0 calc(var(--mark-ring) / 5) var(--mark-held);
+  }
+
+  /* The focus ring is the application's, sized to the circle rather than to the touch area —
+     otherwise a keyboard lands on an amber square the size of a thumb. */
+  .drawing-mark:focus-visible {
+    outline: none;
+  }
+
+  .drawing-mark:focus-visible::before {
+    outline: max(3px, calc(var(--mark-ring) / 10)) solid var(--focus);
+    outline-offset: calc(var(--mark-ring) / 10);
   }
 
   /*
@@ -272,6 +359,23 @@
     background-color: var(--surface-raised);
     border: 1px solid var(--line-strong);
     border-radius: var(--radius-md);
+  }
+
+  /*
+   * A panel an Editor opened deliberately: ruled off from the page, sunk a step below it, and
+   * wearing the registration mark. **Not a modal** — the archive is a printed index, and a
+   * dialogue over a drawing is exactly the chrome this interface stays out of the way of.
+   */
+  .editor-panel {
+    background-color: var(--surface-sunken);
+    border: 1px solid var(--line);
+    padding: --spacing(6);
+  }
+
+  @media (width >= 40rem) {
+    .editor-panel {
+      padding: --spacing(8);
+    }
   }
 
   /*

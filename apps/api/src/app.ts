@@ -5,6 +5,7 @@ import { createEditorGate } from './access/editor-gate.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import type { AppConfig } from './config/config.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
+import { createPositionController } from './controllers/position-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
 import { createStatusController } from './controllers/status-controller.js';
@@ -17,11 +18,13 @@ import { createLogger, type Logger } from './platform/logger.js';
 import type { PaymentProvider } from './platform/payments.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
 import { createModelRepository } from './repositories/model-repository.js';
+import { createPositionRepository } from './repositories/position-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
 import { createApiRouter } from './routes/api-router.js';
 import { createCatalogService } from './services/catalog-service.js';
+import { createPositionService } from './services/position-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createStatusService } from './services/status-service.js';
 import { createTavolaService } from './services/tavola-service.js';
@@ -88,6 +91,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const modelRepository = createModelRepository(db);
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
+  const positionRepository = createPositionRepository(db);
   const scanRepository = createScanRepository(db);
 
   const statusService = createStatusService({
@@ -97,10 +101,12 @@ export function createApp(dependencies: AppDependencies): Express {
     systemRepository,
   });
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
+  const positionService = createPositionService({ tavolaRepository, positionRepository });
   const tavolaService = createTavolaService({
     modelRepository,
     categoryRepository,
     tavolaRepository,
+    positionService,
   });
   const scanService = createScanService({
     tavolaRepository,
@@ -114,6 +120,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const sessionController = createSessionController({ editorGate });
   const catalogController = createCatalogController({ catalogService });
   const tavolaController = createTavolaController({ tavolaService });
+  const positionController = createPositionController({ positionService });
   const scanController = createScanController({ scanService });
 
   const app = express();
@@ -151,6 +158,7 @@ export function createApp(dependencies: AppDependencies): Express {
       sessionController,
       catalogController,
       tavolaController,
+      positionController,
       scanController,
     }),
   );

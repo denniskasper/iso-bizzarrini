@@ -172,6 +172,26 @@ export function visibleRegion(viewport: Viewport, stage: Stage): Region {
   };
 }
 
+/**
+ * Which point of the drawing is under a point in the frame, as fractions of the drawing.
+ *
+ * The inverse of `centredOn`, and the arithmetic a Mark is placed by: an Editor clicks a
+ * position number on the glass and what is recorded is a place on the *sheet*, at whatever
+ * magnification they happened to be working at (ADR 0013). Clamped, because a pointer released
+ * outside the frame is still a point on the drawing's edge rather than a point off it.
+ */
+export function pointOn(at: Point, viewport: Viewport, stage: Stage): Point {
+  const drawn = {
+    width: stage.image.width * viewport.scale,
+    height: stage.image.height * viewport.scale,
+  };
+
+  return {
+    x: drawn.width > 0 ? between((at.x - viewport.x) / drawn.width, 0, 1) : 0,
+    y: drawn.height > 0 ? between((at.y - viewport.y) / drawn.height, 0, 1) : 0,
+  };
+}
+
 /** The fractional point of the drawing at the middle of the frame — what a resize preserves. */
 export function focusOf(viewport: Viewport, stage: Stage): Point {
   const region = visibleRegion(viewport, stage);
@@ -190,6 +210,17 @@ export function magnification(viewport: Viewport, stage: Stage): number {
 /** As it is written on the instrument. */
 export function formatMagnification(times: number): string {
   return `×${times.toFixed(1)}`;
+}
+
+/**
+ * How far along something a point is, never past either end of it.
+ *
+ * The one conversion from "somewhere inside a box" to a fraction, wherever the box is: the
+ * navigator, the sheet a circle is dropped on, the frame a drawing is read through. Everything
+ * this viewer reports outward is a fraction, so this is where a pointer stops being pixels.
+ */
+export function fraction(along: number, extent: number): number {
+  return extent <= 0 ? 0 : between(along / extent, 0, 1);
 }
 
 function between(value: number, low: number, high: number): number {

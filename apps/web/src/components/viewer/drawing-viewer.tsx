@@ -5,9 +5,11 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react';
 import { Plate } from '@/components/plate';
 import { Button } from '@/components/ui/button';
@@ -20,9 +22,11 @@ import {
   fitted,
   focusOf,
   formatMagnification,
+  fraction,
   magnification,
   maxScale,
   panned,
+  pointOn,
   visibleRegion,
   zoomedAbout,
   zoomedBy,
@@ -46,15 +50,28 @@ import {
  * coordinates, so the day the archive is measured and turns out to want tiles, the arithmetic
  * in `viewport.ts` does not change.
  */
-export function DrawingViewer({
-  scan,
-  alt,
-  className,
-}: {
+export interface DrawingViewerProps {
   scan: TavolaScan | null;
   alt: string;
   className?: string;
-}) {
+  /**
+   * Whatever is pinned to the sheet — the Marks. Rendered inside the drawing's own coordinate
+   * space, so it pans and magnifies with the sheet and nothing in it has to know that this
+   * viewer exists. Position it in percentages of the drawing and it lands on the drawing.
+   */
+  overlay?: ReactNode;
+  /**
+   * A tap on the sheet, in fractional image coordinates — how an Editor places a Mark.
+   *
+   * A *tap*, not a click: a press that turns into a drag is the member moving the sheet, and
+   * one that does not is a point on the drawing. While this is set the double-tap zoom stands
+   * down, because when the marking tool is on, a tap places a circle and must never mean two
+   * things at once.
+   */
+  onTapPoint?: (at: Point) => void;
+}
+
+export function DrawingViewer({ scan, alt, className, overlay, onTapPoint }: DrawingViewerProps) {
   // A Tavola recorded from a paper catalog before anyone has scanned the sheet is a legitimate
   // state, and it says so in one place — here it is the same empty plate a contact sheet shows.
   if (!scan) {
@@ -64,7 +81,16 @@ export function DrawingViewer({
   // Keyed by the scan, so an Editor replacing one gets a viewer that opens on the new sheet at
   // the whole of it. Carrying the old magnification onto a different drawing would break the
   // one promise this screen makes on every open.
-  return <Viewer key={scan.id} scan={scan} alt={alt} className={className} />;
+  return (
+    <Viewer
+      key={scan.id}
+      scan={scan}
+      alt={alt}
+      className={className}
+      overlay={overlay}
+      onTapPoint={onTapPoint}
+    />
+  );
 }
 
 /** A press of the magnifier, and what a double-click is worth. */
@@ -79,6 +105,31 @@ const WHEEL_SENSITIVITY = 0.0015;
 /** A wheel reporting in lines rather than pixels means about this many pixels a line. */
 const PIXELS_PER_LINE = 16;
 
+/**
+ * How far a press may wander and still count as a tap on the sheet rather than a pan of it.
+ *
+ * A thumb on glass is never still. Below this the member meant to point at something; above it
+ * they meant to move the drawing, and an Editor working through a Tavola gets neither a stray
+ * circle from a shaky hand nor a pan that refuses to start.
+ */
+const TAP_SLOP = 6;
+
+/**
+ * **The two sizes a Mark has, and why there are two.**
+ *
+ * `MARK_RING` is the circle a member sees, as a fraction of the drawing's shorter side — so it
+ * sits on the number the factory printed at every magnification, and does not grow to swallow
+ * the sheet as you zoom in. `MARK_TOUCH` is the area that can be *hit*, in CSS pixels on the
+ * glass, and it is the same 44px floor every control in this archive obeys: the hand doing the
+ * hitting is cold, gloved, or holding a phone at arm's length under a bonnet.
+ *
+ * The ring's fraction is fitted to the circles the practice drawing prints, because no real
+ * factory scan has been measured yet — the same open question ADR 0013 records. It is one
+ * constant, in one place, for when there is something to measure it against.
+ */
+const MARK_RING = 0.055;
+const MARK_TOUCH = 44;
+
 const PAN_KEYS: Record<string, Point> = {
   ArrowLeft: { x: 1, y: 0 },
   ArrowRight: { x: -1, y: 0 },
@@ -92,16 +143,20 @@ function pointIn(element: Element, event: { clientX: number; clientY: number }):
   return { x: event.clientX - box.left, y: event.clientY - box.top };
 }
 
-/** How far along something a point is, never past either end of it. */
-function fraction(along: number, extent: number): number {
-  return extent <= 0 ? 0 : Math.min(1, Math.max(0, along / extent));
-}
-
-function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; className?: string }) {
+function Viewer({
+  scan,
+  alt,
+  className,
+  overlay,
+  onTapPoint,
+}: DrawingViewerProps & { scan: TavolaScan }) {
   const image = useMemo<Size>(
     () => ({ width: scan.width, height: scan.height }),
     [scan.width, scan.height],
   );
+
+  /** The visible circle, in the drawing's own pixels, and therefore constant. */
+  const ring = Math.round(Math.min(image.width, image.height) * MARK_RING);
 
   const [sheetLoaded, setSheetLoaded] = useState(false);
 
@@ -128,6 +183,8 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
   /** Whether the member has moved it themselves — a sheet nobody has touched re-fits on resize. */
   const movedRef = useRef(false);
   const paintRef = useRef(0);
+  /** The magnification `--mark-touch` was last written for. See `paint`. */
+  const touchAtRef = useRef(0);
 
   const paint = useCallback(() => {
     const viewport = viewportRef.current;
@@ -137,6 +194,27 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
       // `translate3d` and not `left`/`top`: this is the one property a browser can move without
       // touching layout, which is what keeps a finger and the sheet under it together.
       sceneRef.current.style.transform = `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`;
+      /*
+       * What a Mark's hit area has to be, in the drawing's pixels, to be 44 of the member's.
+       * One variable rather than a size written onto every circle: a Tavola carries two hundred
+       * of them and the browser does the arithmetic for all of them from this.
+       *
+       * **Only when the magnification has actually changed**, which panning never does. A custom
+       * property invalidates the style of everything below it, so writing this every frame would
+       * put a style recalculation of two hundred circles into every frame of every drag — and
+       * `transform` above is deliberately the one thing that moves without one.
+       *
+       * Rounded **up**, to whole pixels of the drawing: a browser lays out at a fraction of a
+       * pixel and then scales, so the exact figure comes back a few thousandths short, and a
+       * floor that is only nearly met is not a floor.
+       */
+      if (viewport.scale !== touchAtRef.current) {
+        touchAtRef.current = viewport.scale;
+        sceneRef.current.style.setProperty(
+          '--mark-touch',
+          `${Math.max(ring, Math.ceil(MARK_TOUCH / viewport.scale))}px`,
+        );
+      }
     }
 
     if (regionRef.current) {
@@ -155,7 +233,7 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
       // The navigator has nothing to say while the whole sheet is on screen, so it is not there.
       navigatorRef.current.dataset['visible'] = String(times > 1.01);
     }
-  }, []);
+  }, [ring]);
 
   const move = useCallback(
     (next: Viewport) => {
@@ -278,6 +356,8 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
   const pointers = useRef(new Map<number, Point>());
   const pinch = useRef<{ distance: number; middle: Point } | null>(null);
   const frameOrigin = useRef<Point>({ x: 0, y: 0 });
+  /** Where a single press went down, for as long as it could still turn out to be a tap. */
+  const tapFrom = useRef<Point | null>(null);
 
   const gesture = useCallback(() => {
     const [first, second] = [...pointers.current.values()];
@@ -297,6 +377,8 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
     const box = event.currentTarget.getBoundingClientRect();
     frameOrigin.current = { x: box.left, y: box.top };
     pinch.current = pointers.current.size === 2 ? gesture() : null;
+    // A second finger means the member is pinching, and nothing about a pinch is a tap.
+    tapFrom.current = pointers.current.size === 1 ? { x: event.clientX, y: event.clientY } : null;
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -308,6 +390,11 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
     const current = { x: event.clientX, y: event.clientY };
     pointers.current.set(event.pointerId, current);
     movedRef.current = true;
+
+    const from = tapFrom.current;
+    if (from && Math.hypot(current.x - from.x, current.y - from.y) > TAP_SLOP) {
+      tapFrom.current = null;
+    }
 
     const viewport = viewportRef.current;
     const stage = stageOf.current;
@@ -343,16 +430,33 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
   }
 
   function onPointerRelease(event: ReactPointerEvent<HTMLDivElement>) {
+    const tapped = tapFrom.current;
+    tapFrom.current = null;
+
     pointers.current.delete(event.pointerId);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     // A finger lifted from a pinch leaves the other one dragging, from where it is now.
     pinch.current = pointers.current.size === 2 ? gesture() : null;
+
+    // A press that never became a drag is a point on the drawing. Cancellation is not — a
+    // pointer the browser took away is a gesture that did not finish, not one that meant this.
+    if (tapped && onTapPoint && event.type === 'pointerup') {
+      onTapPoint(
+        pointOn(pointIn(event.currentTarget, event), viewportRef.current, stageOf.current),
+      );
+    }
   }
 
   /** A double tap goes in a step, at what was tapped — and comes all the way back out at the top. */
   function onDoubleClick(event: ReactMouseEvent<HTMLDivElement>) {
+    // Except while a tap means something else. With the marking tool on, two taps are two
+    // circles; a zoom underneath them would be the drawing moving out from under the second.
+    if (onTapPoint) {
+      return;
+    }
+
     const viewport = viewportRef.current;
     const stage = stageOf.current;
 
@@ -444,9 +548,16 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
         ref={frameRef}
         data-testid="drawing-frame"
         className="drawing-frame"
+        // A sheet that is being marked up says so under the pointer, rather than only in the
+        // panel below it: the cursor is the crosshair of something being placed.
+        data-marking={onTapPoint !== undefined}
         tabIndex={0}
         role="group"
-        aria-label={`${alt}. Drag to move the drawing, scroll or pinch to zoom.`}
+        aria-label={
+          onTapPoint
+            ? `${alt}. Click to place a Mark. Drag to move the drawing.`
+            : `${alt}. Drag to move the drawing, scroll or pinch to zoom.`
+        }
         aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight + - 0 f"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -458,7 +569,13 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
         <div
           ref={sceneRef}
           className="drawing-scene"
-          style={{ width: image.width, height: image.height }}
+          style={
+            {
+              width: image.width,
+              height: image.height,
+              '--mark-ring': `${ring}px`,
+            } as CSSProperties
+          }
         >
           {/*
            * The thumbnail first, at the drawing's full size — coarse, but it is the same image
@@ -482,6 +599,12 @@ function Viewer({ scan, alt, className }: { scan: TavolaScan; alt: string; class
             draggable={false}
             onLoad={() => setSheetLoaded(true)}
           />
+          {/*
+           * Pinned to the sheet by being *in* it: the overlay is laid out in the drawing's own
+           * coordinate space, so the one transform that moves the drawing moves the circles
+           * with it and nothing has to be kept in step frame by frame.
+           */}
+          {overlay}
         </div>
       </div>
 

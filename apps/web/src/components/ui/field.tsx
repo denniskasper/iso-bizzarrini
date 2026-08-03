@@ -66,9 +66,8 @@ export function Field({
 }
 
 /**
- * A form an Editor opened deliberately: ruled off from the page, headed, and closed by the two
- * actions at its foot. Not a modal — the archive is a printed index and a dialogue over a
- * drawing is exactly the chrome this interface is supposed to stay out of the way of.
+ * A form an Editor opened deliberately, on the panel `.editor-panel` describes: ruled off from
+ * the page, headed, and closed by the two actions at its foot.
  */
 export function EditorPanel({
   title,
@@ -82,10 +81,7 @@ export function EditorPanel({
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <form
-      onSubmit={onSubmit}
-      className="registration-mark animate-rise border border-line bg-surface-sunken p-6 sm:p-8"
-    >
+    <form onSubmit={onSubmit} className="editor-panel registration-mark animate-rise">
       <h2 className="text-2xs text-muted uppercase">{title}</h2>
       {note && <p className="mt-3 max-w-measure text-sm text-pretty text-muted">{note}</p>}
       <div className="mt-8 flex flex-col gap-6">{children}</div>

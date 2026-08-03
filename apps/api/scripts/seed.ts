@@ -43,8 +43,9 @@ try {
   });
 
   console.log(
-    `Seeded ${written.models} generated Models, ${written.tavole} Tavole and ` +
-      `${written.drawings} invented drawings into "${config.environmentName}".`,
+    `Seeded ${written.models} generated Models, ${written.tavole} Tavole, ` +
+      `${written.drawings} invented drawings and ${written.positions} Positions ` +
+      `into "${config.environmentName}".`,
   );
 } finally {
   await database.close();
