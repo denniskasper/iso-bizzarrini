@@ -15,6 +15,7 @@ import type {
   PositionsResponse,
   ServiceStatus,
   SessionResponse,
+  TavolaListingsResponse,
   TavolaResponse,
   TavolaScan,
   TavolaSummary,
@@ -127,6 +128,9 @@ export const api = {
    */
   positionListings: (positionId: string) =>
     request<PositionListingsResponse>(`/positions/${positionId}/listings`),
+  /** The sheet's own text, whole — what a member reads when they work from the list. */
+  tavolaListings: (tavolaId: string) =>
+    request<TavolaListingsResponse>(`/tavole/${tavolaId}/listings`),
   createListing: (tavolaId: string, listing: NewListingRequest) =>
     send<ListingResponse>('POST', `/tavole/${tavolaId}/listings`, listing),
   removeListing: (listingId: string) =>
@@ -150,6 +154,7 @@ export type {
   Category,
   CatalogNumberConflict,
   ListedElsewhere,
+  ListedPart,
   Mark,
   MarkPoint,
   NewListingRequest,
@@ -160,6 +165,7 @@ export type {
   PartListing,
   Position,
   ServiceStatus,
+  TavolaListing,
   TavolaResponse,
   TavolaScan,
   TavolaSummary,

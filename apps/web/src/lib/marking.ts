@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { api, type MarkPoint, type Position, type TavolaResponse } from '@/lib/api';
+import { useRereadListings } from '@/lib/parts';
 
 /**
  * The marking tool's state, kept out of the screen that draws it.
@@ -65,6 +66,7 @@ export interface MarkingTool {
 
 export function useMarkingTool(tavolaId: string): MarkingTool {
   const queryClient = useQueryClient();
+  const rereadListings = useRereadListings(tavolaId);
   const [on, setOn] = useState(false);
   const [number, setNumber] = useState('1');
   const [held, setHeld] = useState(false);
@@ -114,7 +116,13 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
   });
   const removePosition = useMutation({
     mutationFn: (positionId: string) => api.removePosition(positionId),
-    onSuccess: record,
+    // The sheet, **and its index**: a Position removed does not take its Listings with it — they
+    // stay on the Tavola with no number, which is a line the index beside the drawing prints
+    // under a heading of its own. Leaving it stale would show them at a number that is gone.
+    onSuccess: (sheet) => {
+      record(sheet);
+      void rereadListings();
+    },
   });
 
   const writes = [place, list, moveMark, removeMark, removePosition];

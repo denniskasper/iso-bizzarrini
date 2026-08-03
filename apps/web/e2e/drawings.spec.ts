@@ -63,18 +63,31 @@ test.describe('a link into the archive', () => {
   // not cost them the thing they were sent.
   test('survives the sign-in screen and lands where it was pointing', async ({ page }) => {
     await openFirstDrawing(page);
-    const drawingUrl = new URL(page.url()).pathname;
+    // **A Position and not merely a drawing.** What one member sends another is the number they
+    // are looking at (story 52), so what has to survive the gate is the whole address — the
+    // search as well as the path, which is a thing the router's own encoding can quietly break.
+    await page.locator('[data-testid="sheet-line"][data-position="3"]').click();
+    await expect(page.getByTestId('selected-position')).toHaveText('3');
+
+    const sent = new URL(page.url());
+    const address = `${sent.pathname}${sent.search}`;
 
     // Now arrive at that address the way the member who was sent it does: signed out.
     await page.context().clearCookies();
-    await page.goto(drawingUrl);
+    await page.goto(address);
     await expect(page.getByRole('heading', { name: 'The archive is members-only.' })).toBeVisible();
 
     await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click();
     await page.getByLabel('Passphrase').fill(PASSPHRASE);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
-    await expect.poll(() => new URL(page.url()).pathname).toBe(drawingUrl);
+    await expect
+      .poll(() => {
+        const at = new URL(page.url());
+        return `${at.pathname}${at.search}`;
+      })
+      .toBe(address);
     await expect(page.getByRole('img', { name: /Tavola 2/ })).toBeVisible();
+    await expect(page.getByTestId('selected-position')).toHaveText('3');
   });
 });

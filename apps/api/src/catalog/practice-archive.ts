@@ -91,12 +91,18 @@ export const practiceTavole = [
  * The numbered circles the invented drawing prints, **as fractions of the sheet** — which is
  * also the unit a Mark is stored in (ADR 0013), so the drawing below and the Marks seeded onto
  * it are read off one list and cannot drift apart.
+ *
+ * **`2` is printed twice, and that is the practice archive doing its job.** The factory printed
+ * one number wherever the part is used, so a Position carrying several Marks is the ordinary
+ * case rather than the exotic one — and a screen that takes a member to each of them in turn
+ * (story 48) has nothing to be built or judged against unless a seeded sheet has one.
  */
 const practiceCircles = [
   { number: '1', x: 0.25, y: 0.3 },
   { number: '2', x: 0.5, y: 0.43 },
   { number: '3', x: 0.75, y: 0.3 },
   { number: '4', x: 0.5, y: 0.71 },
+  { number: '2', x: 0.32, y: 0.62 },
 ];
 
 /**
@@ -346,12 +352,17 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
  * browser seams, where an Editor's click is what places the circle.
  */
 async function markPracticeTavola(db: Db, tavolaId: string): Promise<Map<string, string>> {
+  // One row per *number*, however many places the sheet prints it: a Position is the number, and
+  // the circles on it are its Marks.
+  const numbers = new Set([
+    ...practiceCircles.map((circle) => circle.number),
+    undrawnPracticePosition,
+  ]);
+
   const rows = await db
     .insert(positions)
     .values(
-      [...practiceCircles.map((circle) => circle.number), undrawnPracticePosition].map(
-        (number) => ({ tavolaId, number, numberSort: numericPrefixOf(number) }),
-      ),
+      [...numbers].map((number) => ({ tavolaId, number, numberSort: numericPrefixOf(number) })),
     )
     .returning();
 

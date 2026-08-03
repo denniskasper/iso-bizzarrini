@@ -255,6 +255,47 @@ export interface ListedElsewhere {
 }
 
 /**
+ * A Part as the Tavola's own index names it — **the four things a printed catalog page prints
+ * in its columns**, and deliberately nothing else.
+ *
+ * Derived from `Part` rather than written out again, so a field renamed there is renamed here.
+ * What is left out is the point: a sheet may carry two hundred Positions with several Parts on
+ * each, and shipping every description, transcribed catalog note and club note to draw a *list*
+ * would be a drawing's worth of prose nobody has asked to read. The whole Part arrives when a
+ * member picks one, at `PositionListingsResponse`.
+ */
+export type ListedPart = Pick<Part, 'id' | 'nameEn' | 'nameIt' | 'catalogNumber'>;
+
+/**
+ * One line of a Tavola's index: what is listed on the sheet, and at which number.
+ *
+ * The Position is named by **id alone**, because anything reading this list is reading it against
+ * the sheet it belongs to and already holds that sheet's Positions with their printed numbers.
+ * Carrying the number here as well would be the same fact in two places, free to disagree.
+ */
+export interface TavolaListing {
+  id: string;
+  /** `null` for a Part the catalog names on this sheet without a number of its own. */
+  positionId: string | null;
+  quantityPerCar: number | null;
+  drawn: boolean;
+  part: ListedPart;
+}
+
+/**
+ * `GET /api/tavole/:tavolaId/listings` — **the sheet's own text, so a member can work from it.**
+ *
+ * The facing page of a factory catalog: everything listed on this drawing, in the order the
+ * factory printed the numbers, with the Listings that sit at no number at all last. It is what
+ * makes navigation two-way (story 46) and it is also the only way to know which Positions have
+ * nothing recorded at them yet — a Position absent from this list is one nobody has written
+ * anything down about, which is a different thing from one nobody has clicked (story 45).
+ */
+export interface TavolaListingsResponse {
+  listings: TavolaListing[];
+}
+
+/**
  * `GET /api/positions/:positionId/listings` — **what sits at a number a member has clicked.**
  *
  * The sentence the whole product exists to complete ends here. It is read separately from the

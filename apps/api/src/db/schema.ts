@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -282,16 +283,18 @@ export const listings = pgTable(
   (table) => [
     // One Part is listed once **at one Position**. Listing it twice there is a slip rather than
     // a statement, and it would be read on the screen as an alternative to itself.
-    //
-    // It does not reach the position-less case, because Postgres counts two NULLs as different:
-    // a Part listed on a Tavola at no Position at all could be listed twice. Nothing creates one
-    // of those yet — the screens always name a Position — and the partial index that would close
-    // it belongs with ticket 07, which is what gives a Tavola's Listings somewhere to be seen.
     unique('listings_part_id_tavola_id_position_id_unique').on(
       table.partId,
       table.tavolaId,
       table.positionId,
     ),
+    // And once on a sheet where it sits at **no** number, which the constraint above cannot say:
+    // Postgres counts two NULLs as different, so without this the same Part could be listed twice
+    // on one Tavola at no Position at all. It became reachable the moment a Tavola's Listings had
+    // somewhere to be read (ticket 07), and it would print there as the same Part twice.
+    uniqueIndex('listings_unplaced_part_unique')
+      .on(table.partId, table.tavolaId)
+      .where(sql`${table.positionId} is null`),
     index('listings_tavola_id_index').on(table.tavolaId),
     index('listings_position_id_index').on(table.positionId),
     // What answers "which other Tavole does this Part appear on".

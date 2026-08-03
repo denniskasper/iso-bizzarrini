@@ -491,9 +491,9 @@ describe('reading a Part from a Position', () => {
 
       await editor.delete(`/api/positions/${positionId}`).expect(200);
 
-      // Read from the database rather than over HTTP: there is no screen that shows a Tavola's
-      // Listings yet — that is ticket 07 — and what this is about is that the row is still there
-      // to be shown when there is one.
+      // Read from the database as well as over HTTP, because the row surviving is the claim and
+      // the sheet's index is where a member meets it: the Listing keeps its Tavola and loses its
+      // Position, which is the state ticket 07 gave somewhere to be seen.
       const remaining = await app.db.select().from(listings);
       expect(remaining).toEqual([
         expect.objectContaining({
@@ -502,6 +502,9 @@ describe('reading a Part from a Position', () => {
           positionId: null,
         }),
       ]);
+
+      const response = await editor.get(`/api/tavole/${tavolaId}/listings`).expect(200);
+      expect(response.body.listings).toEqual([expect.objectContaining({ positionId: null })]);
     });
 
     it('cannot be recorded or removed by someone who has not signed in', async () => {
@@ -519,6 +522,131 @@ describe('reading a Part from a Position', () => {
         .expect(401);
       await app.request().delete(`/api/listings/${recorded.body.listing.id}`).expect(401);
       await app.request().get(`/api/positions/${positionId}/listings`).expect(401);
+    });
+  });
+
+  /**
+   * **The sheet read as text rather than as a drawing** (story 46), which is what makes
+   * navigation two-way — and, because a Position that appears nowhere in it is one nobody has
+   * written anything down about, it is also what tells "not known" from "not yet clicked".
+   */
+  describe('everything listed on one Tavola', () => {
+    async function index(onTavola = tavolaId) {
+      const response = await editor.get(`/api/tavole/${onTavola}/listings`).expect(200);
+      return response.body.listings;
+    }
+
+    it('is reported in the order the factory printed its numbers, drawn first at each', async () => {
+      // Recorded out of order deliberately: the archive's order is the archive's, and nothing
+      // in a browser is ever asked to sort a catalog. `10` before `2` is the failure this rules
+      // out — a catalog sorted as text rather than as the numbers it prints.
+      const ten = await givenPosition('10');
+      const two = await givenPosition('2');
+
+      await list({ positionId: ten, drawn: true, part: aPart({ nameEn: 'Hose' }) }).expect(201);
+      await list({ positionId: two, drawn: false, part: aPart({ nameEn: 'Washer' }) }).expect(201);
+      await list({ positionId: two, drawn: true, part: aPart({ nameEn: 'Caliper' }) }).expect(201);
+
+      expect(
+        (await index()).map((listing: { positionId: string; part: { nameEn: string } }) => [
+          listing.positionId,
+          listing.part.nameEn,
+        ]),
+      ).toEqual([
+        [two, 'Caliper'],
+        [two, 'Washer'],
+        [ten, 'Hose'],
+      ]);
+    });
+
+    // The one place a Listing at no number at all can be seen — which is why the model has had
+    // that state since ticket 06 and nothing could reach it until now.
+    it('includes the Listings that sit at no Position, last', async () => {
+      const positionId = await givenPosition('2');
+      await list({ positionId, drawn: true, part: aPart({ nameEn: 'Caliper' }) }).expect(201);
+      await list({ drawn: false, part: aPart({ nameEn: 'Fixing kit' }) }).expect(201);
+
+      expect(await index()).toEqual([
+        expect.objectContaining({ positionId }),
+        expect.objectContaining({ positionId: null }),
+      ]);
+    });
+
+    /**
+     * Four columns of the Part and no more. A Tavola may carry two hundred numbers with several
+     * Parts on each, and a list is skimmed — the prose arrives when a member picks one.
+     */
+    it('carries what a printed catalog page prints, and not the prose', async () => {
+      const positionId = await givenPosition('2');
+      await list({
+        positionId,
+        quantityPerCar: 4,
+        drawn: true,
+        part: aPart({
+          nameEn: 'Caliper mounting bolt',
+          nameIt: 'VITE FISSAGGIO PINZA',
+          catalogNumber: '999 01 004',
+          description: 'An ordinary fastener.',
+          note: 'A modern equivalent is fine.',
+        }),
+      }).expect(201);
+
+      expect(await index()).toEqual([
+        {
+          id: expect.any(String),
+          positionId,
+          quantityPerCar: 4,
+          drawn: true,
+          part: {
+            id: expect.any(String),
+            nameEn: 'Caliper mounting bolt',
+            nameIt: 'VITE FISSAGGIO PINZA',
+            catalogNumber: '999 01 004',
+          },
+        },
+      ]);
+    });
+
+    it('is an empty list for a sheet nobody has recorded anything on', async () => {
+      expect(await index()).toEqual([]);
+    });
+
+    it('is a 404 for a Tavola that is not in the archive', async () => {
+      await editor.get('/api/tavole/00000000-0000-4000-8000-000000000000/listings').expect(404);
+    });
+
+    it('cannot be read by someone who has not signed in', async () => {
+      await app.request().get(`/api/tavole/${tavolaId}/listings`).expect(401);
+    });
+
+    /**
+     * The hole ticket 06 left open, closed now that there is a screen where it would show.
+     *
+     * `(part, tavola, position)` cannot catch this, because Postgres counts two NULLs as
+     * different — so the same component could be listed twice on one sheet at no number, and the
+     * index above would print it twice with nothing to tell the two apart.
+     */
+    it('cannot hold the same Part twice at no Position', async () => {
+      const recorded = await list({
+        drawn: false,
+        part: aPart({ nameEn: 'Fixing kit' }),
+      }).expect(201);
+
+      await list({ drawn: false, partId: recorded.body.listing.part.id }).expect(409);
+      expect(await index()).toHaveLength(1);
+    });
+
+    // The same Part *is* listed on two sheets, and on one of them at no number. That is not the
+    // duplicate above; it is the ordinary thing ADR 0001 exists to make possible.
+    it('still lets the same Part sit unplaced on another Tavola', async () => {
+      const other = (await givenTavola(app.db, modelId, { number: '10' })).id;
+      const recorded = await list({
+        drawn: false,
+        part: aPart({ nameEn: 'Fixing kit' }),
+      }).expect(201);
+
+      await list({ drawn: false, partId: recorded.body.listing.part.id }, other).expect(201);
+      expect(await index(other)).toHaveLength(1);
     });
   });
 

@@ -1,8 +1,10 @@
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { CopyLink } from '@/components/copy-link';
 import { Refusal } from '@/components/ui/field';
 import type { CatalogModel, PartListing, Position } from '@/lib/api';
 import { usePositionListings } from '@/lib/parts';
+import { cn } from '@/lib/utils';
 
 /**
  * **The last clause of the sentence this whole product is**: *choose your car, open the drawing,
@@ -22,30 +24,44 @@ import { usePositionListings } from '@/lib/parts';
  */
 export function PartReading({
   position,
+  markId,
+  unknownNumber,
   tavola,
 }: {
   position: Position | null;
+  /** Which of the number's circles is being read, for a number printed more than once. */
+  markId: string | null;
+  /** A number the address asked for that this sheet does not carry, if it asked for one. */
+  unknownNumber: string | null;
   /** Where the member is, so the Part says what it is being read at (story 59). */
   tavola: { number: string; nameEn: string; model: CatalogModel };
 }) {
   if (!position) {
     return (
-      <p className="max-w-measure text-pretty text-muted">
-        Click a circle on the drawing, or a number below, to read the part at it.
-      </p>
+      <div className="max-w-measure text-pretty text-muted">
+        {unknownNumber !== null && (
+          <p className="mb-4" data-testid="unknown-number">
+            This drawing has no number <span className="tabular">{unknownNumber}</span> on it. The
+            link may have been meant for another sheet.
+          </p>
+        )}
+        <p>Click a circle on the drawing, or a number in the list, to read the part at it.</p>
+      </div>
     );
   }
 
   // Keyed by the Position, so moving between numbers is a fresh read rather than the previous
   // Part lingering under a new heading while the next one arrives.
-  return <Reading key={position.id} position={position} tavola={tavola} />;
+  return <Reading key={position.id} position={position} markId={markId} tavola={tavola} />;
 }
 
 function Reading({
   position,
+  markId,
   tavola,
 }: {
   position: Position;
+  markId: string | null;
   tavola: { number: string; nameEn: string; model: CatalogModel };
 }) {
   const { data, isPending, isError, error } = usePositionListings(position.id);
@@ -61,9 +77,12 @@ function Reading({
       className="animate-rise"
       data-testid="part-reading"
     >
-      <h2 id="position" className="text-2xs text-muted uppercase">
-        Position
-      </h2>
+      <div className="flex items-center justify-between gap-4">
+        <h2 id="position" className="text-2xs text-muted uppercase">
+          Position
+        </h2>
+        <CopyLink />
+      </div>
       {/*
        * The number in the Club's teal, which the visual language sanctions for a Mark **and the
        * Position it belongs to wherever else that Position appears**. The circle on the sheet and
@@ -80,7 +99,9 @@ function Reading({
         {tavola.model.brand} {tavola.model.name} · Tavola{' '}
         <span className="tabular">{tavola.number}</span> · {tavola.nameEn}
       </p>
-      <p className="mt-3 max-w-measure text-sm text-pretty text-faint">{describeMarks(position)}</p>
+      <p className="mt-3 max-w-measure text-sm text-pretty text-faint">
+        {describeMarks(position, markId)}
+      </p>
 
       {isPending && <p className="mt-8 text-muted">Reading…</p>}
       {isError && <Refusal>{error.message}</Refusal>}
@@ -144,7 +165,7 @@ function Group({
         {listings.map((listing) => (
           <li
             key={listing.id}
-            className="part-listed"
+            className={cn('listed', !listing.drawn && 'not-on-the-plate')}
             data-drawn={listing.drawn}
             data-testid="listed-part"
           >
@@ -305,13 +326,25 @@ function Elsewhere({ listing }: { listing: PartListing }): ReactNode {
  * Where the number is on the sheet. Worth saying plainly: a number the factory printed in four
  * places is a part fitted in four places, which is a thing a member wants to know before they
  * order one — and a number printed nowhere is a part the drawing simply does not show.
+ *
+ * For a number printed more than once it also says **which** of them is being read and how to
+ * reach the next, because that is how a member finds out the part is used in several places at
+ * all (story 48): the sentence is where the behaviour is taught, since nothing else on the screen
+ * could tell them that selecting a number twice means something.
  */
-function describeMarks(position: Position): string {
+function describeMarks(position: Position, markId: string | null): string {
   if (position.marks.length === 0) {
     return 'This number is listed but not drawn — it is not printed anywhere on this sheet.';
   }
   if (position.marks.length === 1) {
     return 'Printed once on this drawing.';
   }
-  return `Printed in ${position.marks.length} places on this drawing.`;
+
+  // Named as what it is on both surfaces: pointing at a circle reads *that* circle, and it is
+  // the list — beside the drawing, or below it on a phone — that steps from one to the next.
+  const at = position.marks.findIndex((mark) => mark.id === markId);
+  if (at === -1) {
+    return `Printed in ${position.marks.length} places on this drawing.`;
+  }
+  return `Printed in ${position.marks.length} places on this drawing. This is ${at + 1} of them — selecting the number in the list again moves to the next.`;
 }

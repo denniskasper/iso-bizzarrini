@@ -30,6 +30,14 @@ export interface MarkLayerProps {
   positions: Position[];
   /** Which Position is being read — all of its circles light, because they are one Position. */
   selectedPositionId: string | null;
+  /**
+   * And which of them, for a number the factory printed more than once.
+   *
+   * The Position is what a member is reading; *this* is where they are reading it. Selecting the
+   * number again moves it on to the next circle (story 48), and a member who cannot see which
+   * one they are at has been taken somewhere without being told where.
+   */
+  selectedMarkId: string | null;
   onSelect: (position: Position, mark: Mark) => void;
   /**
    * Moving a circle an Editor put in the wrong place. Absent for a member, which is what makes
@@ -38,7 +46,13 @@ export interface MarkLayerProps {
   onMove?: ((markId: string, to: MarkPoint) => Promise<unknown>) | undefined;
 }
 
-export function MarkLayer({ positions, selectedPositionId, onSelect, onMove }: MarkLayerProps) {
+export function MarkLayer({
+  positions,
+  selectedPositionId,
+  selectedMarkId,
+  onSelect,
+  onMove,
+}: MarkLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
 
@@ -137,6 +151,7 @@ export function MarkLayer({ positions, selectedPositionId, onSelect, onMove }: M
             mark={held?.markId === mark.id ? { ...mark, x: held.x, y: held.y } : mark}
             position={position}
             selected={position.id === selectedPositionId}
+            current={mark.id === selectedMarkId}
             movable={onMove !== undefined}
             onSelect={onSelect}
             onTakeHold={takeHold}
@@ -157,6 +172,7 @@ const MarkCircle = memo(function MarkCircle({
   mark,
   position,
   selected,
+  current,
   movable,
   onSelect,
   onTakeHold,
@@ -166,6 +182,7 @@ const MarkCircle = memo(function MarkCircle({
   mark: Mark;
   position: Position;
   selected: boolean;
+  current: boolean;
   movable: boolean;
   onSelect: (position: Position, mark: Mark) => void;
   onTakeHold: (mark: Mark, event: PointerEvent<HTMLButtonElement>) => void;
@@ -179,6 +196,9 @@ const MarkCircle = memo(function MarkCircle({
       data-testid="drawing-mark"
       data-position={position.number}
       data-selected={selected}
+      // Which of a number's several circles is the one being read. It is the same teal, ringed
+      // once more — a member cycling through four of them watches the heavier ring move.
+      data-current={selected && current}
       aria-label={`Position ${position.number}`}
       aria-pressed={selected}
       style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%` }}

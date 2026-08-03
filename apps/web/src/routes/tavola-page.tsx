@@ -1,16 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
-import { useCallback, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
 import { ScanUpload } from '@/components/editor/scan-upload';
 import { PartReading } from '@/components/parts/part-reading';
+import { TavolaParts } from '@/components/parts/tavola-parts';
+import { PositionJump } from '@/components/positions/position-jump';
 import { PositionList } from '@/components/positions/position-list';
 import { Button } from '@/components/ui/button';
-import { DrawingViewer } from '@/components/viewer/drawing-viewer';
+import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
 import { MarkLayer } from '@/components/viewer/mark-layer';
-import { api, type CatalogProvenance, type Position } from '@/lib/api';
+import { api, type CatalogProvenance, type Mark, type Position } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
+import { markAfter, markOn, positionMatching } from '@/lib/positions';
 
 /**
  * One drawing, with the numbered circles on it and the Part beside it.
@@ -20,6 +23,11 @@ import { useMarkingTool } from '@/lib/marking';
  * why the page is arranged in two columns: what a member reads sits **beside** the sheet and
  * never over or instead of it (story 44), so following a circle to the catalog number
  * beside it never means losing sight of the drawing it came from.
+ *
+ * **And the sentence reads backwards as well.** The right-hand column is the facing page of a
+ * factory catalog — a number to type, the Part being read, then the sheet's own numbered index —
+ * so a member who knows what something is called works down the text and is taken to its circle
+ * (stories 46–48), exactly as a member who can see the circle is taken to the text.
  *
  * Nothing else competes. What the factory printed at the head of the sheet, and everything an
  * Editor does to it, is below the fold of the two columns.
@@ -33,30 +41,98 @@ export function TavolaPage() {
   });
 
   /**
-   * What is being read: a Position, and which of its circles was pointed at.
+   * **What is being read lives in the address**, and that is the whole of story 52: the link a
+   * member sends is the screen they are looking at, with no button needed to mint one.
    *
-   * Held as an id rather than as the Position itself, because the sheet is replaced wholesale
-   * every time anything is marked — a copy kept here would be the one that went stale.
+   * It is the number the factory printed rather than an id — legible in a forum post, and
+   * resolved by the same forgiving rule that finds a number somebody types, so `?position=210`
+   * opens `210 S`. Replacing rather than pushing, because a member walking a sheet's numbers is
+   * reading one screen and should not have to press Back nine times to leave it.
    */
-  const [selectedId, setSelectedId] = useState<{ position: string; mark: string | null } | null>(
-    null,
-  );
+  const { position: linked } = useSearch({ from: '/tavole/$tavolaId' });
+  const navigate = useNavigate({ from: '/tavole/$tavolaId' });
+
+  /**
+   * Which of a number's circles is being read. Held here rather than in the address because it
+   * is where the member has got to in a Position, not what they are looking at — a link to the
+   * third circle of `2` and a link to `2` are the same link.
+   */
+  const [reading, setReading] = useState<{ positionId: string; markId: string } | null>(null);
+  const view = useRef<DrawingView>(null);
   const tool = useMarkingTool(tavolaId);
 
   const positions = useMemo(() => data?.positions ?? [], [data?.positions]);
-  const selectedPosition =
-    positions.find((position) => position.id === selectedId?.position) ?? null;
+  const selectedPosition = useMemo(
+    () => (linked === undefined ? null : positionMatching(positions, linked)),
+    [positions, linked],
+  );
+  const selectedMark = selectedPosition
+    ? markOn(selectedPosition, reading?.positionId === selectedPosition.id ? reading.markId : null)
+    : null;
   const selected = selectedPosition
-    ? { position: selectedPosition, markId: selectedId?.mark ?? null }
+    ? { position: selectedPosition, markId: selectedMark?.id ?? null }
     : null;
 
-  const select = useCallback((position: Position, markId: string | null) => {
-    setSelectedId({ position: position.id, mark: markId });
-  }, []);
+  const open = useCallback(
+    (position: Position | null) => {
+      void navigate({
+        to: '/tavole/$tavolaId',
+        params: { tavolaId },
+        search: position ? { position: position.number } : {},
+        replace: true,
+      });
+    },
+    [navigate, tavolaId],
+  );
 
-  const selectMark = useCallback(
-    (position: Position, mark: { id: string }) => select(position, mark.id),
-    [select],
+  /**
+   * **The address says the number that is actually being read**, even when it was asked for by
+   * a prefix.
+   *
+   * `?position=210` opens `210 S` — that is the same forgiving rule that finds a number somebody
+   * types, and it is what makes a link retyped from a stamped bracket work. But a member who then
+   * copies the address must not hand somebody else a number that is on no sheet, and an address
+   * bar reading `210` beside a panel reading `210 S` is the screen disagreeing with itself. So
+   * the link is corrected to what it opened, once, and every link shared from here is exact.
+   */
+  useEffect(() => {
+    if (selectedPosition && selectedPosition.number !== linked) {
+      open(selectedPosition);
+    }
+  }, [selectedPosition, linked, open]);
+
+  /** A circle pointed at on the sheet: this Position, read at this circle, and nothing moves. */
+  const readMark = useCallback(
+    (position: Position, mark: Mark) => {
+      setReading({ positionId: position.id, markId: mark.id });
+      open(position);
+    },
+    [open],
+  );
+
+  /**
+   * A number reached from the text — the index beside the drawing, or the field above it.
+   *
+   * Two things it does that pointing at a circle does not. It **takes the drawing there**, which
+   * is story 47 and the reason the viewer has an imperative handle at all; and selecting the same
+   * number again **moves on to the next place it is printed** (story 48), which is how a member
+   * finds out that the part is fitted in more than one place. A number with no circle simply
+   * opens: there is nowhere on the sheet to be taken to, and that is what the panel says.
+   */
+  const goTo = useCallback(
+    (position: Position) => {
+      const next =
+        position.id === selectedPosition?.id
+          ? markAfter(position.marks, selectedMark?.id ?? null)
+          : (position.marks[0] ?? null);
+
+      setReading(next ? { positionId: position.id, markId: next.id } : null);
+      open(position);
+      if (next) {
+        view.current?.show(next);
+      }
+    },
+    [open, selectedPosition?.id, selectedMark?.id],
   );
 
   if (isPending) {
@@ -97,10 +173,11 @@ export function TavolaPage() {
       </p>
 
       {/*
-       * **The drawing and the Part it points at, side by side** — which is the whole of story 44
+       * **The drawing and the text of the sheet, side by side** — which is the whole of story 44
        * and the reason this is a grid rather than one column. The sheet keeps the larger share
-       * because it is what the member came for; the reading takes a fixed measure beside it and
-       * scrolls inside itself, so a long Part never pushes the drawing off the screen.
+       * because it is what the member came for; the column beside it is the catalog's facing
+       * page, in the order a hand uses it: the number you already know, then the part you are
+       * reading, then the whole sheet to work down when you know neither.
        *
        * Below `lg` there is no beside, and pretending otherwise on a phone would give a drawing
        * too small to read a number off and a column too narrow to read a sentence in. The
@@ -108,13 +185,15 @@ export function TavolaPage() {
        */}
       <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <DrawingViewer
+          ref={view}
           scan={tavola.scan}
           alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
           overlay={
             <MarkLayer
               positions={positions}
               selectedPositionId={selectedPosition?.id ?? null}
-              onSelect={selectMark}
+              selectedMarkId={selectedMark?.id ?? null}
+              onSelect={readMark}
               onMove={tool.on ? tool.moveMark : undefined}
             />
           }
@@ -123,10 +202,27 @@ export function TavolaPage() {
           onTapPoint={tool.on ? tool.place : undefined}
         />
 
-        <PartReading
-          position={selectedPosition}
-          tavola={{ number: tavola.number, nameEn: tavola.nameEn, model: tavola.model }}
-        />
+        <div className="flex flex-col gap-10">
+          {positions.length > 0 && <PositionJump positions={positions} onJump={goTo} />}
+
+          <PartReading
+            position={selectedPosition}
+            markId={selectedMark?.id ?? null}
+            // What the address asked for when it named nothing this sheet has — a link meant for
+            // another drawing, or a number typed from a bracket that is not on this one. Saying
+            // so beats the neutral invitation to click a circle, which reads as if nothing had
+            // been asked for at all.
+            unknownNumber={selectedPosition === null ? (linked ?? null) : null}
+            tavola={{ number: tavola.number, nameEn: tavola.nameEn, model: tavola.model }}
+          />
+
+          <TavolaParts
+            tavolaId={tavola.id}
+            positions={positions}
+            selectedPositionId={selectedPosition?.id ?? null}
+            onSelect={goTo}
+          />
+        </div>
       </div>
 
       {tool.on && (
@@ -135,7 +231,7 @@ export function TavolaPage() {
             tool={tool}
             positions={positions}
             selected={selected}
-            onDeselect={() => setSelectedId(null)}
+            onDeselect={() => open(null)}
           />
         </div>
       )}
@@ -152,7 +248,7 @@ export function TavolaPage() {
         <PositionList
           positions={positions}
           selectedPositionId={selectedPosition?.id ?? null}
-          onSelect={(position) => select(position, null)}
+          onSelect={open}
           // A drawing nobody has scanned is not a drawing anybody can click, so the tool that
           // works by clicking it is not offered.
           action={

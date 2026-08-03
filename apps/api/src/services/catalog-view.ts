@@ -5,12 +5,17 @@ import type {
   ListedElsewhere,
   PartListing,
   Position,
+  TavolaListing,
   TavolaScan,
   TavolaSummary,
 } from '@ricambi/contracts';
 import type { CategoryRow, ModelRow, PartRow, ScanRow } from '../db/schema.js';
 import { scanImageUrl } from '../images/scan-addresses.js';
-import type { ElsewhereRow, ListingWithPart } from '../repositories/part-repository.js';
+import type {
+  ElsewhereRow,
+  ListingOnTavola,
+  ListingWithPart,
+} from '../repositories/part-repository.js';
 import type { PositionWithMarks } from '../repositories/position-repository.js';
 import type { TavolaWithCategoryAndScan } from '../repositories/tavola-repository.js';
 
@@ -89,6 +94,26 @@ export function toPartListing(row: ListingWithPart, elsewhere: ElsewhereRow[]): 
     drawn: row.drawn,
     part: toPart(row.part),
     elsewhere: elsewhere.map(toListedElsewhere),
+  };
+}
+
+/**
+ * One line of a Tavola's index. **Four fields of the Part and no more** — the columns a printed
+ * catalog page prints — because this is a list of two hundred things a member skims, and the
+ * whole Part arrives when they pick one, from the Position they picked it at.
+ */
+export function toTavolaListing(row: ListingOnTavola): TavolaListing {
+  return {
+    id: row.id,
+    positionId: row.position?.id ?? null,
+    quantityPerCar: row.quantityPerCar,
+    drawn: row.drawn,
+    part: {
+      id: row.part.id,
+      nameEn: row.part.nameEn,
+      nameIt: row.part.nameIt,
+      catalogNumber: row.part.catalogNumber,
+    },
   };
 }
 

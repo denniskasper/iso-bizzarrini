@@ -1,11 +1,11 @@
-import type { NewPartRequest, PartListing } from '@ricambi/contracts';
+import type { NewPartRequest, PartListing, TavolaListing } from '@ricambi/contracts';
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError } from '../http/errors.js';
 import type { NewListingRow } from '../db/schema.js';
 import type { ElsewhereRow, PartRepository } from '../repositories/part-repository.js';
 import type { PositionRepository } from '../repositories/position-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
-import { toPart, toPartListing } from './catalog-view.js';
+import { toPart, toPartListing, toTavolaListing } from './catalog-view.js';
 
 /**
  * What sits at a number on a drawing.
@@ -40,6 +40,8 @@ export interface NewListing {
 
 export interface PartService {
   listingsAt(positionId: string): Promise<PartListing[]>;
+  /** The whole sheet's text, for a member working from the list rather than from the drawing. */
+  listingsOn(tavolaId: string): Promise<TavolaListing[]>;
   record(tavolaId: string, listing: NewListing): Promise<PartListing>;
   removeListing(listingId: string): Promise<void>;
 }
@@ -119,6 +121,12 @@ export function createPartService(dependencies: {
       throw new ConflictError('That Part is already listed at this Position.');
     }
 
+    // The same thing said for a Listing that names no Position, which is a separate index
+    // because Postgres counts two NULLs as different and the constraint above cannot reach it.
+    if (violates(error, 'listings_unplaced_part_unique')) {
+      throw new ConflictError('That Part is already listed on this Tavola, without a Position.');
+    }
+
     const number = listing.part?.catalogNumber;
     if (violates(error, 'parts_catalog_number_unique') && number) {
       const existing = await partRepository.findPartByCatalogNumber(number);
@@ -145,6 +153,17 @@ export function createPartService(dependencies: {
       );
 
       return rows.map((row) => toPartListing(row, elsewhere.get(row.partId) ?? []));
+    },
+
+    async listingsOn(tavolaId) {
+      if (!(await tavolaRepository.exists(tavolaId))) {
+        throw new NotFoundError('No such Tavola.');
+      }
+
+      // No "elsewhere" here, deliberately. Where else a Part turns up is what a member asks about
+      // the one they have picked, and answering it for every line of the index would be a query
+      // per Part to draw a table of contents.
+      return (await partRepository.listOnTavola(tavolaId)).map(toTavolaListing);
     },
 
     async record(tavolaId, listing) {

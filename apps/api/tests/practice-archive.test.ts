@@ -111,6 +111,13 @@ describe('a practice system writing itself a catalog', () => {
     );
     expect(marked).toHaveLength(4);
     expect(marked[0].marks[0]).toMatchObject({ x: expect.any(Number), y: expect.any(Number) });
+
+    // And one number printed in two places, because the factory printed a number wherever the
+    // part is used — a screen that takes a member to each in turn (story 48) needs one to show.
+    const twice = read.body.positions.find(
+      (position: { number: string }) => position.number === '2',
+    );
+    expect(twice.marks).toHaveLength(2);
   });
 
   /**

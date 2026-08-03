@@ -288,6 +288,20 @@
     box-shadow: 0 0 0 calc(var(--mark-ring) / 5) var(--mark-held);
   }
 
+  /*
+   * And which of a number's circles is the one being read.
+   *
+   * The factory printed one number wherever the part is used, so a member selecting `2` again is
+   * taken to the next place it appears (story 48) — a movement they can only follow if the sheet
+   * says which one they are at. One more band outside the ring, in the same teal: the Position's
+   * circles are all lit because they are one Position, and this is the one under the eye.
+   */
+  .drawing-mark[data-current='true']::before {
+    box-shadow:
+      0 0 0 calc(var(--mark-ring) / 5) var(--mark-held),
+      0 0 0 calc(var(--mark-ring) / 3.2) var(--mark-wash);
+  }
+
   /* The focus ring is the application's, sized to the circle rather than to the touch area —
      otherwise a keyboard lands on an amber square the size of a thumb. */
   .drawing-mark:focus-visible {
@@ -362,22 +376,55 @@
   }
 
   /*
-   * One component as it is listed at a Position, ruled off down its left edge like a line of a
-   * printed index.
+   * Something listed on a sheet, ruled off down its left edge like a line of a printed index —
+   * a Part read at a Position, or a number in the sheet's own index beside the drawing.
    *
-   * **The rule is broken when the drawing does not show the Part**, which is the same mark the
-   * sheet's own numbers wear below and means the same thing: listed here, not on the plate. It
-   * is doing real work — an undrawn Part is a fixing that is needed *as well*, while the drawn
-   * ones are fitted instead of one another, and a member who reads that the wrong way round
-   * orders one bolt when they needed a caliper and three.
+   * **The rule is broken when the plate does not show it**, which is the printer's own way of
+   * saying "listed here, not drawn". It is doing real work — an **undrawn** Part is a fixing
+   * needed *as well*, while the drawn ones are fitted instead of one another, and a member who
+   * reads that the wrong way round orders one bolt when they needed a caliper and three.
+   *
+   * The two are not the same statement and the modifier is deliberately named after neither: a
+   * Part is *undrawn* (CONTEXT.md), and a Position simply has no Mark on the sheet. What they
+   * have in common is what the eye is being told, which is that there is nothing on the plate to
+   * go and look for.
    */
-  .part-listed {
+  .listed {
     padding-left: --spacing(4);
     border-left: 2px solid var(--line-strong);
   }
 
-  .part-listed[data-drawn='false'] {
+  .listed.not-on-the-plate {
     border-left-style: dashed;
+  }
+
+  /*
+   * One line of the sheet's own index: the number, then what sits at it.
+   *
+   * **This is the facing page of a factory catalog** — a drawing on the left and a numbered table
+   * on the right — which is the form this archive is reproducing rather than inventing. So it is
+   * set as a printed table is: a fixed column for the identifier, hairlines between the rows, and
+   * no decoration whatever on a row that is nothing but two facts.
+   */
+  .sheet-line {
+    display: grid;
+    /* Wide enough for the longest thing a factory ever printed in this column — `210 S`,
+       `12 bis` — set in the mono face, because a number that wraps is a number nobody scans. */
+    grid-template-columns: 4.5rem 1fr;
+    align-items: baseline;
+    column-gap: --spacing(4);
+    width: 100%;
+    /* The 44px floor, kept as a minimum rather than a height: a number carrying four Parts is a
+       tall row, and one carrying none still has to be hittable by a cold hand. */
+    min-height: var(--spacing-control);
+    padding-block: --spacing(3);
+    text-align: left;
+    border-top: 1px solid var(--line);
+    transition: background-color 150ms var(--ease-out-quick);
+  }
+
+  .sheet-line:hover {
+    background-color: var(--surface-sunken);
   }
 
   /*

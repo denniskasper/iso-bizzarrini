@@ -2,6 +2,7 @@ import { Maximize2, Minimize2, Scan as FitToFrame, ZoomIn, ZoomOut } from 'lucid
 import {
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -10,10 +11,11 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type Ref,
 } from 'react';
 import { Plate } from '@/components/plate';
 import { Button } from '@/components/ui/button';
-import type { TavolaScan } from '@/lib/api';
+import type { MarkPoint, TavolaScan } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useFullScreen } from './use-full-screen';
 import {
@@ -50,10 +52,29 @@ import {
  * coordinates, so the day the archive is measured and turns out to want tiles, the arithmetic
  * in `viewport.ts` does not change.
  */
+/**
+ * The one thing this viewer can be *told* to do, rather than shown.
+ *
+ * Everything else about the drawing is the member's — where it is and how far in they are is
+ * theirs, and nothing outside may reach in and change it. This is the exception story 47 asks
+ * for: a member who picks a Part out of the list beside the sheet is asking to be taken to the
+ * circle it came from, and the drawing has to go there.
+ */
+export interface DrawingView {
+  /**
+   * Bring a place on the sheet under the member's eye — **at the magnification they are already
+   * reading at**, because how far in they are is a decision they made and not one to overrule.
+   * On a sheet that is entirely on screen there is nothing to move, and nothing moves.
+   */
+  show(at: MarkPoint): void;
+}
+
 export interface DrawingViewerProps {
   scan: TavolaScan | null;
   alt: string;
   className?: string;
+  /** Attached only once there is a scan; a Tavola nobody has scanned has nowhere to be taken. */
+  ref?: Ref<DrawingView>;
   /**
    * Whatever is pinned to the sheet — the Marks. Rendered inside the drawing's own coordinate
    * space, so it pans and magnifies with the sheet and nothing in it has to know that this
@@ -71,7 +92,14 @@ export interface DrawingViewerProps {
   onTapPoint?: (at: Point) => void;
 }
 
-export function DrawingViewer({ scan, alt, className, overlay, onTapPoint }: DrawingViewerProps) {
+export function DrawingViewer({
+  scan,
+  alt,
+  className,
+  overlay,
+  onTapPoint,
+  ref,
+}: DrawingViewerProps) {
   // A Tavola recorded from a paper catalog before anyone has scanned the sheet is a legitimate
   // state, and it says so in one place — here it is the same empty plate a contact sheet shows.
   if (!scan) {
@@ -89,6 +117,7 @@ export function DrawingViewer({ scan, alt, className, overlay, onTapPoint }: Dra
       className={className}
       overlay={overlay}
       onTapPoint={onTapPoint}
+      ref={ref}
     />
   );
 }
@@ -149,6 +178,7 @@ function Viewer({
   className,
   overlay,
   onTapPoint,
+  ref,
 }: DrawingViewerProps & { scan: TavolaScan }) {
   const image = useMemo<Size>(
     () => ({ width: scan.width, height: scan.height }),
@@ -302,6 +332,27 @@ function Viewer({
     movedRef.current = false;
     move(fitted(stageOf.current));
   }, [move]);
+
+  /**
+   * Being taken somewhere on the sheet, which is the far end of story 47.
+   *
+   * Two things happen and neither is a zoom. The place is put in the middle of the frame — at a
+   * magnification that fits the whole drawing that is no movement at all, because the circle is
+   * already on the glass and lighting up is the whole of the answer. And the *stage* is brought
+   * onto the screen, because a member who has scrolled down to the list has the drawing above
+   * them, and moving a sheet nobody can see is not taking anybody anywhere.
+   */
+  useImperativeHandle(
+    ref,
+    () => ({
+      show(at: MarkPoint) {
+        movedRef.current = true;
+        move(centredOn(at, viewportRef.current, stageOf.current));
+        stageRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      },
+    }),
+    [move],
+  );
 
   /**
    * The wheel zooms about the pointer, and never scrolls the page out from under the drawing.

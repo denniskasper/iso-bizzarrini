@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "listings_unplaced_part_unique" ON "listings" USING btree ("part_id","tavola_id") WHERE "listings"."position_id" is null;

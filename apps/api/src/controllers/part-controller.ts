@@ -1,4 +1,8 @@
-import type { ListingResponse, PositionListingsResponse } from '@ricambi/contracts';
+import type {
+  ListingResponse,
+  PositionListingsResponse,
+  TavolaListingsResponse,
+} from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { PartService } from '../services/part-service.js';
@@ -58,6 +62,7 @@ const newListingBody = z
 
 export interface PartController {
   listAtPosition: RequestHandler;
+  listOnTavola: RequestHandler;
   record: RequestHandler;
   removeListing: RequestHandler;
 }
@@ -72,6 +77,13 @@ export function createPartController(dependencies: { partService: PartService })
       const body: PositionListingsResponse = {
         listings: await partService.listingsAt(positionId),
       };
+      response.json(body);
+    },
+
+    listOnTavola: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+
+      const body: TavolaListingsResponse = { listings: await partService.listingsOn(tavolaId) };
       response.json(body);
     },
 

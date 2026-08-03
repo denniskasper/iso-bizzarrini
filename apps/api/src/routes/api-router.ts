@@ -81,6 +81,9 @@ export function createApiRouter(dependencies: {
   // other appearances, and a member reads one. Recording a Part goes through the Tavola, because
   // a Listing is a Part's appearance on a *drawing* — the Position is optional.
   router.get('/positions/:positionId/listings', partController.listAtPosition);
+  // The sheet's own text, read whole: the list beside the drawing a member works *from* rather
+  // than *to* (story 46), and the only thing that knows which numbers have nothing at them yet.
+  router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
   router.post('/tavole/:tavolaId/listings', partController.record);
   router.delete('/listings/:listingId', partController.removeListing);
 

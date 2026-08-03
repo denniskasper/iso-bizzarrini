@@ -28,6 +28,10 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // A member sends another member a link to the Position they are looking at (story 52), and
+    // what the button actually put on the clipboard is the only thing worth asserting about it.
+    // Granted rather than mocked: both projects are Chromium, and 127.0.0.1 is a secure origin.
+    permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

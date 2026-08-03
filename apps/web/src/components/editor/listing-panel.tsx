@@ -10,7 +10,7 @@ import {
   type Part,
   type Position,
 } from '@/lib/api';
-import { usePositionListings, useRereadPosition } from '@/lib/parts';
+import { usePositionListings, useRereadListings } from '@/lib/parts';
 
 /**
  * Recording what sits at a number (stories 101–105), on the panel an Editor opened deliberately
@@ -50,7 +50,7 @@ export function ListingPanel({
   const drawnId = useId();
 
   const listings = usePositionListings(position.id);
-  const refresh = useRereadPosition(position.id);
+  const refresh = useRereadListings(tavolaId, position.id);
 
   const create = useMutation({
     mutationFn: (listing: { partId?: string; part?: NewPartRequest }) =>

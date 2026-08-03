@@ -41,6 +41,15 @@ export interface ElsewhereRow {
   position: PositionRow | null;
 }
 
+/**
+ * One line of a Tavola's index: what is listed, and at which number. The Position travels with
+ * it — and may be absent, which is a Part the catalog names on the sheet without anybody having
+ * decided where on it that Part sits.
+ */
+export interface ListingOnTavola extends ListingWithPart {
+  position: PositionRow | null;
+}
+
 export interface PartRepository {
   findPart(id: string): Promise<PartRow | null>;
   findPartByCatalogNumber(catalogNumber: string): Promise<PartRow | null>;
@@ -58,6 +67,8 @@ export interface PartRepository {
   ): Promise<{ part: PartRow; listing: ListingRow }>;
 
   listAtPosition(positionId: string): Promise<ListingWithPart[]>;
+  /** Everything listed on one sheet, in the order the factory printed its numbers. */
+  listOnTavola(tavolaId: string): Promise<ListingOnTavola[]>;
   /** Every other Tavola these Parts are listed on, in one query rather than one a Part. */
   listElsewhere(partIds: string[], exceptTavolaId: string): Promise<ElsewhereRow[]>;
   addListing(row: NewListingRow): Promise<ListingRow>;
@@ -123,6 +134,26 @@ export function createPartRepository(db: Db): PartRepository {
         .orderBy(...byWhatIsDrawnFirst);
 
       return rows.map((row) => ({ ...row.listing, part: row.part }));
+    },
+
+    async listOnTavola(tavolaId) {
+      const rows = await db
+        .select({ listing: listings, part: parts, position: positions })
+        .from(listings)
+        .innerJoin(parts, eq(listings.partId, parts.id))
+        .leftJoin(positions, eq(listings.positionId, positions.id))
+        .where(eq(listings.tavolaId, tavolaId))
+        // **The catalog's own order, and the browser never sorts a catalog** — the same rule the
+        // sheet's Positions are read in, so the index beside the drawing and the numbers under it
+        // cannot disagree. A Listing at no number at all sorts last, where the printed page puts
+        // the things it could not give a number to.
+        .orderBy(
+          sql`${positions.numberSort} asc nulls last`,
+          sql`${positions.number} asc nulls last`,
+          ...byWhatIsDrawnFirst,
+        );
+
+      return rows.map((row) => ({ ...row.listing, part: row.part, position: row.position }));
     },
 
     async listElsewhere(partIds, exceptTavolaId) {
