@@ -7,7 +7,7 @@ than accumulating comments pointing out that it is wrong.
 This is where story 47 is actually satisfied. There is no diff engine; the Editor reads, judges
 and edits. Their hand is the audit trail.
 
-**Blocked by:** 19 — Members contribute.
+**Blocked by:** 19 — Members contribute; 25 — Correcting a Part and its Listings.
 
 **Status:** ready-for-agent
 
