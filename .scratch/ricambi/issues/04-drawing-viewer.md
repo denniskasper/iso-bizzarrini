@@ -43,8 +43,9 @@ image still arrives before the drawing is sharp. The mitigation is that the **48
 drawn first, at the drawing's full size**, and it is already in the browser from the contact
 sheet the member just came through — so the sheet is on screen immediately and sharpens rather
 than appearing late. `pnpm scans:measure` is what reopens this, against real drawings, and the
-viewer is written so that reopening it costs nothing here: every coordinate in `viewport.ts` is
-**fractional**, which is the same commitment ADR 0013 makes for Marks.
+viewer is written so that reopening it costs nothing here: `viewport.ts` works internally in the
+scan's own pixels, but the region it *reports* is **fractional**, which is the same commitment
+ADR 0013 makes for Marks. Nothing that leaves the viewer knows how a scan was delivered.
 
 **How far in it goes, and why that is the legibility promise.** The maximum is *one image pixel
 per CSS pixel, or four times the fitted view, whichever is further*. The first term is the real

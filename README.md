@@ -15,16 +15,17 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [04](.scratch/ricambi/issues/04-drawing-viewer.md)** — the drawing viewer, the
-product's defining surface. Ticket 03 left it one private image per Tavola to zoom rather than a
-tile pyramid ([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)).
+**Next up: [05](.scratch/ricambi/issues/05-positions-and-marking-tool.md)** — Positions and the
+marking tool. The viewer it marks on is built, and the region it reports is in fractions of the
+drawing — the units a Mark is stored in — so a Mark lands in the same arithmetic whatever a scan
+is later delivered as ([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)).
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
 | 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
 | 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | 10 of 11 | `done` | 01 |
 | 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 14 of 18 | `ready-for-human` | 01 |
-| 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | Not started | `ready-for-agent` | 03 |
+| 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | 9 of 10 | `done` | 03 |
 | 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Not started | `ready-for-agent` | 04 |
 | 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Not started | `ready-for-agent` | 05 |
 | 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Not started | `ready-for-agent` | 06 |
@@ -59,6 +60,13 @@ Mark. Everything the ticket asks for in code is built, and the measurement is no
 archive itself: ingest records every scan's dimensions and byte sizes, and `pnpm scans:measure`
 reads them back and applies the threshold. See
 [ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md).
+
+**Ticket 04's one open box is the tile box, and it is open because there are no tiles.** The
+same ADR 0013 serves one private image per Tavola, so "only the visible tiles are fetched" names
+a delivery format this system does not have. What it was protecting is delivered either way:
+listing a Model's Tavole downloads no drawing, and opening one fetches derived images only —
+never the upload, which has no address at all. `pnpm scans:measure` against real scans is what
+reopens it.
 
 ### Two things worth knowing about ticket 01
 
