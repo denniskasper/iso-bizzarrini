@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { NewTavolaForm } from '@/components/editor/new-tavola-form';
 import { Plate } from '@/components/plate';
+import { ModelProgress } from '@/components/progress/model-progress';
 import { api, type TavolaSummary } from '@/lib/api';
 
 /**
@@ -71,6 +72,15 @@ export function ModelPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Under the contact sheet, because looking is how a member finds the drawing they want
+          and counting is how an Editor decides which evening to spend. The drawings stay the
+          hero of this page; the tally is what is left of them. */}
+      {tavole.length > 0 && (
+        <div className="mt-20">
+          <ModelProgress modelId={modelId} tavole={tavole} />
+        </div>
       )}
     </div>
   );

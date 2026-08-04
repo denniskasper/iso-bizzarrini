@@ -9,6 +9,7 @@ import type {
   CatalogModel,
   CatalogModelResponse,
   CatalogModelsResponse,
+  ModelProgressResponse,
   MoveMarkRequest,
   NewMarkRequest,
   NewListingRequest,
@@ -94,6 +95,14 @@ export const api = {
 
   models: () => request<CatalogModelsResponse>('/models'),
   model: (modelId: string) => request<CatalogModelResponse>(`/models/${modelId}`),
+  /**
+   * Where the work stands across one car's drawings — counted in the database, because sixty
+   * sheets read whole to produce three numbers each is sixty requests nobody wants to wait for.
+   *
+   * There is deliberately no such call for a single Tavola. That sheet's own progress is derived
+   * from the drawing and the index the browser is already showing, in `lib/progress.ts`.
+   */
+  modelProgress: (modelId: string) => request<ModelProgressResponse>(`/models/${modelId}/progress`),
   createModel: (model: NewModelRequest) => send<{ model: CatalogModel }>('POST', '/models', model),
 
   categories: () => request<CategoriesResponse>('/categories'),
@@ -246,6 +255,7 @@ export type {
   ServiceStatus,
   SubAssembly,
   TavolaListing,
+  TavolaProgress,
   TavolaResponse,
   TavolaScan,
   TavolaSummary,

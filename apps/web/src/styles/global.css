@@ -445,6 +445,63 @@
   }
 
   /*
+   * The tally in the margin: how much of one sheet has been done.
+   *
+   * **A rule that stops where the work stopped**, which is the printed-index answer to a progress
+   * bar — the same 2px rule this archive already uses to rule a listed thing off down its left
+   * edge, laid on its side. No colour, no rounding, no percentage: an Editor comparing sixty
+   * drawings is comparing lengths, and the counts are printed beside it for anybody who wants the
+   * number.
+   *
+   * It wears **no accent**, deliberately. The teal on these screens means the Position being
+   * pointed at and the one dominant action, and a row of sixty tallies claiming to be either
+   * would leave nothing on the page that still meant it.
+   *
+   * The width is written inline because it is a measurement rather than a token — it is the datum
+   * this element exists to carry.
+   */
+  .tally {
+    position: relative;
+    /* **The room is kept whether or not there is a rule to draw in it**, so a catalog of sheets
+       in three different states is a ruled table rather than a ragged one. Declared once, here:
+       a second copy of this figure reserving the same space in feature code is how the two go
+       out of step. */
+    height: 2px;
+  }
+
+  /* A sheet with no numbers on it has nothing to be a fraction of, and gets no track — an empty
+     one reads as "none of it done" about a drawing nobody has opened. */
+  .tally[data-drawn='true'] {
+    background-color: var(--line);
+  }
+
+  .tally > span {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    background-color: var(--text-muted);
+  }
+
+  /*
+   * The tally as a whole: one line a drawing, ruled like the printed page.
+   *
+   * **Held to a measure**, like the prose above it. Stretched the width of the contact sheet it
+   * would put a drawing's name a hand's breadth from its own figures, and comparing sixty of them
+   * is exactly the eye movement this exists to save. The figure columns are wide enough for the
+   * longest fraction a real catalog will print — `160 / 200`, in the mono face.
+   */
+  .tally-table {
+    width: 100%;
+    max-width: 48rem;
+    border-collapse: collapse;
+  }
+
+  .tally-table th:not(:first-child),
+  .tally-table td:not(:first-child) {
+    width: 7rem;
+  }
+
+  /*
    * The factory's own words, transcribed — and boxed, because it is a quotation from a document
    * rather than something this archive says.
    *

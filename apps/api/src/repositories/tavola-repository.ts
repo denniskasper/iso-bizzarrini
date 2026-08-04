@@ -1,6 +1,10 @@
 import { asc, eq, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { DbSession } from '../db/client.js';
 import {
+  listings,
+  marks,
+  positions,
   tavole,
   type CategoryRow,
   type ModelRow,
@@ -23,9 +27,25 @@ export interface TavolaInContext extends TavolaWithCategoryAndScan {
   model: ModelRow;
 }
 
+/** How much of one sheet has been done, counted rather than read. */
+export interface TavolaProgressRow {
+  tavolaId: string;
+  positions: number;
+  marked: number;
+  listed: number;
+}
+
 export interface TavolaRepository {
   listByModel(modelId: string): Promise<TavolaWithCategoryAndScan[]>;
   findById(id: string): Promise<TavolaInContext | null>;
+  /**
+   * How much of each of a Model's sheets has been done, **in one query rather than one a sheet.**
+   *
+   * A Model may carry sixty Tavole and a Tavola two hundred Positions, so the alternative — read
+   * every sheet and count in the process — is twelve thousand rows crossing a wire to produce
+   * three numbers each. The database is where a count belongs.
+   */
+  progressByModel(modelId: string): Promise<TavolaProgressRow[]>;
   /**
    * Whether there is such a sheet, and nothing more. Placing a Mark is the one request an
    * Editor makes hundreds of times an evening, and it has no use for a Tavola's Category, its
@@ -55,6 +75,45 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
         with: { category: true, scan: true, model: true },
       });
       return row ?? null;
+    },
+
+    progressByModel(modelId) {
+      /*
+       * **Marked and listed are two independent questions asked of the same number**, which is
+       * why each is its own `exists` rather than a join. Joining to Marks and to Listings at once
+       * would multiply a number printed four times by the three Parts recorded at it and count it
+       * twelve times; `count(distinct …)` would undo that, but only after the database had built
+       * the twelve rows. Asking whether there is *any* stops at the first, on the index each of
+       * those tables already carries for its Position.
+       *
+       * `left join`, so a Tavola nobody has opened yet reports three zeroes rather than falling
+       * out of the list. A sheet with nothing on it is the state most sheets start in and the one
+       * an Editor most wants to see.
+       *
+       * The counts are cast because `count` is a `bigint`, and a `bigint` reaches this process as
+       * a string — a number of Positions that arrived as `"200"` would be reported as one.
+       */
+      // The column names its own table, so there is no pair of arguments here that could
+      // disagree — `anyOf(marks.positionId)` cannot be asked about the wrong table.
+      const anyOf = (column: AnyPgColumn) =>
+        sql`exists (select 1 from ${column.table} where ${column} = ${positions.id})`;
+
+      return (
+        db
+          .select({
+            tavolaId: tavole.id,
+            positions: sql<number>`count(${positions.id})::int`,
+            marked: sql<number>`(count(${positions.id}) filter (where ${anyOf(marks.positionId)}))::int`,
+            listed: sql<number>`(count(${positions.id}) filter (where ${anyOf(listings.positionId)}))::int`,
+          })
+          .from(tavole)
+          .leftJoin(positions, eq(positions.tavolaId, tavole.id))
+          .where(eq(tavole.modelId, modelId))
+          .groupBy(tavole.id)
+          // The catalog's own order, the same one the Model's list of sheets is read in — so the
+          // table of counts and the contact sheet beside it name the drawings in one order.
+          .orderBy(...byNumber)
+      );
     },
 
     async exists(id) {

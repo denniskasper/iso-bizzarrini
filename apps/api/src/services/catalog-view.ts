@@ -12,6 +12,7 @@ import type {
   Source,
   SubAssembly,
   TavolaListing,
+  TavolaProgress,
   TavolaScan,
   TavolaSummary,
 } from '@ricambi/contracts';
@@ -32,7 +33,10 @@ import type {
   ListingWithPart,
 } from '../repositories/part-repository.js';
 import type { PositionWithMarks } from '../repositories/position-repository.js';
-import type { TavolaWithCategoryAndScan } from '../repositories/tavola-repository.js';
+import type {
+  TavolaProgressRow,
+  TavolaWithCategoryAndScan,
+} from '../repositories/tavola-repository.js';
 
 /**
  * Rows in, contracts out. Every service that reports part of the catalog comes through here,
@@ -61,6 +65,22 @@ export function toTavolaSummary(row: TavolaWithCategoryAndScan): TavolaSummary {
     nameEn: row.nameEn,
     category: toCategory(row.category),
     scan: row.scan ? toTavolaScan(row.scan) : null,
+  };
+}
+
+/**
+ * How much of one sheet has been done.
+ *
+ * The Tavola is named by id alone: whatever prints this is printing it against the Model's own
+ * list of sheets and already holds their numbers and names. Carrying them here as well would be
+ * the same fact in two places.
+ */
+export function toTavolaProgress(row: TavolaProgressRow): TavolaProgress {
+  return {
+    tavolaId: row.tavolaId,
+    positions: row.positions,
+    marked: row.marked,
+    listed: row.listed,
   };
 }
 

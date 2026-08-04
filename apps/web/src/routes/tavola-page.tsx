@@ -10,12 +10,14 @@ import { TavolaParts } from '@/components/parts/tavola-parts';
 import { BelongsWith } from '@/components/positions/belongs-with';
 import { PositionJump } from '@/components/positions/position-jump';
 import { PositionList } from '@/components/positions/position-list';
+import { WhatIsLeft } from '@/components/progress/what-is-left';
 import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
 import { MarkLayer } from '@/components/viewer/mark-layer';
 import { api, type CatalogProvenance, type Mark, type Position } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
+import { useSheetProgress } from '@/lib/progress';
 
 /**
  * One drawing, with the numbered circles on it and the Part beside it.
@@ -65,6 +67,16 @@ export function TavolaPage() {
    * the *drawing* that answers — the panel asks, and the circles are what light up.
    */
   const [askedToShow, setAskedToShow] = useState<string | null>(null);
+  /**
+   * And the sheet an Editor has asked to see the gaps on, if any. The same mechanism as above,
+   * asked by a different panel — which is why the two are held apart and settled below rather
+   * than being one flag.
+   *
+   * **The Tavola and not a boolean**, for the same reason the Sub-assembly above is an id: this
+   * component is not remounted when a member walks from one drawing to the next, so a flag would
+   * follow them onto a sheet they never asked anything about.
+   */
+  const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
   const tool = useMarkingTool(tavolaId);
 
@@ -92,12 +104,53 @@ export function TavolaPage() {
    */
   const shownSubAssembly =
     askedToShow !== null && selectedPosition?.subAssemblyId === askedToShow ? askedToShow : null;
-  const lit = useMemo(
-    () =>
-      shownSubAssembly === null
-        ? null
-        : new Set(positionsIn(sheet, shownSubAssembly).map((position) => position.id)),
-    [sheet, shownSubAssembly],
+
+  /**
+   * How much of this sheet has been done — **read once, here, because two things need it**: the
+   * panel that prints it and the drawing that lights the gaps. It costs no request of its own,
+   * being derived from the sheet above and the index the column beside the drawing has already
+   * asked for.
+   */
+  const progress = useSheetProgress(tavolaId, positions);
+
+  /**
+   * Whether the drawing is actually lighting the gaps — **derived rather than remembered**, the
+   * same way a shown Sub-assembly is, and for a sharper reason than symmetry.
+   *
+   * The switch lives in the block that lists the gaps, so recording a Part at the last one takes
+   * it off the screen. A remembered flag would still be set, every circle on the sheet would go
+   * on receding, and the only control that could undo it would be the one that had just gone.
+   * There is nothing here to leave behind: no gaps, no question being asked.
+   */
+  const showingGaps = gapsAskedFor === tavolaId && (progress.tally?.unlisted.length ?? 0) > 0;
+
+  /**
+   * **The drawing answers one question at a time.** A Sub-assembly and the numbers with nothing
+   * recorded at them use the same mechanism — what was not asked about recedes — so lighting both
+   * at once would leave a member with a drawing full of bright circles meaning two different
+   * things. Asking either turns the other off, and this is where that is settled rather than in
+   * the two panels that ask.
+   */
+  const lit = useMemo(() => {
+    if (showingGaps) {
+      return new Set((progress.tally?.unlisted ?? []).map((position) => position.id));
+    }
+    return shownSubAssembly === null
+      ? null
+      : new Set(positionsIn(sheet, shownSubAssembly).map((position) => position.id));
+  }, [sheet, shownSubAssembly, showingGaps, progress.tally]);
+
+  const showSubAssembly = useCallback((subAssemblyId: string | null) => {
+    setGapsAskedFor(null);
+    setAskedToShow(subAssemblyId);
+  }, []);
+
+  const showGaps = useCallback(
+    (showing: boolean) => {
+      setAskedToShow(null);
+      setGapsAskedFor(showing ? tavolaId : null);
+    },
+    [tavolaId],
   );
 
   const open = useCallback(
@@ -248,7 +301,7 @@ export function TavolaPage() {
                   sheet={sheet}
                   position={selectedPosition}
                   showingSubAssembly={shownSubAssembly !== null}
-                  onShowSubAssembly={setAskedToShow}
+                  onShowSubAssembly={showSubAssembly}
                   // A number in the same Sub-assembly, or one it works with, is reached the way
                   // every other number in the text is: read it, and take the drawing to it.
                   onSelect={goTo}
@@ -261,6 +314,17 @@ export function TavolaPage() {
             tavolaId={tavola.id}
             positions={positions}
             selectedPositionId={selectedPosition?.id ?? null}
+            onSelect={goTo}
+          />
+
+          {/* Last on the facing page, and beside the drawing rather than below it: the numbers
+              it names are numbers to go and work on, and the switch that lights them up has to
+              be where a hand can see what it did. */}
+          <WhatIsLeft
+            progress={progress}
+            selectedPositionId={selectedPosition?.id ?? null}
+            showingGaps={showingGaps}
+            onShowGaps={showGaps}
             onSelect={goTo}
           />
         </div>

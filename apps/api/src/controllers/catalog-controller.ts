@@ -1,4 +1,8 @@
-import type { CatalogModelResponse, CatalogModelsResponse } from '@ricambi/contracts';
+import type {
+  CatalogModelResponse,
+  CatalogModelsResponse,
+  ModelProgressResponse,
+} from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { CatalogService } from '../services/catalog-service.js';
@@ -34,6 +38,7 @@ const createModelBody = z.object({
 export interface CatalogController {
   listModels: RequestHandler;
   readModel: RequestHandler;
+  readModelProgress: RequestHandler;
   createModel: RequestHandler;
 }
 
@@ -56,6 +61,12 @@ export function createCatalogController(dependencies: {
     readModel: async (request, response) => {
       const { modelId } = modelIdParams.parse(request.params);
       const body: CatalogModelResponse = await catalogService.readModel(modelId);
+      response.json(body);
+    },
+
+    readModelProgress: async (request, response) => {
+      const { modelId } = modelIdParams.parse(request.params);
+      const body: ModelProgressResponse = await catalogService.readModelProgress(modelId);
       response.json(body);
     },
 

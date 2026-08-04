@@ -18,7 +18,7 @@ import type { Position } from '@/lib/api';
  * out of sight would be a gesture nobody watched.
  *
  * **What is deliberately not here is a count of them.** How much of a Tavola is still to do is
- * an Editor's question and ticket 11 answers it, for a Model as well as for a sheet; this is
+ * answered beside the drawing, where the numbers it names are numbers to go and work on; this is
  * what a member reads, and to a member the sheet is simply what it is.
  */
 export function PositionList({

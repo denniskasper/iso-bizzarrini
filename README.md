@@ -15,17 +15,16 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [11](.scratch/ricambi/issues/11-editor-progress-view.md)** — the Editor progress view.
-Everything a Tavola can carry is now recordable, and ticket 13's loader has filled the archive
-from the Club's own spreadsheets, so the question that has no answer is *what is left to do* —
-which sheets have no scan, which numbers have no Mark, which have no Listing. Marking Tavole is
-the project's critical path and nothing yet tells a volunteer where to start.
+**Next up: [25](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md)** — correcting a
+Part. Ticket 11 now says which numbers have no Mark and which have no Listing, so an Editor can
+find the work; what they still cannot do is fix any of it. There is no way to change a Part after
+it is recorded, so a mistyped Description is undone by removing the Listing and entering the
+component again — and ticket 20 is blocked on this outright.
 
-Five others are unblocked and independent of it:
-[10](.scratch/ricambi/issues/10-part-photographs.md),
-[12](.scratch/ricambi/issues/12-bulk-paste-and-export.md) and
-[25](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) are the rest of M2's
-editor tooling, and [22](.scratch/ricambi/issues/22-search.md) and
+Four others are unblocked and independent of it:
+[10](.scratch/ricambi/issues/10-part-photographs.md) and
+[12](.scratch/ricambi/issues/12-bulk-paste-and-export.md) are the rest of M2's editor tooling, and
+[22](.scratch/ricambi/issues/22-search.md) and
 [23](.scratch/ricambi/issues/23-category-filters.md) are M5. Twenty-three's blocker, ticket 03, is
 open only on boxes that need a person and a real scan rather than code (see below), and everything
 Category filters read from is built.
@@ -42,7 +41,7 @@ Category filters read from is built.
 | 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Done | `done` | 06 |
 | 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Done | `done` | 06 |
 | 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Not started | `ready-for-agent` | 06 |
-| 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Not started | `ready-for-agent` | 05, 06 |
+| 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Done | `done` | 05, 06 |
 | 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Not started | `ready-for-agent` | 06 |
 | 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | 11 of 12 | `ready-for-human` | 03, 08 |
 | 14 | [Accounts, Memberships, roster and invitations](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) | Not started | `ready-for-agent` | 01, club-website 01 |

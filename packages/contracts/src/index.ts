@@ -477,6 +477,50 @@ export interface PositionListingsResponse {
 }
 
 /**
+ * **How much of one sheet has been done** — the three counts an Editor opens a Tavola wanting.
+ *
+ * The two are counted separately and neither is a stage of the other: a Position carries Marks
+ * or it does not, and it carries a Listing or it does not, and the ordinary archive has plenty
+ * of each without the other.
+ *
+ * **They are counts and not a score, and nothing here can tell the difference.** A number the
+ * catalog prints that the drawing never showed is *finished* with no Mark on it (CONTEXT.md), so
+ * `marked` short of `positions` may mean an evening's work or may mean a sheet that is done —
+ * and which of the two it is lives on paper in front of an Editor, not in this archive. Screens
+ * may print `marked` against `positions`, because that is the fact; what none of them may do is
+ * call the difference *outstanding*, or turn it into a percentage complete.
+ *
+ * The Tavola is named by **id alone**, because anything reading this is reading it against the
+ * Model's own list of sheets and already holds their numbers and names. Carrying them here as
+ * well would be the same fact in two places, free to disagree.
+ */
+export interface TavolaProgress {
+  tavolaId: string;
+  /** Every number recorded on the sheet. Zero for a Tavola nobody has marked up yet. */
+  positions: number;
+  /** How many of them carry at least one Mark. */
+  marked: number;
+  /** How many of them carry at least one Listing. */
+  listed: number;
+}
+
+/**
+ * `GET /api/models/:modelId/progress` — **where the work stands across one car's drawings.**
+ *
+ * Counted in the database rather than assembled from the sheets, because the alternative is one
+ * request per Tavola: a Model with sixty of them would read sixty drawings' worth of Positions
+ * and sixty indexes to print a table of counts. A Tavola's *own* progress needs no request at
+ * all — the sheet and its index are already in the browser that is showing them.
+ *
+ * In the Model's own catalog order, which is the order its Tavole are listed in. Which of them
+ * to do next is the Editor's judgement, and an archive that re-ordered the catalog by how much
+ * was left would be answering that for them.
+ */
+export interface ModelProgressResponse {
+  tavole: TavolaProgress[];
+}
+
+/**
  * `POST /api/models` — what an Editor records about a car.
  *
  * The **wire** shape, which is why every field is a plain string: a form sends what was typed,

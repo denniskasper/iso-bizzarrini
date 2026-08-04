@@ -39,13 +39,18 @@ export interface MarkLayerProps {
    */
   selectedMarkId: string | null;
   /**
-   * The numbers in the Sub-assembly a member has asked to see, or `null` when they have not.
+   * The numbers the drawing has been asked about, or `null` when it has been asked nothing.
    *
    * **What it does is recede everything else**, rather than paint these a second colour: the one
    * accent this archive has already means "the Position being pointed at", and a second set of
    * circles wearing it would leave a member to work out which of eleven lit ones they were
    * reading. Receding what is *not* named is the same move the navigator makes about what is not
    * in view, and needs no legend for the same reason.
+   *
+   * Two panels ask — a member showing the rest of a Sub-assembly, and an Editor showing which
+   * numbers have nothing recorded at them — and this deliberately does not know which. **The
+   * drawing answers one question at a time**, settled by whatever hands this in; a layer that
+   * could light two sets would be a sheet of bright circles meaning two different things.
    *
    * Every circle stays hittable at its full touch size while it is receded. This is a state the
    * member switched on and can switch off, not information taken away from them.
@@ -199,7 +204,7 @@ const MarkCircle = memo(function MarkCircle({
   position: Position;
   selected: boolean;
   current: boolean;
-  /** Not one of the numbers in the Sub-assembly being shown, while one is being shown. */
+  /** Not one of the numbers the drawing has been asked about, while it has been asked. */
   subdued: boolean;
   movable: boolean;
   onSelect: (position: Position, mark: Mark) => void;
@@ -217,7 +222,7 @@ const MarkCircle = memo(function MarkCircle({
       // Which of a number's several circles is the one being read. It is the same teal, ringed
       // once more — a member cycling through four of them watches the heavier ring move.
       data-current={selected && current}
-      // And which of them are not in the Sub-assembly the member asked to see.
+      // And which of them are not what the drawing was asked about.
       data-subdued={subdued}
       aria-label={`Position ${position.number}`}
       aria-pressed={selected}

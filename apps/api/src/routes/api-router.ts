@@ -62,6 +62,11 @@ export function createApiRouter(dependencies: {
 
   router.get('/models', catalogController.listModels);
   router.get('/models/:modelId', catalogController.readModel);
+  // **Where the work stands across one car's drawings**, counted rather than assembled. A
+  // Tavola's own progress has no address here on purpose: the sheet and its index are already in
+  // the browser that is showing them, so asking again would be a third request to learn what two
+  // have just finished saying.
+  router.get('/models/:modelId/progress', catalogController.readModelProgress);
   router.post('/models', catalogController.createModel);
 
   router.get('/categories', tavolaController.listCategories);
