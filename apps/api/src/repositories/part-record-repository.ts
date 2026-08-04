@@ -1,5 +1,5 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import {
   EQUIVALENT_KINDS,
   equivalents,
@@ -73,7 +73,7 @@ export interface PartRecordRepository {
   removeSource(id: string): Promise<SourceRow | null>;
 }
 
-export function createPartRecordRepository(db: Db): PartRecordRepository {
+export function createPartRecordRepository(db: DbSession): PartRecordRepository {
   /**
    * The catalog's own order for the cars a Part fits — the order somebody who owns one of these
    * would look through a shelf of catalogs, rather than the order an Editor happened to type.

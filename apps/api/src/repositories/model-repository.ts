@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import { models, type ModelRow, type NewModelRow } from '../db/schema.js';
 
 /**
@@ -12,7 +12,7 @@ export interface ModelRepository {
   add(model: NewModelRow): Promise<ModelRow>;
 }
 
-export function createModelRepository(db: Db): ModelRepository {
+export function createModelRepository(db: DbSession): ModelRepository {
   const ordered = [asc(models.brand), asc(models.name), asc(models.series)];
 
   return {

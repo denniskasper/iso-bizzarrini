@@ -15,12 +15,12 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [13](.scratch/ricambi/issues/13-migration-scripts.md)** — migration scripts for the
-existing archive. The sentence the product exists to complete now runs end to end: choose a car,
-open the drawing, click the circle, read the part, and see what it fits, what replaces it and
-where it has been for sale. What the archive has none of is *content* — and until the Club's own
-spreadsheets and scans are in it, marking Tavole has nothing to attach to. It is the long pole,
-and after it lands the volunteers' evenings run in parallel with everything else.
+**Next up: [09](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md)** —
+Sub-assemblies and Related Positions. The archive can now be filled: ticket 13 built the loader
+that turns the Club's own spreadsheets and scans into a catalog, so the volunteers' evenings can
+start. What 13 left behind is the half of 09 nobody can read yet — it *writes* Sub-assemblies and
+Related Positions, because the club's sheets record both, and nothing shows them to a member or
+lets an Editor record one.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
@@ -36,7 +36,7 @@ and after it lands the volunteers' evenings run in parallel with everything else
 | 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Not started | `ready-for-agent` | 06 |
 | 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Not started | `ready-for-agent` | 05, 06 |
 | 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Not started | `ready-for-agent` | 06 |
-| 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | Not started | `ready-for-agent` | 03, 08 |
+| 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | 11 of 12 | `ready-for-human` | 03, 08 |
 | 14 | [Accounts, Memberships, roster and invitations](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) | Not started | `ready-for-agent` | 01, club-website 01 |
 | 15 | [Authorisation and the renewal screen](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md) | Not started | `ready-for-agent` | 03, 14 |
 | 16 | [Roster spreadsheet import](.scratch/ricambi/issues/16-roster-spreadsheet-import.md) | Not started | `ready-for-agent` | 14 |
@@ -140,6 +140,22 @@ system and in production, and differs only by what it is handed.
 | `pnpm db:seed` | empty the catalog and write the invented one — a laptop command, never a deployment's |
 | `pnpm db:generate` | a migration from a change to `schema.ts` (then rename it, and strip `"public".`) |
 | `pnpm scans:measure` | what the archive's own scans say about the tiling question (ADR 0013) |
+| `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
+
+### Loading the Club's own archive
+
+```sh
+pnpm archive:load -- --source ../club-archive --dry-run
+```
+
+The Club's spreadsheets and scans become the catalog. It is **re-runnable** — every write is a
+find-or-add, it fills empty fields and overwrites nothing — and the dry run *is* the load, done
+inside a transaction that is abandoned at the end, so what it says it would create is what it
+did create. Both write a report naming every row it could not take and the line it was on.
+
+The material itself is never committed here (`AGENTS.md`); the loader and the plan that says
+what the columns mean are. The procedure, the plan format and the one decision only a person can
+make are in [`docs/operations/archive-migration.md`](docs/operations/archive-migration.md).
 
 ### The practice archive
 
@@ -185,6 +201,7 @@ apps/api             Express + TypeScript + Zod, Drizzle on Postgres
     access/          who may ask — the gate, and the cookie it remembers by
     catalog/         rules about catalog text that belong to no layer
     images/          what a scan becomes at ingest, and how it is addressed
+    migration/       the club's spreadsheets and scans, loaded once and re-runnably
     storage/         where the files are, behind an interface that hides where
 apps/web             Vite + React + Tailwind + shadcn/ui, TanStack Router and Query
 packages/contracts   What the API promises the browser, declared once

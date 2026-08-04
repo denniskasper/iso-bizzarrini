@@ -1,5 +1,5 @@
 import { asc, eq, sql } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import {
   tavole,
   type CategoryRow,
@@ -35,7 +35,7 @@ export interface TavolaRepository {
   add(tavola: NewTavolaRow): Promise<TavolaRow>;
 }
 
-export function createTavolaRepository(db: Db): TavolaRepository {
+export function createTavolaRepository(db: DbSession): TavolaRepository {
   // The catalog prints 2, 10 and 12 in that order; sorting the strings would print 10, 12, 2.
   // Nulls last, because a Tavola numbered "bis" is the exception and belongs at the end.
   const byNumber = [sql`${tavole.numberSort} asc nulls last`, asc(tavole.number)];

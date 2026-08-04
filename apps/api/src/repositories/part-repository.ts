@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import {
   listings,
   models,
@@ -75,7 +75,7 @@ export interface PartRepository {
   removeListing(id: string): Promise<boolean>;
 }
 
-export function createPartRepository(db: Db): PartRepository {
+export function createPartRepository(db: DbSession): PartRepository {
   /**
    * **Drawn first, and that is the archive's rule rather than the browser's.**
    *

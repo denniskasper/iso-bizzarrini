@@ -13,6 +13,7 @@ import {
   unique,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 /**
@@ -174,6 +175,19 @@ export const positions = pgTable(
     number: text('number').notNull(),
     /** The leading digits of `number`. Derived at write time, never shown. */
     numberSort: integer('number_sort'),
+    /**
+     * The named group this number sits in, if any — **at most one, and that is the whole rule**
+     * (spec, Implementation Decisions). A column here rather than a join table is what makes
+     * "belongs to at most one" a thing the database enforces instead of a thing screens
+     * remember, and it is why no nesting is reachable: a Sub-assembly holds Positions and a
+     * Position holds nothing.
+     *
+     * Null on removal rather than cascading: dissolving a group is not deleting the numbers
+     * that were in it.
+     */
+    subAssemblyId: uuid('sub_assembly_id').references((): AnyPgColumn => subAssemblies.id, {
+      onDelete: 'set null',
+    }),
   },
   (table) => [
     // The factory printed one number once. Two Positions numbered 210 on one sheet would be
@@ -181,6 +195,70 @@ export const positions = pgTable(
     // — including for two Editors marking the same drawing at the same moment.
     unique('positions_tavola_id_number_unique').on(table.tavolaId, table.number),
     index('positions_tavola_id_index').on(table.tavolaId),
+    index('positions_sub_assembly_id_index').on(table.subAssemblyId),
+  ],
+);
+
+/**
+ * A named group of Positions within one Tavola — *Window Slider*, *Door Lock*.
+ *
+ * **A labelling device, and explicitly not a bill of materials** (spec, Out of Scope). It has no
+ * number, nothing orders it, and it contains Positions rather than Parts: what a member gets
+ * from it is "these eleven numbers go together", which is what somebody taking a door apart
+ * actually wants and is a great deal less than a parts tree pretends to know.
+ *
+ * The name is unique within its Tavola. Two groups called *Door Lock* on one sheet would be one
+ * group somebody recorded twice, and reading them as two would split the very numbers the group
+ * exists to hold together.
+ */
+export const subAssemblies = pgTable(
+  'sub_assemblies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tavolaId: uuid('tavola_id')
+      .notNull()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    /** As whoever grouped them wrote it. This is what members read. */
+    name: text('name').notNull(),
+  },
+  (table) => [
+    unique('sub_assemblies_tavola_id_name_unique').on(table.tavolaId, table.name),
+    index('sub_assemblies_tavola_id_index').on(table.tavolaId),
+  ],
+);
+
+/**
+ * Two Positions on one sheet an Editor has linked because the parts work together — the guide
+ * rod and the one channel it runs in, rather than the eleven numbers of the window mechanism.
+ *
+ * **The link is symmetric, and it is one row** (spec, Implementation Decisions). Recording it
+ * from either end has to make it visible from both, and the cheapest way to be sure of that is
+ * to make the other arrangement unrepresentable: the check constraint refuses a row whose ends
+ * are not in ascending order, so a pair has exactly one row whichever way round it was entered,
+ * and there is no second row to forget to write or to let drift.
+ *
+ * That is why a reader looks for its own id on *either* end. Both ends are indexed for it.
+ */
+export const relatedPositions = pgTable(
+  'related_positions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    positionId: uuid('position_id')
+      .notNull()
+      .references(() => positions.id, { onDelete: 'cascade' }),
+    relatedPositionId: uuid('related_position_id')
+      .notNull()
+      .references(() => positions.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    unique('related_positions_pair_unique').on(table.positionId, table.relatedPositionId),
+    index('related_positions_position_id_index').on(table.positionId),
+    index('related_positions_related_position_id_index').on(table.relatedPositionId),
+    // One link, one row, in one order — and never a number related to itself.
+    check(
+      'related_positions_are_one_ordered_pair',
+      sql`${table.positionId} < ${table.relatedPositionId}`,
+    ),
   ],
 );
 
@@ -487,8 +565,17 @@ export const tavoleRelations = relations(tavole, ({ one, many }) => ({
 
 export const positionsRelations = relations(positions, ({ one, many }) => ({
   tavola: one(tavole, { fields: [positions.tavolaId], references: [tavole.id] }),
+  subAssembly: one(subAssemblies, {
+    fields: [positions.subAssemblyId],
+    references: [subAssemblies.id],
+  }),
   marks: many(marks),
   listings: many(listings),
+}));
+
+export const subAssembliesRelations = relations(subAssemblies, ({ one, many }) => ({
+  tavola: one(tavole, { fields: [subAssemblies.tavolaId], references: [tavole.id] }),
+  positions: many(positions),
 }));
 
 export const partsRelations = relations(parts, ({ many }) => ({
@@ -541,6 +628,10 @@ export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;
 export type MarkRow = typeof marks.$inferSelect;
 export type NewMarkRow = typeof marks.$inferInsert;
+export type SubAssemblyRow = typeof subAssemblies.$inferSelect;
+export type NewSubAssemblyRow = typeof subAssemblies.$inferInsert;
+export type RelatedPositionRow = typeof relatedPositions.$inferSelect;
+export type NewRelatedPositionRow = typeof relatedPositions.$inferInsert;
 export type PartRow = typeof parts.$inferSelect;
 export type NewPartRow = typeof parts.$inferInsert;
 export type ListingRow = typeof listings.$inferSelect;

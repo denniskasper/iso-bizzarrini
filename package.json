@@ -21,6 +21,7 @@
     "db:migrate": "pnpm --filter @ricambi/api db:migrate",
     "db:seed": "pnpm --filter @ricambi/api db:seed",
     "scans:measure": "pnpm --filter @ricambi/api scans:measure",
+    "archive:load": "pnpm --filter @ricambi/api archive:load",
     "db:generate": "pnpm --filter @ricambi/api db:generate",
     "test": "pnpm test:api && pnpm test:e2e",
     "test:api": "pnpm --filter @ricambi/api test",

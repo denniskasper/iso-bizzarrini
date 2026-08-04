@@ -1,5 +1,5 @@
 import { asc, eq, sql } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import {
   marks,
   positions,
@@ -32,7 +32,7 @@ export interface PositionRepository {
   removeMark(markId: string): Promise<MarkRow | null>;
 }
 
-export function createPositionRepository(db: Db): PositionRepository {
+export function createPositionRepository(db: DbSession): PositionRepository {
   // The catalog prints 1, 2, 10; sorting the strings would print 1, 10, 2. Nulls last, because
   // a Position numbered with no leading digit at all is the exception and belongs at the end.
   const byNumber = [sql`${positions.numberSort} asc nulls last`, asc(positions.number)];

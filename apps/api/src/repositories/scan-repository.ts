@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import { scans, type NewScanRow, type ScanRow } from '../db/schema.js';
 
 export interface ScanRepository {
@@ -14,7 +14,7 @@ export interface ScanRepository {
   replaceForTavola(scan: NewScanRow): Promise<{ current: ScanRow; replaced: ScanRow | null }>;
 }
 
-export function createScanRepository(db: Db): ScanRepository {
+export function createScanRepository(db: DbSession): ScanRepository {
   return {
     async findById(id) {
       const [row] = await db.select().from(scans).where(eq(scans.id, id)).limit(1);

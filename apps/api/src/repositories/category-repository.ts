@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import type { Db } from '../db/client.js';
+import type { DbSession } from '../db/client.js';
 import { categories, type CategoryRow } from '../db/schema.js';
 
 /**
@@ -14,7 +14,7 @@ export interface CategoryRepository {
   findOrAdd(name: string, slug: string): Promise<CategoryRow>;
 }
 
-export function createCategoryRepository(db: Db): CategoryRepository {
+export function createCategoryRepository(db: DbSession): CategoryRepository {
   return {
     listAll() {
       return db.select().from(categories).orderBy(asc(categories.name));

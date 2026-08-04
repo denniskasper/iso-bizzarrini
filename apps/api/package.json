@@ -13,6 +13,7 @@
     "db:migrate": "tsx src/db/migrate-cli.ts",
     "db:seed": "tsx scripts/seed.ts",
     "scans:measure": "tsx scripts/scan-measurements.ts",
+    "archive:load": "tsx scripts/load-archive.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
