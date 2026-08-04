@@ -21,9 +21,14 @@ from the Club's own spreadsheets, so the question that has no answer is *what is
 which sheets have no scan, which numbers have no Mark, which have no Listing. Marking Tavole is
 the project's critical path and nothing yet tells a volunteer where to start.
 
-[10](.scratch/ricambi/issues/10-part-photographs.md), [12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)
-and [25](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) are equally pickable
-and independent of it.
+Five others are unblocked and independent of it:
+[10](.scratch/ricambi/issues/10-part-photographs.md),
+[12](.scratch/ricambi/issues/12-bulk-paste-and-export.md) and
+[25](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) are the rest of M2's
+editor tooling, and [22](.scratch/ricambi/issues/22-search.md) and
+[23](.scratch/ricambi/issues/23-category-filters.md) are M5. Twenty-three's blocker, ticket 03, is
+open only on boxes that need a person and a real scan rather than code (see below), and everything
+Category filters read from is built.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
