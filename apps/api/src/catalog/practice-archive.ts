@@ -19,8 +19,14 @@ import {
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { createCategoryRepository } from '../repositories/category-repository.js';
+import { createModelRepository } from '../repositories/model-repository.js';
+import { createPartRecordRepository } from '../repositories/part-record-repository.js';
+import { createPartRepository } from '../repositories/part-repository.js';
+import { createPhotographRepository } from '../repositories/photograph-repository.js';
 import { createScanRepository } from '../repositories/scan-repository.js';
 import { createTavolaRepository } from '../repositories/tavola-repository.js';
+import { createPartRecordService } from '../services/part-record-service.js';
+import { createPhotographService } from '../services/photograph-service.js';
 import { createScanService } from '../services/scan-service.js';
 import type { FileStore } from '../storage/file-store.js';
 import { categorySlug, numericPrefixOf } from './naming.js';
@@ -357,6 +363,23 @@ const practiceSources = [
   },
 ] as const;
 
+/**
+ * Invented photographs of the invented components — **the state a member's screen has to handle
+ * three ways at once**: a Part with several, a Part with one, and Parts with none at all.
+ *
+ * Several matters most, because it is the only thing that can demonstrate an *order*: which
+ * picture comes first is an Editor's judgement about which shows the part best, and a practice
+ * archive where every Part had at most one would leave that claim untestable.
+ *
+ * The pictures are drawn below in a few lines of SVG and could not be mistaken for photographs.
+ * Nothing here is copied from anywhere real (`AGENTS.md`).
+ */
+const practicePhotographs = [
+  { part: 'caliper-early', of: 'Caliper, outboard face' },
+  { part: 'caliper-early', of: 'Caliper, casting number' },
+  { part: 'hose', of: 'Hose and its end fittings' },
+] as const;
+
 export interface SeedDependencies {
   db: Db;
   fileStore: FileStore;
@@ -377,6 +400,7 @@ export interface SeedOutcome {
   fitments: number;
   equivalents: number;
   sources: number;
+  photographs: number;
 }
 
 /**
@@ -491,6 +515,7 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
   });
 
   const record = await writePracticeRecord(db, modelIdsByName, partIds);
+  const photographed = await writePracticePhotographs(dependencies, partIds);
 
   return {
     models: practiceModels.length,
@@ -501,7 +526,51 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     listings: listed.length,
     ...belongsWith,
     ...record,
+    photographs: photographed,
   };
+}
+
+/**
+ * The invented photographs, written through the same service an Editor's upload goes through.
+ *
+ * **Not straight to the table**, unlike every other fixture in this file, and for a reason that
+ * is not consistency: a Photograph is a row *and* three files under a key, and a seeder that
+ * wrote the row itself would be a second implementation of the one thing that has to stay in
+ * step. The rest of the practice archive is rows and nothing else, so it has nothing to drift
+ * from.
+ */
+async function writePracticePhotographs(
+  dependencies: SeedDependencies,
+  partIds: Map<string, string>,
+): Promise<number> {
+  const { db, fileStore, clock, logger } = dependencies;
+
+  const partRepository = createPartRepository(db);
+  const photographRepository = createPhotographRepository(db);
+  const photographService = createPhotographService({
+    partRepository,
+    photographRepository,
+    partRecordService: createPartRecordService({
+      clock,
+      modelRepository: createModelRepository(db),
+      partRepository,
+      partRecordRepository: createPartRecordRepository(db),
+      photographRepository,
+    }),
+    fileStore,
+    clock,
+    logger,
+  });
+
+  for (const seed of practicePhotographs) {
+    const partId = partIds.get(seed.part);
+    if (!partId) {
+      throw new Error(`The practice photograph of ${seed.part} names a Part that is not seeded.`);
+    }
+    await photographService.add(partId, await inventedPhotograph(seed.of));
+  }
+
+  return practicePhotographs.length;
 }
 
 /**
@@ -696,8 +765,10 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
   // do cascade, from both ends.
   await db.execute(sql`TRUNCATE ${models}, ${categories}, ${parts} RESTART IDENTITY CASCADE`);
   // Truncating the tables without taking the files leaves a directory of images nothing points
-  // at, growing every time the practice archive is rebuilt.
+  // at, growing every time the practice archive is rebuilt. Both kinds of image, because both
+  // kinds have files: the Photographs cascade from the Parts named above.
   await fileStore.remove('scans');
+  await fileStore.remove('photographs');
 }
 
 /**
@@ -737,4 +808,36 @@ function inventedDrawing(number: string, name: string): Promise<Buffer> {
   </svg>`;
 
   return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/**
+ * A photograph that could not be mistaken for one: a flat grey field with a drawn shape on it and
+ * the caption saying what it is. It exists so a practice archive has something for the panel
+ * beside the drawing to show, and so "view it larger" has something to open.
+ *
+ * Landscape and portrait alternate by the length of the caption, which is arbitrary and is the
+ * point: a strip of thumbnails has to hold its shape when the pictures do not agree about theirs.
+ */
+function inventedPhotograph(of: string): Promise<Buffer> {
+  const portrait = of.length % 2 === 1;
+  const width = portrait ? 1200 : 1600;
+  const height = portrait ? 1600 : 1200;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <rect width="100%" height="100%" fill="#6f6d68"/>
+    <rect x="${width * 0.16}" y="${height * 0.24}" width="${width * 0.68}" height="${height * 0.4}"
+      rx="${width * 0.04}" fill="#b9b5ad" stroke="#3d3b37" stroke-width="10"/>
+    <circle cx="${width * 0.32}" cy="${height * 0.44}" r="${width * 0.07}"
+      fill="#6f6d68" stroke="#3d3b37" stroke-width="10"/>
+    <circle cx="${width * 0.68}" cy="${height * 0.44}" r="${width * 0.07}"
+      fill="#6f6d68" stroke="#3d3b37" stroke-width="10"/>
+    <text x="${width / 2}" y="${height * 0.78}" font-family="DejaVu Sans, Helvetica, sans-serif"
+      font-size="52" text-anchor="middle" fill="#f2f0ec">${of}</text>
+    <text x="${width / 2}" y="${height * 0.86}" font-family="DejaVu Sans, Helvetica, sans-serif"
+      font-size="34" text-anchor="middle" fill="#cfcbc4">
+      Invented for the practice archive — not a photograph of a real part
+    </text>
+  </svg>`;
+
+  return sharp(Buffer.from(svg)).jpeg().toBuffer();
 }

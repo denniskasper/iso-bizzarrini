@@ -3,6 +3,7 @@ import type { EditorGate } from '../access/editor-gate.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
+import type { PhotographController } from '../controllers/photograph-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
@@ -27,6 +28,7 @@ import type { TavolaController } from '../controllers/tavola-controller.js';
 export function createApiRouter(dependencies: {
   editorGate: EditorGate;
   maxScanBytes: number;
+  maxPhotographBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
   catalogController: CatalogController;
@@ -34,6 +36,7 @@ export function createApiRouter(dependencies: {
   positionController: PositionController;
   partController: PartController;
   partRecordController: PartRecordController;
+  photographController: PhotographController;
   scanController: ScanController;
 }): Router {
   const {
@@ -45,6 +48,7 @@ export function createApiRouter(dependencies: {
     positionController,
     partController,
     partRecordController,
+    photographController,
     scanController,
   } = dependencies;
 
@@ -150,6 +154,22 @@ export function createApiRouter(dependencies: {
   router.patch('/sources/:sourceId', partRecordController.correctSource);
   router.delete('/sources/:sourceId', partRecordController.removeSource);
 
+  // **What the Part looks like**, hung off the Part for the same reason the three above are: the
+  // same washer photographed once is the same washer on every sheet it is listed on (ADR 0001),
+  // and a picture attached to a drawing would be the same picture uploaded six times.
+  //
+  // The photograph is the body, exactly as a scan is, and **nothing here trusts what it says it
+  // is**: the parser claims every content type and ingest decides what the bytes actually are.
+  // Reordering names the whole order rather than one photograph and a direction — an order is a
+  // statement about the list, and half of one applied is an order nobody chose.
+  router.post(
+    '/parts/:partId/photographs',
+    express.raw({ type: () => true, limit: dependencies.maxPhotographBytes }),
+    photographController.upload,
+  );
+  router.patch('/parts/:partId/photographs', photographController.reorder);
+  router.delete('/photographs/:photographId', photographController.remove);
+
   // The scan is the body, and **nothing here trusts what it says it is**: the parser claims
   // every content type and ingest decides what the bytes actually are. A `.tif` off a flatbed
   // routinely arrives with no type at all, and refusing that would be exactly the conversation
@@ -161,6 +181,7 @@ export function createApiRouter(dependencies: {
   );
 
   router.get('/scans/:scanId/:variant', scanController.readImage);
+  router.get('/photographs/:photographId/:variant', photographController.readImage);
 
   return router;
 }

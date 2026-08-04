@@ -97,6 +97,17 @@ What the club has established about a Part, written by an Editor. Distinct from 
 Note, which nobody may improve.
 _Avoid_: Comment, remark, description, technical comment
 
+**Photograph**:
+A picture of a Part, in the order an Editor put them in — the first being the one that
+identifies it. Of the component and never of its appearance on a sheet, so one Photograph
+serves every Tavola the Part is listed on. As private as a Scan.
+_Avoid_: Image, photo, attachment, media
+
+*Image* is the archive's word for a stored picture of **either** kind — a Tavola's Scan or a
+Part's Photograph — and is why the storage and serving code is named for it. It is the general
+word and not a synonym for this one: an Image is what the two have in common, a Photograph is
+one of them.
+
 ## Contributions
 
 **Contribution**:

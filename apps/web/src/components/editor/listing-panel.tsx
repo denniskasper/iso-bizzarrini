@@ -6,6 +6,7 @@ import { PartLookup } from '@/components/editor/part-lookup';
 import { ListingFields } from '@/components/editor/listing-fields';
 import { NO_PART, PartFields } from '@/components/editor/part-fields';
 import { PartRecordEditor } from '@/components/editor/part-record-editor';
+import { PhotographEditor } from '@/components/editor/photograph-editor';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import {
@@ -28,10 +29,11 @@ import { usePositionListings, useRereadListings } from '@/lib/parts';
  * creating a second copy of the same washer. Merge or correct: there is no third way past it,
  * because the third way is how a parts archive ends up with two of everything (ADR 0001).
  *
- * **Three different things can be corrected from here, and they are named apart** — because they
+ * **Four different things can be worked on from here, and they are named apart** — because they
  * reach different distances and confusing them is how work goes missing:
  *
  * - *the part* changes the Part, and therefore every sheet it is listed on;
+ * - *its photographs* likewise: a picture is of the component, not of its appearance on a sheet;
  * - *where it sits* changes this drawing's number, count and drawn flag, and nothing else;
  * - *removing it from this position* takes it off this sheet and leaves the Part alone.
  *
@@ -43,6 +45,7 @@ import { usePositionListings, useRereadListings } from '@/lib/parts';
 /** Which of a listed Part's panels is open, if any. One thing at a time, deliberately. */
 type Working =
   | { kind: 'part'; partId: string; offered?: NewPartRequest }
+  | { kind: 'photographs'; partId: string }
   | { kind: 'record'; partId: string }
   | { kind: 'where'; listingId: string };
 
@@ -342,6 +345,7 @@ function Listed({
         </p>
         <span className="flex flex-wrap items-center gap-1">
           {toggle('part', 'Correct the part', 'Done with the part')}
+          {toggle('photographs', 'Photographs', 'Done with photographs')}
           {toggle('where', 'Where it sits', 'Done with where it sits')}
           {toggle('record', 'Fits, equivalents, sources', 'Done with this part')}
           {/*
@@ -363,6 +367,7 @@ function Listed({
           onDone={() => onWork(null)}
         />
       )}
+      {open('photographs') && <PhotographEditor part={listing.part} />}
       {open('where') && (
         <ListingCorrection
           tavolaId={tavolaId}

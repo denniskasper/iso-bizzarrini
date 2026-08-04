@@ -368,18 +368,42 @@ export interface Source {
 }
 
 /**
+ * A photograph of a Part — **the check no part number can give anybody** (story 77).
+ *
+ * A member with a bracket in their hand is not comparing a description; they are comparing a
+ * shape. So this is the one thing in the archive that answers "is this the one" without being
+ * read at all, and it is why the panel puts it above the numbers rather than after the prose.
+ *
+ * Every address here is authenticated and immutable, exactly as a Tavola's scan is (ADR 0006):
+ * these are the Club's photographs, and a re-upload is a new Photograph and therefore a new
+ * address. `width` and `height` are the *display* image's, so a grid knows the shape of the
+ * picture before it arrives and nothing reflows under a member's thumb.
+ */
+export interface Photograph {
+  id: string;
+  width: number;
+  height: number;
+  /** The whole photograph, prepared at ingest. What "view it larger" opens. */
+  displayUrl: string;
+  /** A thumbnail, so a Position carrying five Parts does not download five photographs. */
+  previewUrl: string;
+}
+
+/**
  * A Part with everything the archive holds about it — **what a member reads at a circle**.
  *
- * The three collections are the Part's and not the Listing's: which cars it fits, what can be
- * bought instead of it and where it has been available are true of the component wherever it is
- * listed, which is ADR 0001 showing up in a response shape. They hang off this rather than off
- * `Part` so that the bare identity — what a refused Catalog Number hands back, what a Tavola's
- * index prints — stays the small thing it is.
+ * The four collections are the Part's and not the Listing's: which cars it fits, what can be
+ * bought instead of it, where it has been available and what it looks like are true of the
+ * component wherever it is listed, which is ADR 0001 showing up in a response shape. They hang
+ * off this rather than off `Part` so that the bare identity — what a refused Catalog Number
+ * hands back, what a Tavola's index prints — stays the small thing it is.
  */
 export interface PartInFull extends Part {
   fitments: Fitment[];
   equivalents: Equivalent[];
   sources: Source[];
+  /** In the order an Editor put them in. The first is the one that identifies the Part. */
+  photographs: Photograph[];
 }
 
 /**
@@ -801,6 +825,18 @@ export interface NewSourceRequest {
  */
 export interface PartRecordResponse {
   part: PartInFull;
+}
+
+/**
+ * `PATCH /api/parts/:partId/photographs` — **the whole order, every time.**
+ *
+ * Not "move this one up". An order is a statement about the list rather than about one member of
+ * it, and a request that named one photograph and a direction would leave the archive to work out
+ * what the browser meant against a list that may have changed since it was drawn. Every id the
+ * Part holds has to be here exactly once; anything else is refused rather than half-applied.
+ */
+export interface ReorderPhotographsRequest {
+  photographIds: string[];
 }
 
 /**

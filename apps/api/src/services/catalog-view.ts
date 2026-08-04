@@ -5,6 +5,7 @@ import type {
   Fitment,
   Part,
   PartInFull,
+  Photograph,
   ListedElsewhere,
   ListedOn,
   PartListing,
@@ -22,11 +23,12 @@ import type {
   EquivalentRow,
   ModelRow,
   PartRow,
+  PhotographRow,
   ScanRow,
   SourceRow,
   SubAssemblyRow,
 } from '../db/schema.js';
-import { scanImageUrl } from '../images/scan-addresses.js';
+import { photographImageUrl, scanImageUrl } from '../images/image-addresses.js';
 import type { FitmentWithModel, PartRecordRows } from '../repositories/part-record-repository.js';
 import type {
   ElsewhereRow,
@@ -171,6 +173,22 @@ export function toSource(row: SourceRow): Source {
   };
 }
 
+/**
+ * A Photograph, addressed the way a scan is: **the display image's dimensions**, because that is
+ * the picture "view it larger" opens, and knowing its shape before it arrives is what stops a
+ * grid reflowing under a member's thumb. What was uploaded may be much larger; that is recorded
+ * on the row and is nothing a browser needs to know.
+ */
+export function toPhotograph(row: PhotographRow): Photograph {
+  return {
+    id: row.id,
+    width: row.displayWidth,
+    height: row.displayHeight,
+    displayUrl: photographImageUrl(row.id, 'display'),
+    previewUrl: photographImageUrl(row.id, 'preview'),
+  };
+}
+
 /** The Part with everything the archive holds about the component itself. */
 export function toPartInFull(row: PartRow, record: PartRecordRows): PartInFull {
   return {
@@ -178,6 +196,7 @@ export function toPartInFull(row: PartRow, record: PartRecordRows): PartInFull {
     fitments: record.fitments.map(toFitment),
     equivalents: record.equivalents.map(toEquivalent),
     sources: record.sources.map(toSource),
+    photographs: record.photographs.map(toPhotograph),
   };
 }
 

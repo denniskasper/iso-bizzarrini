@@ -85,3 +85,13 @@ function isMissing(error: unknown): boolean {
 export function scanKeyPrefix(scanId: string): string {
   return join('scans', scanId);
 }
+
+/**
+ * And where one Photograph's live. **Its own top-level prefix, not a Part's subdirectory**: a
+ * Photograph is removed on its own far more often than a Part is, and a key built from the Part
+ * would have to be rewritten the day one is moved off a Contribution and onto the record
+ * (story 119). The id is the only thing in the path, and the id never changes.
+ */
+export function photographKeyPrefix(photographId: string): string {
+  return join('photographs', photographId);
+}

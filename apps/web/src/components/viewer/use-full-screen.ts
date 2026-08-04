@@ -56,10 +56,10 @@ export function useFullScreen(element: RefObject<HTMLElement | null>): {
     // Escape, and nothing scrolling behind an element that is covering the page. Both are the
     // browser's job in native full screen and nobody's in the fallback, so they are done here.
     document.addEventListener('keydown', onKey);
-    document.documentElement.classList.add('drawing-expanded');
+    document.documentElement.classList.add('image-expanded');
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.documentElement.classList.remove('drawing-expanded');
+      document.documentElement.classList.remove('image-expanded');
     };
   }, [expanded]);
 

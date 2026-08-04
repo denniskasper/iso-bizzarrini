@@ -50,6 +50,13 @@
       "when": 1785836348827,
       "tag": "0006_sub_assemblies_and_related_positions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785867285120,
+      "tag": "0007_photographs",
+      "breakpoints": true
     }
   ]
 }

@@ -156,7 +156,12 @@
     border: 0;
   }
 
-  html.drawing-expanded {
+  /*
+   * The page while **any** picture is filling the screen — a drawing being read, or a photograph
+   * of a part being looked at properly. One class rather than one each, because what it says is
+   * about the page and not about what is over it.
+   */
+  html.image-expanded {
     overflow: hidden;
     /*
      * And the gutter goes with it. `scrollbar-gutter: stable` reserves a strip that a fixed
@@ -380,16 +385,79 @@
   }
 
   /*
-   * The instrument panel: one chip of chrome resting on the sheet, in the corner a thumb
-   * reaches. It wears no accent — the drawing is what a member came for, and none of these is
-   * the dominant action on this screen.
+   * The instrument panel: one chip of chrome resting on a picture, in the corner a thumb
+   * reaches — the drawing's zoom controls, and a photograph's way out of full screen. It wears
+   * no accent, because the picture is what a member came for and none of these is the dominant
+   * action on the screen it is resting on.
    */
-  .drawing-rail {
+  .instrument-rail {
     display: flex;
     align-items: center;
     background-color: var(--surface-raised);
     border: 1px solid var(--line-strong);
     border-radius: var(--radius-md);
+  }
+
+  /*
+   * A photograph of a Part — **the check no part number can give anybody.**
+   *
+   * `contain` and not `cover`, which is the whole decision here: a member is comparing a *shape*
+   * against the thing in their hand, and a thumbnail that cropped the end off a bracket would be
+   * answering their question with a lie. So the picture sits whole inside a frame of a fixed
+   * proportion, and the frame is the chrome the drawing's plate never is — a photograph was not
+   * printed on paper, so it does not sit on any.
+   */
+  .photograph {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background-color: var(--surface-sunken);
+    border: 1px solid var(--line);
+  }
+
+  .photograph > img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Pointing at one opens it. The frame lifts the way every other clickable rule in this
+     archive does — by its rule, not by a shadow. */
+  button.photograph {
+    cursor: zoom-in;
+    padding: 0;
+    transition: border-color 150ms var(--ease-out-quick);
+  }
+
+  button.photograph:hover {
+    border-color: var(--line-strong);
+  }
+
+  /*
+   * One photograph, filling the screen — **the same answer the drawing gives**, and deliberately
+   * not a dialogue box over the page. The archive is a printed index; what "larger" means here is
+   * that the picture is the only thing on the glass, which is what somebody holding a part up
+   * against it actually wants.
+   */
+  .photograph-expanded {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    padding: --spacing(4);
+    background-color: var(--surface-sunken);
+  }
+
+  /*
+   * The picture is given the whole layer and told to fit inside it, rather than being allowed to
+   * size itself under a `max-height` — which is the version that does not work: a grid track
+   * sized by its own item cannot also be what that item's percentage height resolves against, so
+   * the cap silently resolves to `auto` and a landscape photograph runs off the bottom of the
+   * screen. `object-fit` has no such circularity; it letterboxes whatever it is given.
+   */
+  .photograph-expanded > img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   /*

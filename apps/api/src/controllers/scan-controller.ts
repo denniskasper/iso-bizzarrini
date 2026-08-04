@@ -1,25 +1,15 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
-import { SCAN_VARIANTS } from '../images/scan-addresses.js';
+import { IMAGE_VARIANTS } from '../images/image-addresses.js';
 import { NotFoundError, UnsupportedMediaTypeError, ValidationError } from '../http/errors.js';
+import { sendImage } from '../http/served-image.js';
 import type { ScanService } from '../services/scan-service.js';
 
 const tavolaIdParams = z.object({ tavolaId: z.uuid('That is not a Tavola id.') });
 const imageParams = z.object({
   scanId: z.uuid('That is not a Scan id.'),
-  variant: z.enum(SCAN_VARIANTS),
+  variant: z.enum(IMAGE_VARIANTS),
 });
-
-/**
- * A year. The address of an image in this archive never changes what it points at — a
- * re-upload is a new Scan and therefore a new address — so panning around a drawing re-requests
- * nothing, which is the whole reason ADR 0006 could put an authentication check in front of
- * every image and not care.
- *
- * `private` and not `public`: these are the Club's drawings and belong in one member's browser
- * cache, never in a shared one.
- */
-const IMMUTABLE_FOR_A_YEAR = 'private, max-age=31536000, immutable';
 
 export interface ScanController {
   upload: RequestHandler;
@@ -61,32 +51,7 @@ export function createScanController(dependencies: { scanService: ScanService })
         throw new NotFoundError('No such scan.');
       }
 
-      response.setHeader('Cache-Control', IMMUTABLE_FOR_A_YEAR);
-      response.setHeader('ETag', image.etag);
-      // What is served depends on who is asking, and a cache that forgets that serves a
-      // drawing to someone who has been signed out.
-      response.setHeader('Vary', 'Cookie');
-      response.setHeader('Content-Type', image.contentType);
-      response.setHeader('Content-Disposition', 'inline');
-
-      if (request.headers['if-none-match'] === image.etag) {
-        response.status(304).end();
-        return;
-      }
-
-      response.setHeader('Content-Length', image.byteSize);
-
-      const file = image.stream();
-      file.on('error', (error: Error) => {
-        // Nothing can be said politely once the first byte is out: cut the connection so the
-        // browser sees a truncated response rather than a plausible half-drawing.
-        if (response.headersSent) {
-          response.destroy(error);
-          return;
-        }
-        next(error);
-      });
-      file.pipe(response);
+      sendImage(request, response, next, image);
     },
   };
 }

@@ -7,6 +7,7 @@ import type { AppConfig } from './config/config.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
+import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
@@ -22,6 +23,7 @@ import { createCategoryRepository } from './repositories/category-repository.js'
 import { createModelRepository } from './repositories/model-repository.js';
 import { createPartRecordRepository } from './repositories/part-record-repository.js';
 import { createPartRepository } from './repositories/part-repository.js';
+import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
@@ -30,6 +32,7 @@ import { createApiRouter } from './routes/api-router.js';
 import { createCatalogService } from './services/catalog-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
+import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createStatusService } from './services/status-service.js';
@@ -100,6 +103,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const positionRepository = createPositionRepository(db);
   const partRepository = createPartRepository(db);
   const partRecordRepository = createPartRecordRepository(db);
+  const photographRepository = createPhotographRepository(db);
   const scanRepository = createScanRepository(db);
 
   const statusService = createStatusService({
@@ -115,6 +119,7 @@ export function createApp(dependencies: AppDependencies): Express {
     modelRepository,
     partRepository,
     partRecordRepository,
+    photographRepository,
   });
   const partService = createPartService({
     tavolaRepository,
@@ -127,6 +132,14 @@ export function createApp(dependencies: AppDependencies): Express {
     categoryRepository,
     tavolaRepository,
     positionService,
+  });
+  const photographService = createPhotographService({
+    partRepository,
+    photographRepository,
+    partRecordService,
+    fileStore,
+    clock,
+    logger,
   });
   const scanService = createScanService({
     tavolaRepository,
@@ -143,6 +156,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const positionController = createPositionController({ positionService });
   const partController = createPartController({ partService });
   const partRecordController = createPartRecordController({ partRecordService });
+  const photographController = createPhotographController({ photographService });
   const scanController = createScanController({ scanService });
 
   const app = express();
@@ -176,6 +190,7 @@ export function createApp(dependencies: AppDependencies): Express {
     createApiRouter({
       editorGate,
       maxScanBytes: config.files.maxScanBytes,
+      maxPhotographBytes: config.files.maxPhotographBytes,
       statusController,
       sessionController,
       catalogController,
@@ -183,6 +198,7 @@ export function createApp(dependencies: AppDependencies): Express {
       positionController,
       partController,
       partRecordController,
+      photographController,
       scanController,
     }),
   );

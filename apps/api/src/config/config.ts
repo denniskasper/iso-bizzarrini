@@ -99,6 +99,20 @@ const environmentSchema = z.object({
     .default(100 * 1024 * 1024),
 
   /**
+   * The largest photograph of a Part the archive will accept. **A quarter of what a scan may
+   * be**, and the gap is the point: a scan is an A3 sheet somebody put on a flatbed once, at a
+   * resolution the position numbers have to survive, while a photograph is whatever a phone in a
+   * garage produced. 25 MB is already a generous phone photograph; anything above it is a camera
+   * setting rather than something the archive needs, and it is refused before it is read into
+   * memory rather than after.
+   */
+  MAX_PHOTOGRAPH_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(25 * 1024 * 1024),
+
+  /**
    * Whether the application applies its own migrations before it starts listening.
    *
    * On by default, and that direction is deliberate too: a deployment whose schema has not
@@ -161,6 +175,7 @@ export interface AppConfig {
     /** Absolute, so nothing depends on where the process happens to have been started. */
     storagePath: string;
     maxScanBytes: number;
+    maxPhotographBytes: number;
   };
   migrateOnStart: boolean;
   seedPracticeArchive: boolean;
@@ -208,6 +223,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     files: {
       storagePath: resolve(env.FILE_STORAGE_PATH),
       maxScanBytes: env.MAX_SCAN_BYTES,
+      maxPhotographBytes: env.MAX_PHOTOGRAPH_BYTES,
     },
     migrateOnStart: env.MIGRATE_ON_START,
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,

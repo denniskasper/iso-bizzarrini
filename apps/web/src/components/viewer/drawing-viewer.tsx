@@ -684,7 +684,7 @@ function Viewer({
         </div>
       </div>
 
-      <div className="drawing-rail absolute right-3 bottom-3">
+      <div className="instrument-rail absolute right-3 bottom-3">
         <p className="px-3 text-sm text-muted">
           <span className="sr-only">Magnification </span>
           <span ref={readoutRef} data-testid="drawing-magnification" className="tabular">

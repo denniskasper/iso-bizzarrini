@@ -220,6 +220,49 @@ describe('a practice system writing itself a catalog', () => {
       [24500, '2025-11-02'],
       [19000, '2024-03-18'],
     ]);
+
+    // And a picture of it, reachable and actually there — a seeded row pointing at a file that
+    // was never written would look right in every response and show nothing on any screen.
+    expect(part.photographs).toHaveLength(1);
+    await member.get(part.photographs[0].previewUrl).expect(200);
+  });
+
+  /**
+   * **Several photographs on one Part**, which is the only thing that can demonstrate an order —
+   * and Parts with none, because a screen that says nothing where there is nothing to show is a
+   * claim a practice archive has to be able to be judged on too.
+   */
+  it('photographs some of its Parts, one of them more than once', async () => {
+    await seed();
+    const member = await app.editor();
+
+    const models = await member.get('/api/models').expect(200);
+    const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
+    const listed = await member.get(`/api/models/${grifo.id}`).expect(200);
+    const brakes = listed.body.tavole.find((tavola: { number: string }) => tavola.number === '2');
+    const sheet = await member.get(`/api/tavole/${brakes.id}`).expect(200);
+
+    // Position 1 carries the two calipers and the two fixings.
+    const caliperPosition = sheet.body.positions.find(
+      (candidate: { number: string }) => candidate.number === '1',
+    );
+    const read = await member.get(`/api/positions/${caliperPosition.id}/listings`).expect(200);
+
+    interface SeededListing {
+      part: { nameEn: string; photographs: { previewUrl: string }[] };
+    }
+    const photographsOf = (nameEn: string) => {
+      const found = read.body.listings.find(
+        (listing: SeededListing) => listing.part.nameEn === nameEn,
+      );
+      if (!found) {
+        throw new Error(`The practice Position 1 has no ${nameEn}.`);
+      }
+      return found.part.photographs as { previewUrl: string }[];
+    };
+
+    expect(photographsOf('Front brake caliper, early')).toHaveLength(2);
+    expect(photographsOf('Caliper mounting bolt')).toEqual([]);
   });
 
   /**

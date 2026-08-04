@@ -119,7 +119,12 @@ export function createPartService(dependencies: {
 }): PartService {
   const { tavolaRepository, positionRepository, partRepository, partRecordService } = dependencies;
 
-  const nothingRecorded: PartRecordRows = { fitments: [], equivalents: [], sources: [] };
+  const nothingRecorded: PartRecordRows = {
+    fitments: [],
+    equivalents: [],
+    sources: [],
+    photographs: [],
+  };
 
   /**
    * The other Tavole a set of Parts appears on, read once for the whole Position rather than

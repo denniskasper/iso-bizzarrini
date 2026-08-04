@@ -47,8 +47,8 @@ try {
       `${written.drawings} invented drawings, ${written.positions} Positions and ` +
       `${written.listings} Listings of ${written.parts} Parts, ` +
       `${written.subAssemblies} Sub-assemblies and ${written.relatedPositions} Related Positions, ` +
-      `and ${written.fitments} Fitments, ${written.equivalents} Equivalents and ` +
-      `${written.sources} Sources ` +
+      `and ${written.fitments} Fitments, ${written.equivalents} Equivalents, ` +
+      `${written.sources} Sources and ${written.photographs} Photographs ` +
       `into "${config.environmentName}".`,
   );
 } finally {

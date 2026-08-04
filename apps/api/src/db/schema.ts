@@ -550,6 +550,64 @@ export const sources = pgTable(
   ],
 );
 
+/**
+ * A photograph of a Part — the thing a member holds a bracket up against (story 77).
+ *
+ * **It hangs off the Part and off nothing else**, which is ADR 0001 again: the same washer
+ * photographed once is the same washer on every sheet it is listed on, and a photograph attached
+ * to a Listing would be the same picture uploaded six times and corrected in five of them.
+ *
+ * `sequence` is what makes the list an *order* rather than an accident of insertion. The first
+ * photograph is the one that identifies the Part — the one a grid shows first and a member sees
+ * without scrolling — so which it is has to be an Editor's decision and not the database's.
+ * There is deliberately **no** unique constraint over `(partId, sequence)`: reordering rewrites
+ * every row of one Part in one statement, and a uniqueness rule enforced row by row would refuse
+ * the intermediate states of an operation that is atomic anyway.
+ *
+ * The measurement columns are the ones a Scan carries and are here for the same reason: the
+ * archive measures what it is actually given rather than what somebody assumed it would be.
+ */
+export const photographs = pgTable(
+  'photographs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+
+    /** Where it sits in the Part's own order, from `0`. Ties break on `id`, so the list is total. */
+    sequence: integer('sequence').notNull(),
+
+    /** What the Editor uploaded, kept verbatim: nothing derived is ever the archive's copy. */
+    sourceFormat: text('source_format').notNull(),
+    sourceByteSize: integer('source_byte_size').notNull(),
+    sourceWidth: integer('source_width').notNull(),
+    sourceHeight: integer('source_height').notNull(),
+
+    /** What a member's browser is sent when they open the photograph larger. */
+    displayFormat: text('display_format').notNull(),
+    displayByteSize: integer('display_byte_size').notNull(),
+    displayWidth: integer('display_width').notNull(),
+    displayHeight: integer('display_height').notNull(),
+
+    /** The thumbnail the Part's own panel shows, so reading a Position downloads none of these. */
+    previewByteSize: integer('preview_byte_size').notNull(),
+
+    /** Keys in the private file store. Not paths, not URLs — nothing here is reachable. */
+    originalKey: text('original_key').notNull(),
+    displayKey: text('display_key').notNull(),
+    previewKey: text('preview_key').notNull(),
+
+    /** From the injected clock, never the system's idea of now. */
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    // Named for both columns, because it is on both: the Part's photographs, already in order.
+    index('photographs_part_id_sequence_index').on(table.partId, table.sequence),
+    check('photographs_sequence_is_a_place', sql`${table.sequence} >= 0`),
+  ],
+);
+
 export const modelsRelations = relations(models, ({ many }) => ({
   tavole: many(tavole),
   fitments: many(fitments),
@@ -583,6 +641,11 @@ export const partsRelations = relations(parts, ({ many }) => ({
   fitments: many(fitments),
   equivalents: many(equivalents),
   sources: many(sources),
+  photographs: many(photographs),
+}));
+
+export const photographsRelations = relations(photographs, ({ one }) => ({
+  part: one(parts, { fields: [photographs.partId], references: [parts.id] }),
 }));
 
 export const fitmentsRelations = relations(fitments, ({ one }) => ({
@@ -642,3 +705,5 @@ export type EquivalentRow = typeof equivalents.$inferSelect;
 export type NewEquivalentRow = typeof equivalents.$inferInsert;
 export type SourceRow = typeof sources.$inferSelect;
 export type NewSourceRow = typeof sources.$inferInsert;
+export type PhotographRow = typeof photographs.$inferSelect;
+export type NewPhotographRow = typeof photographs.$inferInsert;

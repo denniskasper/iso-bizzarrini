@@ -15,11 +15,11 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [10](.scratch/ricambi/issues/10-part-photographs.md) and
-[12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)** — the rest of M2's editor tooling.
-Recording an archive and correcting one both work now, and what is left of the evening's work an
-Editor actually does is photographs and pasting a catalog page in one go rather than in two
-hundred forms. Ticket 10 also unblocks 19, which is the whole of M4.
+**Next up: [12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)** — the last of M2's editor
+tooling. Recording an archive, correcting one and photographing a part all work now; what is left
+of the evening's work an Editor actually does is pasting a catalog page in one go rather than in
+two hundred forms. Ticket 10 is done, so **19 is unblocked once 15 lands** — that is the whole of
+M4, and the upload path it needs is already built and reused rather than rewritten.
 
 Two others are unblocked and independent of them:
 [22](.scratch/ricambi/issues/22-search.md) and
@@ -42,7 +42,7 @@ remove.
 | 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Done | `done` | 06 |
 | 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Done | `done` | 06 |
 | 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Done | `done` | 06 |
-| 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Not started | `ready-for-agent` | 06 |
+| 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Done | `done` | 06 |
 | 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Done | `done` | 05, 06 |
 | 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Not started | `ready-for-agent` | 06 |
 | 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | 11 of 12 | `ready-for-human` | 03, 08 |
@@ -209,7 +209,7 @@ apps/api             Express + TypeScript + Zod, Drizzle on Postgres
                      routes → controllers → services → repositories
     access/          who may ask — the gate, and the cookie it remembers by
     catalog/         rules about catalog text that belong to no layer
-    images/          what a scan becomes at ingest, and how it is addressed
+    images/          what an upload becomes at ingest, and how it is addressed
     migration/       the club's spreadsheets and scans, loaded once and re-runnably
     storage/         where the files are, behind an interface that hides where
 apps/web             Vite + React + Tailwind + shadcn/ui, TanStack Router and Query
@@ -217,14 +217,22 @@ packages/contracts   What the API promises the browser, declared once
 docker/preview/      the stack a preview host runs
 ```
 
-### The drawings are private, and that is load-bearing
+### The pictures are private, and that is load-bearing
 
 Members contribute what they know on the understanding that only the Club sees the archive, so
-the scans are never on a public path ([ADR 0006](docs/adr/0006-private-image-storage.md)). The
+no image is ever on a public path ([ADR 0006](docs/adr/0006-private-image-storage.md)). The
 original and both derived images go into a directory nothing serves — `FILE_STORAGE_PATH`, a
-mounted volume in any deployment — and come back out only through `/api/scans/:id/:variant`,
-which refuses a request that has not signed in. The address carries the scan's id, so a
-re-upload is a new address and every image is cached for a year, immutable.
+mounted volume in any deployment — and come back out only through `/api/scans/:id/:variant` and
+`/api/photographs/:id/:variant`, which refuse a request that has not signed in. The address
+carries the record's id, so a re-upload is a new address and every image is cached for a year,
+immutable.
+
+**One implementation, two recipes.** A factory drawing and a photograph of a part are the same
+thing to that rule and different things to an encoder: the drawing is kept lossless, because the
+position numbers are the smallest marks on the sheet and a quality slider eats those first
+([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)); a photograph is not, because
+it has no such marks in it and a member is confirming a shape. Both go through `images/`, which
+is also the upload path member Contributions reuse at ticket 19.
 
 The gate in front of it is **a stand-in**: one shared passphrase in `EDITOR_PASSWORD`, which is
 the whole of M1's "single hard-coded admin login". Accounts, Memberships and a live-membership

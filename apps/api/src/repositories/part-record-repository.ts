@@ -12,6 +12,7 @@ import {
   type NewEquivalentRow,
   type NewFitmentRow,
   type NewSourceRow,
+  type PhotographRow,
   type SourceRow,
 } from '../db/schema.js';
 
@@ -35,14 +36,21 @@ export interface FitmentWithModel extends FitmentRow {
 }
 
 /**
- * The three, for one Part. They travel together because they are read together — a member
- * deciding what to order is weighing "does it fit", "what else would do" and "who has one"
- * against each other, in one glance at one panel.
+ * Everything the archive holds about one component itself, for one Part. They travel together
+ * because they are read together — a member deciding what to order is weighing "does it fit",
+ * "what else would do", "who has one" and "is this even the right shape" against each other, in
+ * one glance at one panel.
+ *
+ * The photographs come from a repository of their own rather than from this file: unlike the
+ * three above, they have files behind them and a written order to keep, which is a good deal more
+ * than a table of rows. What they share with the three is being read for a *set* of Parts at
+ * once, which is why they are gathered here.
  */
 export interface PartRecordRows {
   fitments: FitmentWithModel[];
   equivalents: EquivalentRow[];
   sources: SourceRow[];
+  photographs: PhotographRow[];
 }
 
 /** The editable fields of a Fitment — everything but which Part it belongs to. */

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { CopyLink } from '@/components/copy-link';
+import { PartPhotographs } from '@/components/parts/part-photographs';
 import { Refusal } from '@/components/ui/field';
 import type { CatalogModel, PartInFull, PartListing, Position } from '@/lib/api';
 import {
@@ -229,6 +230,15 @@ function ListedPart({ listing }: { listing: PartListing }) {
         )}
       </div>
       {beneath && <p className="mt-1 text-pretty text-muted">{beneath}</p>}
+
+      {/*
+       * **What it looks like, above the numbers you quote** (story 77). A member holding a
+       * bracket is comparing a shape, and two calipers that differ only in where a boss sits
+       * carry the same words and the same transcribed note. The picture is what settles it, and
+       * it settles it before anything on this panel has been read — so it goes here, and the
+       * numbers stay where a hand reaches for them once the shape is confirmed.
+       */}
+      <PartPhotographs photographs={part.photographs} partName={heading ?? 'this part'} />
 
       {/*
        * The two numbers a member quotes, side by side and set large: the Catalog Number is what

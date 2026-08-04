@@ -78,6 +78,12 @@ export async function givenTavola(
   return row;
 }
 
+export interface ImageFixture {
+  width?: number;
+  height?: number;
+  format?: 'png' | 'jpeg' | 'tiff';
+}
+
 /**
  * A drawing to upload, generated rather than committed.
  *
@@ -85,14 +91,30 @@ export async function givenTavola(
  * and `AGENTS.md` keeps its material out of here. What ingest needs from a fixture is an image
  * of a known size in a known format, which this is.
  */
-export async function givenScanImage(
-  options: { width?: number; height?: number; format?: 'png' | 'jpeg' | 'tiff' } = {},
+export function givenScanImage(options: ImageFixture = {}): Promise<Buffer> {
+  return givenImage({ width: 1200, height: 800, ...options }, { r: 255, g: 255, b: 255 });
+}
+
+/**
+ * And a photograph of a part, on the same terms and for the same reason.
+ *
+ * Named apart from the drawing above rather than shared under one name, because ingest treats the
+ * two differently on purpose — a scan is kept lossless and a photograph is not — and a test that
+ * uploads "an image" reads as though it did not matter which.
+ */
+export function givenPhotographImage(options: ImageFixture = {}): Promise<Buffer> {
+  // Mid-grey rather than white: a lossless encoder given a blank white rectangle produces a file
+  // so small that a size assertion about it would be about the fixture rather than about ingest.
+  return givenImage({ width: 1600, height: 1200, ...options }, { r: 120, g: 118, b: 112 });
+}
+
+async function givenImage(
+  options: ImageFixture,
+  background: { r: number; g: number; b: number },
 ): Promise<Buffer> {
   const { width = 1200, height = 800, format = 'png' } = options;
 
-  const image = sharp({
-    create: { width, height, channels: 3, background: { r: 255, g: 255, b: 255 } },
-  });
+  const image = sharp({ create: { width, height, channels: 3, background } });
 
   if (format === 'jpeg') {
     return image.jpeg().toBuffer();

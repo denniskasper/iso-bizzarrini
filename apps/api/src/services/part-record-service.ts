@@ -12,6 +12,7 @@ import type {
   SourceFields,
 } from '../repositories/part-record-repository.js';
 import type { PartRepository } from '../repositories/part-repository.js';
+import type { PhotographRepository } from '../repositories/photograph-repository.js';
 import { toPartInFull } from './catalog-view.js';
 
 /**
@@ -62,10 +63,20 @@ export interface NewSource {
 
 export interface PartRecordService {
   /**
-   * The three collections for a set of Parts, read once for a whole Position rather than once a
-   * Part. Five Parts at a number would otherwise be fifteen queries to answer one click.
+   * Every collection a Part carries, read once for a whole Position rather than once a Part.
+   * Five Parts at a number would otherwise be twenty queries to answer one click.
    */
   recordsFor(partIds: string[]): Promise<Map<string, PartRecordRows>>;
+
+  /**
+   * **The whole Part, re-read** — what every write against a Part's own record answers with,
+   * including the ones in `photograph-service` that are not in this file.
+   *
+   * It is on the interface rather than private because there is exactly one right answer to
+   * "what does a write to a Part hand back", and a second implementation of it somewhere else
+   * would be a second chance to hand back a list in an order this one does not agree with.
+   */
+  readWhole(partId: string): Promise<PartInFull>;
 
   addFitment(partId: string, fitment: NewFitment): Promise<PartInFull>;
   correctFitment(fitmentId: string, fitment: NewFitment): Promise<PartInFull>;
@@ -91,8 +102,10 @@ export function createPartRecordService(dependencies: {
   modelRepository: ModelRepository;
   partRepository: PartRepository;
   partRecordRepository: PartRecordRepository;
+  photographRepository: PhotographRepository;
 }): PartRecordService {
-  const { clock, modelRepository, partRepository, partRecordRepository } = dependencies;
+  const { clock, modelRepository, partRepository, partRecordRepository, photographRepository } =
+    dependencies;
 
   /** The Part, or the plain refusal — nothing here is recordable against something that is gone. */
   async function partThatExists(partId: string) {
@@ -118,14 +131,15 @@ export function createPartRecordService(dependencies: {
   }
 
   function emptyRecord(): PartRecordRows {
-    return { fitments: [], equivalents: [], sources: [] };
+    return { fitments: [], equivalents: [], sources: [], photographs: [] };
   }
 
   async function recordsFor(partIds: string[]): Promise<Map<string, PartRecordRows>> {
-    const [fitments, equivalents, sources] = await Promise.all([
+    const [fitments, equivalents, sources, photographs] = await Promise.all([
       partRecordRepository.listFitments(partIds),
       partRecordRepository.listEquivalents(partIds),
       partRecordRepository.listSources(partIds),
+      photographRepository.listForParts(partIds),
     ]);
 
     const byPart = new Map<string, PartRecordRows>();
@@ -145,6 +159,9 @@ export function createPartRecordService(dependencies: {
     }
     for (const row of sources) {
       of(row.partId).sources.push(row);
+    }
+    for (const row of photographs) {
+      of(row.partId).photographs.push(row);
     }
     return byPart;
   }
@@ -257,6 +274,7 @@ export function createPartRecordService(dependencies: {
 
   return {
     recordsFor,
+    readWhole,
 
     async addFitment(partId, fitment) {
       await partThatExists(partId);

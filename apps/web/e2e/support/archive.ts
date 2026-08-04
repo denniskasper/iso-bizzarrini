@@ -85,6 +85,37 @@ export async function placeMarks(
 }
 
 /**
+ * Image bytes to upload, **borrowed from the archive rather than committed to this repository.**
+ *
+ * There is no real image in this repository and there should not be (`AGENTS.md`), and a test
+ * that needs one to upload has to get it from somewhere. The practice archive's own drawing is
+ * that somewhere: it is invented, it is already there, and reading it back out and sending it up
+ * again is a real ingest of a real file.
+ *
+ * The **thumbnail** rather than the full sheet, because every one of these uploads is a real
+ * ingest and this suite runs its files in parallel: a dozen full-size images being re-encoded
+ * takes the machine away from the browsers, and nothing here is about how large a picture is.
+ */
+export async function borrowAnImage(page: Page): Promise<Buffer> {
+  const models = (await (await page.request.get('/api/models')).json()) as {
+    models: { id: string; name: string }[];
+  };
+  const grifo = models.models.find((candidate) => candidate.name === 'Grifo');
+  if (!grifo) {
+    throw new Error('The practice archive has no Model named Grifo.');
+  }
+
+  const listed = (await (await page.request.get(`/api/models/${grifo.id}`)).json()) as {
+    tavole: { scan: { previewUrl: string } | null }[];
+  };
+  const drawn = listed.tavole.find((tavola) => tavola.scan !== null);
+  if (!drawn?.scan) {
+    throw new Error('The practice archive has no image to borrow.');
+  }
+  return (await page.request.get(drawn.scan.previewUrl)).body();
+}
+
+/**
  * A drawing of this test's own, opened and ready to be marked up.
  *
  * **Tests that write need a sheet nobody else is writing on.** This suite runs its files in
@@ -92,13 +123,8 @@ export async function placeMarks(
  * the same test would otherwise be placing circles on each other's Tavola and counting them.
  *
  * The sheet is put on the one Model the practice archive leaves undrawn, so nothing that counts
- * what a *drawn* Model has is disturbed; and it is given the practice archive's own scan, read
- * back out of the archive and uploaded again. That is deliberate: it is a real drawing, and no
- * image had to be committed to this repository to get one (`AGENTS.md`).
- *
- * The **thumbnail** rather than the full sheet, because every one of these uploads is a real
- * ingest and this suite runs its files in parallel: a dozen full-size scans being re-encoded
- * takes the machine away from the browsers, and nothing here is about how large a drawing is.
+ * what a *drawn* Model has is disturbed; and it is given a picture borrowed out of the archive
+ * itself — see `borrowAnImage` for why nothing is committed here to get one.
  */
 export async function openADrawingOfYourOwn(page: Page, named: string): Promise<Locator> {
   await signIn(page);
@@ -114,14 +140,7 @@ export async function openADrawingOfYourOwn(page: Page, named: string): Promise<
     return found;
   };
 
-  const listed = (await (await page.request.get(`/api/models/${model('Grifo').id}`)).json()) as {
-    tavole: { scan: { previewUrl: string } | null }[];
-  };
-  const drawn = listed.tavole.find((tavola) => tavola.scan !== null);
-  if (!drawn?.scan) {
-    throw new Error('The practice archive has no scan to borrow.');
-  }
-  const sheet = await (await page.request.get(drawn.scan.previewUrl)).body();
+  const sheet = await borrowAnImage(page);
 
   const created = (await (
     await page.request.post(`/api/models/${model(UNDRAWN_MODEL).id}/tavole`, {

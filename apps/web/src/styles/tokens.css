@@ -263,7 +263,16 @@ html.dark[data-environment-mode='non-production'] {
    * Chrome moves quickly and briefly, or not at all. Nothing animates the artwork.
    * -------------------------------------------------------------------- */
   --ease-out-quick: cubic-bezier(0.2, 0, 0, 1);
-  --animate-rise: rise 320ms cubic-bezier(0.2, 0, 0, 1) both;
+  /*
+   * `backwards` and **not** `both`, which is a one-word fix for a real bug rather than a
+   * preference. The `to` state below is the element's own resting state — opacity 1, no
+   * transform — so filling forwards changes nothing a reader can see, and it costs something a
+   * reader definitely can: a filled `transform: none` computes as an identity matrix, an
+   * identity matrix is still a transform, and a transform makes the element a containing block
+   * for every `position: fixed` descendant. Anything asking to fill the screen from inside one
+   * of these panels was being clipped to the panel instead.
+   */
+  --animate-rise: rise 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
 }
 
 @keyframes rise {

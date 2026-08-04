@@ -24,6 +24,7 @@ import type {
   PositionListingsResponse,
   PositionsResponse,
   RelatePositionsRequest,
+  ReorderPhotographsRequest,
   ServiceStatus,
   SessionResponse,
   TavolaListingsResponse,
@@ -238,6 +239,28 @@ export const api = {
     request<PartRecordResponse>(`/sources/${sourceId}`, { method: 'DELETE' }),
 
   /**
+   * **What the Part looks like** — the check no part number can give a member (story 77), and
+   * the file-upload path member Contributions reuse at ticket 19.
+   *
+   * All three answer with the whole Part, like the nine above, and for a sharper reason than
+   * symmetry: the *order* is what a member reads first, so a browser handed back the one
+   * photograph that moved would have to work out where the other five went.
+   *
+   * `reorderPhotographs` names the whole order rather than one picture and a direction. An order
+   * is a statement about the list, and half of one applied is an order nobody chose.
+   */
+  addPhotograph: (partId: string, file: File) =>
+    request<PartRecordResponse>(`/parts/${partId}/photographs`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  reorderPhotographs: (partId: string, order: ReorderPhotographsRequest) =>
+    send<PartRecordResponse>('PATCH', `/parts/${partId}/photographs`, order),
+  removePhotograph: (photographId: string) =>
+    request<PartRecordResponse>(`/photographs/${photographId}`, { method: 'DELETE' }),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -279,9 +302,11 @@ export type {
   PartInFull,
   PartListing,
   PartResponse,
+  Photograph,
   Position,
   RelatedPosition,
   RelatePositionsRequest,
+  ReorderPhotographsRequest,
   Sheet,
   Source,
   SourceCondition,
