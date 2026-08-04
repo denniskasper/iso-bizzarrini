@@ -24,8 +24,9 @@ M4, and the upload path it needs is already built and reused rather than rewritt
 Two others are unblocked and independent of them:
 [22](.scratch/ricambi/issues/22-search.md) and
 [23](.scratch/ricambi/issues/23-category-filters.md) are M5. Twenty-three's blocker, ticket 03, is
-open only on boxes that need a person and a real scan rather than code (see below), and everything
-Category filters read from is built. **Ticket 22 has a debt waiting for it**: ticket 25 built an
+closed — its last three boxes are a *measurement of the Club's archive* rather than work, deferred
+until there is an archive to measure and taken automatically by `pnpm scans:measure` when there
+is. **Ticket 22 has a debt waiting for it**: ticket 25 built an
 Editor's lookup that matches a Catalog Number regardless of the spacing the catalog prints, which
 is one of Search's own rules implemented early. Search should absorb it rather than stand beside
 it — two implementations of one matching rule is exactly the inconsistency this product exists to
@@ -35,7 +36,7 @@ remove.
 | --- | --- | --- | --- | --- |
 | 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
 | 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | 10 of 11 | `done` | 01 |
-| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 15 of 18 | `ready-for-human` | 01 |
+| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 15 of 18, 3 deferred | `done` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | 9 of 10 | `done` | 03 |
 | 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Done | `done` | 04 |
 | 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Done | `done` | 05 |

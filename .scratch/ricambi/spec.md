@@ -376,6 +376,18 @@ everything else from M2 onwards. Optical recognition of the numbers was consider
 on 60-year-old scans of hand-drawn exploded views it produces output an Editor must check anyway,
 which is slower than placing the points.
 
+*What would justify revisiting that, and what would not.* The rejection stands, and the first
+real sheet seen since supports it: the numbers are **bare numerals with leader lines, not circles**
+— there is nothing for a detector to anchor on — they run in groups (`150 151 152 153`, `36 37
+36`) that need segmenting, and suffixed numbers like `210 S` and `211 D.` must survive exactly as
+printed. On the copy available they are 7–9 px tall, where recognition is not merely unreliable
+but impossible. Two things would change the arithmetic rather than re-argue it: a **600 dpi**
+original, where the same numerals are around 60 px; and a **proposal-only** shape, where what is
+produced is a pre-placed Mark an Editor confirms in one press rather than a Position the archive
+has written down. The claim to test then is not "is the recognition good" but "is confirming a
+proposal faster than placing a point" — and until there is a full-resolution scan, that cannot be
+tested at all. Nothing here is to be built on the strength of the paragraph above.
+
 **Decisions the association's board still owns:** dropping forced password rotation; whether to
 add a single expiry-day e-mail in addition to the 30-day reminder (recommended — it is a
 different message rather than a repeat, and it is the one that recovers lapsed members); the

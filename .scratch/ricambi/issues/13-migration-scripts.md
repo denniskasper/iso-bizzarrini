@@ -126,5 +126,10 @@ uncropped catalog page, decide which column is which, and write the sentence int
 Until they do, the loader will not load — which is the intended behaviour and not a blocker to
 work around.
 
-The same person is holding ticket 03's three open boxes, and the two jobs are the same afternoon:
-a dozen real scans measured (`pnpm scans:measure`) and one page photographed.
+**And it is one page, not a scanning programme.** The page wanted is a *catalog text page* — the
+parts list carrying the `Codice` column — and not a Tavola. This ticket needs **no scans at all**:
+`scans/` may be empty, a Tavola with no drawing is a legitimate state, and the spreadsheets are
+what the volunteers are waiting on. Ticket 03's deferred measurement is a separate job against
+different material and does not gate this one. (An earlier note here said the two were the same
+afternoon's work. They are not, and reading them as one is what would keep the volunteers waiting
+on a scanner.)

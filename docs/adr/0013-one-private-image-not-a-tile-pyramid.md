@@ -5,11 +5,23 @@ sheets scanned at 300 dpi, which would be around 15 megapixels each and worth cu
 image pyramid. ADR 0006 deferred the choice to this ticket, and this ticket was to settle it by
 measuring at least a dozen real scans from the club archive.
 
-**No real scan has been measured, because none has been obtained.** The only genuine drawing
-anyone has seen was supplied downsized to 1245 × 809, and the sample tavole in the earlier
-implementation of this product are artificial. That is the same evidence the assumption was made
-on, so re-deciding from it would be re-litigating rather than measuring. It needs a person with
-access to the Club's material, and that is not a thing code can produce.
+**No representative scan has been measured, because none has been obtained.** The only genuine
+drawing anyone has seen was supplied downsized to 1245 × 809, and the sample tavole in the
+earlier implementation of this product are artificial. That is the same evidence the assumption
+was made on, so re-deciding from it would be re-litigating rather than measuring. It needs a
+person with access to the Club's material, and that is not a thing code can produce.
+
+**That one drawing has now been measured properly, and it fails the legibility test.** It is
+Tavola 84 of the Rivolta at 1245 × 809 and 105 KB, and its position numbers are **7–9 px tall** —
+under 3 px at fit-to-screen on a phone, and 8 px even magnified to the scan's own resolution,
+which is as far as the viewer goes. The leader line merges into the `1` of `150`, which reads as
+`T50`. At 41% of the long edge the threshold below asks for, it is not a drawing a member could
+work from.
+
+That is a fact about **one supplied file**, not about the Club's archive: it was sent downsized,
+and nobody has said what the originals are. It is recorded here so the next person to look does
+not mistake it for the measurement, and so the number is on the table when the Club is asked what
+resolution its scanner is set to.
 
 ## What was built instead of waiting
 

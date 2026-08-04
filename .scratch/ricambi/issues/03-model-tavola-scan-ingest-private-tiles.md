@@ -6,7 +6,7 @@ prepared for deep zoom automatically, and none of it is reachable by anyone not 
 
 **Blocked by:** 01 — App skeleton with both test seams.
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] A Model is created with brand, model, series and model years
 - [x] Models are listed grouped by brand
@@ -27,26 +27,59 @@ The sample tavole in the prior implementation are artificial images, and the onl
 drawing seen so far was supplied downsized, so neither tells us anything. ADR 0006 defers the
 choice to this ticket.
 
-- [ ] Obtain at least a dozen **real** scans from the club archive and record their pixel dimensions and file sizes — *needs a person with access to the Club's material; see Comments*
-- [ ] Tile only if the scans are large enough that sending a whole one to a phone on poor reception actually hurts — *conditional on the measurement above; the threshold is set and applied automatically, but nothing real has met it*
+- [~] Obtain at least a dozen **real** scans from the club archive and record their pixel dimensions and file sizes — *deferred, not abandoned: the archive measures every scan it accepts and `pnpm scans:measure` reports it. See "Why the last three are deferred rather than open".*
+- [~] Tile only if the scans are large enough that sending a whole one to a phone on poor reception actually hurts — *conditional on the measurement above; the threshold is set and applied automatically*
 - [x] Otherwise serve one private image and pan/zoom client-side — no pyramid, no tile storage
-- [ ] Check the decisive question directly: at the archive's real resolution, **can a position number be read on a phone?** If not, no delivery format saves it and the scanning itself needs revisiting — *the check is built and runs automatically; it has had nothing real to run against*
+- [~] Check the decisive question directly: at the archive's real resolution, **can a position number be read on a phone?** If not, no delivery format saves it and the scanning itself needs revisiting — *the check is built and runs automatically; the one drawing available fails it, and is not the archive*
 - [x] Either way, Marks are stored in **fractional image coordinates**, so this decision can be reversed later without re-marking a single Tavola — *closed at ticket 05, which placed the first Mark; see Comments*
 - [x] Record the measurement and the choice, so nobody re-litigates it from the same assumption
 - [x] A Tavola with no scan yet is a legitimate state
 - [x] UI and design work uses the `/frontend-design` skill
 
-## Comments
+## Why the last three are deferred rather than open
 
-**Three boxes are open and none of them is code.** Nobody has obtained a real scan from the club
-archive. The only genuine drawing anyone has seen was supplied downsized to 1245 × 809, and the
-prior implementation's sample tavole are artificial — which is the same evidence the tiling
-assumption was made on, so deciding from it again would be re-litigating rather than measuring.
+**Closed with three boxes marked `~`, which means neither done nor waiting on anybody.** Every
+line of code this ticket asks for is delivered and tested. What the three describe is a
+*measurement of the Club's archive*, and there is no archive here to measure — so leaving the
+ticket labelled `ready-for-human` was pointing at a person who has nothing they can do.
 
-Two of the three are open *because* of that one: "tile only if the scans are large enough" and
-"can a position number be read on a phone" are both conditional on a measurement that has not
-happened. The machinery for both is built and runs by itself; it has had nothing real to run
-against, and a tick would claim otherwise.
+**The one drawing that has been supplied was measured, and it settles nothing.** Tavola 84 of the
+Rivolta — the doors — arrived at **1245 × 809, 105 KB**, which is the same downsized asset ADR
+0013 already discounted rather than a second data point. Measured properly this time:
+
+- Its **position numbers are 7–9 px tall.** At fit-to-screen on a phone that is under 3 px, and
+  even magnified to the scan's own resolution — as far as the viewer goes — it is 8 px. The
+  leader line merges into the `1` of `150`, which reads as `T50`.
+- Against the threshold in ADR 0013, the sheet is at **41% of the ~3000 px long edge** a legible
+  position number needs. It is evidence that the scanning question is real, not evidence about
+  the archive.
+
+**Nothing is blocked by the deferral, and that is the point.** ADR 0013's answer — one private
+image per Tavola, no pyramid — is in place, and reversing it costs nothing: Marks are stored as
+fractions of the drawing, so a Tavola re-scanned at any resolution keeps every evening of marking
+done on it. `pnpm scans:measure` reads back what ingest has recorded about every scan and applies
+both thresholds by itself. The question is answered by running one command against a system that
+has real drawings in it, whenever that is.
+
+**Two things the real sheet did confirm**, both of which the code had assumed without evidence:
+it carries **~208 positions plus `210 S` and `211 D`**, so "a Tavola may carry two hundred
+numbers" and "the number is an opaque string, suffix and all" are both borne out; and its
+*Sezione*, *Gruppo* and *Sottogruppo* boxes are **printed but empty**, which is why those columns
+are nullable.
+
+And one it contradicted: **the factory did not print these numbers inside circles.** They are
+bare numerals with thin leader lines running to the part. The practice archive's invented drawing
+prints circles, so every screen in this repository has been built and judged against a friendlier
+sheet than the real one. Nothing is wrong — a Mark is a ring drawn *around* the number rather than
+over a printed circle, which still reads — but `MARK_RING` in `drawing-viewer.tsx` was explicitly
+"fitted to the circles the practice drawing prints ... for when there is something to measure it
+against". There now is: on this sheet the ring comes out about twice the width of a three-digit
+number. Worth a look on a real scan before it is called right.
+
+**Ticket 13 does not depend on any of this.** Its one open box needs an uncropped catalog *text*
+page — the parts list with the `Codice` column — to settle which column is the Catalog Number and
+which the Disegno Origine. That is one photograph of one page, not a scanning programme, and it
+is what actually unblocks the volunteers.
 
 **The fourth box is now closed.** It was open because a tick would have claimed stored data that
 did not exist; ticket 05 placed the first Mark, and `marks.x` and `marks.y` are fractions of the
