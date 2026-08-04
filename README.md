@@ -15,9 +15,12 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [06](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md)** — Parts,
-Listings, and reading a part from a circle. The circles are on the drawing and every one of them
-knows which Position it belongs to; what is missing is the answer a member clicks one to get.
+**Next up: [13](.scratch/ricambi/issues/13-migration-scripts.md)** — migration scripts for the
+existing archive. The sentence the product exists to complete now runs end to end: choose a car,
+open the drawing, click the circle, read the part, and see what it fits, what replaces it and
+where it has been for sale. What the archive has none of is *content* — and until the Club's own
+spreadsheets and scans are in it, marking Tavole has nothing to attach to. It is the long pole,
+and after it lands the volunteers' evenings run in parallel with everything else.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
@@ -26,9 +29,9 @@ knows which Position it belongs to; what is missing is the answer a member click
 | 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 15 of 18 | `ready-for-human` | 01 |
 | 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | 9 of 10 | `done` | 03 |
 | 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Done | `done` | 04 |
-| 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Not started | `ready-for-agent` | 05 |
-| 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Not started | `ready-for-agent` | 06 |
-| 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Not started | `ready-for-agent` | 06 |
+| 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Done | `done` | 05 |
+| 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Done | `done` | 06 |
+| 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Done | `done` | 06 |
 | 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Not started | `ready-for-agent` | 06 |
 | 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Not started | `ready-for-agent` | 06 |
 | 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Not started | `ready-for-agent` | 05, 06 |
@@ -40,11 +43,18 @@ knows which Position it belongs to; what is missing is the answer a member click
 | 17 | [Renewal reminders](.scratch/ricambi/issues/17-renewal-reminders.md) | Not started | `ready-for-agent` | 14 |
 | 18 | [Stripe subscriptions](.scratch/ricambi/issues/18-stripe-subscriptions.md) | Not started | `ready-for-agent` | 15 |
 | 19 | [Members contribute](.scratch/ricambi/issues/19-members-contribute.md) | Not started | `ready-for-agent` | 10, 15 |
-| 20 | [Editor moderation](.scratch/ricambi/issues/20-editor-moderation.md) | Not started | `ready-for-agent` | 19 |
+| 20 | [Editor moderation](.scratch/ricambi/issues/20-editor-moderation.md) | Not started | `ready-for-agent` | 19, 25 |
 | 21 | [Retention and erasure](.scratch/ricambi/issues/21-retention-and-erasure.md) | Not started | `ready-for-agent` | 20 |
 | 22 | [Search](.scratch/ricambi/issues/22-search.md) | Not started | `ready-for-agent` | 08 |
 | 23 | [Category filters](.scratch/ricambi/issues/23-category-filters.md) | Not started | `ready-for-agent` | 03 |
 | 24 | [Platform legal pages and data-protection records](.scratch/ricambi/issues/24-platform-legal-pages-and-gdpr-records.md) | Not started | `ready-for-agent` | 15, 21 |
+| 25 | [Correcting a Part and its Listings](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) | Not started | `ready-for-agent` | 06 |
+
+**Ticket 25 is numbered last and is pickable now.** It was written after 06 landed, so it takes
+the next free number rather than a place in the order — but it is blocked only by 06, and three
+tickets that *are* in order already assume it exists (19, 20 and the spec's own Out of Scope all
+say corrections reach the record through an Editor's hands, which today they cannot). Ticket 20 is
+blocked on it.
 
 Ticket 02's one open box — the practice system *deployed* alongside production, behind the same
 sign-in gate — is carried by [ticket 14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md),
