@@ -53,6 +53,9 @@ describe('a practice system writing itself a catalog', () => {
       positions: 15,
       parts: 6,
       listings: 8,
+      fitments: 5,
+      equivalents: 4,
+      sources: 4,
     });
 
     const member = await app.editor();
@@ -162,6 +165,59 @@ describe('a practice system writing itself a catalog', () => {
 
     // And one number with nothing at it, because that is an ordinary state too.
     expect(await at('4')).toEqual([]);
+  });
+
+  /**
+   * The content that turns a catalog into something a restorer can use — and, like the Parts
+   * above, **chosen to be every state a screen has to handle**: a chassis break in somebody's own
+   * words, a donor vehicle with no number anybody has ever found, and a shop seen twice at two
+   * prices so that the reading is a price history rather than a figure.
+   */
+  it('records what fits its Parts, what replaces them and where they have been for sale', async () => {
+    await seed();
+    const member = await app.editor();
+
+    const models = await member.get('/api/models').expect(200);
+    const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
+    const listed = await member.get(`/api/models/${grifo.id}`).expect(200);
+    const brakes = listed.body.tavole.find((tavola: { number: string }) => tavola.number === '2');
+    const sheet = await member.get(`/api/tavole/${brakes.id}`).expect(200);
+
+    // Position 2 on the practice sheet is the flexible brake hose.
+    const hosePosition = sheet.body.positions.find(
+      (candidate: { number: string }) => candidate.number === '2',
+    );
+    const read = await member.get(`/api/positions/${hosePosition.id}/listings`).expect(200);
+    const { part } = read.body.listings[0];
+
+    // Two cars, one of them qualified in the words somebody would use.
+    expect(
+      part.fitments.map((fitment: { model: { name: string }; qualifier: string | null }) => [
+        fitment.model.name,
+        fitment.qualifier,
+      ]),
+    ).toEqual([
+      ['Grifo', null],
+      ['Rivolta IR 300', 'late cars only'],
+    ]);
+
+    // The original supplier first, then the car to go and find one in — with no number, which is
+    // the ordinary state for a donor vehicle and the reason that column is nullable.
+    expect(part.equivalents).toEqual([
+      expect.objectContaining({ kind: 'oe-supplier', maker: 'Girling', reference: '64678231' }),
+      expect.objectContaining({ kind: 'donor-vehicle', maker: 'Fiat 124 Coupé', reference: null }),
+    ]);
+
+    // The same shop twice, most recently seen first, and every price carrying its date.
+    expect(
+      part.sources.map((source: { price: { amount: number; observedOn: string } }) => [
+        source.price.amount,
+        source.price.observedOn,
+      ]),
+    ).toEqual([
+      [24500, '2025-11-02'],
+      [19000, '2024-03-18'],
+    ]);
   });
 
   /**

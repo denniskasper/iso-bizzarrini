@@ -66,6 +66,52 @@ export function Field({
 }
 
 /**
+ * The same field, for the handful of values that are genuinely a **fixed set** — the four kinds
+ * of Equivalent, the three conditions an offer can be in, the four currencies these cars trade
+ * in. Each of them is a check constraint in the database, so a box an Editor could type into
+ * would be a box that mostly produces refusals.
+ *
+ * That is the whole test for using this rather than `Field`'s `suggestions`: a Category is typed,
+ * because the first Tavola of a new one has to be recordable; a currency is chosen, because
+ * there is no fifth.
+ */
+export function Select({
+  label,
+  hint,
+  children,
+  className,
+  ...props
+}: ComponentProps<'select'> & { label: string; hint?: ReactNode; children: ReactNode }) {
+  const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
+
+  return (
+    <div className={cn('flex flex-col gap-2', className)}>
+      <label htmlFor={id} className="text-2xs text-muted uppercase">
+        {label}
+      </label>
+      <select
+        id={id}
+        aria-describedby={hintId}
+        className={cn(
+          'h-control w-full rounded-md border border-line-strong bg-surface-raised px-3',
+          'text-base text-text transition-colors duration-150 ease-[var(--ease-out-quick)]',
+          'hover:border-line-strong focus:border-accent-ink',
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      {hint && (
+        <p id={hintId} className="text-xs text-pretty text-faint">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * The same field, for the prose an Editor writes rather than the numbers they copy.
  *
  * A description, a transcribed catalog note, what the club has worked out — these run to

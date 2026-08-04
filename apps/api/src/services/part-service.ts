@@ -2,9 +2,11 @@ import type { NewPartRequest, PartListing, TavolaListing } from '@ricambi/contra
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError } from '../http/errors.js';
 import type { NewListingRow } from '../db/schema.js';
+import type { PartRecordRows } from '../repositories/part-record-repository.js';
 import type { ElsewhereRow, PartRepository } from '../repositories/part-repository.js';
 import type { PositionRepository } from '../repositories/position-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
+import type { PartRecordService } from './part-record-service.js';
 import { toPart, toPartListing, toTavolaListing } from './catalog-view.js';
 
 /**
@@ -50,8 +52,17 @@ export function createPartService(dependencies: {
   tavolaRepository: TavolaRepository;
   positionRepository: PositionRepository;
   partRepository: PartRepository;
+  /**
+   * What fits each Part, what replaces it and where it has been available. It arrives with the
+   * Part rather than behind a second request, because a member weighing whether to order
+   * something reads all of it in one glance at one panel — and it is read for the whole Position
+   * at once, so five Parts at a number cost three queries rather than fifteen.
+   */
+  partRecordService: PartRecordService;
 }): PartService {
-  const { tavolaRepository, positionRepository, partRepository } = dependencies;
+  const { tavolaRepository, positionRepository, partRepository, partRecordService } = dependencies;
+
+  const nothingRecorded: PartRecordRows = { fitments: [], equivalents: [], sources: [] };
 
   /**
    * The other Tavole a set of Parts appears on, read once for the whole Position rather than
@@ -147,12 +158,19 @@ export function createPartService(dependencies: {
       }
 
       const rows = await partRepository.listAtPosition(positionId);
-      const elsewhere = await elsewhereFor(
-        rows.map((row) => row.partId),
-        position.tavolaId,
-      );
+      const partIds = rows.map((row) => row.partId);
+      const [elsewhere, records] = await Promise.all([
+        elsewhereFor(partIds, position.tavolaId),
+        partRecordService.recordsFor(partIds),
+      ]);
 
-      return rows.map((row) => toPartListing(row, elsewhere.get(row.partId) ?? []));
+      return rows.map((row) =>
+        toPartListing(
+          row,
+          records.get(row.partId) ?? nothingRecorded,
+          elsewhere.get(row.partId) ?? [],
+        ),
+      );
     },
 
     async listingsOn(tavolaId) {
@@ -182,8 +200,12 @@ export function createPartService(dependencies: {
       }).catch((error: unknown) => refusalFor(error, listing));
 
       const elsewhere = await elsewhereFor([recorded.part.id], tavolaId);
+      // A Part recorded a moment ago has none of the three yet, and a Part being listed a second
+      // time has whatever it already had — both of which this reads rather than assumes.
+      const records = await partRecordService.recordsFor([recorded.part.id]);
       return toPartListing(
         { ...recorded.listing, part: recorded.part },
+        records.get(recorded.part.id) ?? nothingRecorded,
         elsewhere.get(recorded.part.id) ?? [],
       );
     },

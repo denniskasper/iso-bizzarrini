@@ -1,7 +1,11 @@
 import type {
   ApiErrorBody,
   CategoriesResponse,
+  EquivalentRequest,
+  FitmentRequest,
   ListingResponse,
+  NewSourceRequest,
+  PartRecordResponse,
   CatalogModel,
   CatalogModelResponse,
   CatalogModelsResponse,
@@ -137,6 +141,39 @@ export const api = {
     request<void>(`/listings/${listingId}`, { method: 'DELETE' }),
 
   /**
+   * What fits a Part, what can be bought instead of it, and where it has been available.
+   *
+   * **Hung off the Part and not off a drawing**, because all three are true of the component
+   * wherever it is listed (ADR 0001) — correcting one from the panel under Tavola 2 corrects it
+   * on every sheet the Part appears on, which is the point rather than a side effect.
+   *
+   * Every one of the nine answers with the **whole Part, re-read**. Each collection is an
+   * ordered list and the order is the archive's — the cars in the catalog's order, the
+   * equivalents from the original supplier outwards, the sources with the most recently seen
+   * price first — so nothing here ever has to work out where a new row belongs.
+   */
+  addFitment: (partId: string, fitment: FitmentRequest) =>
+    send<PartRecordResponse>('POST', `/parts/${partId}/fitments`, fitment),
+  correctFitment: (fitmentId: string, fitment: FitmentRequest) =>
+    send<PartRecordResponse>('PATCH', `/fitments/${fitmentId}`, fitment),
+  removeFitment: (fitmentId: string) =>
+    request<PartRecordResponse>(`/fitments/${fitmentId}`, { method: 'DELETE' }),
+
+  addEquivalent: (partId: string, equivalent: EquivalentRequest) =>
+    send<PartRecordResponse>('POST', `/parts/${partId}/equivalents`, equivalent),
+  correctEquivalent: (equivalentId: string, equivalent: EquivalentRequest) =>
+    send<PartRecordResponse>('PATCH', `/equivalents/${equivalentId}`, equivalent),
+  removeEquivalent: (equivalentId: string) =>
+    request<PartRecordResponse>(`/equivalents/${equivalentId}`, { method: 'DELETE' }),
+
+  addSource: (partId: string, source: NewSourceRequest) =>
+    send<PartRecordResponse>('POST', `/parts/${partId}/sources`, source),
+  correctSource: (sourceId: string, source: NewSourceRequest) =>
+    send<PartRecordResponse>('PATCH', `/sources/${sourceId}`, source),
+  removeSource: (sourceId: string) =>
+    request<PartRecordResponse>(`/sources/${sourceId}`, { method: 'DELETE' }),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -153,6 +190,12 @@ export type {
   CatalogProvenance,
   Category,
   CatalogNumberConflict,
+  Currency,
+  Equivalent,
+  EquivalentKind,
+  EquivalentRequest,
+  Fitment,
+  FitmentRequest,
   ListedElsewhere,
   ListedPart,
   Mark,
@@ -160,10 +203,15 @@ export type {
   NewListingRequest,
   NewModelRequest,
   NewPartRequest,
+  NewSourceRequest,
   NewTavolaRequest,
+  ObservedPrice,
   Part,
+  PartInFull,
   PartListing,
   Position,
+  Source,
+  SourceCondition,
   ServiceStatus,
   TavolaListing,
   TavolaResponse,

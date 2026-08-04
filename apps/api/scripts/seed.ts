@@ -45,7 +45,9 @@ try {
   console.log(
     `Seeded ${written.models} generated Models, ${written.tavole} Tavole, ` +
       `${written.drawings} invented drawings, ${written.positions} Positions and ` +
-      `${written.listings} Listings of ${written.parts} Parts ` +
+      `${written.listings} Listings of ${written.parts} Parts, and ` +
+      `${written.fitments} Fitments, ${written.equivalents} Equivalents and ` +
+      `${written.sources} Sources ` +
       `into "${config.environmentName}".`,
   );
 } finally {

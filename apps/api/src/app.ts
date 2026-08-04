@@ -6,6 +6,7 @@ import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import type { AppConfig } from './config/config.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createPartController } from './controllers/part-controller.js';
+import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
@@ -19,6 +20,7 @@ import { createLogger, type Logger } from './platform/logger.js';
 import type { PaymentProvider } from './platform/payments.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
 import { createModelRepository } from './repositories/model-repository.js';
+import { createPartRecordRepository } from './repositories/part-record-repository.js';
 import { createPartRepository } from './repositories/part-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
@@ -26,6 +28,7 @@ import { createSystemRepository } from './repositories/system-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
 import { createApiRouter } from './routes/api-router.js';
 import { createCatalogService } from './services/catalog-service.js';
+import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPositionService } from './services/position-service.js';
 import { createScanService } from './services/scan-service.js';
@@ -96,6 +99,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const tavolaRepository = createTavolaRepository(db);
   const positionRepository = createPositionRepository(db);
   const partRepository = createPartRepository(db);
+  const partRecordRepository = createPartRecordRepository(db);
   const scanRepository = createScanRepository(db);
 
   const statusService = createStatusService({
@@ -106,7 +110,18 @@ export function createApp(dependencies: AppDependencies): Express {
   });
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
   const positionService = createPositionService({ tavolaRepository, positionRepository });
-  const partService = createPartService({ tavolaRepository, positionRepository, partRepository });
+  const partRecordService = createPartRecordService({
+    clock,
+    modelRepository,
+    partRepository,
+    partRecordRepository,
+  });
+  const partService = createPartService({
+    tavolaRepository,
+    positionRepository,
+    partRepository,
+    partRecordService,
+  });
   const tavolaService = createTavolaService({
     modelRepository,
     categoryRepository,
@@ -127,6 +142,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const tavolaController = createTavolaController({ tavolaService });
   const positionController = createPositionController({ positionService });
   const partController = createPartController({ partService });
+  const partRecordController = createPartRecordController({ partRecordService });
   const scanController = createScanController({ scanService });
 
   const app = express();
@@ -166,6 +182,7 @@ export function createApp(dependencies: AppDependencies): Express {
       tavolaController,
       positionController,
       partController,
+      partRecordController,
       scanController,
     }),
   );

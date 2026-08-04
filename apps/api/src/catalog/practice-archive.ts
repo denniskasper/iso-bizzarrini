@@ -2,7 +2,18 @@ import { sql } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { AppConfig } from '../config/config.js';
 import type { Db } from '../db/client.js';
-import { categories, listings, marks, models, parts, positions, tavole } from '../db/schema.js';
+import {
+  categories,
+  equivalents,
+  fitments,
+  listings,
+  marks,
+  models,
+  parts,
+  positions,
+  sources,
+  tavole,
+} from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { createCategoryRepository } from '../repositories/category-repository.js';
@@ -213,6 +224,112 @@ const practiceListings = [
   { model: 'Grifo', tavola: '10', position: '2', part: 'bolt', quantity: 6, drawn: true },
 ] as const;
 
+/**
+ * Which cars the invented components fit, **with qualifications written the way somebody would
+ * actually know them**. One is a half-known chassis break, one is a single word, and one Part
+ * fits a car with no qualification at all — because a practice archive whose fitments are all
+ * neat proves nothing about a field that exists precisely to hold what is not.
+ */
+const practiceFitments = [
+  { part: 'caliper-early', model: 'Grifo', qualifier: 'fino al telaio 310' },
+  { part: 'caliper-late', model: 'Grifo', qualifier: 'from chassis #311' },
+  { part: 'hose', model: 'Grifo', qualifier: null },
+  { part: 'hose', model: 'Rivolta IR 300', qualifier: 'late cars only' },
+  { part: 'bolt', model: 'Grifo', qualifier: null },
+] as const;
+
+/**
+ * What can be bought instead — **the state every screen showing an Equivalent has to handle.**
+ * All four kinds appear; one carries a note and no reference at all, which is the Donor Vehicle
+ * doing what it is for.
+ */
+const practiceEquivalents = [
+  {
+    part: 'hose',
+    kind: 'oe-supplier',
+    maker: 'Girling',
+    reference: '64678231',
+    note: 'The original supplier’s own number, from a parts book of the period.',
+  },
+  {
+    part: 'hose',
+    kind: 'donor-vehicle',
+    maker: 'Fiat 124 Coupé',
+    reference: null,
+    // The whole argument for a nullable reference, written as data: nobody knows what Fiat
+    // called it, and the car alone is what sends somebody to a scrapyard with something to find.
+    note: 'The same hose, in the same length. Nobody has ever found the Fiat number for it.',
+  },
+  {
+    part: 'bolt',
+    kind: 'industry-standard',
+    maker: 'DIN',
+    reference: 'DIN 931 M10 × 45',
+    note: 'An ordinary hex bolt. Any supplier’s will do.',
+  },
+  {
+    part: 'lock-washer',
+    kind: 'oem',
+    maker: 'Schnorr',
+    reference: 'S 10',
+    note: null,
+  },
+] as const;
+
+/**
+ * Where the invented components have been for sale. **Every state a member's screen has to show
+ * at once**: a price with the day it was seen, a source with no price at all, the same shop twice
+ * at two prices so the reading is a price history, and one listing that never said what condition
+ * it was in.
+ *
+ * The dates are fixed rather than relative to now, for the same reason every other fixture here
+ * is: a practice archive that read the wall clock would look different on two afternoons.
+ */
+const practiceSources = [
+  {
+    part: 'hose',
+    name: 'Ricambi Storici',
+    url: 'https://example.invalid/ricambi-storici/tubo-flessibile',
+    condition: 'new-old-stock',
+    priceAmount: 24500,
+    priceCurrency: 'EUR',
+    observedOn: '2025-11-02',
+    note: 'Two in stock when this was written.',
+  },
+  {
+    part: 'hose',
+    name: 'Ricambi Storici',
+    url: 'https://example.invalid/ricambi-storici/tubo-flessibile',
+    condition: 'new-old-stock',
+    priceAmount: 19000,
+    priceCurrency: 'EUR',
+    observedOn: '2024-03-18',
+    note: null,
+  },
+  {
+    part: 'caliper-early',
+    name: 'A club member’s garage sale',
+    url: 'https://example.invalid/forum/thread/1142',
+    // The listing did not say, and the archive says *that* rather than guessing (ADR 0001's
+    // habit): a screen showing "condition not stated" is honest, one showing "used" is not.
+    condition: null,
+    priceAmount: null,
+    priceCurrency: null,
+    observedOn: null,
+    note: 'Offered in a forum thread. No price was given.',
+  },
+  {
+    part: 'bolt',
+    name: 'Any fastener supplier',
+    url: 'https://example.invalid/fasteners/din-931',
+    condition: 'reproduction',
+    priceAmount: 180,
+    priceCurrency: 'GBP',
+    observedOn: '2025-06-09',
+    note: null,
+  },
+] as const;
+
 export interface SeedDependencies {
   db: Db;
   fileStore: FileStore;
@@ -228,6 +345,9 @@ export interface SeedOutcome {
   positions: number;
   parts: number;
   listings: number;
+  fitments: number;
+  equivalents: number;
+  sources: number;
 }
 
 /**
@@ -333,6 +453,8 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     )
     .returning();
 
+  const record = await writePracticeRecord(db, modelIdsByName, partIds);
+
   return {
     models: practiceModels.length,
     tavole: practiceTavole.length,
@@ -340,6 +462,76 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     positions: marked,
     parts: partIds.size,
     listings: listed.length,
+    ...record,
+  };
+}
+
+/**
+ * What fits the invented components, what replaces them and where they have been for sale.
+ *
+ * **Hung off the Parts and not off any drawing**, which is the whole of ADR 0001 written as a
+ * fixture: the brake hose fits two cars and is listed on one sheet, and neither fact is derivable
+ * from the other.
+ */
+async function writePracticeRecord(
+  db: Db,
+  modelIdsByName: Map<string, string>,
+  partIds: Map<string, string>,
+): Promise<{ fitments: number; equivalents: number; sources: number }> {
+  const partId = (key: string) => {
+    const found = partIds.get(key);
+    if (!found) {
+      throw new Error(`The practice record names a Part that is not seeded: ${key}.`);
+    }
+    return found;
+  };
+
+  const recordedFitments = await db
+    .insert(fitments)
+    .values(
+      practiceFitments.map((seed) => {
+        const modelId = modelIdsByName.get(seed.model);
+        if (!modelId) {
+          throw new Error(`The practice Fitment names a Model that is not seeded: ${seed.model}.`);
+        }
+        return { partId: partId(seed.part), modelId, qualifier: seed.qualifier };
+      }),
+    )
+    .returning();
+
+  const recordedEquivalents = await db
+    .insert(equivalents)
+    .values(
+      practiceEquivalents.map((seed) => ({
+        partId: partId(seed.part),
+        kind: seed.kind,
+        maker: seed.maker,
+        reference: seed.reference,
+        note: seed.note,
+      })),
+    )
+    .returning();
+
+  const recordedSources = await db
+    .insert(sources)
+    .values(
+      practiceSources.map((seed) => ({
+        partId: partId(seed.part),
+        name: seed.name,
+        url: seed.url,
+        condition: seed.condition,
+        priceAmount: seed.priceAmount,
+        priceCurrency: seed.priceCurrency,
+        observedOn: seed.observedOn,
+        note: seed.note,
+      })),
+    )
+    .returning();
+
+  return {
+    fitments: recordedFitments.length,
+    equivalents: recordedEquivalents.length,
+    sources: recordedSources.length,
   };
 }
 

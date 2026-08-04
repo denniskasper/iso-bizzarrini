@@ -1,16 +1,28 @@
 import type {
   CatalogModel,
   Category,
+  Equivalent,
+  Fitment,
   Part,
+  PartInFull,
   ListedElsewhere,
   PartListing,
   Position,
+  Source,
   TavolaListing,
   TavolaScan,
   TavolaSummary,
 } from '@ricambi/contracts';
-import type { CategoryRow, ModelRow, PartRow, ScanRow } from '../db/schema.js';
+import type {
+  CategoryRow,
+  EquivalentRow,
+  ModelRow,
+  PartRow,
+  ScanRow,
+  SourceRow,
+} from '../db/schema.js';
 import { scanImageUrl } from '../images/scan-addresses.js';
+import type { FitmentWithModel, PartRecordRows } from '../repositories/part-record-repository.js';
 import type {
   ElsewhereRow,
   ListingOnTavola,
@@ -86,13 +98,63 @@ export function toPart(row: PartRow): Part {
   };
 }
 
+export function toFitment(row: FitmentWithModel): Fitment {
+  return { id: row.id, model: toCatalogModel(row.model), qualifier: row.qualifier };
+}
+
+export function toEquivalent(row: EquivalentRow): Equivalent {
+  return {
+    id: row.id,
+    kind: row.kind,
+    maker: row.maker,
+    reference: row.reference,
+    note: row.note,
+  };
+}
+
+/**
+ * A Source, with **the price and its date assembled into the one thing they are.**
+ *
+ * The three columns become one nullable object here and nowhere else, which is what makes it
+ * impossible for anything downstream to print an amount without the date it was seen. The
+ * database has already refused any row where they disagree; this is the same rule said in a
+ * shape, so no screen has to remember it (stories 75, 76).
+ */
+export function toSource(row: SourceRow): Source {
+  return {
+    id: row.id,
+    name: row.name,
+    url: row.url,
+    condition: row.condition,
+    price:
+      row.priceAmount !== null && row.priceCurrency !== null && row.observedOn !== null
+        ? { amount: row.priceAmount, currency: row.priceCurrency, observedOn: row.observedOn }
+        : null,
+    note: row.note,
+  };
+}
+
+/** The Part with everything the archive holds about the component itself. */
+export function toPartInFull(row: PartRow, record: PartRecordRows): PartInFull {
+  return {
+    ...toPart(row),
+    fitments: record.fitments.map(toFitment),
+    equivalents: record.equivalents.map(toEquivalent),
+    sources: record.sources.map(toSource),
+  };
+}
+
 /** One Part's appearance on one Tavola, with wherever else that Part is listed. */
-export function toPartListing(row: ListingWithPart, elsewhere: ElsewhereRow[]): PartListing {
+export function toPartListing(
+  row: ListingWithPart,
+  record: PartRecordRows,
+  elsewhere: ElsewhereRow[],
+): PartListing {
   return {
     id: row.id,
     quantityPerCar: row.quantityPerCar,
     drawn: row.drawn,
-    part: toPart(row.part),
+    part: toPartInFull(row.part, record),
     elsewhere: elsewhere.map(toListedElsewhere),
   };
 }

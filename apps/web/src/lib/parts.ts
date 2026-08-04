@@ -53,6 +53,26 @@ export function useRereadListings(tavolaId: string, positionId?: string): () => 
   }, [queryClient, tavolaId, positionId]);
 }
 
+/**
+ * Re-read every Position's Parts, after what fits one — or what replaces it, or where it has
+ * been available — has changed.
+ *
+ * **Wider than `useRereadListings` on purpose.** Those three belong to the *Part* and not to
+ * its appearance on a drawing (ADR 0001), so correcting one from the panel under Tavola 2
+ * corrects it at every number that Part sits at, on every sheet. Invalidating only the Position
+ * the Editor happened to be looking at would leave the others in this browser showing a fitment
+ * the archive no longer holds.
+ */
+export function useRereadPart(): () => Promise<void> {
+  const queryClient = useQueryClient();
+
+  return useCallback(async () => {
+    // The prefix, so every cached Position goes — there is no cheap way to know which of them
+    // hold this Part, and there is no expensive one worth having either.
+    await queryClient.invalidateQueries({ queryKey: ['position-listings'] });
+  }, [queryClient]);
+}
+
 function atPosition(positionId: string) {
   return ['position-listings', positionId] as const;
 }

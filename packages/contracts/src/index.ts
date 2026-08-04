@@ -216,6 +216,105 @@ export interface Part {
 }
 
 /**
+ * A statement that a Part fits a Model, in the words of whoever knew it.
+ *
+ * **The qualifier is free text and is never parsed** (story 71). Half of what the club knows
+ * about where one bracket stops and the next begins is *"from chassis #310"*, *"late"*, or
+ * *"1963–64"* — a break somebody half-remembers from a car they owned. Structured date and
+ * chassis ranges would demand a precision nobody has and would silently drop everything that
+ * did not fit the shape, so the member reads the qualification and judges compatibility
+ * themselves.
+ */
+export interface Fitment {
+  id: string;
+  /** The whole Model, because it may well not be the car the member is looking at. */
+  model: CatalogModel;
+  /** As it was written. `null` where the Part fits the car without qualification. */
+  qualifier: string | null;
+}
+
+/**
+ * What kind of thing an Equivalent names.
+ *
+ * The four are not degrees of the same thing — they are four different answers to *"what can I
+ * buy instead"*, and which one it is changes what a restorer does next. A **donor vehicle** is
+ * the odd one and the most valuable: it sends somebody to a scrapyard rather than to a
+ * catalogue (story 73).
+ */
+export type EquivalentKind = 'oe-supplier' | 'oem' | 'industry-standard' | 'donor-vehicle';
+
+/**
+ * Another way to obtain what a Part does — **the single most valuable content this archive will
+ * hold**, because the original is usually unobtainable and the equivalent usually is not.
+ *
+ * There is no limit on how many a Part may have and there are no fixed slots: a Part carrying
+ * six known cross-references keeps six, rather than losing four of them because somebody once
+ * drew a table with two columns.
+ */
+export interface Equivalent {
+  id: string;
+  kind: EquivalentKind;
+  /** Who or what it is of — *Girling*, *SKF*, *DIN 934*, *Fiat 124 Coupé*. */
+  maker: string;
+  /**
+   * The number to quote. **Absent is ordinary**, and for a Donor Vehicle it is the usual case:
+   * often nobody knows what the other manufacturer called it, and the car alone is the useful
+   * fact.
+   */
+  reference: string | null;
+  note: string | null;
+}
+
+/** What is being offered. A restorer's decision changes completely depending on which. */
+export type SourceCondition = 'new-old-stock' | 'used' | 'reproduction';
+
+/** Where these cars actually trade. A fixed set, so no Source carries a currency nobody sells in. */
+export type Currency = 'EUR' | 'USD' | 'GBP' | 'CHF';
+
+/**
+ * A price **and the date it was seen**, which is one fact and not two.
+ *
+ * This shape exists so that a price without its date cannot be *represented*, let alone
+ * rendered (stories 75–76). Three loose optional fields on the Source would leave every screen
+ * that ever prints a price responsible for remembering the rule; here there is nothing to
+ * remember, because there is no price to reach without the date beside it.
+ */
+export interface ObservedPrice {
+  /** In the currency's minor unit — `25000` is €250.00. Never a fraction, never a float. */
+  amount: number;
+  currency: Currency;
+  /** ISO `YYYY-MM-DD`. What makes the amount above worth anything at all. */
+  observedOn: string;
+}
+
+/** Somewhere a Part has actually been available (story 74). */
+export interface Source {
+  id: string;
+  name: string;
+  url: string;
+  /** `null` where the offer did not say. The archive says so rather than guessing. */
+  condition: SourceCondition | null;
+  /** The price and the date it was seen, or nothing. Never one without the other. */
+  price: ObservedPrice | null;
+  note: string | null;
+}
+
+/**
+ * A Part with everything the archive holds about it — **what a member reads at a circle**.
+ *
+ * The three collections are the Part's and not the Listing's: which cars it fits, what can be
+ * bought instead of it and where it has been available are true of the component wherever it is
+ * listed, which is ADR 0001 showing up in a response shape. They hang off this rather than off
+ * `Part` so that the bare identity — what a refused Catalog Number hands back, what a Tavola's
+ * index prints — stays the small thing it is.
+ */
+export interface PartInFull extends Part {
+  fitments: Fitment[];
+  equivalents: Equivalent[];
+  sources: Source[];
+}
+
+/**
  * One Part's appearance on one Tavola: where it sits, how many are fitted per car *there*, and
  * whether the drawing shows it.
  *
@@ -232,7 +331,7 @@ export interface PartListing {
   id: string;
   quantityPerCar: number | null;
   drawn: boolean;
-  part: Part;
+  part: PartInFull;
   /**
    * The other Tavole this Part is listed on, so a member learns where else it is used. The
    * Tavola being read is not among them.
@@ -400,6 +499,64 @@ export interface NewListingRequest {
   drawn: boolean;
   partId?: string;
   part?: NewPartRequest;
+}
+
+/**
+ * `POST /api/parts/:partId/fitments`, and `PATCH /api/fitments/:fitmentId` to correct one.
+ *
+ * The qualifier is a plain string because it is a plain string all the way down: blank means the
+ * Part fits the car without qualification, and anything else is recorded as it was typed.
+ */
+export interface FitmentRequest {
+  modelId: string;
+  qualifier: string;
+}
+
+/** `POST /api/parts/:partId/equivalents`, and `PATCH /api/equivalents/:equivalentId`. */
+export interface EquivalentRequest {
+  kind: EquivalentKind;
+  maker: string;
+  /** Blank where nobody knows it — which for a Donor Vehicle is the ordinary case. */
+  reference: string;
+  note: string;
+}
+
+/**
+ * `POST /api/parts/:partId/sources`, and `PATCH /api/sources/:sourceId`.
+ *
+ * The **wire** shape, so every field is what a form sent. The price is the string that was typed
+ * — `250`, `250.00`, `250,50` — and the API turns it into minor units, because a decimal that
+ * travelled as a number would have been rounded by somebody's browser before it arrived.
+ *
+ * **A price sent without `observedOn` is refused**, at the point of entry rather than hidden at
+ * display. That refusal is the whole of stories 75 and 76: an archive that quietly dropped the
+ * date would go on showing a figure from 2011 as though somebody had checked this morning.
+ */
+export interface NewSourceRequest {
+  name: string;
+  url: string;
+  /** Blank where the offer does not say what it is offering. */
+  condition: SourceCondition | '';
+  /** Blank for a Source recorded without one, which is most of them. */
+  price: string;
+  currency: Currency;
+  /** ISO `YYYY-MM-DD`. Required the moment there is a price, and meaningless without one. */
+  observedOn: string;
+  note: string;
+}
+
+/**
+ * What recording, correcting or removing a Fitment, an Equivalent or a Source answers with:
+ * **the whole Part, re-read.**
+ *
+ * The same argument `PositionsResponse` makes about a sheet's numbers. Each of the three is an
+ * ordered list — the cars in the catalog's own order, the equivalents by kind, the sources with
+ * the most recently seen price first — and the order is the archive's rule. A browser handed the
+ * one row that changed would have to work out where it goes, in three different orders, in a
+ * second place free to disagree with this one.
+ */
+export interface PartRecordResponse {
+  part: PartInFull;
 }
 
 /**

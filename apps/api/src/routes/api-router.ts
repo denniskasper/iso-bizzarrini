@@ -2,6 +2,7 @@ import express, { Router, type RequestHandler } from 'express';
 import type { EditorGate } from '../access/editor-gate.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
+import type { PartRecordController } from '../controllers/part-record-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
@@ -32,6 +33,7 @@ export function createApiRouter(dependencies: {
   tavolaController: TavolaController;
   positionController: PositionController;
   partController: PartController;
+  partRecordController: PartRecordController;
   scanController: ScanController;
 }): Router {
   const {
@@ -42,6 +44,7 @@ export function createApiRouter(dependencies: {
     tavolaController,
     positionController,
     partController,
+    partRecordController,
     scanController,
   } = dependencies;
 
@@ -86,6 +89,22 @@ export function createApiRouter(dependencies: {
   router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
   router.post('/tavole/:tavolaId/listings', partController.record);
   router.delete('/listings/:listingId', partController.removeListing);
+
+  // **What fits the Part, what replaces it and where it has been available** — hung off the Part
+  // and not off a Tavola, because all three are true of the component wherever it is listed
+  // (ADR 0001). They are *read* with the Part at a Position and so have no address of their own;
+  // what is here is only the writing.
+  router.post('/parts/:partId/fitments', partRecordController.addFitment);
+  router.patch('/fitments/:fitmentId', partRecordController.correctFitment);
+  router.delete('/fitments/:fitmentId', partRecordController.removeFitment);
+
+  router.post('/parts/:partId/equivalents', partRecordController.addEquivalent);
+  router.patch('/equivalents/:equivalentId', partRecordController.correctEquivalent);
+  router.delete('/equivalents/:equivalentId', partRecordController.removeEquivalent);
+
+  router.post('/parts/:partId/sources', partRecordController.addSource);
+  router.patch('/sources/:sourceId', partRecordController.correctSource);
+  router.delete('/sources/:sourceId', partRecordController.removeSource);
 
   // The scan is the body, and **nothing here trusts what it says it is**: the parser claims
   // every content type and ingest decides what the bytes actually are. A `.tif` off a flatbed

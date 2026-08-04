@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState } from 'react';
+import { PartRecordEditor } from '@/components/editor/part-record-editor';
 import { Button } from '@/components/ui/button';
 import { Field, Refusal, TextArea } from '@/components/ui/field';
 import {
@@ -44,6 +45,8 @@ export function ListingPanel({
   position: Position;
 }) {
   const [open, setOpen] = useState(false);
+  /** Which listed Part's own record is being worked on, if any. One at a time. */
+  const [working, setWorking] = useState<string | null>(null);
   const [part, setPart] = useState(EMPTY);
   const [quantity, setQuantity] = useState('');
   const [drawn, setDrawn] = useState(true);
@@ -94,31 +97,50 @@ export function ListingPanel({
       {listings.data && listings.data.listings.length > 0 && (
         <ul className="mt-6 flex flex-col border-t border-line">
           {listings.data.listings.map((listing) => (
-            <li
-              key={listing.id}
-              className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3"
-            >
-              <p className="text-pretty">
-                {listing.part.nameEn ?? listing.part.nameIt}
-                {listing.part.catalogNumber !== null && (
-                  <span className="tabular ml-4 text-sm text-muted">
-                    {listing.part.catalogNumber}
-                  </span>
-                )}
-                <span className="ml-4 text-2xs text-faint uppercase">
-                  {listing.drawn ? 'Drawn' : 'Not drawn'}
-                  {listing.quantityPerCar !== null && (
-                    <span className="tabular"> · ×{listing.quantityPerCar}</span>
+            <li key={listing.id} className="border-b border-line py-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                <p className="text-pretty">
+                  {listing.part.nameEn ?? listing.part.nameIt}
+                  {listing.part.catalogNumber !== null && (
+                    <span className="tabular ml-4 text-sm text-muted">
+                      {listing.part.catalogNumber}
+                    </span>
                   )}
+                  <span className="ml-4 text-2xs text-faint uppercase">
+                    {listing.drawn ? 'Drawn' : 'Not drawn'}
+                    {listing.quantityPerCar !== null && (
+                      <span className="tabular"> · ×{listing.quantityPerCar}</span>
+                    )}
+                  </span>
+                </p>
+                <span className="flex items-center gap-1">
+                  {/*
+                   * **Opened one Part at a time, and deliberately not always open.** A Position
+                   * carrying two alternatives and three fixings is five Parts, each with three
+                   * lists and a form apiece; laid out at once that is a page an Editor scrolls
+                   * past rather than works in. What is being edited is the component, so it is
+                   * reached from the component.
+                   */}
+                  <Button
+                    variant="ghost"
+                    aria-expanded={working === listing.part.id}
+                    onClick={() => setWorking(working === listing.part.id ? null : listing.part.id)}
+                  >
+                    {working === listing.part.id
+                      ? 'Done with this part'
+                      : 'Fits, equivalents, sources'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(listing.id)}
+                  >
+                    Remove
+                  </Button>
                 </span>
-              </p>
-              <Button
-                variant="ghost"
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(listing.id)}
-              >
-                Remove
-              </Button>
+              </div>
+
+              {working === listing.part.id && <PartRecordEditor part={listing.part} />}
             </li>
           ))}
         </ul>

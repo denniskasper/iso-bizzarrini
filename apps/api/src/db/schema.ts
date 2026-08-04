@@ -1,7 +1,9 @@
+import type { Currency, EquivalentKind, SourceCondition } from '@ricambi/contracts';
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  date,
   doublePrecision,
   index,
   integer,
@@ -12,6 +14,15 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+
+/**
+ * A fixed set of values written into a check constraint, from the same list the application
+ * validates against — so a fifth kind of Equivalent cannot be accepted by one and refused by the
+ * other. The values are literals in this file and never anything a request carries.
+ */
+function oneOf(values: readonly string[]) {
+  return sql.raw(values.map((value) => `'${value}'`).join(', '));
+}
 
 /**
  * A Model is a vehicle as the factory catalogs distinguish them — brand, model, series and
@@ -306,8 +317,164 @@ export const listings = pgTable(
   ],
 );
 
+/**
+ * A Fitment says a Part fits a Model, in the words of whoever knew it.
+ *
+ * **The qualifier is free text and nothing ever parses it** — *"1963–64"*, *"from chassis #310"*,
+ * *"late"*. Structured date and chassis ranges were considered and deliberately rejected (spec,
+ * Out of Scope): they demand a precision nobody has, and every half-known break that did not fit
+ * the shape would be dropped on the way in. The member reads the qualification and judges
+ * compatibility themselves.
+ *
+ * One row per pair. A Part fits a car or it does not, and the qualifier is *how* — two rows for
+ * one car would be the archive answering "does this fit my Grifo" twice, differently.
+ */
+export const fitments = pgTable(
+  'fitments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+    modelId: uuid('model_id')
+      .notNull()
+      .references(() => models.id, { onDelete: 'cascade' }),
+    /** As it was written. Null where the Part fits the car without qualification. */
+    qualifier: text('qualifier'),
+  },
+  (table) => [
+    unique('fitments_part_id_model_id_unique').on(table.partId, table.modelId),
+    index('fitments_part_id_index').on(table.partId),
+  ],
+);
+
+/**
+ * The four kinds of Equivalent, **in the order a restorer reads them**: the supplier who made the
+ * original, then another manufacturer's number, then a standard anybody sells, then a car to go
+ * and find one in. This list is the archive's single answer to what the four are — the check
+ * constraint, the request validation and the reading order are all it.
+ */
+export const EQUIVALENT_KINDS = [
+  'oe-supplier',
+  'oem',
+  'industry-standard',
+  'donor-vehicle',
+] as const satisfies readonly EquivalentKind[];
+
+/**
+ * Another way to obtain what a Part does — **the single most valuable content this archive will
+ * hold**, since the original is usually unobtainable and the equivalent usually is not.
+ *
+ * **Rows, and therefore unbounded.** The previous implementation of this product had two columns
+ * for cross-references, so a Part with six known ones kept two; nothing here can lose a fact for
+ * want of a slot to put it in.
+ *
+ * `reference` is nullable **on purpose and not as laxity**: a Donor Vehicle usually has none,
+ * because often nobody knows what the other manufacturer called the same component, and the car
+ * alone is what sends somebody to a scrapyard with something to look for.
+ */
+export const equivalents = pgTable(
+  'equivalents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<EquivalentKind>().notNull(),
+    /** Who or what it is of — *Girling*, *SKF*, *DIN 934*, *Fiat 124 Coupé*. */
+    maker: text('maker').notNull(),
+    /** The number to quote, where anybody knows it. */
+    reference: text('reference'),
+    note: text('note'),
+  },
+  (table) => [
+    unique('equivalents_reference_unique').on(
+      table.partId,
+      table.kind,
+      table.maker,
+      table.reference,
+    ),
+    // And the same rule where there is no reference, which the constraint above cannot reach:
+    // Postgres counts two NULLs as different, so without this one donor vehicle recorded twice
+    // would print twice with nothing whatever to tell the two apart.
+    uniqueIndex('equivalents_unreferenced_unique')
+      .on(table.partId, table.kind, table.maker)
+      .where(sql`${table.reference} is null`),
+    index('equivalents_part_id_index').on(table.partId),
+    check('equivalents_kind_is_one_of_four', sql`${table.kind} in (${oneOf(EQUIVALENT_KINDS)})`),
+  ],
+);
+
+/** What a Source is offering. A restorer's decision changes completely depending on which. */
+export const SOURCE_CONDITIONS = [
+  'new-old-stock',
+  'used',
+  'reproduction',
+] as const satisfies readonly SourceCondition[];
+
+/** Where these cars actually trade. Fixed, so nothing carries a currency nobody sells in. */
+export const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'] as const satisfies readonly Currency[];
+
+/**
+ * Somewhere a Part has actually been available, and what it cost when anybody last looked.
+ *
+ * **The price and its observed date are one fact, and the check constraint is what makes that
+ * true.** A price without the date it was seen is how an archive misleads somebody by accident:
+ * a figure from 2011 printed today reads as this morning's. The rule is enforced here rather
+ * than by whoever builds the page, because there will be more than one page.
+ *
+ * The amount is in the currency's **minor unit** — `25000` is €250.00 — so no price is ever a
+ * float and no rounding happens anywhere between the Editor's keyboard and the screen.
+ *
+ * **Nothing here is unique, deliberately.** The same shop at two prices on two dates is a price
+ * history, which is exactly what a member wants when they are trying to work out whether a
+ * figure has moved.
+ */
+export const sources = pgTable(
+  'sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    url: text('url').notNull(),
+    /** Null where the offer did not say, which the screen prints rather than guessing at. */
+    condition: text('condition').$type<SourceCondition>(),
+    /** In the currency's minor unit. Never a fraction, never a float. */
+    priceAmount: integer('price_amount'),
+    priceCurrency: text('price_currency').$type<Currency>(),
+    /** The date the price above was seen. There is no price without it. */
+    observedOn: date('observed_on', { mode: 'string' }),
+    note: text('note'),
+  },
+  (table) => [
+    index('sources_part_id_index').on(table.partId),
+    check(
+      'sources_condition_is_one_of_three',
+      sql`${table.condition} is null or ${table.condition} in (${oneOf(SOURCE_CONDITIONS)})`,
+    ),
+    check(
+      'sources_currency_is_tradeable',
+      sql`${table.priceCurrency} is null or ${table.priceCurrency} in (${oneOf(CURRENCIES)})`,
+    ),
+    check(
+      'sources_price_is_an_amount',
+      sql`${table.priceAmount} is null or ${table.priceAmount} > 0`,
+    ),
+    // **The rule the whole thing turns on.** All three together, or none of them: a price cannot
+    // exist here without the date it was seen, so no screen can render one without it.
+    check(
+      'sources_price_carries_its_date',
+      sql`(${table.priceAmount} is null and ${table.priceCurrency} is null and ${table.observedOn} is null)
+       or (${table.priceAmount} is not null and ${table.priceCurrency} is not null and ${table.observedOn} is not null)`,
+    ),
+  ],
+);
+
 export const modelsRelations = relations(models, ({ many }) => ({
   tavole: many(tavole),
+  fitments: many(fitments),
 }));
 
 export const tavoleRelations = relations(tavole, ({ one, many }) => ({
@@ -326,6 +493,22 @@ export const positionsRelations = relations(positions, ({ one, many }) => ({
 
 export const partsRelations = relations(parts, ({ many }) => ({
   listings: many(listings),
+  fitments: many(fitments),
+  equivalents: many(equivalents),
+  sources: many(sources),
+}));
+
+export const fitmentsRelations = relations(fitments, ({ one }) => ({
+  part: one(parts, { fields: [fitments.partId], references: [parts.id] }),
+  model: one(models, { fields: [fitments.modelId], references: [models.id] }),
+}));
+
+export const equivalentsRelations = relations(equivalents, ({ one }) => ({
+  part: one(parts, { fields: [equivalents.partId], references: [parts.id] }),
+}));
+
+export const sourcesRelations = relations(sources, ({ one }) => ({
+  part: one(parts, { fields: [sources.partId], references: [parts.id] }),
 }));
 
 export const listingsRelations = relations(listings, ({ one }) => ({
@@ -362,3 +545,9 @@ export type PartRow = typeof parts.$inferSelect;
 export type NewPartRow = typeof parts.$inferInsert;
 export type ListingRow = typeof listings.$inferSelect;
 export type NewListingRow = typeof listings.$inferInsert;
+export type FitmentRow = typeof fitments.$inferSelect;
+export type NewFitmentRow = typeof fitments.$inferInsert;
+export type EquivalentRow = typeof equivalents.$inferSelect;
+export type NewEquivalentRow = typeof equivalents.$inferInsert;
+export type SourceRow = typeof sources.$inferSelect;
+export type NewSourceRow = typeof sources.$inferInsert;
