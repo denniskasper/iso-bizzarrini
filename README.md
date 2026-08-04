@@ -32,6 +32,12 @@ is one of Search's own rules implemented early. Search should absorb it rather t
 it — two implementations of one matching rule is exactly the inconsistency this product exists to
 remove.
 
+**[26](.scratch/ricambi/issues/26-keep-alive-and-a-reliable-browser-seam.md) is unblocked and
+worth doing before the suite is trusted in CI.** The API takes Node's five-second keep-alive
+default, which races any client that pools connections — Playwright's does, and so does Caddy in
+front of the real deployment. It surfaced as two `socket hang up` failures on different tests in
+one sitting; it is a production defect the browser seam happens to be reporting.
+
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
 | 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
@@ -59,6 +65,7 @@ remove.
 | 23 | [Category filters](.scratch/ricambi/issues/23-category-filters.md) | Not started | `ready-for-agent` | 03 |
 | 24 | [Platform legal pages and data-protection records](.scratch/ricambi/issues/24-platform-legal-pages-and-gdpr-records.md) | Not started | `ready-for-agent` | 15, 21 |
 | 25 | [Correcting a Part and its Listings](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) | Done | `done` | 06 |
+| 26 | [Keep-alive, and a browser seam that does not flake](.scratch/ricambi/issues/26-keep-alive-and-a-reliable-browser-seam.md) | Not started | `ready-for-agent` | — |
 
 **Ticket 25 is numbered last because it was written after 06 landed**, taking the next free number
 rather than a place in the order. It closed the two trapdoors 06 left behind — a Part with no
