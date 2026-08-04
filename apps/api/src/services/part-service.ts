@@ -1,13 +1,26 @@
-import type { NewPartRequest, PartListing, TavolaListing } from '@ricambi/contracts';
+import type {
+  FoundPart,
+  NewPartRequest,
+  PartListing,
+  PartResponse,
+  PartLookupResponse,
+  TavolaListing,
+} from '@ricambi/contracts';
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError } from '../http/errors.js';
-import type { NewListingRow } from '../db/schema.js';
+import type { ListingRow, NewListingRow } from '../db/schema.js';
 import type { PartRecordRows } from '../repositories/part-record-repository.js';
-import type { ElsewhereRow, PartRepository } from '../repositories/part-repository.js';
+import type { ElsewhereRow, ListedOnRow, PartRepository } from '../repositories/part-repository.js';
 import type { PositionRepository } from '../repositories/position-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
 import type { PartRecordService } from './part-record-service.js';
-import { toPart, toPartListing, toTavolaListing } from './catalog-view.js';
+import {
+  toListedOn,
+  toPart,
+  toPartInFull,
+  toPartListing,
+  toTavolaListing,
+} from './catalog-view.js';
 
 /**
  * What sits at a number on a drawing.
@@ -40,12 +53,56 @@ export interface NewListing {
   part?: NewPart | undefined;
 }
 
+/** Correcting one: the three fields a Listing has of its own, all of them sent every time. */
+export interface CorrectedListing {
+  positionId: string | null;
+  quantityPerCar: number | null;
+  drawn: boolean;
+}
+
+/**
+ * **How many matches an Editor's lookup reports**, and the reason there is a limit at all: a
+ * prefix of a name is a broad thing to type, and a list of every washer in the archive is not an
+ * answer. What is held back is reported rather than silently dropped, because a truncated list
+ * read as a complete one is how a second copy of a Part gets recorded.
+ */
+const MOST_MATCHES_REPORTED = 20;
+
+/**
+ * Rows that each name a Part, gathered under the Part they name.
+ *
+ * Every query here reads a **set** of Part ids at once — a Position carrying two alternatives and
+ * three fixings is five Parts, and five round trips to answer one click is how a screen becomes
+ * slow without anybody deciding to make it slow. What comes back is flat, and what reads it wants
+ * it per Part; this is that turn, written once for both of the questions that ask it.
+ */
+function byPart<Row extends { partId: string }>(rows: Row[]): Map<string, Row[]> {
+  const gathered = new Map<string, Row[]>();
+  for (const row of rows) {
+    const found = gathered.get(row.partId);
+    if (found) {
+      found.push(row);
+    } else {
+      gathered.set(row.partId, [row]);
+    }
+  }
+  return gathered;
+}
+
 export interface PartService {
   listingsAt(positionId: string): Promise<PartListing[]>;
   /** The whole sheet's text, for a member working from the list rather than from the drawing. */
   listingsOn(tavolaId: string): Promise<TavolaListing[]>;
   record(tavolaId: string, listing: NewListing): Promise<PartListing>;
+  correctListing(listingId: string, listing: CorrectedListing): Promise<PartListing>;
   removeListing(listingId: string): Promise<void>;
+
+  /** The whole Part, and every sheet a correction to it would reach. */
+  readPart(partId: string): Promise<PartResponse>;
+  correctPart(partId: string, part: NewPart): Promise<PartResponse>;
+  /** Refused while anything still lists it — the Listings go first, deliberately. */
+  removePart(partId: string): Promise<void>;
+  lookUpParts(query: string): Promise<PartLookupResponse>;
 }
 
 export function createPartService(dependencies: {
@@ -73,18 +130,15 @@ export function createPartService(dependencies: {
     partIds: string[],
     exceptTavolaId: string,
   ): Promise<Map<string, ElsewhereRow[]>> {
-    const rows = await partRepository.listElsewhere(partIds, exceptTavolaId);
+    return byPart(await partRepository.listElsewhere(partIds, exceptTavolaId));
+  }
 
-    const byPart = new Map<string, ElsewhereRow[]>();
-    for (const row of rows) {
-      const found = byPart.get(row.partId);
-      if (found) {
-        found.push(row);
-      } else {
-        byPart.set(row.partId, [row]);
-      }
-    }
-    return byPart;
+  /**
+   * The sheets a set of Parts is listed on, read once for the whole set — the same argument
+   * `elsewhereFor` makes, for the question an Editor's lookup asks of every Part it found.
+   */
+  async function listedOnFor(partIds: string[]): Promise<Map<string, ListedOnRow[]>> {
+    return byPart(await partRepository.listListedOn(partIds));
   }
 
   /** The Position a Listing names, checked against the sheet it is being recorded on. */
@@ -119,15 +173,60 @@ export function createPartService(dependencies: {
   }
 
   /**
-   * What the database refused, said in words an Editor can act on.
-   *
-   * **Both refusals are read after the fact rather than checked before it**, because the database
-   * is what decides: two Editors typing the same Catalog Number at the same moment cannot both
-   * pass a check and both write. The Catalog Number one carries the Part that already holds the
-   * number, since the collision is how the archive deduplicates and an Editor cannot merge into
-   * something they have not been shown (ADR 0001).
+   * The Part, or the plain refusal. Nothing is correctable or removable against something gone.
    */
-  async function refusalFor(error: unknown, listing: NewListing): Promise<never> {
+  async function partThatExists(partId: string) {
+    const part = await partRepository.findPart(partId);
+    if (!part) {
+      throw new NotFoundError('No such Part.');
+    }
+    return part;
+  }
+
+  /**
+   * **The whole Part, and every sheet a correction to it would reach.**
+   *
+   * The two are read together because the second is what makes the first safe to change: a Part
+   * is one thing (ADR 0001), so correcting it corrects it at every number it sits at on every
+   * drawing — which is invisible from a screen showing one Position.
+   */
+  async function wholePart(partId: string): Promise<PartResponse> {
+    const part = await partThatExists(partId);
+    const [records, listedOn] = await Promise.all([
+      partRecordService.recordsFor([partId]),
+      partRepository.listListedOn([partId]),
+    ]);
+
+    return {
+      part: toPartInFull(part, records.get(partId) ?? nothingRecorded),
+      listedOn: listedOn.map(toListedOn),
+    };
+  }
+
+  /** One Listing as it will be read: the Part, what fits it, and wherever else it is. */
+  async function readListing(row: ListingRow): Promise<PartListing> {
+    const part = await partThatExists(row.partId);
+    const [elsewhere, records] = await Promise.all([
+      elsewhereFor([part.id], row.tavolaId),
+      partRecordService.recordsFor([part.id]),
+    ]);
+
+    return toPartListing(
+      { ...row, part },
+      records.get(part.id) ?? nothingRecorded,
+      elsewhere.get(part.id) ?? [],
+    );
+  }
+
+  /**
+   * What the database refused about *where* a Part sits, said in words an Editor can act on —
+   * and nothing at all if this refusal was about something else.
+   *
+   * Read after the fact rather than checked before it, because the database is what decides: two
+   * Editors placing the same Part at one number at the same moment cannot both pass a check and
+   * both write.
+   */
+  function refuseAListingCollision(error: unknown): void {
     if (violates(error, 'listings_part_id_tavola_id_position_id_unique')) {
       throw new ConflictError('That Part is already listed at this Position.');
     }
@@ -137,8 +236,17 @@ export function createPartService(dependencies: {
     if (violates(error, 'listings_unplaced_part_unique')) {
       throw new ConflictError('That Part is already listed on this Tavola, without a Position.');
     }
+  }
 
-    const number = listing.part?.catalogNumber;
+  /**
+   * **The refusal that is the deduplication mechanism rather than an obstacle** (ADR 0001).
+   *
+   * It carries the Part that already holds the number, because an Editor cannot merge into
+   * something they have not been shown — and it is the same refusal whether the number was typed
+   * onto a new Part or edited onto one the archive already had. The rule belongs to the archive,
+   * not to the form.
+   */
+  async function catalogNumberRefusal(error: unknown, number: string | null): Promise<never> {
     if (violates(error, 'parts_catalog_number_unique') && number) {
       const existing = await partRepository.findPartByCatalogNumber(number);
       throw new ConflictError(
@@ -148,6 +256,11 @@ export function createPartService(dependencies: {
     }
 
     throw error;
+  }
+
+  async function refusalFor(error: unknown, listing: NewListing): Promise<never> {
+    refuseAListingCollision(error);
+    return catalogNumberRefusal(error, listing.part?.catalogNumber ?? null);
   }
 
   return {
@@ -210,12 +323,117 @@ export function createPartService(dependencies: {
       );
     },
 
+    /**
+     * A Listing an Editor got wrong: the quantity, the drawn flag, or the number it sits at.
+     *
+     * **Which Part it is is not among them.** Correcting the Part is `correctPart`, and a
+     * Listing that could be pointed at a different Part would be a way of changing two records
+     * with one press. What can change is where on *this* sheet it sits — including nowhere on it,
+     * which is the state a Position removed out from under it leaves it in.
+     */
+    async correctListing(listingId, corrected) {
+      const listing = await partRepository.findListing(listingId);
+      if (!listing) {
+        throw new NotFoundError('No such Listing.');
+      }
+      if (corrected.positionId !== null) {
+        await positionOn(listing.tavolaId, corrected.positionId);
+      }
+
+      const updated = await partRepository
+        .updateListing(listingId, corrected)
+        .catch((error: unknown) => {
+          refuseAListingCollision(error);
+          throw error;
+        });
+
+      // It was there when this began, so it going missing now means another Editor removed it.
+      if (!updated) {
+        throw new NotFoundError('No such Listing.');
+      }
+      return readListing(updated);
+    },
+
     async removeListing(listingId) {
       if (!(await partRepository.removeListing(listingId))) {
         throw new NotFoundError('No such Listing.');
       }
       // The Part stays. It is a component in its own right (ADR 0001), and it may well be
       // listed on five other drawings — removing one appearance is not removing the thing.
+    },
+
+    readPart: wholePart,
+
+    /**
+     * **Correcting the Part, which corrects it wherever it is listed.** That is ADR 0001
+     * doing what it is for rather than a side effect, and it is why the answer carries the sheets
+     * it reached.
+     *
+     * All nine fields arrive every time, so a value can be cleared as well as changed — a Part
+     * whose Catalog Number turns out to belong to something else has to be able to go back to
+     * having none, since "this Part has no factory number" is a legitimate state and not a gap.
+     */
+    async correctPart(partId, part) {
+      const corrected = await partRepository
+        .updatePart(partId, part)
+        .catch((error: unknown) => catalogNumberRefusal(error, part.catalogNumber));
+
+      if (!corrected) {
+        throw new NotFoundError('No such Part.');
+      }
+      return wholePart(partId);
+    },
+
+    /**
+     * **Refused while anything still lists it, and that is the load-bearing part.**
+     *
+     * The Listings cascade from the Part, so removing one that is still listed would take an
+     * evening's work off every sheet it appears on — including the ones the Editor is not looking
+     * at and would never find out about. Making the Listings go first means each of those sheets
+     * has been in front of somebody.
+     */
+    async removePart(partId) {
+      await partThatExists(partId);
+
+      // The write carries its own condition, so this is one statement and not a count acted on
+      // afterwards: a Listing recorded by another Editor between the two would otherwise be
+      // destroyed by the very rule that exists to protect it.
+      if (await partRepository.removePart(partId)) {
+        return;
+      }
+
+      // It was there a moment ago and it did not go, so say which of the two reasons that was.
+      const listed = await partRepository.countListings(partId);
+      if (listed === 0) {
+        throw new NotFoundError('No such Part.');
+      }
+      throw new ConflictError(
+        listed === 1
+          ? 'This Part is still listed on a drawing. Remove that listing first.'
+          : `This Part is still listed in ${listed} places. Remove those listings first — nothing here removes work from a sheet you are not looking at.`,
+      );
+    },
+
+    /**
+     * **An Editor's tool for listing a Part the archive already has**, and the only thing that
+     * can see a Part listed nowhere.
+     *
+     * One more than will be reported is read, so that a capped list can say it is one. An Editor
+     * told "no such Part" by a truncated answer records a second copy of the Part the answer
+     * did not reach.
+     */
+    async lookUpParts(query) {
+      const found = await partRepository.lookUpParts(query, MOST_MATCHES_REPORTED + 1);
+      const reported = found.slice(0, MOST_MATCHES_REPORTED);
+
+      const listedOn = await listedOnFor(reported.map((part) => part.id));
+      return {
+        parts: reported.map((row): FoundPart => ({
+          part: toPart(row),
+          listedOn: (listedOn.get(row.id) ?? []).map(toListedOn),
+        })),
+        more: found.length > reported.length,
+      };
     },
   };
 }

@@ -15,19 +15,21 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [25](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md)** — correcting a
-Part. Ticket 11 now says which numbers have no Mark and which have no Listing, so an Editor can
-find the work; what they still cannot do is fix any of it. There is no way to change a Part after
-it is recorded, so a mistyped Description is undone by removing the Listing and entering the
-component again — and ticket 20 is blocked on this outright.
+**Next up: [10](.scratch/ricambi/issues/10-part-photographs.md) and
+[12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)** — the rest of M2's editor tooling.
+Recording an archive and correcting one both work now, and what is left of the evening's work an
+Editor actually does is photographs and pasting a catalog page in one go rather than in two
+hundred forms. Ticket 10 also unblocks 19, which is the whole of M4.
 
-Four others are unblocked and independent of it:
-[10](.scratch/ricambi/issues/10-part-photographs.md) and
-[12](.scratch/ricambi/issues/12-bulk-paste-and-export.md) are the rest of M2's editor tooling, and
+Two others are unblocked and independent of them:
 [22](.scratch/ricambi/issues/22-search.md) and
 [23](.scratch/ricambi/issues/23-category-filters.md) are M5. Twenty-three's blocker, ticket 03, is
 open only on boxes that need a person and a real scan rather than code (see below), and everything
-Category filters read from is built.
+Category filters read from is built. **Ticket 22 has a debt waiting for it**: ticket 25 built an
+Editor's lookup that matches a Catalog Number regardless of the spacing the catalog prints, which
+is one of Search's own rules implemented early. Search should absorb it rather than stand beside
+it — two implementations of one matching rule is exactly the inconsistency this product exists to
+remove.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
@@ -55,13 +57,13 @@ Category filters read from is built.
 | 22 | [Search](.scratch/ricambi/issues/22-search.md) | Not started | `ready-for-agent` | 08 |
 | 23 | [Category filters](.scratch/ricambi/issues/23-category-filters.md) | Not started | `ready-for-agent` | 03 |
 | 24 | [Platform legal pages and data-protection records](.scratch/ricambi/issues/24-platform-legal-pages-and-gdpr-records.md) | Not started | `ready-for-agent` | 15, 21 |
-| 25 | [Correcting a Part and its Listings](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) | Not started | `ready-for-agent` | 06 |
+| 25 | [Correcting a Part and its Listings](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) | Done | `done` | 06 |
 
-**Ticket 25 is numbered last and is pickable now.** It was written after 06 landed, so it takes
-the next free number rather than a place in the order — but it is blocked only by 06, and three
-tickets that *are* in order already assume it exists (19, 20 and the spec's own Out of Scope all
-say corrections reach the record through an Editor's hands, which today they cannot). Ticket 20 is
-blocked on it.
+**Ticket 25 is numbered last because it was written after 06 landed**, taking the next free number
+rather than a place in the order. It closed the two trapdoors 06 left behind — a Part with no
+Catalog Number could be listed exactly once, and a Part whose last Listing went became invisible
+while still holding its number — and it unblocked ticket 20, which had assumed all along that
+corrections reach the record through an Editor's hands.
 
 Ticket 02's one open box — the practice system *deployed* alongside production, behind the same
 sign-in gate — is carried by [ticket 14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md),

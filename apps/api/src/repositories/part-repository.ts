@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne, notExists, or, sql } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
   listings,
@@ -50,9 +50,45 @@ export interface ListingOnTavola extends ListingWithPart {
   position: PositionRow | null;
 }
 
+/**
+ * A sheet a Part is listed on. **One row per Tavola however many numbers the Part sits at on
+ * it**, which is what tells an Editor how far a correction to the Part reaches — a washer at four
+ * numbers on one drawing changes one drawing.
+ */
+export interface ListedOnRow {
+  partId: string;
+  tavola: TavolaRow;
+  model: ModelRow;
+}
+
+/** The editable fields of a Part: the nine an Editor typed, and never its identity. */
+export type PartFields = Omit<NewPartRow, 'id'>;
+
+/** The three fields a Listing has of its own. Which Part it is remains what it was. */
+export type ListingFields = Pick<NewListingRow, 'positionId' | 'quantityPerCar' | 'drawn'>;
+
 export interface PartRepository {
   findPart(id: string): Promise<PartRow | null>;
   findPartByCatalogNumber(catalogNumber: string): Promise<PartRow | null>;
+  /**
+   * **An Editor's lookup, and deliberately not Search.** A Catalog Number matched exactly with
+   * the printed spacing ignored, or a prefix of either name — enough to find a Part in order to
+   * list it somewhere else. Ticket 22 owns Search and reaches further; when it lands it should
+   * absorb this rather than stand beside it, because two implementations of "match a number
+   * regardless of spacing" is exactly the inconsistency this product exists to remove.
+   */
+  lookUpParts(query: string, limit: number): Promise<PartRow[]>;
+  /** Correcting the Part itself, which corrects it wherever it is listed (ADR 0001). */
+  updatePart(id: string, fields: PartFields): Promise<PartRow | null>;
+  /**
+   * Removing the Part, **and only while nothing lists it** — a condition this write carries
+   * rather than trusting a caller to have checked. `false` means it did not go, which is either
+   * a Part that was never there or one something still lists; telling those apart is a question
+   * about how to say no, and belongs to whoever is answering.
+   */
+  removePart(id: string): Promise<boolean>;
+  /** How many Listings hold this Part — what stands between it and being removed. */
+  countListings(partId: string): Promise<number>;
   /**
    * A new Part and its first Listing, **in one transaction**.
    *
@@ -71,8 +107,36 @@ export interface PartRepository {
   listOnTavola(tavolaId: string): Promise<ListingOnTavola[]>;
   /** Every other Tavola these Parts are listed on, in one query rather than one a Part. */
   listElsewhere(partIds: string[], exceptTavolaId: string): Promise<ElsewhereRow[]>;
+  /** Every Tavola these Parts are listed on, each named once. */
+  listListedOn(partIds: string[]): Promise<ListedOnRow[]>;
   addListing(row: NewListingRow): Promise<ListingRow>;
+  findListing(id: string): Promise<ListingRow | null>;
+  /**
+   * Correcting a Listing answers with the row **as it now is**, and never with a bare boolean:
+   * what this write has to produce afterwards is the Listing as it will be read, and the row is
+   * the only thing that knows which Part and which sheet that is.
+   */
+  updateListing(id: string, fields: ListingFields): Promise<ListingRow | null>;
   removeListing(id: string): Promise<boolean>;
+}
+
+/**
+ * A Catalog Number with the catalog's own spacing taken out of it, said in SQL.
+ *
+ * The catalog prints `260 03 150`; the bracket in somebody's hand is stamped `26003150`. Both are
+ * the same number and an Editor should not have to guess which the archive was given, so both
+ * sides of the comparison are squashed. It is deliberately **not** indexed: this archive holds a
+ * few thousand Parts, and the lookup is a debt ticket 22 is meant to absorb rather than a surface
+ * to build on.
+ */
+const squashedCatalogNumber = sql`lower(regexp_replace(coalesce(${parts.catalogNumber}, ''), '[[:space:]]', '', 'g'))`;
+
+/**
+ * What was typed, as a prefix pattern — with `%` and `_` reduced to the characters they are.
+ * Somebody looking for a part whose name has a percent sign in it is looking for that sign.
+ */
+function asPrefixPattern(query: string): string {
+  return `${query.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
 export function createPartRepository(db: DbSession): PartRepository {
@@ -104,6 +168,72 @@ export function createPartRepository(db: DbSession): PartRepository {
         .where(eq(parts.catalogNumber, catalogNumber))
         .limit(1);
       return row ?? null;
+    },
+
+    async lookUpParts(query, limit) {
+      const squashed = query.replace(/\s+/g, '').toLowerCase();
+      const byNumber = sql`${squashedCatalogNumber} = ${squashed}`;
+      const prefix = asPrefixPattern(query);
+
+      return (
+        db
+          .select()
+          .from(parts)
+          .where(
+            or(
+              byNumber,
+              sql`${parts.nameEn} ilike ${prefix}`,
+              sql`${parts.nameIt} ilike ${prefix}`,
+            ),
+          )
+          // **The exact number first.** At most one Part can hold it, and an Editor who typed a
+          // number typed the thing they already know; a list that buried it under everything whose
+          // name happens to start the same way would be answering a question nobody asked.
+          .orderBy(
+            sql`case when ${byNumber} then 0 else 1 end`,
+            sql`${parts.catalogNumber} asc nulls last`,
+            sql`${parts.nameEn} asc nulls last`,
+            asc(parts.id),
+          )
+          .limit(limit)
+      );
+    },
+
+    async updatePart(id, fields) {
+      const [updated] = await db.update(parts).set(fields).where(eq(parts.id, id)).returning();
+      return updated ?? null;
+    },
+
+    async removePart(id) {
+      const removed = await db
+        .delete(parts)
+        .where(
+          and(
+            eq(parts.id, id),
+            // **The guard is in the statement, not in a read before it.** `listings.partId`
+            // cascades from here, so a Part deleted while listed takes an evening's work off
+            // sheets nobody is looking at — and a count read first, then acted on, leaves a
+            // window in which a Listing recorded by another Editor is silently destroyed. One
+            // statement cannot lose that race: the row goes only if nothing listed it at the
+            // instant it went.
+            notExists(
+              db
+                .select({ listed: sql`1` })
+                .from(listings)
+                .where(eq(listings.partId, id)),
+            ),
+          ),
+        )
+        .returning();
+      return removed.length > 0;
+    },
+
+    async countListings(partId) {
+      const [row] = await db
+        .select({ listings: count() })
+        .from(listings)
+        .where(eq(listings.partId, partId));
+      return row?.listings ?? 0;
     },
 
     addPartWithListing(part, listing) {
@@ -187,12 +317,51 @@ export function createPartRepository(db: DbSession): PartRepository {
       );
     },
 
+    async listListedOn(partIds) {
+      if (partIds.length === 0) {
+        return [];
+      }
+
+      const rows = await db
+        // **Distinct**, because the question is which *sheets* a correction reaches: a Part at
+        // four numbers on one drawing is on one drawing, and four rows here would be an Editor
+        // told a correction changes four sheets when it changes one.
+        .selectDistinct({ partId: listings.partId, tavola: tavole, model: models })
+        .from(listings)
+        .innerJoin(tavole, eq(listings.tavolaId, tavole.id))
+        .innerJoin(models, eq(tavole.modelId, models.id))
+        .where(inArray(listings.partId, partIds))
+        // The car first, then that car's catalog in the order it is printed.
+        .orderBy(
+          asc(models.brand),
+          asc(models.name),
+          sql`${tavole.numberSort} asc nulls last`,
+          asc(tavole.number),
+        );
+
+      return rows;
+    },
+
     async addListing(row) {
       const [listing] = await db.insert(listings).values(row).returning();
       if (!listing) {
         throw new Error('Inserting a Listing returned nothing.');
       }
       return listing;
+    },
+
+    async findListing(id) {
+      const [row] = await db.select().from(listings).where(eq(listings.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async updateListing(id, fields) {
+      const [updated] = await db
+        .update(listings)
+        .set(fields)
+        .where(eq(listings.id, id))
+        .returning();
+      return updated ?? null;
     },
 
     async removeListing(id) {

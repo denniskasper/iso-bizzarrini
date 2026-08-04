@@ -49,6 +49,42 @@ export async function expectTheSheetIsDrawn(drawing: Locator): Promise<void> {
 }
 
 /**
+ * Circles placed on the sheet the way an Editor places them — **one at a time, each waited for.**
+ *
+ * The marking tool advances the number in the field when the *archive answers*, not when the
+ * click happens: a refused click must not quietly move an Editor's place in the catalog on. So a
+ * test that clicks again before the first answer arrives sends the same number twice and gets two
+ * circles at one number — which is not what it meant to arrange, and which shows up much later as
+ * a strict-mode violation in a test that was not about marking at all.
+ *
+ * Waiting for each circle is what makes the arrangement mean what it says. It is not papering
+ * over a product bug: a real Editor clicking twice inside one round trip gets two circles at one
+ * number, and that is `held`'s behaviour arrived at by accident rather than by asking — worth its
+ * own ticket, and deliberately not decided here.
+ *
+ * The tool has to be on already. Points are fractions of the frame, as everything on a scan is.
+ */
+export async function placeMarks(
+  page: Page,
+  points: { x: number; y: number; number?: string }[],
+): Promise<void> {
+  const frame = page.getByTestId('drawing-frame');
+  const box = await frame.boundingBox();
+  if (!box) {
+    throw new Error('The drawing has no frame.');
+  }
+
+  const already = await page.getByTestId('drawing-mark').count();
+  for (const [index, point] of points.entries()) {
+    if (point.number !== undefined) {
+      await page.getByTestId('next-number').fill(point.number);
+    }
+    await frame.click({ position: { x: box.width * point.x, y: box.height * point.y } });
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(already + index + 1);
+  }
+}
+
+/**
  * A drawing of this test's own, opened and ready to be marked up.
  *
  * **Tests that write need a sheet nobody else is writing on.** This suite runs its files in

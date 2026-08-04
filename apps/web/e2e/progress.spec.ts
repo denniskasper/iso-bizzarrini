@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn, openFirstDrawing, openGrifo } from './support/archive.js';
+import {
+  markFor,
+  openADrawingOfYourOwn,
+  openFirstDrawing,
+  openGrifo,
+  placeMarks,
+} from './support/archive.js';
 import { signIn } from './support/gate.js';
 
 /**
@@ -125,8 +131,10 @@ test.describe('what is left on one sheet', () => {
 
     // Two numbers, placed the way an Editor places them, and a Part at the first.
     await page.getByRole('button', { name: 'Mark positions' }).click();
-    await frame.click({ position: { x: box.width * 0.3, y: box.height * 0.3 } });
-    await frame.click({ position: { x: box.width * 0.7, y: box.height * 0.6 } });
+    await placeMarks(page, [
+      { x: 0.3, y: 0.3 },
+      { x: 0.7, y: 0.6 },
+    ]);
     await page.getByRole('button', { name: 'Done' }).click();
     await recordAPartAt(page, '1', 'Throttle return spring');
 

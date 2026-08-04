@@ -6,20 +6,20 @@ possible at all, and three later tickets already assume it is.
 
 **Blocked by:** 06 — Parts, Listings, and reading a part from a circle.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] All nine of a Part's fields are editable — both names, Catalog Number, Disegno Origine, Description, Dimensions, Material/Finish, Catalog Note and Note
-- [ ] A Catalog Number can be **added** to a Part that has none, **corrected**, or **cleared** — "this Part has no factory number" must stay expressible
-- [ ] Editing to a Catalog Number another Part already holds is refused the same way entering one is (ADR 0001): the existing Part is surfaced, and it is merge-or-correct
-- [ ] Before saving, the screen says **how many Tavole the edit will change** — a Part is one thing, so correcting it changes every sheet it is listed on at once
-- [ ] A Listing's **quantity per car**, **drawn/undrawn** flag and **Position** are editable
-- [ ] A Part that already exists can be **listed at a new Position** (story 103) without re-describing it
-- [ ] An Editor finds an existing Part by **Catalog Number** (exact, ignoring the printed spacing) or by a **prefix of either name**, and sees which Tavole each is already listed on
-- [ ] That lookup also surfaces Parts **listed nowhere**, so an orphan is findable rather than invisible
-- [ ] A Part can be removed, and removal is **refused while it is still listed** — the Listings go first, so nothing destroys work on a sheet the Editor is not looking at
-- [ ] 06's collision flow stops being a dead end: *List that part here* hands the Editor into editing the Part they merged into, instead of discarding what they had typed
-- [ ] Playwright coverage: a correction reaches a member's screen, a Catalog Number edited into a collision is refused, and a Part listed nowhere can be found and removed
-- [ ] UI and design work uses the `/frontend-design` skill
+- [x] All nine of a Part's fields are editable — both names, Catalog Number, Disegno Origine, Description, Dimensions, Material/Finish, Catalog Note and Note
+- [x] A Catalog Number can be **added** to a Part that has none, **corrected**, or **cleared** — "this Part has no factory number" must stay expressible
+- [x] Editing to a Catalog Number another Part already holds is refused the same way entering one is (ADR 0001): the existing Part is surfaced, and it is **correct-only** — see the Comments, since merging two Parts that both already exist is the operation this ticket defers
+- [x] Before saving, the screen says **how many Tavole the edit will change** — a Part is one thing, so correcting it changes every sheet it is listed on at once
+- [x] A Listing's **quantity per car**, **drawn/undrawn** flag and **Position** are editable
+- [x] A Part that already exists can be **listed at a new Position** (story 103) without re-describing it
+- [x] An Editor finds an existing Part by **Catalog Number** (exact, ignoring the printed spacing) or by a **prefix of either name**, and sees which Tavole each is already listed on
+- [x] That lookup also surfaces Parts **listed nowhere**, so an orphan is findable rather than invisible
+- [x] A Part can be removed, and removal is **refused while it is still listed** — the Listings go first, so nothing destroys work on a sheet the Editor is not looking at
+- [x] 06's collision flow stops being a dead end: *List that part here* hands the Editor into editing the Part they merged into, instead of discarding what they had typed
+- [x] Playwright coverage: a correction reaches a member's screen, a Catalog Number edited into a collision is refused, and a Part listed nowhere can be found and removed
+- [x] UI and design work uses the `/frontend-design` skill
 
 ## Why this exists
 
@@ -73,3 +73,51 @@ offers and carries a review state; an Editor's own change is never one.
 **Locking.** Two Editors correcting one Part at the same moment: last write wins. With a handful of
 Editors that is the honest cost, and it is recorded here so that nobody has to work out later
 whether it was decided or overlooked.
+
+## Comments
+
+**Delivered.** The Part became an addressable thing rather than something only reachable through a
+drawing: `GET`, `PATCH` and `DELETE /api/parts/:partId`, plus `GET /api/parts?q=` for the lookup
+and `PATCH /api/listings/:listingId` for where a Part sits on one sheet. No migration — every
+column this needed already existed, which is the shape ticket 06 chose paying off.
+
+Three decisions worth recording, none of which the ticket settled:
+
+**The refusal on the correction screen offers no merge**, unlike the one recording a Part gets.
+There, merging means listing the existing Part *here*, which is one press and loses nothing. On a
+correction both Parts already exist, and folding them together is the true Part-merge this ticket
+explicitly defers — so the screen says the number belongs to something else and stops, rather than
+offering a button that half does it.
+
+**"Remove" became "Remove from this position".** Once removing a *Part* existed a few pixels away,
+a button that did not say which of the two it meant was a trap: one is undone in a press and the
+other takes an evening's work off drawings nobody is looking at. Removing the Part itself lives
+inside the correction panel, where the archive can refuse it while anything still lists it and say
+why.
+
+**How far a correction reaches is answered by the API, once.** `GET /api/parts/:partId` carries
+`listedOn` — one entry per *Tavola*, not per Listing, since a washer at four numbers on one drawing
+changes one drawing. The alternative was counting distinct sheets out of `elsewhere` in the
+browser, in two places, which is the same rule implemented twice.
+
+**Two things the review caught, both fixed here.** Correcting where a Listing sits re-read only
+the number the Editor was looking at, so a Listing moved from `12` to `44` went on showing at both
+for the thirty seconds the cache holds — `useRereadMovedListing` re-reads every number on the
+sheet, because the one a Listing left is not derivable from where it landed. And removing a Part
+counted its Listings and then deleted, over a foreign key that cascades: a Listing recorded by
+another Editor between the two statements would have been destroyed by the very rule that exists
+to protect it. The condition is now inside the `delete`.
+
+**One thing found on the way, left alone deliberately.** The marking tool advances the number in
+its field when the archive *answers*, not when the click happens — so two clicks inside one round
+trip place two circles at one number. That is `held`'s behaviour arrived at by accident rather
+than by asking, it belongs to ticket 05 rather than here, and it is worth its own ticket. What
+this ticket did was stop the Playwright suite depending on losing that race: `placeMarks` in
+`e2e/support/archive.ts` waits for each circle, which several specs had been getting away with
+only because the machine was fast enough.
+
+**The debt this ticket names is still a debt, and is now real.** The lookup matches a Catalog
+Number with the printed spacing squashed out of it, which is a rule ticket 22 will implement a
+second time unless it absorbs this. The matching lives in `part-repository.findParts` behind one
+method, and there is deliberately no index on the squashed number: a few thousand Parts do not need
+one, and an index would be a surface to build on rather than something to remove.

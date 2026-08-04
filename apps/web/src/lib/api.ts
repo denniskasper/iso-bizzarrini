@@ -1,9 +1,13 @@
 import type {
   ApiErrorBody,
   CategoriesResponse,
+  CorrectListingRequest,
+  CorrectPartRequest,
   EquivalentRequest,
   FitmentRequest,
   ListingResponse,
+  PartResponse,
+  PartLookupResponse,
   NewSourceRequest,
   PartRecordResponse,
   CatalogModel,
@@ -173,8 +177,32 @@ export const api = {
     request<TavolaListingsResponse>(`/tavole/${tavolaId}/listings`),
   createListing: (tavolaId: string, listing: NewListingRequest) =>
     send<ListingResponse>('POST', `/tavole/${tavolaId}/listings`, listing),
+  /** Where it sits on this sheet, how many, and whether the drawing shows it. Never which Part. */
+  correctListing: (listingId: string, listing: CorrectListingRequest) =>
+    send<ListingResponse>('PATCH', `/listings/${listingId}`, listing),
   removeListing: (listingId: string) =>
     request<void>(`/listings/${listingId}`, { method: 'DELETE' }),
+
+  /**
+   * The Part itself — **addressed as the thing it is** rather than through a drawing (ADR 0001),
+   * because correcting a Part corrects it at every number it sits at on every sheet.
+   *
+   * `part` and `correctPart` both answer with the whole Part **and every Tavola it is listed on**,
+   * which is what a screen showing one Position cannot work out for itself and is the fact an
+   * Editor has to be holding before they save rather than after.
+   *
+   * `lookUpParts` is the lookup that makes two things reachable at all: listing a Part the archive
+   * already has when it has no Catalog Number to collide with, and finding a Part listed
+   * **nowhere** — invisible on every screen that reads from a drawing, and still holding a number
+   * the archive would go on refusing to anybody who typed it.
+   */
+  lookUpParts: (query: string) =>
+    request<PartLookupResponse>(`/parts?q=${encodeURIComponent(query)}`),
+  part: (partId: string) => request<PartResponse>(`/parts/${partId}`),
+  correctPart: (partId: string, part: CorrectPartRequest) =>
+    send<PartResponse>('PATCH', `/parts/${partId}`, part),
+  /** Refused while anything still lists it. The Listings go first, deliberately. */
+  removePart: (partId: string) => request<void>(`/parts/${partId}`, { method: 'DELETE' }),
 
   /**
    * What fits a Part, what can be bought instead of it, and where it has been available.
@@ -226,13 +254,17 @@ export type {
   CatalogProvenance,
   Category,
   CatalogNumberConflict,
+  CorrectListingRequest,
+  CorrectPartRequest,
   Currency,
   Equivalent,
   EquivalentKind,
   EquivalentRequest,
   Fitment,
   FitmentRequest,
+  FoundPart,
   ListedElsewhere,
+  ListedOn,
   ListedPart,
   Mark,
   MarkPoint,
@@ -246,6 +278,7 @@ export type {
   Part,
   PartInFull,
   PartListing,
+  PartResponse,
   Position,
   RelatedPosition,
   RelatePositionsRequest,

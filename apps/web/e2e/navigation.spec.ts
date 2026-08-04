@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import { markFor, openADrawingOfYourOwn, openFirstDrawing, placeMarks } from './support/archive.js';
 
 /**
  * Working the drawing both ways round.
@@ -144,15 +144,13 @@ test.describe('going straight to a number', () => {
    */
   test('typing the digits finds the number that carries a suffix', async ({ page }, info) => {
     await openADrawingOfYourOwn(page, `jump-${info.project.name}`);
-    const frame = page.getByTestId('drawing-frame');
-    const box = await boxOf(frame);
 
     // Two numbers off the same digits, placed the way an Editor places them.
     await page.getByRole('button', { name: 'Mark positions' }).click();
-    await page.getByTestId('next-number').fill('210 S');
-    await frame.click({ position: { x: box.width * 0.3, y: box.height * 0.3 } });
-    await page.getByTestId('next-number').fill('211 D');
-    await frame.click({ position: { x: box.width * 0.7, y: box.height * 0.6 } });
+    await placeMarks(page, [
+      { x: 0.3, y: 0.3, number: '210 S' },
+      { x: 0.7, y: 0.6, number: '211 D' },
+    ]);
     await page.getByRole('button', { name: 'Done' }).click();
 
     await page.getByTestId('position-jump').fill('210');

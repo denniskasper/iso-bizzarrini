@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import { markFor, openADrawingOfYourOwn, openFirstDrawing, placeMarks } from './support/archive.js';
 
 /**
  * What belongs with a number, on the screen.
@@ -107,17 +107,14 @@ test.describe('an Editor recording what belongs with a number', () => {
     page,
   }, info) => {
     await openADrawingOfYourOwn(page, `belongs-${info.project.name}`);
-    const frame = page.getByTestId('drawing-frame');
-    const box = await frame.boundingBox();
-    if (!box) {
-      throw new Error('The drawing is not on the page.');
-    }
 
     // Three numbers of this test's own, placed the way an Editor places them.
     await page.getByRole('button', { name: 'Mark positions' }).click();
-    await frame.click({ position: { x: box.width * 0.3, y: box.height * 0.3 } });
-    await frame.click({ position: { x: box.width * 0.5, y: box.height * 0.5 } });
-    await frame.click({ position: { x: box.width * 0.7, y: box.height * 0.7 } });
+    await placeMarks(page, [
+      { x: 0.3, y: 0.3 },
+      { x: 0.5, y: 0.5 },
+      { x: 0.7, y: 0.7 },
+    ]);
     await page.getByRole('button', { name: 'Done' }).click();
 
     // `1` and `2` go in together: the number being read is already picked, and `2` is added.

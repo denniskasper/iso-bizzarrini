@@ -648,6 +648,104 @@ export interface NewListingRequest {
 }
 
 /**
+ * `PATCH /api/listings/:listingId` — a Listing an Editor got wrong.
+ *
+ * **The three fields a Listing has of its own**, and the Part is not among them: correcting *what
+ * the Part is* is `CorrectPartRequest` below, and a Listing that could be pointed at a
+ * different Part would be a way of editing two records with one press. Moving one to another
+ * number is ordinary — a Part transcribed against the wrong line of a catalog page — and so is
+ * clearing the number altogether, which is the state a Position removed out from under it leaves
+ * it in.
+ */
+export interface CorrectListingRequest {
+  /** Absent or null for a Part listed on the sheet without a Position of its own. */
+  positionId?: string | null;
+  quantityPerCar?: number | null;
+  drawn: boolean;
+}
+
+/**
+ * `PATCH /api/parts/:partId` — **the same nine fields recording one takes**, which is the point.
+ *
+ * Every field is sent whether or not it changed, so a value can be **cleared** as well as
+ * corrected: blank means "not recorded", exactly as it does on the way in, and a Part whose
+ * Catalog Number turns out to belong to something else has to be able to go back to having none
+ * (ADR 0001 — no number is invented, and none is a legitimate state).
+ *
+ * A Catalog Number edited into one another Part already holds is refused the same way entering
+ * one is, carrying that Part in `details`. The rule is the archive's, not the form's, so it
+ * cannot depend on which screen the number was typed on.
+ */
+export type CorrectPartRequest = NewPartRequest;
+
+/**
+ * A sheet a Part is listed on, as an Editor's lookup reports it.
+ *
+ * **One entry per Tavola and not per Listing**, which is the difference between this and
+ * `ListedElsewhere`: a Part at three numbers on one drawing is on *one* drawing, and what an
+ * Editor about to correct it needs to know is how many sheets the correction reaches. The Model
+ * comes with it because a Tavola belongs to exactly one (ADR 0002) and it may well not be the car
+ * being looked at.
+ */
+export interface ListedOn {
+  tavolaId: string;
+  /** As printed on that sheet. */
+  tavolaNumber: string;
+  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page. */
+  nameEn: string;
+  model: CatalogModel;
+}
+
+/**
+ * A Part the lookup found, and every Tavola it is listed on.
+ *
+ * **An empty `listedOn` is the interesting case.** A Part whose last Listing was removed is
+ * listed nowhere: invisible on every screen that reads from a drawing, reachable from nothing,
+ * and still holding its Catalog Number — so retyping that number is refused and points at
+ * something the Editor cannot see. This is what makes it findable, and therefore correctable or
+ * removable, rather than a phantom.
+ *
+ * The bare `Part` and not the whole of it: this is a list to pick from, and what fits the
+ * Part, what replaces it and where it has been available arrive when one is picked.
+ */
+export interface FoundPart {
+  part: Part;
+  listedOn: ListedOn[];
+}
+
+/**
+ * `GET /api/parts?q=` — **an Editor's tool for listing a Part the archive already has**, and
+ * deliberately nothing more.
+ *
+ * It matches a Catalog Number exactly, **ignoring the spacing the catalog prints** — `260 03 150`
+ * is found by typing `26003150` — or a prefix of either name. Disegno Origine, Equivalent
+ * references and everything a *member* searches for are ticket 22's, which owns Search and is
+ * meant to absorb this.
+ *
+ * `more` is set when the archive held back matches rather than reporting them all. It exists so
+ * that a capped list can never read as a complete one — an Editor told "no such Part" by a
+ * truncated answer would record a second copy of it.
+ */
+export interface PartLookupResponse {
+  parts: FoundPart[];
+  more: boolean;
+}
+
+/**
+ * `GET /api/parts/:partId`, and what correcting one answers with: **the whole Part, and every
+ * sheet a correction to it reaches.**
+ *
+ * The two travel together because the second is what makes the first safe to change. A Part is
+ * one thing (ADR 0001), so correcting it corrects it at every number it sits at on every drawing
+ * — which is invisible from a screen showing one Position, and is the fact an Editor has to be
+ * holding *before* they save rather than after.
+ */
+export interface PartResponse {
+  part: PartInFull;
+  listedOn: ListedOn[];
+}
+
+/**
  * `POST /api/parts/:partId/fitments`, and `PATCH /api/fitments/:fitmentId` to correct one.
  *
  * The qualifier is a plain string because it is a plain string all the way down: blank means the

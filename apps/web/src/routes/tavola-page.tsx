@@ -345,7 +345,7 @@ export function TavolaPage() {
           is nothing to record until a number has been chosen. */}
       {selectedPosition && (
         <div className="mt-12 flex flex-col gap-8">
-          <ListingPanel tavolaId={tavola.id} position={selectedPosition} />
+          <ListingPanel tavolaId={tavola.id} position={selectedPosition} positions={positions} />
           {/* What sits *at* the number, then what goes *with* it — in that order, because a
               number nobody has recorded a Part at is rarely one anybody is grouping yet.
               Keyed by the Position, so a name half-typed at one number, or a link half chosen

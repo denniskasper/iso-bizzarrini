@@ -54,6 +54,28 @@ export function useRereadListings(tavolaId: string, positionId?: string): () => 
 }
 
 /**
+ * Re-read after a Listing has **moved** — to another number on the sheet, or to none.
+ *
+ * **Wider than `useRereadListings` by exactly one thing**, and it is the thing that makes it a
+ * separate hook: a Listing that moved left one number and arrived at another, and the number it
+ * left is not derivable from where it landed. Re-reading only the Position the Editor is looking
+ * at would leave the other one in this browser still showing a Part that is no longer at it —
+ * which, since the sheet's own index is re-read too, would be the archive contradicting itself
+ * about which number a Part sits at.
+ */
+export function useRereadMovedListing(tavolaId: string): () => Promise<void> {
+  const queryClient = useQueryClient();
+
+  return useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: onTavola(tavolaId) }),
+      // The prefix, for the number it left as well as the number it is at now.
+      queryClient.invalidateQueries({ queryKey: ['position-listings'] }),
+    ]);
+  }, [queryClient, tavolaId]);
+}
+
+/**
  * Re-read every Position's Parts, after what fits one — or what replaces it, or where it has
  * been available — has changed.
  *

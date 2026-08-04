@@ -113,7 +113,26 @@ export function createApiRouter(dependencies: {
   // than *to* (story 46), and the only thing that knows which numbers have nothing at them yet.
   router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
   router.post('/tavole/:tavolaId/listings', partController.record);
+  // Where a Part sits on this sheet, how many are fitted there, and whether the drawing shows it
+  // — the three things a Listing has of its own. What the Part *is* is corrected below.
+  router.patch('/listings/:listingId', partController.correctListing);
   router.delete('/listings/:listingId', partController.removeListing);
+
+  // **The Part itself, addressed as the thing it is** (ADR 0001), which is why these hang off no
+  // drawing: correcting a Part corrects it at every number it sits at, on every sheet, and
+  // an address under one Tavola would suggest otherwise.
+  //
+  // The lookup is here rather than on a Tavola for the same reason, and it is what makes two
+  // things reachable that ticket 06 left unreachable: listing a Part the archive already has at a
+  // new number when it has no Catalog Number to collide with, and finding a Part that is listed
+  // **nowhere** — which no screen reading from a drawing can see. Ticket 22 owns Search and is
+  // meant to absorb it rather than stand beside it.
+  router.get('/parts', partController.lookUp);
+  router.get('/parts/:partId', partController.read);
+  router.patch('/parts/:partId', partController.correct);
+  // Refused while anything still lists it. The Listings go first, so nothing here removes an
+  // evening's work from a sheet the Editor is not looking at.
+  router.delete('/parts/:partId', partController.remove);
 
   // **What fits the Part, what replaces it and where it has been available** — hung off the Part
   // and not off a Tavola, because all three are true of the component wherever it is listed

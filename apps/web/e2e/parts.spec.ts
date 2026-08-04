@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { drawingOf, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import {
+  drawingOf,
+  openADrawingOfYourOwn,
+  openFirstDrawing,
+  placeMarks,
+} from './support/archive.js';
 
 /**
  * Reading a part from a circle — **the sentence the whole product exists to complete**.
@@ -144,18 +149,15 @@ test.describe('recording a part', () => {
     // Unique per project, because chromium and the phone write to one archive — and the whole
     // rule under test is that this number may exist exactly once in it.
     const number = `700 00 ${info.project.name === 'mobile' ? '002' : '001'}`;
-    const frame = page.getByTestId('drawing-frame');
 
     await openADrawingOfYourOwn(page, `parts-${info.project.name}`);
-    const box = await frame.boundingBox();
-    if (!box) {
-      throw new Error('The drawing has no frame.');
-    }
 
     // Two numbers on the sheet, placed the way an Editor places them.
     await page.getByRole('button', { name: 'Mark positions' }).click();
-    await frame.click({ position: { x: box.width * 0.3, y: box.height * 0.3 } });
-    await frame.click({ position: { x: box.width * 0.7, y: box.height * 0.6 } });
+    await placeMarks(page, [
+      { x: 0.3, y: 0.3 },
+      { x: 0.7, y: 0.6 },
+    ]);
     await page.getByRole('button', { name: 'Done' }).click();
 
     await page.locator('[data-testid="drawing-mark"][data-position="1"]').click();
@@ -188,6 +190,21 @@ test.describe('recording a part', () => {
     await expect(partsIn(page)).toHaveCount(1);
     await expect(reading(page)).toContainText('Throttle return spring');
     await expect(reading(page)).not.toContainText('Return spring, throttle linkage');
+
+    /**
+     * **And the merge is no longer a dead end** (ticket 25). It used to record the Listing and
+     * throw away everything else that had been typed; now it hands the Editor into correcting the
+     * Part they merged into, with what they wrote offered field by field. Offered rather than
+     * applied, because the archive cannot know whose description is the better one.
+     */
+    await expect(page.getByTestId('part-reach')).toContainText('Tavola');
+    await page
+      .getByRole('button', { name: 'Use what you typed: Return spring, throttle linkage' })
+      .click();
+    await page.getByRole('button', { name: 'Correct this part' }).click();
+
+    await expect(partsIn(page)).toHaveCount(1);
+    await expect(reading(page)).toContainText('Return spring, throttle linkage');
   });
 
   /**

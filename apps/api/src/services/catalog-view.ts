@@ -6,6 +6,7 @@ import type {
   Part,
   PartInFull,
   ListedElsewhere,
+  ListedOn,
   PartListing,
   Position,
   RelatedPosition,
@@ -29,6 +30,7 @@ import { scanImageUrl } from '../images/scan-addresses.js';
 import type { FitmentWithModel, PartRecordRows } from '../repositories/part-record-repository.js';
 import type {
   ElsewhereRow,
+  ListedOnRow,
   ListingOnTavola,
   ListingWithPart,
 } from '../repositories/part-repository.js';
@@ -211,6 +213,22 @@ export function toTavolaListing(row: ListingOnTavola): TavolaListing {
       nameIt: row.part.nameIt,
       catalogNumber: row.part.catalogNumber,
     },
+  };
+}
+
+/**
+ * A sheet a Part is listed on — the sheet and the car, and nothing about the appearance itself.
+ *
+ * The neighbour of `toListedElsewhere` below, and deliberately narrower: that one answers *where
+ * else is this used, and how many are fitted there*, which a member reads; this one answers *how
+ * far does correcting this reach*, which is a count of drawings and has no quantity in it.
+ */
+export function toListedOn(row: ListedOnRow): ListedOn {
+  return {
+    tavolaId: row.tavola.id,
+    tavolaNumber: row.tavola.number,
+    nameEn: row.tavola.nameEn,
+    model: toCatalogModel(row.model),
   };
 }
 
