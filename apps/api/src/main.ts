@@ -6,6 +6,7 @@ import { loadConfig } from './config/config.js';
 import { loadEnvFile } from './config/env-file.js';
 import { createDatabase } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
+import { applyKeepAlivePolicy } from './http/keep-alive.js';
 import { systemClock } from './platform/clock.js';
 import { createLogger } from './platform/logger.js';
 import { createFileStore } from './storage/file-store.js';
@@ -72,6 +73,15 @@ const app = createApp({
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, environment: config.environmentName }, 'Ricambi API listening');
 });
+
+/**
+ * **Nothing in front of this API may be holding a connection this server has already closed.**
+ * Caddy pools its upstream connections (ADR 0009) and Node's five-second default expires long
+ * before Caddy's two minutes, so requests were being written into sockets on their way out and
+ * lost — `socket hang up`, intermittent, unreproducible. Ticket 26; the reasoning, both numbers
+ * and the reproduction are in `http/keep-alive.ts` and its test. Not defaults being restated.
+ */
+applyKeepAlivePolicy(server);
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.once(signal, () => {
