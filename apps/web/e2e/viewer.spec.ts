@@ -184,8 +184,10 @@ test.describe('reading a drawing', () => {
 
     // The promise the viewer makes about legibility, in the only terms that mean anything: at
     // full magnification the drawing is on the glass at no fewer pixels than it was scanned at,
-    // so the smallest thing the factory printed — a position number, 56 image pixels tall on
-    // this practice sheet — is as large as the scan can make it.
+    // so the smallest thing the factory printed — a position number, which measures about
+    // 0.0124 of the shorter side on a real sheet and is set at that size here — is as large as
+    // the scan can make it. Whether that is *enough* is a question about the scanning, and
+    // ADR 0013 is where it is asked.
     const drawn = await boxOf(drawing);
     const scanned = await drawing.evaluate((image: HTMLImageElement) => image.naturalWidth);
     expect(drawn.width).toBeGreaterThanOrEqual(scanned * 0.99);

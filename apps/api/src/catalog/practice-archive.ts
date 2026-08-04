@@ -107,7 +107,7 @@ export const practiceTavole = [
 ];
 
 /**
- * The numbered circles the invented drawing prints, **as fractions of the sheet** — which is
+ * The numbers the invented drawing prints, and where — **as fractions of the sheet**, which is
  * also the unit a Mark is stored in (ADR 0013), so the drawing below and the Marks seeded onto
  * it are read off one list and cannot drift apart.
  *
@@ -116,7 +116,7 @@ export const practiceTavole = [
  * case rather than the exotic one — and a screen that takes a member to each of them in turn
  * (story 48) has nothing to be built or judged against unless a seeded sheet has one.
  */
-const practiceCircles = [
+const practiceNumbers = [
   { number: '1', x: 0.25, y: 0.3 },
   { number: '2', x: 0.5, y: 0.43 },
   { number: '3', x: 0.75, y: 0.3 },
@@ -700,7 +700,7 @@ async function writePracticeRecord(
 }
 
 /**
- * The Positions a marked-up sheet carries: one on each circle the drawing prints, and one the
+ * The Positions a marked-up sheet carries: one on each number the drawing prints, and one the
  * drawing does not print at all.
  *
  * Written straight to the tables rather than through the marking tool, because this is a
@@ -709,9 +709,9 @@ async function writePracticeRecord(
  */
 async function markPracticeTavola(db: Db, tavolaId: string): Promise<Map<string, string>> {
   // One row per *number*, however many places the sheet prints it: a Position is the number, and
-  // the circles on it are its Marks.
+  // the places it is printed are its Marks.
   const numbers = new Set([
-    ...practiceCircles.map((circle) => circle.number),
+    ...practiceNumbers.map((printed) => printed.number),
     undrawnPracticePosition,
   ]);
 
@@ -724,12 +724,12 @@ async function markPracticeTavola(db: Db, tavolaId: string): Promise<Map<string,
 
   const idsByNumber = new Map(rows.map((row) => [row.number, row.id]));
   await db.insert(marks).values(
-    practiceCircles.map((circle) => {
-      const positionId = idsByNumber.get(circle.number);
+    practiceNumbers.map((printed) => {
+      const positionId = idsByNumber.get(printed.number);
       if (!positionId) {
-        throw new Error(`The practice Position ${circle.number} was not inserted.`);
+        throw new Error(`The practice Position ${printed.number} was not inserted.`);
       }
-      return { positionId, x: circle.x, y: circle.y };
+      return { positionId, x: printed.x, y: printed.y };
     }),
   );
 
@@ -772,17 +772,32 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
 }
 
 /**
- * A drawing that could not be mistaken for a factory one: a ruled sheet with a few numbered
- * circles on it, at roughly the proportions of an A3 page. It exists so a practice archive has
- * something to open, and so the viewer has something to be built against at ticket 04.
+ * A drawing that could not be mistaken for a factory one: a ruled sheet with a few numbers on it
+ * and a line from each to what it points at, at roughly the proportions of an A3 page. It exists
+ * so a practice archive has something to open, and so the viewer has something to be built
+ * against at ticket 04.
  *
- * Its circles are printed from `practiceCircles` — the same fractions the seeded Marks are
- * placed at — so the two cannot be edited apart and a seeded Mark always lands on a number.
+ * Its numbers are printed from `practiceNumbers` — the same fractions the seeded Marks are placed
+ * at — so the two cannot be edited apart and a seeded Mark always lands on a number.
+ *
+ * **It used to print each number inside a circle, and the factory does not.** The first real sheet
+ * anyone has seen — Tavola 84 of the Rivolta — prints bare numerals with thin leader lines running
+ * to the part, and nothing is drawn around them. That mattered more than it sounds: every screen
+ * in this repository was being judged against a friendlier sheet than the archive has, and
+ * `MARK_RING` had been fitted to the circles *this function invented* rather than to anything the
+ * factory printed. The numerals below are set at the size they measure on that sheet —
+ * **0.0124 of the shorter side**, which is a 22px digit here — so a Mark drawn over one lands the
+ * way it will land on the real thing.
  */
 function inventedDrawing(number: string, name: string): Promise<Buffer> {
   const width = 2480;
   const height = 1754;
   const middle = { x: width / 2, y: height / 2 };
+
+  /** A digit is 0.0124 of the shorter side on a real sheet, and about 0.7 of its font size. */
+  const numeralSize = Math.round(Math.min(width, height) * 0.0124 * 1.45);
+  /** Where the leader line starts, so it runs to the part rather than through the numeral. */
+  const clearOfTheNumeral = numeralSize;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     <rect width="100%" height="100%" fill="#ffffff"/>
@@ -793,16 +808,19 @@ function inventedDrawing(number: string, name: string): Promise<Buffer> {
     <text x="90" y="${height - 90}" font-family="DejaVu Serif, Times New Roman, serif" font-size="32" fill="#888888">
       Invented for the practice archive — not a factory drawing
     </text>
-    ${practiceCircles
-      .map((circle) => {
-        const at = { x: circle.x * width, y: circle.y * height };
+    ${practiceNumbers
+      .map((printed) => {
+        const at = { x: printed.x * width, y: printed.y * height };
+        const away = Math.hypot(middle.x - at.x, middle.y - at.y) || 1;
+        const from = {
+          x: at.x + ((middle.x - at.x) / away) * clearOfTheNumeral,
+          y: at.y + ((middle.y - at.y) / away) * clearOfTheNumeral,
+        };
         return `
-      <line x1="${at.x}" y1="${at.y}" x2="${middle.x}" y2="${middle.y}"
+      <line x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${middle.x}" y2="${middle.y}"
         stroke="#111111" stroke-width="3"/>
-      <circle cx="${at.x}" cy="${at.y}" r="52"
-        fill="#ffffff" stroke="#111111" stroke-width="5"/>
-      <text x="${at.x}" y="${at.y + 20}" font-family="DejaVu Serif, Times New Roman, serif" font-size="56"
-        text-anchor="middle" fill="#111111">${circle.number}</text>`;
+      <text x="${at.x}" y="${at.y + numeralSize * 0.35}" font-family="DejaVu Serif, Times New Roman, serif"
+        font-size="${numeralSize}" text-anchor="middle" fill="#111111">${printed.number}</text>`;
       })
       .join('')}
   </svg>`;

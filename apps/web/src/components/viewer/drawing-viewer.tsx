@@ -152,11 +152,24 @@ const TAP_SLOP = 6;
  * glass, and it is the same 44px floor every control in this archive obeys: the hand doing the
  * hitting is cold, gloved, or holding a phone at arm's length under a bonnet.
  *
- * The ring's fraction is fitted to the circles the practice drawing prints, because no real
- * factory scan has been measured yet — the same open question ADR 0013 records. It is one
- * constant, in one place, for when there is something to measure it against.
+ * **Measured against a real factory sheet, not against the practice drawing.** It was 0.055,
+ * fitted to the circles the invented drawing prints — and the factory does not print circles.
+ * On Tavola 84 of the Rivolta the numbers are bare numerals with leader lines, and at 1245 × 809
+ * they measure: a digit 10px tall (0.0124 of the shorter side, from 349 of them), the widest
+ * number on the sheet 19px across, so the box around a three-digit number has a 21.5px diagonal
+ * — 0.027. Numbers in a dense run sit **18 to 26px apart, centre to centre**.
+ *
+ * That last figure is what settles it. At 0.055 the ring was 44px across on that sheet, more
+ * than twice the spacing between neighbours: every ring in a run like `150 151 152 153` covered
+ * the numbers either side of it, so the archive's own marks hid the sheet they point at. At
+ * 0.030 the ring is 24px — it still encloses the largest number the factory printed, with the
+ * 21.5px diagonal inside it, and two neighbours at 20px pitch touch rather than swallow.
+ *
+ * The fraction survives resolution: a sheet scanned at 600 dpi has bigger numerals *and* a
+ * bigger sheet, in the same proportion. So a downsized copy is a perfectly good ruler for this
+ * one measurement, which is why this could be settled while ADR 0013's own question stays open.
  */
-const MARK_RING = 0.055;
+const MARK_RING = 0.03;
 const MARK_TOUCH = 44;
 
 const PAN_KEYS: Record<string, Point> = {
