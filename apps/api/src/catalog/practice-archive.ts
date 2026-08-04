@@ -107,22 +107,36 @@ export const practiceTavole = [
 ];
 
 /**
- * The numbers the invented drawing prints, and where — **as fractions of the sheet**, which is
- * also the unit a Mark is stored in (ADR 0013), so the drawing below and the Marks seeded onto
- * it are read off one list and cannot drift apart.
+ * The numbers the invented drawing prints, where they sit, and **what each one points at** — all
+ * as fractions of the sheet, which is also the unit a Mark is stored in (ADR 0013), so the
+ * drawing below and the Marks seeded onto it are read off one list and cannot drift apart.
  *
  * **`2` is printed twice, and that is the practice archive doing its job.** The factory printed
  * one number wherever the part is used, so a Position carrying several Marks is the ordinary
  * case rather than the exotic one — and a screen that takes a member to each of them in turn
- * (story 48) has nothing to be built or judged against unless a seeded sheet has one.
+ * (story 48) has nothing to be built or judged against unless a seeded sheet has one. Both `2`s
+ * point at the **same shape in two places**, because that is what the repetition means.
+ *
+ * `x`/`y` are the Mark and must not be moved without moving the seeded Marks with them; `points`
+ * only changes the picture.
  */
 const practiceNumbers = [
-  { number: '1', x: 0.25, y: 0.3 },
-  { number: '2', x: 0.5, y: 0.43 },
-  { number: '3', x: 0.75, y: 0.3 },
-  { number: '4', x: 0.5, y: 0.71 },
-  { number: '2', x: 0.32, y: 0.62 },
-];
+  { number: '1', x: 0.25, y: 0.3, points: { x: 0.34, y: 0.45, part: 'bracket' } },
+  { number: '2', x: 0.5, y: 0.43, points: { x: 0.475, y: 0.53, part: 'pin' } },
+  { number: '3', x: 0.75, y: 0.3, points: { x: 0.66, y: 0.45, part: 'disc' } },
+  { number: '4', x: 0.5, y: 0.71, points: { x: 0.575, y: 0.6, part: 'washer' } },
+  { number: '2', x: 0.32, y: 0.62, points: { x: 0.385, y: 0.575, part: 'pin' } },
+] as const satisfies readonly { number: string; x: number; y: number; points: PracticePart }[];
+
+/** The invented components the drawing shows, and how big each is as a fraction of the width. */
+type PracticePart = { x: number; y: number; part: 'bracket' | 'pin' | 'disc' | 'washer' };
+
+const PART_SIZES: Record<PracticePart['part'], number> = {
+  bracket: 0.05,
+  pin: 0.035,
+  disc: 0.04,
+  washer: 0.022,
+};
 
 /**
  * A number the catalog lists that the drawing does not show — the washer behind a bracket. Zero
@@ -772,10 +786,10 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
 }
 
 /**
- * A drawing that could not be mistaken for a factory one: a ruled sheet with a few numbers on it
- * and a line from each to what it points at, at roughly the proportions of an A3 page. It exists
- * so a practice archive has something to open, and so the viewer has something to be built
- * against at ticket 04.
+ * A drawing that could not be mistaken for a factory one: a ruled sheet with a handful of invented
+ * components on it, each with a number and a leader line running to it, at roughly the proportions
+ * of an A3 page. It exists so a practice archive has something to open, and so the viewer has
+ * something to be built against at ticket 04.
  *
  * Its numbers are printed from `practiceNumbers` — the same fractions the seeded Marks are placed
  * at — so the two cannot be edited apart and a seeded Mark always lands on a number.
@@ -788,16 +802,49 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
  * factory printed. The numerals below are set at the size they measure on that sheet —
  * **0.0124 of the shorter side**, which is a 22px digit here — so a Mark drawn over one lands the
  * way it will land on the real thing.
+ *
+ * **And every leader line used to end at the middle of the sheet**, which no exploded view does:
+ * a number points at *a part*. Each now has one of its own, drawn in three passes — lines, then
+ * components, then numerals — so a component hides the line that passes behind it, the way ink on
+ * paper does. It is still unmistakably invented; it is simply no longer misleading about shape.
  */
 function inventedDrawing(number: string, name: string): Promise<Buffer> {
   const width = 2480;
   const height = 1754;
-  const middle = { x: width / 2, y: height / 2 };
 
   /** A digit is 0.0124 of the shorter side on a real sheet, and about 0.7 of its font size. */
   const numeralSize = Math.round(Math.min(width, height) * 0.0124 * 1.45);
   /** Where the leader line starts, so it runs to the part rather than through the numeral. */
   const clearOfTheNumeral = numeralSize;
+
+  const placed = practiceNumbers.map((printed) => ({
+    number: printed.number,
+    at: { x: printed.x * width, y: printed.y * height },
+    to: { x: printed.points.x * width, y: printed.points.y * height },
+    part: printed.points.part,
+  }));
+
+  const leaders = placed
+    .map(({ at, to }) => {
+      const away = Math.hypot(to.x - at.x, to.y - at.y) || 1;
+      const from = {
+        x: at.x + ((to.x - at.x) / away) * clearOfTheNumeral,
+        y: at.y + ((to.y - at.y) / away) * clearOfTheNumeral,
+      };
+      return `<line x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}" stroke="#111111" stroke-width="3"/>`;
+    })
+    .join('');
+
+  const components = placed
+    .map(({ to, part }) => inventedComponent(part, to.x, to.y, width * PART_SIZES[part]))
+    .join('');
+
+  const numerals = placed
+    .map(
+      ({ number: printed, at }) =>
+        `<text x="${at.x}" y="${at.y + numeralSize * 0.35}" font-family="DejaVu Serif, Times New Roman, serif" font-size="${numeralSize}" text-anchor="middle" fill="#111111">${printed}</text>`,
+    )
+    .join('');
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     <rect width="100%" height="100%" fill="#ffffff"/>
@@ -808,24 +855,53 @@ function inventedDrawing(number: string, name: string): Promise<Buffer> {
     <text x="90" y="${height - 90}" font-family="DejaVu Serif, Times New Roman, serif" font-size="32" fill="#888888">
       Invented for the practice archive — not a factory drawing
     </text>
-    ${practiceNumbers
-      .map((printed) => {
-        const at = { x: printed.x * width, y: printed.y * height };
-        const away = Math.hypot(middle.x - at.x, middle.y - at.y) || 1;
-        const from = {
-          x: at.x + ((middle.x - at.x) / away) * clearOfTheNumeral,
-          y: at.y + ((middle.y - at.y) / away) * clearOfTheNumeral,
-        };
-        return `
-      <line x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${middle.x}" y2="${middle.y}"
-        stroke="#111111" stroke-width="3"/>
-      <text x="${at.x}" y="${at.y + numeralSize * 0.35}" font-family="DejaVu Serif, Times New Roman, serif"
-        font-size="${numeralSize}" text-anchor="middle" fill="#111111">${printed.number}</text>`;
-      })
-      .join('')}
+    ${leaders}
+    ${components}
+    ${numerals}
   </svg>`;
 
   return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/**
+ * One invented component, centred on the point its number points at.
+ *
+ * **Filled white and stroked**, which is doing real work rather than decoration: a filled shape
+ * hides the leader lines that pass behind it, which is how a drawn part reads on paper and is the
+ * only thing that stops five lines crossing the middle of the sheet in the open.
+ *
+ * Four shapes, because the sheet lists four kinds of thing and a member's screen distinguishes
+ * them — a bracket, the pin through it, a disc and the washer behind it. They are geometry and
+ * nothing more; nothing here is traced from anything real (`AGENTS.md`).
+ */
+function inventedComponent(
+  part: PracticePart['part'],
+  cx: number,
+  cy: number,
+  size: number,
+): string {
+  const ink = 'fill="#ffffff" stroke="#111111" stroke-width="5"';
+  const r = size / 2;
+
+  switch (part) {
+    case 'bracket':
+      return `
+      <rect x="${cx - r}" y="${cy - r * 0.62}" width="${size}" height="${size * 0.62}" rx="${r * 0.22}" ${ink}/>
+      <circle cx="${cx - r * 0.55}" cy="${cy - r * 0.3}" r="${r * 0.16}" ${ink}/>
+      <circle cx="${cx + r * 0.55}" cy="${cy - r * 0.3}" r="${r * 0.16}" ${ink}/>`;
+    case 'pin':
+      return `
+      <rect x="${cx - r}" y="${cy - r * 0.34}" width="${size * 0.28}" height="${size * 0.34}" ${ink}/>
+      <rect x="${cx - r + size * 0.28}" y="${cy - r * 0.17}" width="${size * 0.72}" height="${size * 0.17}" ${ink}/>`;
+    case 'disc':
+      return `
+      <circle cx="${cx}" cy="${cy}" r="${r}" ${ink}/>
+      <circle cx="${cx}" cy="${cy}" r="${r * 0.42}" ${ink}/>`;
+    case 'washer':
+      return `
+      <circle cx="${cx}" cy="${cy}" r="${r}" ${ink}/>
+      <circle cx="${cx}" cy="${cy}" r="${r * 0.55}" ${ink}/>`;
+  }
 }
 
 /**

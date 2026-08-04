@@ -69,12 +69,18 @@ are nullable.
 
 And one it contradicted: **the factory did not print these numbers inside circles.** They are
 bare numerals with thin leader lines running to the part. The practice archive's invented drawing
-prints circles, so every screen in this repository has been built and judged against a friendlier
-sheet than the real one. Nothing is wrong — a Mark is a ring drawn *around* the number rather than
-over a printed circle, which still reads — but `MARK_RING` in `drawing-viewer.tsx` was explicitly
+printed circles, so every screen in this repository had been built and judged against a friendlier
+sheet than the real one — *since fixed: the invented drawing now prints bare numerals at the size
+they measure on a real sheet, each with a leader line to a component of its own.* A Mark is a ring
+drawn *around* the number rather than over a printed circle, which reads — but `MARK_RING` in
+`drawing-viewer.tsx` was explicitly
 "fitted to the circles the practice drawing prints ... for when there is something to measure it
-against". There now is: on this sheet the ring comes out about twice the width of a three-digit
-number. Worth a look on a real scan before it is called right.
+against". There now is, and it has been used: at 0.055 the ring came out **44px on this sheet
+against an 18–26px spacing between neighbours**, so each ring covered the numbers either side of
+it and clipped an unmarked `153` down to `53`. It is now **0.030** — measured from a digit 10px
+tall (0.0124 of the shorter side, over 349 of them) and the 21.5px diagonal of the widest number
+the sheet prints. The fraction survives resolution, so the downsized copy was a fair ruler for
+this even though it is no use for the legibility question above.
 
 **Ticket 13 does not depend on any of this.** Its one open box needs an uncropped catalog *text*
 page — the parts list with the `Codice` column — to settle which column is the Catalog Number and
