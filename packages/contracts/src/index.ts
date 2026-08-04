@@ -149,6 +149,42 @@ export interface Mark extends MarkPoint {
 }
 
 /**
+ * A named set of Positions within one Tavola — *Window Slider*, *Door Lock*.
+ *
+ * **A name, and explicitly not a bill of materials** (spec, Out of Scope). It has no number,
+ * nothing orders it, and it holds Positions rather than Parts: what a member gets from it is
+ * "these eleven numbers go together", which is what somebody taking a door apart actually wants
+ * and a great deal less than a parts tree pretends to know.
+ *
+ * **Which numbers are in it is not on this shape**, deliberately — it is `Position.subAssemblyId`
+ * on the sheet's own Positions, in one place rather than two. Membership listed here as well
+ * would be the same fact twice, free to disagree the moment a Position moves.
+ */
+export interface SubAssembly {
+  id: string;
+  /** As whoever named it wrote it. This is what members read. */
+  name: string;
+}
+
+/**
+ * Two Positions an Editor linked because the parts work together — the guide rod and the one
+ * channel it runs in, rather than the eleven numbers of the window mechanism.
+ *
+ * **The link is symmetric, and it is one row.** That is why `id` is the *link's* id and is the
+ * same from both ends: recording it once is the only thing that can happen, so removing it from
+ * either end removes the one link there is.
+ */
+export interface RelatedPosition {
+  /** The link, not either end of it. The same id appears on both Positions. */
+  id: string;
+  /**
+   * The Position at the other end, by id alone — anything reading this is reading it against the
+   * sheet the link belongs to, and already holds that sheet's numbers as the factory printed them.
+   */
+  positionId: string;
+}
+
+/**
  * A number printed on a Tavola.
  *
  * **It exists in its own right, and nothing here says what sits at it.** Marking a sheet up and
@@ -158,25 +194,57 @@ export interface Mark extends MarkPoint {
  *
  * `marks` is in reading order down the sheet, and may be empty — a Position with no Mark is
  * one the catalog lists but the drawing does not show.
+ *
+ * What *does* live here is what belongs with the number: the Sub-assembly it sits in and the
+ * numbers it has been linked to. Two mechanisms, because they answer two questions — the broad
+ * one, and the narrow hand-picked pointer at the one other part this one works against.
  */
 export interface Position {
   id: string;
   /** As printed — `207`, `210 S`, `211 D`. An identifier, never arithmetic. */
   number: string;
   marks: Mark[];
+  /**
+   * The named Sub-assembly this number sits in, if any. **At most one, and that is the whole
+   * rule** — a Position belongs to one or to none, and a Sub-assembly holds Positions rather than
+   * other Sub-assemblies, so nothing here nests.
+   *
+   * `null` is the ordinary case and means exactly that: a number in none shows nothing, rather
+   * than falling back to every other number on the drawing.
+   */
+  subAssemblyId: string | null;
+  /**
+   * The numbers on this sheet this one has been linked to, in the catalog's own order. Every
+   * link is visible from both ends because there is one of it.
+   */
+  related: RelatedPosition[];
 }
 
-/** `GET /api/tavole/:tavolaId` */
-export interface TavolaResponse {
-  tavola: TavolaSummary & {
-    model: CatalogModel;
-    provenance: CatalogProvenance;
-  };
+/**
+ * **The whole sheet as it now stands** — every number the factory printed on it, and the
+ * Sub-assemblies the club has drawn round them.
+ *
+ * The two travel together because a Position names its Sub-assembly by id and would otherwise be
+ * pointing at something nothing on the wire could name. The names are in one place and membership
+ * in another, which is the same argument the sheet's own index makes: a name repeated on eleven
+ * Positions is a name that can be edited on ten of them.
+ */
+export interface Sheet {
   /**
    * Every Position on the sheet, in the order the factory printed them, with the drawing —
    * because circles that arrive after the sheet does are circles a member watches appear.
    */
   positions: Position[];
+  /** The sheet's Sub-assemblies, by name. One with nothing in it is not one, and is not here. */
+  subAssemblies: SubAssembly[];
+}
+
+/** `GET /api/tavole/:tavolaId` */
+export interface TavolaResponse extends Sheet {
+  tavola: TavolaSummary & {
+    model: CatalogModel;
+    provenance: CatalogProvenance;
+  };
 }
 
 /**
@@ -460,6 +528,40 @@ export interface NewPositionRequest {
 export type MoveMarkRequest = MarkPoint;
 
 /**
+ * `POST /api/tavole/:tavolaId/sub-assemblies` — putting numbers into a named one (story 106).
+ *
+ * **It is named rather than chosen**, and the name is what decides which Sub-assembly it is: a
+ * sheet has one *Door Lock*, so sending that name again puts these numbers into the one that
+ * already exists rather than beside it. Two of one name on one sheet would be one Sub-assembly
+ * recorded twice, and reading them as two would split the very numbers it exists to hold
+ * together.
+ *
+ * A Position that is already in another Sub-assembly is **moved**, because an Editor naming it
+ * here means it — that is the difference between this and a migration reconciling two
+ * spreadsheets. And one whose last Position leaves it stops existing, so nothing accumulates a
+ * list of names pointing at nothing.
+ */
+export interface NewSubAssemblyRequest {
+  name: string;
+  /** At least one. One with no numbers in it is a name for nothing, and is refused. */
+  positionIds: string[];
+}
+
+/**
+ * `POST /api/tavole/:tavolaId/related-positions` — the narrow, hand-picked pointer (story 107).
+ *
+ * **Recorded once, from either end.** The two ids are interchangeable: whichever way round they
+ * arrive, one row is written and both Positions report it. Sending the same pair again — in
+ * either order — is refused as already recorded rather than written twice, which is what "nobody
+ * has to remember to enter it twice" has to mean at the point of entry as well as at the point of
+ * reading.
+ */
+export interface RelatePositionsRequest {
+  positionId: string;
+  otherPositionId: string;
+}
+
+/**
  * What an Editor types about a component (story 101).
  *
  * The **wire** shape, which is why every field is a plain string: a form sends what was typed,
@@ -577,7 +679,8 @@ export interface ListingResponse {
 }
 
 /**
- * What placing, moving or removing anything answers with: **the whole sheet, re-read.**
+ * What placing, moving, grouping, linking or removing anything answers with: **the whole sheet,
+ * re-read.**
  *
  * Not the one Position that changed, which is what it looks like it should be. A browser handed
  * a single Position would have to work out where in the catalog's order it belongs, and the
@@ -585,12 +688,14 @@ export interface ListingResponse {
  * own collation. Sorting `12 bis` in two places is two answers waiting to disagree, so this
  * answers with the list and the browser never sorts a catalog at all.
  *
+ * Sub-assembling and linking make the same argument twice over: a link is symmetric, so recording
+ * one changes *two* Positions, and a Sub-assembly that loses its last number stops existing.
+ * Neither is derivable from the request that caused it, and both are on the sheet that comes back.
+ *
  * The cost is the sheet's Positions on every click, which is a few kilobytes even on a Tavola
  * carrying two hundred of them, against a scan already measured in megabytes.
  */
-export interface PositionsResponse {
-  positions: Position[];
-}
+export type PositionsResponse = Sheet;
 
 /**
  * `GET /api/session`

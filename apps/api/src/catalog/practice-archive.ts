@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { AppConfig } from '../config/config.js';
 import type { Db } from '../db/client.js';
@@ -11,7 +11,9 @@ import {
   models,
   parts,
   positions,
+  relatedPositions,
   sources,
+  subAssemblies,
   tavole,
 } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
@@ -225,6 +227,31 @@ const practiceListings = [
 ] as const;
 
 /**
+ * A named group of the invented sheet's numbers — **the broad question**, answered for a member
+ * taking a corner apart: the caliper, the screw it is bled through and the washer behind it are
+ * one job.
+ *
+ * The hose at `2` and the empty number at `4` are deliberately left out of it, because "a number
+ * in no group shows nothing" is a claim a practice archive has to be able to demonstrate as well
+ * as one that has a group in it.
+ */
+const practiceSubAssemblies = [
+  {
+    model: 'Grifo',
+    tavola: '2',
+    name: 'Front caliper assembly',
+    positions: ['1', '3', '5'],
+  },
+] as const;
+
+/**
+ * And **the narrow one**: the flexible hose runs to the caliper, and that is a pointer at one
+ * other number rather than at a group of eleven. It is recorded once here, as it is everywhere —
+ * the sheet reports it on both `1` and `2` because there is one row.
+ */
+const practiceRelatedPositions = [{ model: 'Grifo', tavola: '2', positions: ['1', '2'] }] as const;
+
+/**
  * Which cars the invented components fit, **with qualifications written the way somebody would
  * actually know them**. One is a half-known chassis break, one is a single word, and one Part
  * fits a car with no qualification at all — because a practice archive whose fitments are all
@@ -345,6 +372,8 @@ export interface SeedOutcome {
   positions: number;
   parts: number;
   listings: number;
+  subAssemblies: number;
+  relatedPositions: number;
   fitments: number;
   equivalents: number;
   sources: number;
@@ -453,6 +482,14 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     )
     .returning();
 
+  const belongsWith = await writePracticeGroupsAndLinks(db, (model, tavola, position) => {
+    const at = sheetPositions.get(onSheet(model, tavola, position));
+    if (!at) {
+      throw new Error(`The practice archive groups a Position that is not seeded: ${position}.`);
+    }
+    return at;
+  });
+
   const record = await writePracticeRecord(db, modelIdsByName, partIds);
 
   return {
@@ -462,8 +499,66 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     positions: marked,
     parts: partIds.size,
     listings: listed.length,
+    ...belongsWith,
     ...record,
   };
+}
+
+/**
+ * What belongs *with* the invented sheet's numbers — the group they sit in, and the one link
+ * between two of them.
+ *
+ * The link is written the way the archive insists on it everywhere else: **one row, in ascending
+ * order**, so the seeded sheet reports it from both ends without either end having been recorded.
+ */
+async function writePracticeGroupsAndLinks(
+  db: Db,
+  at: (model: string, tavola: string, position: string) => { tavolaId: string; positionId: string },
+): Promise<{ subAssemblies: number; relatedPositions: number }> {
+  let grouped = 0;
+  for (const seed of practiceSubAssemblies) {
+    const [group] = await db
+      .insert(subAssemblies)
+      .values({
+        tavolaId: at(seed.model, seed.tavola, seed.positions[0]).tavolaId,
+        name: seed.name,
+      })
+      .returning();
+    if (!group) {
+      throw new Error(`The practice Sub-assembly ${seed.name} was not inserted.`);
+    }
+    grouped += 1;
+
+    await db
+      .update(positions)
+      .set({ subAssemblyId: group.id })
+      .where(
+        inArray(
+          positions.id,
+          seed.positions.map((number) => at(seed.model, seed.tavola, number).positionId),
+        ),
+      );
+  }
+
+  const linked = await db
+    .insert(relatedPositions)
+    .values(
+      practiceRelatedPositions.map((seed) => {
+        const [first, second] = seed.positions.map(
+          (number) => at(seed.model, seed.tavola, number).positionId,
+        );
+        if (first === undefined || second === undefined) {
+          throw new Error('A practice Related Position names fewer than two numbers.');
+        }
+        // Ascending, which is what the check constraint refuses any other arrangement of.
+        return first < second
+          ? { positionId: first, relatedPositionId: second }
+          : { positionId: second, relatedPositionId: first };
+      }),
+    )
+    .returning();
+
+  return { subAssemblies: grouped, relatedPositions: linked.length };
 }
 
 /**

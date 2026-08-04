@@ -59,6 +59,10 @@ describe('marking up a Tavola', () => {
           id: expect.any(String),
           number: '12',
           marks: [{ id: expect.any(String), x: 0.25, y: 0.5 }],
+          // What belongs *with* the number, which nobody has said anything about yet — and which
+          // a fresh Position is entitled to have nothing of.
+          subAssemblyId: null,
+          related: [],
         },
       ]);
 
@@ -174,7 +178,7 @@ describe('marking up a Tavola', () => {
         .expect(201);
 
       expect(response.body.positions).toEqual([
-        { id: expect.any(String), number: '207', marks: [] },
+        { id: expect.any(String), number: '207', marks: [], subAssemblyId: null, related: [] },
       ]);
     });
 
@@ -185,7 +189,13 @@ describe('marking up a Tavola', () => {
       const response = await editor.delete(`/api/marks/${mark.id}`).expect(200);
 
       expect(response.body.positions).toEqual([
-        { id: placed.body.positions[0].id, number: '12', marks: [] },
+        {
+          id: placed.body.positions[0].id,
+          number: '12',
+          marks: [],
+          subAssemblyId: null,
+          related: [],
+        },
       ]);
     });
   });

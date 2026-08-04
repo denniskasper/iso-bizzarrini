@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BelongsWithPanel } from '@/components/editor/belongs-with-panel';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
 import { ScanUpload } from '@/components/editor/scan-upload';
 import { PartReading } from '@/components/parts/part-reading';
 import { TavolaParts } from '@/components/parts/tavola-parts';
+import { BelongsWith } from '@/components/positions/belongs-with';
 import { PositionJump } from '@/components/positions/position-jump';
 import { PositionList } from '@/components/positions/position-list';
 import { Button } from '@/components/ui/button';
@@ -13,7 +15,7 @@ import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-vie
 import { MarkLayer } from '@/components/viewer/mark-layer';
 import { api, type CatalogProvenance, type Mark, type Position } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
-import { markAfter, markOn, positionMatching } from '@/lib/positions';
+import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
 
 /**
  * One drawing, with the numbered circles on it and the Part beside it.
@@ -58,10 +60,19 @@ export function TavolaPage() {
    * third circle of `2` and a link to `2` are the same link.
    */
   const [reading, setReading] = useState<{ positionId: string; markId: string } | null>(null);
+  /**
+   * The Sub-assembly a member has asked to see on the drawing, if any. Held here because it is
+   * the *drawing* that answers — the panel asks, and the circles are what light up.
+   */
+  const [askedToShow, setAskedToShow] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
   const tool = useMarkingTool(tavolaId);
 
   const positions = useMemo(() => data?.positions ?? [], [data?.positions]);
+  const sheet = useMemo(
+    () => ({ positions, subAssemblies: data?.subAssemblies ?? [] }),
+    [positions, data?.subAssemblies],
+  );
   const selectedPosition = useMemo(
     () => (linked === undefined ? null : positionMatching(positions, linked)),
     [positions, linked],
@@ -72,6 +83,22 @@ export function TavolaPage() {
   const selected = selectedPosition
     ? { position: selectedPosition, markId: selectedMark?.id ?? null }
     : null;
+
+  /**
+   * The circles a shown Sub-assembly holds — **derived rather than remembered**, so that reading
+   * a number outside it simply stops showing it. A member who follows a related number out of one
+   * has moved on; a drawing still dimmed around a Sub-assembly they are no longer in would be the
+   * screen answering a question they stopped asking, and there is no effect to forget to run.
+   */
+  const shownSubAssembly =
+    askedToShow !== null && selectedPosition?.subAssemblyId === askedToShow ? askedToShow : null;
+  const lit = useMemo(
+    () =>
+      shownSubAssembly === null
+        ? null
+        : new Set(positionsIn(sheet, shownSubAssembly).map((position) => position.id)),
+    [sheet, shownSubAssembly],
+  );
 
   const open = useCallback(
     (position: Position | null) => {
@@ -193,6 +220,7 @@ export function TavolaPage() {
               positions={positions}
               selectedPositionId={selectedPosition?.id ?? null}
               selectedMarkId={selectedMark?.id ?? null}
+              lit={lit}
               onSelect={readMark}
               onMove={tool.on ? tool.moveMark : undefined}
             />
@@ -214,6 +242,19 @@ export function TavolaPage() {
             // been asked for at all.
             unknownNumber={selectedPosition === null ? (linked ?? null) : null}
             tavola={{ number: tavola.number, nameEn: tavola.nameEn, model: tavola.model }}
+            belongsWith={
+              selectedPosition && (
+                <BelongsWith
+                  sheet={sheet}
+                  position={selectedPosition}
+                  showingSubAssembly={shownSubAssembly !== null}
+                  onShowSubAssembly={setAskedToShow}
+                  // A number in the same Sub-assembly, or one it works with, is reached the way
+                  // every other number in the text is: read it, and take the drawing to it.
+                  onSelect={goTo}
+                />
+              )
+            }
           />
 
           <TavolaParts
@@ -239,8 +280,18 @@ export function TavolaPage() {
       {/* Reading is beside the drawing; recording is a panel an Editor opened, under it. There
           is nothing to record until a number has been chosen. */}
       {selectedPosition && (
-        <div className="mt-12">
+        <div className="mt-12 flex flex-col gap-8">
           <ListingPanel tavolaId={tavola.id} position={selectedPosition} />
+          {/* What sits *at* the number, then what goes *with* it — in that order, because a
+              number nobody has recorded a Part at is rarely one anybody is grouping yet.
+              Keyed by the Position, so a name half-typed at one number, or a link half chosen
+              at it, does not follow the Editor to the next one. */}
+          <BelongsWithPanel
+            key={selectedPosition.id}
+            tavolaId={tavola.id}
+            sheet={sheet}
+            position={selectedPosition}
+          />
         </div>
       )}
 

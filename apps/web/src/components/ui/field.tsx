@@ -78,10 +78,20 @@ export function Field({
 export function Select({
   label,
   hint,
+  mono = false,
   children,
   className,
   ...props
-}: ComponentProps<'select'> & { label: string; hint?: ReactNode; children: ReactNode }) {
+}: ComponentProps<'select'> & {
+  label: string;
+  hint?: ReactNode;
+  /**
+   * Set the options in the mono face — for the one fixed set whose members are *numbers the
+   * factory printed*, which are identifiers wherever they appear and not only in prose.
+   */
+  mono?: boolean;
+  children: ReactNode;
+}) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
 
@@ -97,6 +107,7 @@ export function Select({
           'h-control w-full rounded-md border border-line-strong bg-surface-raised px-3',
           'text-base text-text transition-colors duration-150 ease-[var(--ease-out-quick)]',
           'hover:border-line-strong focus:border-accent-ink',
+          mono && 'tabular',
         )}
         {...props}
       >

@@ -67,6 +67,14 @@
   --mark: var(--accent);
   --mark-wash: color-mix(in oklch, var(--accent) 12%, transparent);
   --mark-held: color-mix(in oklch, var(--accent) 34%, transparent);
+  /*
+   * A circle that is **not** in the Sub-assembly a member asked to see — the fourth weight the
+   * one accent has, and the only one that is deliberately below the 3:1 bar every other non-text
+   * mark clears (1.5:1 on paper, measured). It is the navigator's scrim applied to circles rather
+   * than to the sheet: what recedes is what the member has just said they are not asking about,
+   * it is still there, still hittable at its full touch size, and one press brings it back.
+   */
+  --mark-receded: color-mix(in oklch, var(--accent) 30%, transparent);
 
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);

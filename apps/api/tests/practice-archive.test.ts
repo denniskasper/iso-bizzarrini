@@ -53,6 +53,8 @@ describe('a practice system writing itself a catalog', () => {
       positions: 15,
       parts: 6,
       listings: 8,
+      subAssemblies: 1,
+      relatedPositions: 1,
       fitments: 5,
       equivalents: 4,
       sources: 4,
@@ -217,6 +219,56 @@ describe('a practice system writing itself a catalog', () => {
     ).toEqual([
       [24500, '2025-11-02'],
       [19000, '2024-03-18'],
+    ]);
+  });
+
+  /**
+   * What belongs *with* a number, in both of the shapes it comes in — so that the two screens
+   * showing them have a seeded sheet to be built and judged against.
+   *
+   * The sheet has to demonstrate the absence as well: `2` is in no group, and a number in no
+   * group shows nothing rather than falling back to every other number on the drawing.
+   */
+  it('groups some of its numbers, and links two of them', async () => {
+    await seed();
+    const member = await app.editor();
+
+    const models = await member.get('/api/models').expect(200);
+    const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
+    const listed = await member.get(`/api/models/${grifo.id}`).expect(200);
+    const brakes = listed.body.tavole.find((tavola: { number: string }) => tavola.number === '2');
+    const sheet = await member.get(`/api/tavole/${brakes.id}`).expect(200);
+
+    interface SeededPosition {
+      id: string;
+      number: string;
+      subAssemblyId: string | null;
+      related: { positionId: string }[];
+    }
+    const positions: SeededPosition[] = sheet.body.positions;
+    const numbered = (number: string) => {
+      const found = positions.find((position) => position.number === number);
+      if (!found) {
+        throw new Error(`The practice sheet has no number ${number}.`);
+      }
+      return found;
+    };
+
+    expect(sheet.body.subAssemblies).toEqual([
+      { id: expect.any(String), name: 'Front caliper assembly' },
+    ]);
+    const group = sheet.body.subAssemblies[0].id;
+    expect(
+      positions.filter((position) => position.subAssemblyId === group).map((one) => one.number),
+    ).toEqual(['1', '3', '5']);
+    expect(numbered('2').subAssemblyId).toBeNull();
+
+    // One row, read from both ends: the hose runs to the caliper, recorded once.
+    expect(numbered('1').related).toEqual([
+      { id: expect.any(String), positionId: numbered('2').id },
+    ]);
+    expect(numbered('2').related).toEqual([
+      { id: expect.any(String), positionId: numbered('1').id },
     ]);
   });
 

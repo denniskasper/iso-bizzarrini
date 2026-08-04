@@ -79,6 +79,26 @@ export function createApiRouter(dependencies: {
   router.patch('/marks/:markId', positionController.moveMark);
   router.delete('/marks/:markId', positionController.removeMark);
 
+  // **What belongs with a number**, in the two shapes it comes in — hung off the Tavola because
+  // both are properties of the sheet: a Sub-assembly holds numbers on one drawing, and a link
+  // joins two of them. Neither has an address of its own to be read at; both are read with the
+  // sheet, and what is here is only the writing.
+  //
+  // Each has a way back out for the same reason a Mark does (ticket 05): a Sub-assembly is
+  // recorded in one press, so undoing it has to cost about one press too. Taking one number out
+  // undoes the press that put it in; dissolving undoes an eleven-number Sub-assembly named wrong,
+  // which is otherwise eleven presses.
+  router.post('/tavole/:tavolaId/sub-assemblies', positionController.putInSubAssembly);
+  router.delete('/positions/:positionId/sub-assembly', positionController.takeOutOfSubAssembly);
+  // Dissolving the name. The numbers that were in it stay on the sheet.
+  router.delete('/sub-assemblies/:subAssemblyId', positionController.dissolveSubAssembly);
+
+  router.post('/tavole/:tavolaId/related-positions', positionController.relate);
+  // By the **link's** id and not by a pair, which is the symmetry made reachable: there is one
+  // row, both ends report the same id for it, and removing it from either end removes the one
+  // link there is.
+  router.delete('/related-positions/:linkId', positionController.unrelate);
+
   // **What sits at a number**, read one Position at a time rather than carried on every Position
   // of the sheet: a Tavola may hold two hundred of them, each with several Parts and each Part's
   // other appearances, and a member reads one. Recording a Part goes through the Tavola, because

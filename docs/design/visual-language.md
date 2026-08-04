@@ -55,6 +55,14 @@ near-black, so this was a hypothesis worth testing and the measurement settled i
 the archive is the band across the top of the Club's site. A stated system preference for light
 wins over the default; an explicit choice wins over both, and is remembered.
 
+**One value is deliberately under the bar, and it is a state the member switched on.** When a
+member asks to see a Sub-assembly on a drawing, the circles that are *not* in it recede to
+`--mark-receded` — the accent at 30%, which measures 1.5:1 on paper and clears nothing. That is
+the point: it is the navigator's scrim applied to circles instead of to the sheet, so "the bright
+ones are the ones you asked for" needs no legend. Nothing is taken away — every receded circle is
+still there, still hittable at its full 44px, and one press on the same control brings the sheet
+back. A mark that a member has not asked to have receded never wears it.
+
 **Built for a garage.** This is the actual usage context, not an accessibility afterthought.
 Nothing interactive is under 44px in either dimension — `--spacing-control`, and the one place
 that figure is also written as a number is `MARK_TOUCH` in the drawing viewer, which has to do

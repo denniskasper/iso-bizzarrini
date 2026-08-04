@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
+import { PositionChip } from '@/components/positions/position-chip';
 import type { Position } from '@/lib/api';
-import { cn } from '@/lib/utils';
 
 /**
  * Every number on the sheet at once, in the order the factory printed them.
@@ -57,28 +57,11 @@ export function PositionList({
         <ul className="mt-6 flex flex-wrap gap-2 border-t border-line pt-6">
           {positions.map((position) => (
             <li key={position.id}>
-              <button
-                type="button"
-                data-testid="position-chip"
-                data-position={position.number}
-                aria-pressed={position.id === selectedPositionId}
-                onClick={() => onSelect(position)}
-                className={cn(
-                  'tabular inline-flex h-control min-w-control items-center justify-center px-3',
-                  'rounded-md border text-sm transition-colors duration-150 ease-[var(--ease-out-quick)]',
-                  position.marks.length === 0
-                    ? 'border-dashed border-line-strong text-muted'
-                    : 'border-line-strong text-text',
-                  position.id === selectedPositionId
-                    ? 'border-mark bg-mark text-accent-contrast'
-                    : 'bg-surface-raised hover:bg-surface-sunken',
-                )}
-              >
-                {position.number}
-                {position.marks.length === 0 && (
-                  <span className="sr-only">, listed but not drawn</span>
-                )}
-              </button>
+              <PositionChip
+                position={position}
+                selected={position.id === selectedPositionId}
+                onSelect={onSelect}
+              />
             </li>
           ))}
         </ul>

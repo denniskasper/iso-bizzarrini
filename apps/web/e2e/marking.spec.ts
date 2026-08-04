@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import { markFor, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
 
 /**
  * The numbered circles, and the tool that puts them there.
@@ -15,10 +15,6 @@ import { openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
 
 /** The 44px floor everything in this archive obeys, because the hands using it are cold. */
 const THUMB = 44;
-
-function markFor(page: Page, number: string): Locator {
-  return page.locator(`[data-testid="drawing-mark"][data-position="${number}"]`);
-}
 
 function frameOf(page: Page): Locator {
   return page.getByTestId('drawing-frame');

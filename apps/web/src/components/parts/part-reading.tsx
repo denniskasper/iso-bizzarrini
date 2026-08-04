@@ -33,6 +33,7 @@ export function PartReading({
   markId,
   unknownNumber,
   tavola,
+  belongsWith,
 }: {
   position: Position | null;
   /** Which of the number's circles is being read, for a number printed more than once. */
@@ -41,6 +42,14 @@ export function PartReading({
   unknownNumber: string | null;
   /** Where the member is, so the Part says what it is being read at (story 59). */
   tavola: { number: string; nameEn: string; model: CatalogModel };
+  /**
+   * What belongs with this number — its Sub-assembly and the numbers it works with.
+   *
+   * **A slot rather than four props threaded through.** What goes in it is about the *sheet* and
+   * not about the Part, and every fact it needs is one this panel would otherwise be handed
+   * without ever reading. The page composes it; this places it, above what sits at the number.
+   */
+  belongsWith?: ReactNode;
 }) {
   if (!position) {
     return (
@@ -58,17 +67,27 @@ export function PartReading({
 
   // Keyed by the Position, so moving between numbers is a fresh read rather than the previous
   // Part lingering under a new heading while the next one arrives.
-  return <Reading key={position.id} position={position} markId={markId} tavola={tavola} />;
+  return (
+    <Reading
+      key={position.id}
+      position={position}
+      markId={markId}
+      tavola={tavola}
+      belongsWith={belongsWith}
+    />
+  );
 }
 
 function Reading({
   position,
   markId,
   tavola,
+  belongsWith,
 }: {
   position: Position;
   markId: string | null;
   tavola: { number: string; nameEn: string; model: CatalogModel };
+  belongsWith?: ReactNode;
 }) {
   const { data, isPending, isError, error } = usePositionListings(position.id);
 
@@ -108,6 +127,14 @@ function Reading({
       <p className="mt-3 max-w-measure text-sm text-pretty text-faint">
         {describeMarks(position, markId)}
       </p>
+
+      {/*
+       * **What belongs with the number, above what sits at it.** Both are facts about this
+       * Position rather than about any Part, so they go with the number in the heading — and a
+       * member reading a Position carrying five Parts each with three lists of their own would
+       * otherwise have to scroll past all of it to find out that the number is one of eleven.
+       */}
+      {belongsWith}
 
       {isPending && <p className="mt-8 text-muted">Reading…</p>}
       {isError && <Refusal>{error.message}</Refusal>}

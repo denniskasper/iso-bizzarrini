@@ -15,12 +15,15 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [09](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md)** —
-Sub-assemblies and Related Positions. The archive can now be filled: ticket 13 built the loader
-that turns the Club's own spreadsheets and scans into a catalog, so the volunteers' evenings can
-start. What 13 left behind is the half of 09 nobody can read yet — it *writes* Sub-assemblies and
-Related Positions, because the club's sheets record both, and nothing shows them to a member or
-lets an Editor record one.
+**Next up: [11](.scratch/ricambi/issues/11-editor-progress-view.md)** — the Editor progress view.
+Everything a Tavola can carry is now recordable, and ticket 13's loader has filled the archive
+from the Club's own spreadsheets, so the question that has no answer is *what is left to do* —
+which sheets have no scan, which numbers have no Mark, which have no Listing. Marking Tavole is
+the project's critical path and nothing yet tells a volunteer where to start.
+
+[10](.scratch/ricambi/issues/10-part-photographs.md), [12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)
+and [25](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) are equally pickable
+and independent of it.
 
 | # | Ticket | Progress | Status | Blocked by |
 | --- | --- | --- | --- | --- |
@@ -32,7 +35,7 @@ lets an Editor record one.
 | 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Done | `done` | 05 |
 | 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Done | `done` | 06 |
 | 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Done | `done` | 06 |
-| 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Not started | `ready-for-agent` | 06 |
+| 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Done | `done` | 06 |
 | 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Not started | `ready-for-agent` | 06 |
 | 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Not started | `ready-for-agent` | 05, 06 |
 | 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Not started | `ready-for-agent` | 06 |

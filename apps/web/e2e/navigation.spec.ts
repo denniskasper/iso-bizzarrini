@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import { markFor, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
 
 /**
  * Working the drawing both ways round.
@@ -28,10 +28,6 @@ async function boxOf(locator: Locator): Promise<Box> {
     throw new Error('That element is not on the page.');
   }
   return box;
-}
-
-function markFor(page: Page, number: string): Locator {
-  return page.locator(`[data-testid="drawing-mark"][data-position="${number}"]`);
 }
 
 /** The circle of a number that is the one being read, of however many the factory printed. */

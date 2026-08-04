@@ -46,11 +46,12 @@ export function createTavolaService(dependencies: {
       }
 
       // With the drawing and not after it. The circles are part of what a member opened the
-      // Tavola to see, and a second request for them is a second chance to arrive late.
-      const positions = await positionService.listForTavola(tavolaId);
+      // Tavola to see, and a second request for them is a second chance to arrive late — and so
+      // is what belongs with each of them, which arrives on the same sheet.
+      const sheet = await positionService.listForTavola(tavolaId);
 
       return {
-        positions,
+        ...sheet,
         tavola: {
           ...toTavolaSummary(row),
           model: toCatalogModel(row.model),

@@ -1,7 +1,10 @@
-import type { Mark, Position } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import type { Mark, Position, Sheet, SubAssembly, TavolaResponse } from '@/lib/api';
 
 /**
- * Finding a number a member already knows.
+ * The sheet: finding a number on it, reading what belongs with that number, and keeping what the
+ * archive last said about the whole of it.
  *
  * **A Position number is an identifier, not a quantity** — `207`, `210 S`, `12 bis` — so nothing
  * here does arithmetic on one. What it does instead is forgive the two things that are typing
@@ -67,4 +70,68 @@ export function markAfter(marks: Mark[], currentId: string | null): Mark | null 
 /** Which circle is being read: the one chosen, or the first one down the sheet. */
 export function markOn(position: Position, markId: string | null): Mark | null {
   return position.marks.find((mark) => mark.id === markId) ?? position.marks[0] ?? null;
+}
+
+/**
+ * The named Sub-assembly a number sits in, if any.
+ *
+ * **A number in none gets nothing back**, which is the whole point of the null: it does not fall
+ * through to the sheet, and a screen reading this has nothing to print rather than two hundred
+ * numbers to print.
+ */
+export function subAssemblyOf(sheet: Sheet, position: Position | null): SubAssembly | null {
+  if (!position?.subAssemblyId) {
+    return null;
+  }
+  return sheet.subAssemblies.find((one) => one.id === position.subAssemblyId) ?? null;
+}
+
+/**
+ * The numbers in a Sub-assembly, in the sheet's own order.
+ *
+ * Read off the sheet's Positions rather than carried on the Sub-assembly, because membership is
+ * one fact and it lives on the Position. The same list written on the Sub-assembly as well would
+ * be the same fact twice, free to disagree the moment a number moves.
+ */
+export function positionsIn(sheet: Sheet, subAssemblyId: string): Position[] {
+  return sheet.positions.filter((position) => position.subAssemblyId === subAssemblyId);
+}
+
+/** The numbers a Position is linked to, resolved against the sheet they are all on. */
+export function relatedTo(
+  sheet: Sheet,
+  position: Position | null,
+): { linkId: string; position: Position }[] {
+  const byId = new Map(sheet.positions.map((one) => [one.id, one]));
+
+  return (position?.related ?? []).flatMap((link) => {
+    const other = byId.get(link.positionId);
+    return other ? [{ linkId: link.id, position: other }] : [];
+  });
+}
+
+/**
+ * **Every write answers with the sheet, so the answer is written straight into the cache** rather
+ * than used to invalidate it.
+ *
+ * An Editor placing two hundred circles pays one round trip a circle; re-reading the Tavola after
+ * each one would double that, and re-fetch a drawing's worth of metadata to learn the one thing
+ * the archive has just finished saying.
+ *
+ * It takes the sheet **whole** and not its Positions. Naming a Sub-assembly and linking two
+ * numbers change more than the one number that was asked about — a link is symmetric and a
+ * Sub-assembly stops existing when its last number leaves it — and a cache that kept the old
+ * names beside the new Positions would be a panel naming one the archive no longer holds.
+ */
+export function useRecordSheet(tavolaId: string): (sheet: Sheet) => void {
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    (sheet: Sheet) => {
+      queryClient.setQueryData<TavolaResponse>(['tavola', tavolaId], (current) =>
+        current ? { ...current, ...sheet } : current,
+      );
+    },
+    [queryClient, tavolaId],
+  );
 }

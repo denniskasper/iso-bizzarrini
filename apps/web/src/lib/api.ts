@@ -14,9 +14,11 @@ import type {
   NewListingRequest,
   NewModelRequest,
   NewPositionRequest,
+  NewSubAssemblyRequest,
   NewTavolaRequest,
   PositionListingsResponse,
   PositionsResponse,
+  RelatePositionsRequest,
   ServiceStatus,
   SessionResponse,
   TavolaListingsResponse,
@@ -121,6 +123,31 @@ export const api = {
     request<PositionsResponse>(`/marks/${markId}`, { method: 'DELETE' }),
 
   /**
+   * What belongs *with* a number rather than at it — the named Sub-assembly it sits in, and the
+   * numbers it has been linked to.
+   *
+   * **Both answer with the sheet**, for a reason neither the marking tool nor the Part record
+   * has: a link is symmetric, so recording one changes *two* Positions; and a Sub-assembly stops
+   * existing when its last number leaves it, so removing one number can remove one. Neither is
+   * derivable from the request that caused it.
+   *
+   * `putInSubAssembly` names it rather than choosing it. A sheet has one *Door Lock*, so sending
+   * that name again puts these numbers into the one that is already there.
+   */
+  putInSubAssembly: (tavolaId: string, subAssembly: NewSubAssemblyRequest) =>
+    send<PositionsResponse>('POST', `/tavole/${tavolaId}/sub-assemblies`, subAssembly),
+  takeOutOfSubAssembly: (positionId: string) =>
+    request<PositionsResponse>(`/positions/${positionId}/sub-assembly`, { method: 'DELETE' }),
+  dissolveSubAssembly: (subAssemblyId: string) =>
+    request<PositionsResponse>(`/sub-assemblies/${subAssemblyId}`, { method: 'DELETE' }),
+
+  relatePositions: (tavolaId: string, pair: RelatePositionsRequest) =>
+    send<PositionsResponse>('POST', `/tavole/${tavolaId}/related-positions`, pair),
+  /** By the **link's** id: there is one row, and both ends report the same id for it. */
+  unrelatePositions: (linkId: string) =>
+    request<PositionsResponse>(`/related-positions/${linkId}`, { method: 'DELETE' }),
+
+  /**
    * Reading what sits at a number, and recording it.
    *
    * Read one Position at a time rather than with the sheet: a Tavola may carry two hundred of
@@ -204,15 +231,20 @@ export type {
   NewModelRequest,
   NewPartRequest,
   NewSourceRequest,
+  NewSubAssemblyRequest,
   NewTavolaRequest,
   ObservedPrice,
   Part,
   PartInFull,
   PartListing,
   Position,
+  RelatedPosition,
+  RelatePositionsRequest,
+  Sheet,
   Source,
   SourceCondition,
   ServiceStatus,
+  SubAssembly,
   TavolaListing,
   TavolaResponse,
   TavolaScan,

@@ -8,7 +8,9 @@ import type {
   ListedElsewhere,
   PartListing,
   Position,
+  RelatedPosition,
   Source,
+  SubAssembly,
   TavolaListing,
   TavolaScan,
   TavolaSummary,
@@ -20,6 +22,7 @@ import type {
   PartRow,
   ScanRow,
   SourceRow,
+  SubAssemblyRow,
 } from '../db/schema.js';
 import { scanImageUrl } from '../images/scan-addresses.js';
 import type { FitmentWithModel, PartRecordRows } from '../repositories/part-record-repository.js';
@@ -65,13 +68,25 @@ export function toTavolaSummary(row: TavolaWithCategoryAndScan): TavolaSummary {
  * `numberSort` is deliberately not reported. It is a sort key the archive derives so a list
  * reads 1, 2, 10 — never something to show, and never how two Positions are told apart. What a
  * member reads is the number as the factory printed it.
+ *
+ * `related` is handed in rather than read off the row, because a link is one row shared by two
+ * Positions: what belongs on *this* Position is the other end of each of them, and only something
+ * holding the whole sheet can say which end that is.
  */
-export function toPosition(row: PositionWithMarks): Position {
+export function toPosition(row: PositionWithMarks, related: RelatedPosition[]): Position {
   return {
     id: row.id,
     number: row.number,
     marks: row.marks.map((mark) => ({ id: mark.id, x: mark.x, y: mark.y })),
+    // Null is the ordinary case, and says what it looks like: this number is in no Sub-assembly.
+    subAssemblyId: row.subAssemblyId,
+    related,
   };
+}
+
+/** A name and nothing else — no number, and nothing to order it by (spec, Out of Scope). */
+export function toSubAssembly(row: SubAssemblyRow): SubAssembly {
+  return { id: row.id, name: row.name };
 }
 
 /**

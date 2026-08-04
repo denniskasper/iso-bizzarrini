@@ -302,6 +302,23 @@
       0 0 0 calc(var(--mark-ring) / 3.2) var(--mark-wash);
   }
 
+  /*
+   * The numbers that are **not** in the Sub-assembly a member asked to see.
+   *
+   * It recedes what was not named rather than painting what was in a second colour, which is the
+   * navigator's move about what is not in view — and for the same reason: "the bright ones are the
+   * ones you asked for" needs no legend, and the archive's one accent already means "the Position
+   * being pointed at". Two things wearing it would leave a member working out which is which.
+   *
+   * The weight is `--mark-receded`, argued and measured in the token file. Every circle here is
+   * still exactly as hittable as it was, and this is a state the member switched on and can
+   * switch off — the sheet has not lost anything, it is answering a question.
+   */
+  .drawing-mark[data-subdued='true']::before {
+    border-color: var(--mark-receded);
+    background-color: transparent;
+  }
+
   /* The focus ring is the application's, sized to the circle rather than to the touch area —
      otherwise a keyboard lands on an amber square the size of a thumb. */
   .drawing-mark:focus-visible {

@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { api, type MarkPoint, type Position, type TavolaResponse } from '@/lib/api';
+import { api, type MarkPoint, type Sheet } from '@/lib/api';
 import { useRereadListings } from '@/lib/parts';
+import { useRecordSheet } from '@/lib/positions';
 
 /**
  * The marking tool's state, kept out of the screen that draws it.
@@ -65,33 +66,20 @@ export interface MarkingTool {
 }
 
 export function useMarkingTool(tavolaId: string): MarkingTool {
-  const queryClient = useQueryClient();
   const rereadListings = useRereadListings(tavolaId);
   const [on, setOn] = useState(false);
   const [number, setNumber] = useState('1');
   const [held, setHeld] = useState(false);
 
-  /**
-   * Every write answers with the sheet, so the answer is written straight into the cache rather
-   * than used to invalidate it. An Editor placing two hundred circles pays one round trip a
-   * circle; re-reading the Tavola after each one would double that, and re-fetch a drawing's
-   * worth of metadata to learn one thing the archive has just finished saying.
-   */
-  const record = useCallback(
-    (sheet: { positions: Position[] }) => {
-      queryClient.setQueryData<TavolaResponse>(['tavola', tavolaId], (current) =>
-        current ? { ...current, positions: sheet.positions } : current,
-      );
-    },
-    [queryClient, tavolaId],
-  );
+  /** Every write answers with the sheet, and the sheet goes straight into the cache. */
+  const record = useRecordSheet(tavolaId);
 
   /**
    * Placing and listing both consume the number in the field — and only once the archive has
    * it, so that a refused click does not quietly move an Editor's place in the catalog on.
    */
   const onward = useCallback(
-    (sheet: { positions: Position[] }) => {
+    (sheet: Sheet) => {
       record(sheet);
       setNumber((current) => (held ? current : nextNumberAfter(current)));
     },

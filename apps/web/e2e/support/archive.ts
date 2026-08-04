@@ -20,6 +20,14 @@ export function drawingOf(page: Page): Locator {
 }
 
 /**
+ * The circles a number is printed at. **Several, for a number the factory printed several times**
+ * — which is the ordinary case and the reason this is not `.first()` here.
+ */
+export function markFor(page: Page, number: string): Locator {
+  return page.locator(`[data-testid="drawing-mark"][data-position="${number}"]`);
+}
+
+/**
  * A signed-in member, looking at the Grifo's first drawing — the state most of what this seam
  * exists for begins from.
  */
