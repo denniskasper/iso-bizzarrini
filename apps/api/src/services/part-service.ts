@@ -9,6 +9,7 @@ import type {
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError } from '../http/errors.js';
 import type { ListingRow, NewListingRow } from '../db/schema.js';
+import { byPart } from '../repositories/by-part.js';
 import type { PartRecordRows } from '../repositories/part-record-repository.js';
 import type { ElsewhereRow, ListedOnRow, PartRepository } from '../repositories/part-repository.js';
 import type { PositionRepository } from '../repositories/position-repository.js';
@@ -67,27 +68,6 @@ export interface CorrectedListing {
  * read as a complete one is how a second copy of a Part gets recorded.
  */
 const MOST_MATCHES_REPORTED = 20;
-
-/**
- * Rows that each name a Part, gathered under the Part they name.
- *
- * Every query here reads a **set** of Part ids at once — a Position carrying two alternatives and
- * three fixings is five Parts, and five round trips to answer one click is how a screen becomes
- * slow without anybody deciding to make it slow. What comes back is flat, and what reads it wants
- * it per Part; this is that turn, written once for both of the questions that ask it.
- */
-function byPart<Row extends { partId: string }>(rows: Row[]): Map<string, Row[]> {
-  const gathered = new Map<string, Row[]>();
-  for (const row of rows) {
-    const found = gathered.get(row.partId);
-    if (found) {
-      found.push(row);
-    } else {
-      gathered.set(row.partId, [row]);
-    }
-  }
-  return gathered;
-}
 
 export interface PartService {
   listingsAt(positionId: string): Promise<PartListing[]>;
@@ -423,12 +403,18 @@ export function createPartService(dependencies: {
      * **An Editor's tool for listing a Part the archive already has**, and the only thing that
      * can see a Part listed nowhere.
      *
+     * It matches through the archive's one matching rule, which ticket 22 widened to the five
+     * fields a member searches — so a Part is found here by its Disegno Origine or by a supplier's
+     * number as readily as by its Catalog Number. What is different from Search is only what is
+     * *reported*: this answers how far a correction reaches, in sheets, because that is what an
+     * Editor about to make one is deciding on.
+     *
      * One more than will be reported is read, so that a capped list can say it is one. An Editor
      * told "no such Part" by a truncated answer records a second copy of the Part the answer
      * did not reach.
      */
     async lookUpParts(query) {
-      const found = await partRepository.lookUpParts(query, MOST_MATCHES_REPORTED + 1);
+      const found = await partRepository.searchParts(query, MOST_MATCHES_REPORTED + 1);
       const reported = found.slice(0, MOST_MATCHES_REPORTED);
 
       const listedOn = await listedOnFor(reported.map((part) => part.id));

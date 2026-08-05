@@ -10,6 +10,7 @@ import { ArchiveGate } from '@/components/archive-gate';
 import { CatalogPage } from '@/routes/catalog-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
+import { SearchPage } from '@/routes/search-page';
 import { SignInPage } from '@/routes/sign-in-page';
 import { TavolaPage } from '@/routes/tavola-page';
 
@@ -69,6 +70,26 @@ const signInRoute = createRoute({
   },
 });
 
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/search',
+  component: SearchPage,
+  /**
+   * **What is being searched for, in the address.** The same argument the Position on a Tavola
+   * makes: a member who has found the bracket they were after can send the address bar to
+   * somebody else, reload it, or reach it again from their history — none of which a screen
+   * holding its query in a variable can do. It also survives the gate, since `next` carries the
+   * whole location.
+   *
+   * Absent rather than blank when nothing is being asked: `/search` on its own is the screen
+   * before anybody has typed, and it deserves the bare address.
+   */
+  validateSearch: (search: Record<string, unknown>): { q?: string } => {
+    const q = search['q'];
+    return typeof q === 'string' && q.trim() !== '' ? { q } : {};
+  },
+});
+
 const modelRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/models/$modelId',
@@ -97,7 +118,13 @@ const tavolaRoute = createRoute({
 });
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([catalogRoute, signInRoute, modelRoute, tavolaRoute]),
+  routeTree: rootRoute.addChildren([
+    catalogRoute,
+    signInRoute,
+    searchRoute,
+    modelRoute,
+    tavolaRoute,
+  ]),
   defaultPreload: 'intent',
   parseSearch,
   stringifySearch,

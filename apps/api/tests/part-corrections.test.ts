@@ -436,8 +436,12 @@ describe('correcting a Part and its Listings', () => {
 
   /**
    * **Finding the Part to list again**, which is what makes the paragraph above reachable from a
-   * screen. Catalog Number and the two names, and nothing else: Disegno Origine, Equivalent
-   * references and a member's results page are ticket 22's, which owns Search.
+   * screen.
+   *
+   * It matches through the archive's one matching rule, which ticket 22 widened to the five
+   * fields a member searches — so what is asserted here is no longer *what counts as a match*,
+   * which `search.test.ts` covers, but what this lookup **reports** about one: the sheets a
+   * correction would reach, and the Part that is on no sheet at all.
    */
   describe('finding an existing Part', () => {
     async function find(query: string) {
@@ -446,25 +450,29 @@ describe('correcting a Part and its Listings', () => {
     }
 
     /**
-     * The one rule this lookup shares with ticket 22, and the reason a number is typed rather
-     * than remembered: the catalog prints `260 03 150`, the bracket is stamped `26003150`, and
-     * an Editor holding one should not have to guess which spacing the archive was given.
+     * The rule this lookup shares with Search, and the reason a number is typed rather than
+     * remembered: the catalog prints `260 03 150`, the bracket is stamped `26003150`, and an
+     * Editor holding one should not have to guess which spacing the archive was given.
+     *
+     * Where it goes further than it once did is the prefix. That widening came with ticket 22 and
+     * is the whole point of there being one matcher: an Editor who typed `260 03` and an
+     * unnumbered pasted row asking the same question of the same archive get the same answer.
      */
-    it('matches a Catalog Number whatever spacing was typed', async () => {
+    it('matches a Catalog Number whatever spacing was typed, and from its beginning', async () => {
       const { partId } = await givenPart({ nameEn: 'Brake hose', catalogNumber: '260 03 150' });
 
-      for (const typed of ['260 03 150', '26003150', '  260  03150 ']) {
+      for (const typed of ['260 03 150', '26003150', '  260  03150 ', '260 03']) {
         expect((await find(typed)).parts.map((found: { part: { id: string } }) => found.part.id)) //
           .toEqual([partId]);
       }
     });
 
-    // Exact, and only exact. A number is an identifier compared against a printed page, and a
-    // lookup that answered `260` with every part in the two-sixties would be a different tool.
-    it('does not match a Catalog Number by a prefix of it', async () => {
+    // From the beginning and never from the middle. A number is an identifier compared against a
+    // printed page, and matching inside one would answer `03150` with things that are not it.
+    it('does not match a Catalog Number from the middle of it', async () => {
       await givenPart({ nameEn: 'Brake hose', catalogNumber: '260 03 150' });
 
-      expect((await find('260 03')).parts).toEqual([]);
+      expect((await find('03 150')).parts).toEqual([]);
     });
 
     it('matches a prefix of either name, whatever case was typed', async () => {
@@ -478,7 +486,8 @@ describe('correcting a Part and its Listings', () => {
         .toEqual([hose]);
       expect((await find('asta gui')).parts.map((found: { part: { id: string } }) => found.part.id)) //
         .toEqual([rod]);
-      // A prefix, and not a word anywhere in the name — ticket 22 is what reaches further.
+      // A prefix, and not a word anywhere in the name. Neither tool reaches into the middle of
+      // one: that is free-text search, which the spec rules out for both of them.
       expect((await find('guida')).parts).toEqual([]);
     });
 

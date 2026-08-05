@@ -11,6 +11,7 @@ import { createPartRecordController } from './controllers/part-record-controller
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
+import { createSearchController } from './controllers/search-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
 import { createStatusController } from './controllers/status-controller.js';
 import { createTavolaController } from './controllers/tavola-controller.js';
@@ -37,6 +38,7 @@ import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
 import { createScanService } from './services/scan-service.js';
+import { createSearchService } from './services/search-service.js';
 import { createStatusService } from './services/status-service.js';
 import { createTavolaService } from './services/tavola-service.js';
 import { createFileStore, type FileStore } from './storage/file-store.js';
@@ -115,6 +117,10 @@ export function createApp(dependencies: AppDependencies): Express {
     systemRepository,
   });
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
+  // **The way into the archive that does not start at the car** (ticket 22). Two repositories and
+  // nothing else: it asks what the query names and where those Parts are listed, and everything a
+  // member then reads about one arrives when they open it on a drawing.
+  const searchService = createSearchService({ partRepository, partRecordRepository });
   const positionService = createPositionService({ tavolaRepository, positionRepository });
   const partRecordService = createPartRecordService({
     clock,
@@ -159,6 +165,7 @@ export function createApp(dependencies: AppDependencies): Express {
 
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ editorGate });
+  const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
   const tavolaController = createTavolaController({ tavolaService });
   const positionController = createPositionController({ positionService });
@@ -202,6 +209,7 @@ export function createApp(dependencies: AppDependencies): Express {
       maxPhotographBytes: config.files.maxPhotographBytes,
       statusController,
       sessionController,
+      searchController,
       catalogController,
       tavolaController,
       positionController,

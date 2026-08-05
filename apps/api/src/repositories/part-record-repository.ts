@@ -1,4 +1,5 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { numberBeginsWith } from '../catalog/part-matching.js';
 import type { DbSession } from '../db/client.js';
 import {
   EQUIVALENT_KINDS,
@@ -62,6 +63,16 @@ export interface PartRecordRepository {
   listFitments(partIds: string[]): Promise<FitmentWithModel[]>;
   listEquivalents(partIds: string[]): Promise<EquivalentRow[]>;
   listSources(partIds: string[]): Promise<SourceRow[]>;
+
+  /**
+   * **Only the Equivalents whose reference a search matched** — what explains why a Part is on
+   * the screen at all when the member typed a number that is not the archive's.
+   *
+   * A second read rather than something carried out of the search itself, because a Part may hold
+   * six Equivalents and the answer wants the one or two that account for it. The match is the
+   * shared rule in `part-matching.ts`, so a reference is found here exactly as it is found there.
+   */
+  listMatchingEquivalents(partIds: string[], query: string): Promise<EquivalentRow[]>;
 
   addFitment(row: NewFitmentRow): Promise<FitmentRow>;
   addEquivalent(row: NewEquivalentRow): Promise<EquivalentRow>;
@@ -136,6 +147,19 @@ export function createPartRecordRepository(db: DbSession): PartRecordRepository 
         .select()
         .from(equivalents)
         .where(inArray(equivalents.partId, partIds))
+        .orderBy(...byHowCloseToTheOriginal);
+    },
+
+    listMatchingEquivalents(partIds, query) {
+      if (partIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .select()
+        .from(equivalents)
+        .where(
+          and(inArray(equivalents.partId, partIds), numberBeginsWith(equivalents.reference, query)),
+        )
         .orderBy(...byHowCloseToTheOriginal);
     },
 

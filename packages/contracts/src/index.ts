@@ -738,13 +738,13 @@ export interface FoundPart {
 }
 
 /**
- * `GET /api/parts?q=` — **an Editor's tool for listing a Part the archive already has**, and
- * deliberately nothing more.
+ * `GET /api/parts?q=` — **an Editor's tool for listing a Part the archive already has.**
  *
- * It matches a Catalog Number exactly, **ignoring the spacing the catalog prints** — `260 03 150`
- * is found by typing `26003150` — or a prefix of either name. Disegno Origine, Equivalent
- * references and everything a *member* searches for are ticket 22's, which owns Search and is
- * meant to absorb this.
+ * It matches exactly what `SearchResponse` matches, through the same rule: the same five fields,
+ * the same indifference to how a number is spaced, the same prefix. What differs is what it
+ * *reports*. Search names every number a Part sits at, because a member wants the right circle;
+ * this names one row per **sheet**, because an Editor about to correct a Part is deciding how far
+ * the correction reaches, and a washer at four numbers on one drawing changes one drawing.
  *
  * `more` is set when the archive held back matches rather than reporting them all. It exists so
  * that a capped list can never read as a complete one — an Editor told "no such Part" by a
@@ -752,6 +752,75 @@ export interface FoundPart {
  */
 export interface PartLookupResponse {
   parts: FoundPart[];
+  more: boolean;
+}
+
+/**
+ * Somewhere a Part a search found is listed — **the car, the sheet and the number**, which is
+ * the whole of what a member needs in order to say "that one is mine" (story 82).
+ *
+ * One entry per Listing rather than per Tavola, which is what separates it from `ListedOn`: a
+ * washer at three numbers on one drawing is three circles to go and look at, and each of them is
+ * somewhere the browser can send a member straight to.
+ *
+ * The Model comes with it because a Tavola belongs to exactly one (ADR 0002), and in a list of
+ * results reached from a number rather than from a car it is the first thing to read.
+ */
+export interface SearchListing {
+  /**
+   * The Listing's own id. Nothing is addressed by it here — it is identity, so that a list of a
+   * Part's appearances can be told apart by what they *are* rather than by a sheet and a number
+   * reassembled into a key, which is only unique for as long as the constraints that make it so.
+   */
+  id: string;
+  tavolaId: string;
+  /** As printed on that sheet. */
+  tavolaNumber: string;
+  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page. */
+  nameEn: string;
+  model: CatalogModel;
+  /** `null` where the Part is listed on that Tavola without a Position of its own. */
+  positionNumber: string | null;
+}
+
+/**
+ * A Part a search found, wherever it is listed, and **why it matched where the reason is not on
+ * the Part itself.**
+ *
+ * `matchedEquivalents` is that last clause and it is the reverse lookup made checkable. Somebody
+ * holding a modern bearing marked `6205` is asking what it replaces; an answer reading only
+ * "Front wheel bearing" gives them nothing to hold the bearing up against, so the Equivalents the
+ * query actually matched come back with it. It is empty for a Part found by its own number or
+ * name, because then there is nothing to explain.
+ *
+ * The bare `Part` and not the whole of it: this is a list to pick from, and what fits the Part,
+ * what replaces it and where it has been available arrive when the member picks one and lands on
+ * it in the context of a drawing.
+ */
+export interface SearchMatch {
+  part: Part;
+  /** Only the Equivalents this query matched, in the archive's own order. Usually empty. */
+  matchedEquivalents: Equivalent[];
+  /** Empty for a Part listed on no drawing — findable, correctable, and nowhere to go. */
+  listings: SearchListing[];
+}
+
+/**
+ * `GET /api/search?q=` — **the way into the archive that does not start at the car.**
+ *
+ * Matched over five fields and no more: Catalog Number, Disegno Origine, an Equivalent's
+ * reference, and either name. The three numbers match **however the query is spaced**, because
+ * the catalog prints `260 03 150` and the bracket in somebody's hand is stamped `26003150`.
+ * Notes, Catalog Notes, descriptions and Contributions are deliberately not searched (spec) —
+ * that would be free-text search, and this is Postgres with no relevance ranking behind it.
+ *
+ * The order is the archive's rather than a score: the number typed exactly first, then the
+ * catalog's own order. `more` is set when matches were held back, so that a capped list can never
+ * read as a complete one — a member told "nothing else matches" goes looking for a Part the
+ * archive has.
+ */
+export interface SearchResponse {
+  matches: SearchMatch[];
   more: boolean;
 }
 

@@ -27,6 +27,7 @@ import type {
   PositionsResponse,
   RelatePositionsRequest,
   ReorderPhotographsRequest,
+  SearchResponse,
   ServiceStatus,
   SessionResponse,
   TavolaListingsResponse,
@@ -99,6 +100,20 @@ export const api = {
   session: () => request<SessionResponse>('/session'),
   signIn: (passphrase: string) => send<SessionResponse>('POST', '/session', { passphrase }),
   signOut: () => request<SessionResponse>('/session', { method: 'DELETE' }),
+
+  /**
+   * **The way into the archive that does not start at the car** (ticket 22).
+   *
+   * Matched over the Catalog Number, the Disegno Origine, an Equivalent's reference and either
+   * name — the four things somebody holding a bracket can read off it, plus the one a modern
+   * replacement is stamped with. The spacing in the query does not matter, because the catalog
+   * prints `260 03 150` and the part is stamped `26003150`.
+   *
+   * Each match carries every place the Part is listed, so the browser never has to ask a second
+   * time to find out where a result leads, and the Equivalents that matched, so a member can
+   * check the answer against the thing in their hand.
+   */
+  search: (query: string) => request<SearchResponse>(`/search?q=${encodeURIComponent(query)}`),
 
   models: () => request<CatalogModelsResponse>('/models'),
   model: (modelId: string) => request<CatalogModelResponse>(`/models/${modelId}`),
@@ -334,6 +349,9 @@ export type {
   RelatedPosition,
   RelatePositionsRequest,
   ReorderPhotographsRequest,
+  SearchListing,
+  SearchMatch,
+  SearchResponse,
   Sheet,
   Source,
   SourceCondition,

@@ -11,6 +11,7 @@ import type {
   PartListing,
   Position,
   RelatedPosition,
+  SearchListing,
   Source,
   SubAssembly,
   TavolaListing,
@@ -248,6 +249,27 @@ export function toListedOn(row: ListedOnRow): ListedOn {
     tavolaNumber: row.tavola.number,
     nameEn: row.tavola.nameEn,
     model: toCatalogModel(row.model),
+  };
+}
+
+/**
+ * Somewhere a Part a search found is listed — **the car, the sheet and the number**, and nothing
+ * about the appearance itself.
+ *
+ * The third neighbour of the two above, and narrower than either. `toListedElsewhere` answers
+ * *where else is this used and how many are fitted there*, which a member reads with a drawing
+ * already in front of them; this answers *which of these is mine, and where do I go to see it*,
+ * asked by somebody who arrived holding a bracket and no drawing at all. A quantity means nothing
+ * until they have picked one, so none is reported.
+ */
+export function toSearchListing(row: ElsewhereRow): SearchListing {
+  return {
+    id: row.listing.id,
+    tavolaId: row.tavola.id,
+    tavolaNumber: row.tavola.number,
+    nameEn: row.tavola.nameEn,
+    model: toCatalogModel(row.model),
+    positionNumber: row.position?.number ?? null,
   };
 }
 

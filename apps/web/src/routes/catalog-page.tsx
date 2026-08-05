@@ -24,6 +24,26 @@ export function CatalogPage() {
         Choose a car, open the factory drawing, click the numbered position, read the part.
       </p>
 
+      {/*
+        And the other way in, said on the front door rather than only in the chrome. Half the time
+        a restorer does not begin at the car — they begin holding a bracket with a number stamped
+        on it — and a screen offering nothing but a list of cars is exactly where that member is
+        stuck.
+
+        A link and not a second field. This page has one dominant action, which is choosing a car;
+        a search box here would be a second form competing with it, and the field itself is one
+        press away and already focused when it gets there.
+      */}
+      <p className="mt-6 max-w-measure text-lg text-pretty">
+        <Link
+          to="/search"
+          className="text-accent-ink underline-offset-4 hover:underline"
+          data-testid="search-from-the-catalog"
+        >
+          Or start from a number stamped on the part
+        </Link>
+      </p>
+
       <NewModelForm className="mt-12" />
 
       <div className="mt-16">

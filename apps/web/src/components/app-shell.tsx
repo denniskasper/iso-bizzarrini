@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { EnvironmentBanner } from '@/components/environment-banner';
 import { SessionControl } from '@/components/session-control';
@@ -29,6 +30,19 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Wordmark />
             </a>
             <div className="flex items-center gap-1">
+              {/*
+                Searching is the one thing a member may want from *any* screen, because the
+                bracket in their hand does not know which drawing is open — so it lives in the
+                chrome. A link and not a field: a box across the top of a page whose subject is a
+                factory drawing would be chrome competing with the artwork, which is the one
+                thing this frame is not allowed to do.
+              */}
+              <Link
+                to="/search"
+                className="flex h-control items-center rounded-md px-3 text-sm text-muted transition-colors duration-150 ease-[var(--ease-out-quick)] hover:bg-surface-sunken hover:text-text"
+              >
+                Search
+              </Link>
               <SessionControl />
               <ThemeToggle />
             </div>

@@ -6,6 +6,7 @@ import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
 import type { PhotographController } from '../controllers/photograph-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
+import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
 import type { StatusController } from '../controllers/status-controller.js';
@@ -32,6 +33,7 @@ export function createApiRouter(dependencies: {
   maxPhotographBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
+  searchController: SearchController;
   catalogController: CatalogController;
   tavolaController: TavolaController;
   positionController: PositionController;
@@ -45,6 +47,7 @@ export function createApiRouter(dependencies: {
     editorGate,
     statusController,
     sessionController,
+    searchController,
     catalogController,
     tavolaController,
     positionController,
@@ -66,6 +69,12 @@ export function createApiRouter(dependencies: {
   router.delete('/session', sessionController.signOut);
 
   router.use(editorsOnly);
+
+  // **The way in that does not start at the car** (ticket 22). It is behind the gate like
+  // everything else, and here that is load-bearing rather than consistent: a search address
+  // outside it would hand anyone the archive a number at a time, which is exactly the thing the
+  // Club's members contribute on the understanding will not happen (ADR 0006).
+  router.get('/search', searchController.find);
 
   router.get('/models', catalogController.listModels);
   router.get('/models/:modelId', catalogController.readModel);
@@ -146,8 +155,13 @@ export function createApiRouter(dependencies: {
   // The lookup is here rather than on a Tavola for the same reason, and it is what makes two
   // things reachable that ticket 06 left unreachable: listing a Part the archive already has at a
   // new number when it has no Catalog Number to collide with, and finding a Part that is listed
-  // **nowhere** — which no screen reading from a drawing can see. Ticket 22 owns Search and is
-  // meant to absorb it rather than stand beside it.
+  // **nowhere** — which no screen reading from a drawing can see.
+  //
+  // It stands beside `/search` rather than under it because the two answer different questions
+  // about the same matches. Search reports every number a Part sits at, so a member can go and
+  // look at the right circle; this reports one row per *sheet*, because what an Editor about to
+  // correct a Part is deciding on is how many drawings the correction reaches. The matching
+  // itself is one rule in one place, which is what ticket 22 absorbing this meant.
   router.get('/parts', partController.lookUp);
   router.get('/parts/:partId', partController.read);
   router.patch('/parts/:partId', partController.correct);

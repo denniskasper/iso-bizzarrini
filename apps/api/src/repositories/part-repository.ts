@@ -1,7 +1,28 @@
-import { and, asc, count, desc, eq, inArray, ne, notExists, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  inArray,
+  ne,
+  notExists,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { catalogNumberKey } from '../catalog/part-identity.js';
+import {
+  nameBeginsWith,
+  numberBeginsWith,
+  numberIsExactly,
+  squashedNumber,
+} from '../catalog/part-matching.js';
 import type { DbSession } from '../db/client.js';
 import {
+  equivalents,
   listings,
   models,
   parts,
@@ -88,13 +109,24 @@ export interface PartRepository {
    */
   addPart(part: NewPartRow): Promise<PartRow>;
   /**
-   * **An Editor's lookup, and deliberately not Search.** A Catalog Number matched exactly with
-   * the printed spacing ignored, or a prefix of either name — enough to find a Part in order to
-   * list it somewhere else. Ticket 22 owns Search and reaches further; when it lands it should
-   * absorb this rather than stand beside it, because two implementations of "match a number
-   * regardless of spacing" is exactly the inconsistency this product exists to remove.
+   * **What "this query names that Part" means, written once for everything that asks it.**
+   *
+   * Five fields and no more: the Catalog Number, the Disegno Origine, an Equivalent's reference,
+   * and either name. The three numbers match with the printed spacing ignored — the catalog
+   * prints `260 03 150` and the bracket is stamped `26003150` — and everything matches from the
+   * beginning rather than from the middle, which is the spec's "exact and prefix matching".
+   *
+   * Two callers, one rule. A member's Search reaches it from the number in their hand, and an
+   * Editor's lookup reaches it in order to list a Part the archive already has; they differ in
+   * what they *report* about a match and not at all in what counts as one. Two implementations of
+   * "match a number regardless of spacing" is exactly the inconsistency this product exists to
+   * remove, so there is one.
+   *
+   * The prose is deliberately out of reach. Notes, Catalog Notes, descriptions and dimensions are
+   * not searched (spec): matching a word inside them is free-text search, which is what "Postgres
+   * only, no relevance ranking" rules out.
    */
-  lookUpParts(query: string, limit: number): Promise<PartRow[]>;
+  searchParts(query: string, limit: number): Promise<PartRow[]>;
   /** Correcting the Part itself, which corrects it wherever it is listed (ADR 0001). */
   updatePart(id: string, fields: PartFields): Promise<PartRow | null>;
   /**
@@ -124,6 +156,11 @@ export interface PartRepository {
   listOnTavola(tavolaId: string): Promise<ListingOnTavola[]>;
   /** Every other Tavola these Parts are listed on, in one query rather than one a Part. */
   listElsewhere(partIds: string[], exceptTavolaId: string): Promise<ElsewhereRow[]>;
+  /**
+   * The same question with no *here* to be elsewhere of — every place these Parts are listed,
+   * for a screen that arrived from a number rather than from a drawing.
+   */
+  listEverywhereListed(partIds: string[]): Promise<ElsewhereRow[]>;
   /** Every Tavola these Parts are listed on, each named once. */
   listListedOn(partIds: string[]): Promise<ListedOnRow[]>;
   addListing(row: NewListingRow): Promise<ListingRow>;
@@ -135,23 +172,6 @@ export interface PartRepository {
    */
   updateListing(id: string, fields: ListingFields): Promise<ListingRow | null>;
   removeListing(id: string): Promise<boolean>;
-}
-
-/**
- * `catalogNumberKey` said in SQL — the *stored* side of a comparison whose other side goes
- * through that function. One rule, two languages, and they have to stay the same rule.
- *
- * It is deliberately **not** indexed: this archive holds a few thousand Parts, and the lookup is
- * a debt ticket 22 is meant to absorb rather than a surface to build on.
- */
-const squashedCatalogNumber = sql`lower(regexp_replace(coalesce(${parts.catalogNumber}, ''), '[[:space:]]', '', 'g'))`;
-
-/**
- * What was typed, as a prefix pattern — with `%` and `_` reduced to the characters they are.
- * Somebody looking for a part whose name has a percent sign in it is looking for that sign.
- */
-function asPrefixPattern(query: string): string {
-  return `${query.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
 export function createPartRepository(db: DbSession): PartRepository {
@@ -169,6 +189,54 @@ export function createPartRepository(db: DbSession): PartRepository {
     sql`${parts.nameEn} asc nulls last`,
     asc(parts.id),
   ];
+
+  /**
+   * **Where a set of Parts is listed**, optionally minus the one sheet somebody is already
+   * looking at.
+   *
+   * One query for the two questions, because they differ only in that clause. *Where else is this
+   * used* is asked by a member reading a Position and has a *here* to exclude; *where is this at
+   * all* is asked by a screen that arrived from a number and has none. Written twice, the two
+   * would eventually order a Part's appearances differently depending on how the member got to
+   * them, which is the same list disagreeing with itself.
+   */
+  function whereListed(partIds: string[], exceptTavolaId: string | null) {
+    if (partIds.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return (
+      db
+        .select({
+          partId: listings.partId,
+          listing: listings,
+          tavola: tavole,
+          model: models,
+          position: positions,
+        })
+        .from(listings)
+        .innerJoin(tavole, eq(listings.tavolaId, tavole.id))
+        .innerJoin(models, eq(tavole.modelId, models.id))
+        .leftJoin(positions, eq(listings.positionId, positions.id))
+        .where(
+          and(
+            inArray(listings.partId, partIds),
+            exceptTavolaId === null ? undefined : ne(listings.tavolaId, exceptTavolaId),
+          ),
+        )
+        // The car first, then that car's catalog in the order it is printed — which is how
+        // somebody who owns one of these would look through it. A Listing at no number sorts last
+        // on its sheet, where the printed page puts what it could not give a number to.
+        .orderBy(
+          asc(models.brand),
+          asc(models.name),
+          sql`${tavole.numberSort} asc nulls last`,
+          asc(tavole.number),
+          sql`${positions.numberSort} asc nulls last`,
+          sql`${positions.number} asc nulls last`,
+        )
+    );
+  }
 
   return {
     async findPart(id) {
@@ -191,7 +259,10 @@ export function createPartRepository(db: DbSession): PartRepository {
         return [];
       }
 
-      return db.select().from(parts).where(inArray(squashedCatalogNumber, squashed));
+      return db
+        .select()
+        .from(parts)
+        .where(inArray(squashedNumber(parts.catalogNumber), squashed));
     },
 
     async addPart(part) {
@@ -202,9 +273,29 @@ export function createPartRepository(db: DbSession): PartRepository {
       return added;
     },
 
-    async lookUpParts(query, limit) {
-      const byNumber = sql`${squashedCatalogNumber} = ${catalogNumberKey(query)}`;
-      const prefix = asPrefixPattern(query);
+    async searchParts(query, limit) {
+      /** Whichever of the Part's own numbers a search matched, as a subquery can also ask it. */
+      const referenceMatching = (how: (column: AnyPgColumn, query: string) => SQL) =>
+        exists(
+          db
+            .select({ matched: sql`1` })
+            .from(equivalents)
+            .where(and(eq(equivalents.partId, parts.id), how(equivalents.reference, query))),
+        );
+
+      /**
+       * **The query naming a number and no more of it** — whichever of the three numbers that is.
+       *
+       * All three, and not the Catalog Number alone: a member quoting a Disegno Origine out of a
+       * letter, or the reference off a modern bearing, has typed something they already know just
+       * as surely as one reading a catalog's first column. Promoting only one of the three would
+       * make where the number came from decide how easy it is to find.
+       */
+      const exactly = or(
+        numberIsExactly(parts.catalogNumber, query),
+        numberIsExactly(parts.disegnoOrigine, query),
+        referenceMatching(numberIsExactly),
+      );
 
       return (
         db
@@ -212,16 +303,26 @@ export function createPartRepository(db: DbSession): PartRepository {
           .from(parts)
           .where(
             or(
-              byNumber,
-              sql`${parts.nameEn} ilike ${prefix}`,
-              sql`${parts.nameIt} ilike ${prefix}`,
+              numberBeginsWith(parts.catalogNumber, query),
+              numberBeginsWith(parts.disegnoOrigine, query),
+              // **The reverse lookup**, and the reason it is a subquery rather than a join: a
+              // Part with four matching Equivalents is one Part, and joining would report it four
+              // times. Which of them matched is a second question, asked of the Parts this found.
+              referenceMatching(numberBeginsWith),
+              nameBeginsWith(parts.nameEn, query),
+              nameBeginsWith(parts.nameIt, query),
             ),
           )
-          // **The exact number first.** At most one Part can hold it, and an Editor who typed a
-          // number typed the thing they already know; a list that buried it under everything whose
-          // name happens to start the same way would be answering a question nobody asked.
+          // **The number typed in full first, and this is not relevance ranking.** Nothing is
+          // scored, weighted or tuned; one boolean — did the query name a number and no more of it
+          // — lifts whatever it is true of, and everything below is the catalog's own order.
+          // Somebody who typed a number typed something they already know, and a list that buried
+          // it under everything beginning the same way would answer a question nobody asked.
+          //
+          // A Part with no number goes last within its group: an unnumbered Part is ordinary, and
+          // putting the nulls first would open every answer with the least identifiable thing.
           .orderBy(
-            sql`case when ${byNumber} then 0 else 1 end`,
+            sql`case when ${exactly} then 0 else 1 end`,
             sql`${parts.catalogNumber} asc nulls last`,
             sql`${parts.nameEn} asc nulls last`,
             asc(parts.id),
@@ -317,35 +418,12 @@ export function createPartRepository(db: DbSession): PartRepository {
       return rows.map((row) => ({ ...row.listing, part: row.part, position: row.position }));
     },
 
-    async listElsewhere(partIds, exceptTavolaId) {
-      if (partIds.length === 0) {
-        return [];
-      }
+    listElsewhere(partIds, exceptTavolaId) {
+      return whereListed(partIds, exceptTavolaId);
+    },
 
-      return (
-        db
-          .select({
-            partId: listings.partId,
-            listing: listings,
-            tavola: tavole,
-            model: models,
-            position: positions,
-          })
-          .from(listings)
-          .innerJoin(tavole, eq(listings.tavolaId, tavole.id))
-          .innerJoin(models, eq(tavole.modelId, models.id))
-          .leftJoin(positions, eq(listings.positionId, positions.id))
-          .where(and(inArray(listings.partId, partIds), ne(listings.tavolaId, exceptTavolaId)))
-          // The car first, then that car's catalog in the order it is printed — which is how
-          // somebody who owns one of these would look through it.
-          .orderBy(
-            asc(models.brand),
-            asc(models.name),
-            sql`${tavole.numberSort} asc nulls last`,
-            asc(tavole.number),
-            sql`${positions.numberSort} asc nulls last`,
-          )
-      );
+    listEverywhereListed(partIds) {
+      return whereListed(partIds, null);
     },
 
     async listListedOn(partIds) {
