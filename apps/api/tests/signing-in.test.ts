@@ -5,7 +5,7 @@ import { A_GOOD_PASSWORD, givenAMember, givenAnAdministrator } from './support/r
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
- * Signing in as a person, rather than with a shared passphrase.
+ * Signing in as a person, which since ticket 15 is the only way there is.
  *
  * **Authenticate, then authorise.** Almost everything here is about the first half being careful
  * and the second half being plain: a stranger is told nothing at all about who is on the roster,
@@ -285,9 +285,17 @@ describe('signing in', () => {
   });
 
   describe('what a request may claim', () => {
-    it('refuses a body that is neither a passphrase nor an address and password', async () => {
+    it('reports nobody signed in to a browser that has never been here', async () => {
+      const response = await app.request().get('/api/session').expect(200);
+
+      expect(response.body).toEqual({ signedIn: false, account: null });
+    });
+
+    it('refuses a body that is not an address and a password', async () => {
       await app.request().post('/api/session').send({ email: 'giulia@club.example' }).expect(400);
       await app.request().post('/api/session').send({}).expect(400);
+      // The shared passphrase the archive once accepted is not a credential any more (ticket 15).
+      await app.request().post('/api/session').send({ passphrase: 'anything' }).expect(400);
     });
 
     it('ignores a cookie it did not sign', async () => {

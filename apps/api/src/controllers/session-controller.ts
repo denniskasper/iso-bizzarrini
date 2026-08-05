@@ -20,18 +20,14 @@ import { required } from './fields.js';
  */
 
 /**
- * **Two shapes, because there are two gates.** A member signs in with their address and their own
- * password; the passphrase is M1's shared Editor gate and leaves with ticket 15. A union rather
- * than one object with three optional fields, so a request carrying neither is refused with a
- * message rather than falling through to whichever branch was checked first.
+ * **One shape, because there is one gate.** A member signs in with the address the Club has for
+ * them and the password they chose themselves; there is no other credential this archive accepts
+ * (ticket 15).
  */
-const signInBody = z.union([
-  z.object({
-    email: required('An e-mail address is required'),
-    password: z.string().min(1, 'A password is required'),
-  }),
-  z.object({ passphrase: z.string().min(1, 'A passphrase is required') }),
-]);
+const signInBody = z.object({
+  email: required('An e-mail address is required'),
+  password: z.string().min(1, 'A password is required'),
+});
 
 const resetRequestBody = z.object({ email: required('An e-mail address is required') });
 const inspectBody = z.object({ token: required('A link is required') });
@@ -56,46 +52,40 @@ export function createSessionController(dependencies: {
   const { gate, accountService } = dependencies;
 
   /**
-   * Sign this browser in, then answer with who it now is — including whether the Membership is
+   * Answer with who this now is, and sign the browser in — including whether the Membership is
    * live, because **a lapsed member signs in successfully** and the screen has to know that it is
    * showing somebody who got in and cannot read (story 8).
+   *
+   * Read first and write the cookie second, in that order. The Account was read a moment ago to
+   * let them in, so gone by now means somebody was taken off the roster between two queries —
+   * and a browser sent home with a session cookie naming nobody is a browser carrying a
+   * credential this archive will refuse for the next ninety days.
    */
-  async function admit(response: Response, subject: SessionSubject | null): Promise<void> {
-    gate.signIn(response, { accountId: subject?.accountId ?? null, epoch: subject?.epoch ?? 0 });
+  async function admit(response: Response, subject: SessionSubject): Promise<void> {
+    const who = await accountService.describe(subject.accountId);
+    if (who === null) {
+      throw new NotSignedInError();
+    }
 
-    const who = subject === null ? null : await accountService.describe(subject.accountId);
+    gate.signIn(response, subject);
     response.status(201).json(sessionOf(who));
   }
 
   return {
     read: async (request, response) => {
       const who = await gate.identify(request.headers.cookie);
-      const body: SessionResponse =
-        who === null ? { signedIn: false, account: null } : sessionOf(who);
+      const body: SessionResponse = who === null ? SIGNED_OUT : sessionOf(who);
       response.json(body);
     },
 
     signIn: async (request, response) => {
       const credentials: SignInRequest = signInBody.parse(request.body);
-
-      if ('passphrase' in credentials) {
-        // One message for a wrong passphrase and for a gate nobody configured. The second is a
-        // deployment mistake rather than a secret, but telling the difference apart out loud is
-        // how a stranger learns which of the two systems in front of them is worth guessing at.
-        if (!gate.admitsPassphrase(credentials.passphrase)) {
-          throw new NotSignedInError('That passphrase was not recognised.');
-        }
-        await admit(response, null);
-        return;
-      }
-
       await admit(response, await accountService.signIn(credentials));
     },
 
     signOut: (_request, response) => {
       gate.signOut(response);
-      const body: SessionResponse = { signedIn: false, account: null };
-      response.json(body);
+      response.json(SIGNED_OUT);
     },
 
     /**
@@ -122,12 +112,14 @@ export function createSessionController(dependencies: {
   };
 }
 
-/** The stand-in gate is signed in and is nobody, which is exactly what `account: null` says. */
-function sessionOf(who: SignedIn | null): SessionResponse {
-  if (who === null || who.account === null) {
-    return { signedIn: true, account: null };
-  }
+/** Nobody. Written once, because three addresses here answer it and they must agree. */
+const SIGNED_OUT: SessionResponse = { signedIn: false, account: null };
 
+/**
+ * Signed in is always somebody: whether their Membership still lets them read is the *next*
+ * question, and the whole point of keeping the two apart is that this answer carries both.
+ */
+function sessionOf(who: SignedIn): SessionResponse {
   const account: SignedInAccount = {
     ...who.account,
     membershipIsLive: who.membershipIsLive,

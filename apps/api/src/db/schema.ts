@@ -714,8 +714,9 @@ export const memberships = pgTable(
     /** The reference the member actually used, which is how a transfer is matched to a person. */
     reference: text('reference'),
     /**
-     * Who recorded it. Null where the stand-in Editor gate did, since that is a passphrase
-     * rather than a person — one more thing ticket 15 takes away when it removes the stand-in.
+     * The Administrator who recorded it. Nullable because the Account may be erased under the
+     * retention rule (ADR 0007) long before the payment record may — the money outlives the
+     * person on it, so the reference goes to null rather than taking the row with it.
      */
     recordedBy: uuid('recorded_by').references((): AnyPgColumn => accounts.id, {
       onDelete: 'set null',
@@ -769,6 +770,12 @@ export const club = pgTable(
     paymentReference: text('payment_reference').notNull(),
     /** What a renewal reminder says. Sent by ticket 17; editable here from now. */
     reminderText: text('reminder_text').notNull(),
+    /**
+     * Where a member writes when something is wrong that a transfer will not fix. The one field
+     * on this row that anybody but an Administrator sees — it is on the renewal screen, because
+     * "contact the Club office" is advice nobody can act on without an address.
+     */
+    officeEmail: text('office_email'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (table) => [

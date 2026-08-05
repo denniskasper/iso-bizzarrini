@@ -146,3 +146,17 @@ _Avoid_: Moderator, curator, maintainer
 **Administrator**:
 An Account that may also maintain the roster, record payments, and appoint Editors.
 _Avoid_: Admin, superuser, operator, club officer
+
+**Renewal**:
+What a member is told in order to buy a new Membership term: the amount, where to send it,
+the words to write on the transfer and who to ask. Instructions to a person, not a record of
+anything — nothing is written when one is read, and paying is a bank transfer the Club
+receives and an Administrator records.
+_Avoid_: Renewal date (that is the **Paid-through**), invoice, subscription, checkout
+
+**Club office**:
+Whoever answers for the association when something is wrong that money will not fix. A
+correspondent rather than a role on the platform, which is why it has an address and no
+capabilities — it is what "contact the Club office" points at, on the sign-in screen and on
+the Renewal.
+_Avoid_: Club officer (that is close to **Administrator**), support, helpdesk, admin team

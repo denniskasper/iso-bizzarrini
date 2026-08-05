@@ -66,9 +66,6 @@ export default defineConfig({
       DATABASE_URL: databaseUrl,
       WEB_DIST_PATH: webDistPath,
       LOG_LEVEL: 'warn',
-      // The stand-in Editor gate, which is also what the private image route is behind. The
-      // suite signs in through the real form rather than being handed a cookie.
-      EDITOR_PASSWORD: process.env.E2E_EDITOR_PASSWORD ?? 'an-end-to-end-passphrase',
       SESSION_SECRET: 'an-end-to-end-session-secret-long-enough',
       // Members sign in with their own passwords (ticket 14), so the suite adds people to the
       // roster and reads the invitation out of the log. `log` is what puts it there.

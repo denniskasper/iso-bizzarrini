@@ -72,7 +72,6 @@ describe('the app as it is served', () => {
         env: {
           WEB_DIST_PATH: distPath,
           ENVIRONMENT_MODE: 'production',
-          EDITOR_PASSWORD: '',
           // Production refuses to point invitations at a laptop, so it has to say where it is.
           PUBLIC_URL: 'https://ricambi.example',
         },

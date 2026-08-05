@@ -138,6 +138,18 @@ function ClubForm({ club }: { club: ClubRecord }) {
             onChange={(event) => set('reminderText', event.target.value)}
             hint="What a renewal reminder says. Nothing sends one yet."
           />
+          {/*
+            The one field on this screen that a member ever sees. Everything else here is the
+            association's own record; this is on the renewal screen, because "contact the Club
+            office" is advice nobody can act on without somewhere to act on it.
+          */}
+          <Field
+            label="Club office e-mail"
+            type="email"
+            value={draft.officeEmail ?? ''}
+            onChange={(event) => set('officeEmail', event.target.value)}
+            hint="Shown to a member whose Membership has run out, so they can write to somebody. Leave it empty and they are told to contact the Club office without being told how."
+          />
         </section>
 
         {save.isError && <Refusal>{refusalText(save.error)}</Refusal>}

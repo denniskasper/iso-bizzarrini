@@ -1,0 +1,1 @@
+ALTER TABLE "club" ADD COLUMN "office_email" text;

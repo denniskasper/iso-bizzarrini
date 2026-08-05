@@ -6,6 +6,7 @@ import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { photographs } from '../src/db/schema.js';
 import { givenModel, givenPhotographImage, givenTavola } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -54,7 +55,7 @@ describe('photographs of a Part', () => {
 
   beforeEach(async () => {
     await app.reset();
-    editor = await app.editor();
+    editor = await givenAnEditor(app);
 
     const model = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
     const tavola = await givenTavola(app.db, model.id, { number: '2' });
@@ -476,7 +477,7 @@ describe('a photograph larger than this archive accepts', () => {
 
   it('is refused rather than read into memory', async () => {
     await app.reset();
-    const editor = await app.editor();
+    const editor = await givenAnEditor(app);
     const model = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
     const tavola = await givenTavola(app.db, model.id);
 

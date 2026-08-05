@@ -118,7 +118,7 @@ describe('the roster', () => {
     });
 
     it('still puts them on the roster, and says exactly that', async () => {
-      const boss = await refusing.editor();
+      const boss = (await givenAnAdministrator(refusing)).agent;
 
       const response = await boss
         .post('/api/roster')

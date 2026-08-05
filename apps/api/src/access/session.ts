@@ -30,12 +30,9 @@ export const SESSION_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 
 /** Who a cookie says this browser is. */
 export interface SessionClaim {
-  /**
-   * The Account this session names, or null for the **stand-in Editor gate** — one shared
-   * passphrase, which is a credential rather than a person. Ticket 15 removes the null case.
-   */
-  accountId: string | null;
-  /** Which generation of this Account's sessions it belongs to. Zero for the stand-in gate. */
+  /** The Account this session names. There is no other kind of session — ticket 15. */
+  accountId: string;
+  /** Which generation of this Account's sessions it belongs to. */
   epoch: number;
 }
 
@@ -49,7 +46,7 @@ export interface SessionSigner {
 }
 
 interface Payload {
-  sub: string | null;
+  sub: string;
   gen: number;
   exp: number;
 }
@@ -97,21 +94,6 @@ export function createSessionSigner(secret: string | undefined): SessionSigner {
   };
 }
 
-/**
- * Whether an offered passphrase is the configured one — the **stand-in Editor gate**, which is
- * the whole of M1's "single hard-coded admin login" and which ticket 15 removes.
- *
- * Compared through a digest rather than directly, so the comparison takes the same time whatever
- * was offered — a length-sensitive `===` on a shared passphrase is a needless gift. An
- * unconfigured gate refuses everything, including an empty offer.
- */
-export function passphraseMatches(configured: string | undefined, offered: string): boolean {
-  if (configured === undefined) {
-    return false;
-  }
-  return matches(digest(offered), digest(configured));
-}
-
 /** Reads one cookie out of a `Cookie` header. Express does not parse them and we need one. */
 export function readCookie(header: string | undefined, name: string): string | undefined {
   if (header === undefined) {
@@ -135,13 +117,9 @@ function sign(key: string, payload: string): string {
   return createHmac('sha256', key).update(payload).digest('base64url');
 }
 
-function digest(value: string): Buffer {
-  return createHmac('sha256', 'ricambi.passphrase').update(value).digest();
-}
-
-function matches(offered: string | Buffer, expected: string | Buffer): boolean {
-  const a = Buffer.isBuffer(offered) ? offered : Buffer.from(offered);
-  const b = Buffer.isBuffer(expected) ? expected : Buffer.from(expected);
+function matches(offered: string, expected: string): boolean {
+  const a = Buffer.from(offered);
+  const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
@@ -157,15 +135,14 @@ function decode(value: string): Payload | null {
     }
 
     const { sub, gen, exp } = parsed as Partial<Payload>;
-    const namesSomebody = typeof sub === 'string' || sub === null;
-    if (!namesSomebody || typeof gen !== 'number' || typeof exp !== 'number') {
+    if (typeof sub !== 'string' || typeof gen !== 'number' || typeof exp !== 'number') {
       return null;
     }
     if (!Number.isFinite(gen) || !Number.isFinite(exp)) {
       return null;
     }
 
-    return { sub: sub ?? null, gen, exp };
+    return { sub, gen, exp };
   } catch {
     return null;
   }

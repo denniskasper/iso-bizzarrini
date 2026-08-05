@@ -14,6 +14,9 @@ import type { SessionController } from '../controllers/session-controller.js';
 import type { StatusController } from '../controllers/status-controller.js';
 import type { TavolaController } from '../controllers/tavola-controller.js';
 
+/** Where this router is mounted. Named once, so nothing has to agree with it by memory. */
+export const API_MOUNT = '/api';
+
 /**
  * Routes name the addresses; controllers do the work. Nothing else belongs here — except the
  * one thing that is genuinely a property of an address rather than of a handler, which is who
@@ -101,6 +104,16 @@ export function createApiRouter(dependencies: {
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
+
+  // **What a lapsed member is shown instead of the archive** (ticket 15). Behind the gate,
+  // because it carries the Club's bank details; deliberately *not* behind a live Membership,
+  // because the person who needs it is precisely the person whose Membership has run out.
+  //
+  // A separate address rather than widening `/club`: what a member needs in order to pay is the
+  // amount, where to send it, what to write on it and who to ask, and it arrives with the
+  // reference already written in their name. The Club's record itself — the reminder text, the
+  // format that reference came out of — stays an Administrator's.
+  router.get('/renewal', gate.requireSignedIn, clubController.readRenewal);
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);

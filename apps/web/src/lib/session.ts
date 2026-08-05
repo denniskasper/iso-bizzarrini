@@ -11,14 +11,14 @@ import { api } from '@/lib/api';
  * Screens ask this first and say plainly what is behind the gate.
  *
  * **Three states, not two.** Signed out; signed in and able to read; and signed in with a
- * Membership that has run out — which is a member who has proved who they are and is owed a
- * plain sentence rather than a refusal (story 8).
+ * Membership that has run out — which is a member who has proved who they are and is owed the
+ * renewal screen rather than a refusal (story 8).
  */
 export const SESSION_QUERY_KEY = ['session'] as const;
 
 export interface Session {
   signedIn: boolean;
-  /** Null for the stand-in Editor gate, which is a passphrase rather than a person. */
+  /** Who this is. Null only when nobody is signed in — signed in is always somebody. */
   account: SignedInAccount | null;
   /** Whether the archive itself is readable — signed in *and* paid up. */
   mayRead: boolean;
@@ -33,15 +33,13 @@ export function useSession(): Session {
     staleTime: 0,
   });
 
-  const signedIn = data?.signedIn ?? false;
-  const account = data?.account ?? null;
+  const account = data?.signedIn ? data.account : null;
 
   return {
-    signedIn,
+    signedIn: account !== null,
     account,
-    // The stand-in gate names nobody and reads everything, which is what `account === null` is.
-    mayRead: signedIn && (account === null || account.membershipIsLive),
-    isAdministrator: signedIn && (account === null || account.role === 'administrator'),
+    mayRead: account?.membershipIsLive ?? false,
+    isAdministrator: account?.role === 'administrator',
     isPending,
   };
 }
@@ -77,6 +75,18 @@ export function useRequestPasswordReset() {
   return useMutation({
     mutationFn: (email: string) => api.requestPasswordReset(email),
   });
+}
+
+/**
+ * **What this member has to do to get back in**, asked only where it is going to be shown.
+ *
+ * Not folded into `useSession`, which every screen in the archive reads on every page: this is
+ * the Club's bank details, and a member reading a drawing has no business fetching them.
+ */
+export const RENEWAL_QUERY_KEY = ['renewal'] as const;
+
+export function useRenewal() {
+  return useQuery({ queryKey: RENEWAL_QUERY_KEY, queryFn: api.renewal });
 }
 
 /** Choosing a password from a link, which signs the browser in by having chosen it. */

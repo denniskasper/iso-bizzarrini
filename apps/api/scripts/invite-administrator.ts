@@ -1,26 +1,21 @@
 /**
- * **How the first Administrator comes to exist.**
+ * **The way into a system with an empty roster**, run on the box, once.
  *
- * An Administrator adds people to the roster, and until ticket 14 the only answer to "who adds
- * the first one" was the stand-in Editor gate — one shared passphrase. The sign-in screen no
- * longer offers that, because a form advertising a shared passphrase to every stranger who finds
- * it is worse than the problem it solves.
- *
- * So the bootstrap is a command an operator runs **on the box, once**, and it is better than the
- * passphrase was in the way that matters: it sets no password. It puts a person on the roster and
- * sends them an invitation, exactly as the roster screen does, and that person then chooses their
- * own password like everybody else. Neither the operator nor this script ever knows it.
+ * Ticket 15 removed the shared passphrase, so there is no other door: an Administrator adds
+ * everybody else, and this is what adds the Administrator. What it does is in
+ * `composition/first-administrator.ts`, which is where it can be tested; what is here is the
+ * command line around it and the environment it opens.
  *
  *   pnpm --filter @ricambi/api roster:invite-administrator -- \
  *     --name "A Person" --email person@example.org --paid-through 2027-12-31
  *
- * It is meant to be run against production, which is the point of it. Somebody already on the
- * roster is **promoted and invited again** rather than duplicated, so running it twice is not a
- * way to end up with two of anybody.
+ * It is meant to be run against production, which is the point of it. It sets no password: the
+ * person it names chooses their own from the invitation, and neither the operator nor this script
+ * ever sees it.
  */
 import { parseArgs } from 'node:util';
-import { createPasswordHasher } from '../src/access/passwords.js';
 import { assertSafeForEnvironment } from '../src/composition/environment-safety.js';
+import { inviteAdministrator } from '../src/composition/first-administrator.js';
 import {
   createBreachedPasswordCheck,
   createEmailSender,
@@ -32,10 +27,6 @@ import { createDatabase } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { systemClock } from '../src/platform/clock.js';
 import { createLogger } from '../src/platform/logger.js';
-import { createAccountRepository } from '../src/repositories/account-repository.js';
-import { createSignInFailureRepository } from '../src/repositories/sign-in-failure-repository.js';
-import { createAccountService } from '../src/services/account-service.js';
-import { createRosterService } from '../src/services/roster-service.js';
 
 const { values } = parseArgs({
   // `pnpm roster:invite-administrator -- --name …` hands the `--` down to the script, where it
@@ -79,50 +70,27 @@ try {
   // command that discovers the schema was never applied.
   await runMigrations(database.db);
 
-  const accountRepository = createAccountRepository(database.db);
-  const accountService = createAccountService({
-    clock: systemClock,
-    accountRepository,
-    signInFailureRepository: createSignInFailureRepository(database.db),
-    passwordHasher: createPasswordHasher(),
-    breachedPasswords: createBreachedPasswordCheck(config, logger),
-    emailSender,
-    publicUrl: config.publicUrl,
-  });
-
-  const rosterService = createRosterService({
-    clock: systemClock,
-    accountRepository,
-    accountService,
-    logger,
-  });
-
-  const email = values.email.trim().toLowerCase();
-  const existing = await accountRepository.findByEmail(email);
-
-  const member = existing
-    ? await rosterService
-        .correct(existing.id, { name: values.name, role: 'administrator' })
-        .then(() => rosterService.invite(existing.id))
-    : await rosterService.add({
-        name: values.name,
-        email,
-        paidThrough: values['paid-through'] ?? aYearFromNow(),
-        role: 'administrator',
-      });
+  const { member, promoted } = await inviteAdministrator(
+    {
+      db: database.db,
+      clock: systemClock,
+      logger,
+      emailSender,
+      breachedPasswords: createBreachedPasswordCheck(config, logger),
+      publicUrl: config.publicUrl,
+    },
+    {
+      name: values.name,
+      email: values.email,
+      ...(values['paid-through'] === undefined ? {} : { paidThrough: values['paid-through'] }),
+    },
+  );
 
   console.log(
-    `${existing ? 'Promoted' : 'Added'} ${member.name} <${member.email}> as an Administrator, ` +
+    `${promoted ? 'Promoted' : 'Added'} ${member.name} <${member.email}> as an Administrator, ` +
       `paid through ${member.paidThrough}.\n` +
       'An invitation has been sent. They choose their own password, and nobody else ever sees it.',
   );
 } finally {
   await database.close();
-}
-
-function aYearFromNow(): string {
-  const now = systemClock.now();
-  return new Date(Date.UTC(now.getUTCFullYear() + 1, now.getUTCMonth(), now.getUTCDate()))
-    .toISOString()
-    .slice(0, 10);
 }

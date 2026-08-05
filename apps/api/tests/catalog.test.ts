@@ -1,6 +1,7 @@
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { givenModels } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -24,7 +25,7 @@ describe('the catalog of covered cars', () => {
 
   beforeEach(async () => {
     await app.reset();
-    member = await app.editor();
+    member = await givenAnEditor(app);
   });
 
   it('is empty before any Model has been recorded', async () => {

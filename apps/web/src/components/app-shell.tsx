@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
  * way: it says where you are, and it gets you somewhere else.
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { isAdministrator } = useSession();
+  const { isAdministrator, mayRead } = useSession();
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
@@ -57,10 +57,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 chrome. A link and not a field: a box across the top of a page whose subject is a
                 factory drawing would be chrome competing with the artwork, which is the one
                 thing this frame is not allowed to do.
+
+                Offered only to somebody who may actually read the archive. A lapsed member is
+                shown the renewal screen wherever they go, and a link that leads them back to the
+                screen they are already on reads as a fault rather than as a refusal.
               */}
-              <Link to="/search" className={chromeLink}>
-                Search
-              </Link>
+              {mayRead && (
+                <Link to="/search" className={chromeLink}>
+                  Search
+                </Link>
+              )}
               {/*
                 An Administrator's two screens, and only an Administrator's. They are in the
                 chrome rather than on a menu because keeping the roster is a job somebody sits

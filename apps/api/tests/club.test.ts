@@ -68,6 +68,7 @@ describe('the Club', () => {
       bic: 'ABCDEFGH',
       paymentReference: 'Ricambi {year} {name}',
       reminderText: 'Your membership runs out shortly.',
+      officeEmail: null,
     });
 
     const read = await administrator.get('/api/club').expect(200);

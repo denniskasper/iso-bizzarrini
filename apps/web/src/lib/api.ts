@@ -9,6 +9,7 @@ import type {
   PasswordSetup,
   PasswordSetupRequest,
   RecordPaymentRequest,
+  RenewalResponse,
   RosterEntryResponse,
   RosterResponse,
   SignInRequest,
@@ -124,10 +125,8 @@ export const api = {
   status: () => request<ServiceStatus>('/status'),
 
   /**
-   * Who this browser is, and whether their Membership still lets them read.
-   *
-   * `signIn` takes either shape the archive accepts: a member's address and their own password,
-   * or the stand-in Editor passphrase, which leaves with ticket 15.
+   * Who this browser is, and whether their Membership still lets them read. Two questions in one
+   * answer, because they have different answers: a lapsed member is signed in and cannot read.
    */
   session: () => request<SessionResponse>('/session'),
   signIn: (credentials: SignInRequest) => send<SessionResponse>('POST', '/session', credentials),
@@ -169,6 +168,16 @@ export const api = {
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),
   correctClub: (fields: CorrectClubRequest) => send<ClubResponse>('PATCH', '/club', fields),
+
+  /**
+   * **What a member needs in order to pay**, which is deliberately not the Club's record above.
+   *
+   * The one address in this archive readable by somebody whose Membership has run out — that is
+   * the whole point of it — and the reference it carries arrives already written in their name,
+   * because a member asked to substitute themselves into `{name}` will send a transfer the
+   * treasurer cannot match to anybody.
+   */
+  renewal: () => request<RenewalResponse>('/renewal'),
 
   /**
    * **The way into the archive that does not start at the car** (ticket 22).
@@ -382,6 +391,7 @@ export type {
   ClubRecord,
   MembershipGrant,
   PasswordSetup,
+  Renewal,
   Role,
   RosterEntry,
   RosterStanding,

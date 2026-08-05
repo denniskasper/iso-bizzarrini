@@ -86,6 +86,9 @@ const CLUB = {
   paymentReference: 'Ricambi {year} {name}',
   reminderText:
     'Your Club membership runs out shortly. Renewing keeps your access to the parts archive.',
+  // On `example.invalid` like every other address here, so a practice system's renewal screen
+  // shows a real-looking office to write to and nothing can be delivered to it.
+  officeEmail: 'office@example.invalid',
 };
 
 export interface PracticeRosterOutcome {

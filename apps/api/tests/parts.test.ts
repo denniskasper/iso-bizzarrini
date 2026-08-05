@@ -2,6 +2,7 @@ import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { listings } from '../src/db/schema.js';
 import { givenModel, givenTavola } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -51,7 +52,7 @@ describe('reading a Part from a Position', () => {
 
   beforeEach(async () => {
     await app.reset();
-    editor = await app.editor();
+    editor = await givenAnEditor(app);
     modelId = (await givenModel(app.db, { brand: 'Iso', name: 'Grifo' })).id;
     tavolaId = (await givenTavola(app.db, modelId, { number: '2' })).id;
   });

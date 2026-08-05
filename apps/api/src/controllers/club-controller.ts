@@ -1,6 +1,7 @@
-import type { ClubResponse } from '@ricambi/contracts';
+import type { ClubResponse, RenewalResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
+import type { Gate } from '../access/gate.js';
 import { CURRENCIES } from '../db/schema.js';
 import type { ClubService } from '../services/club-service.js';
 import { blankToNull, required } from './fields.js';
@@ -21,19 +22,41 @@ const correctClubBody = z.object({
   bic: blankToNull().optional(),
   paymentReference: required('A payment reference format is required').optional(),
   reminderText: required('A reminder text is required').optional(),
+  officeEmail: blankToNull().optional(),
 });
 
 export interface ClubController {
   read: RequestHandler;
   correct: RequestHandler;
+  /** What one member needs in order to pay. Everything above is an Administrator's; this is not. */
+  readRenewal: RequestHandler;
 }
 
-export function createClubController(dependencies: { clubService: ClubService }): ClubController {
-  const { clubService } = dependencies;
+export function createClubController(dependencies: {
+  gate: Gate;
+  clubService: ClubService;
+}): ClubController {
+  const { gate, clubService } = dependencies;
 
   return {
     read: async (_request, response) => {
       const body: ClubResponse = { club: await clubService.read() };
+      response.json(body);
+    },
+
+    /**
+     * **Read for the person asking**, which is why it takes nothing from the request. Whose
+     * renewal this is comes from the session and cannot be claimed — otherwise the address would
+     * be a way to ask what the Club has recorded about somebody else.
+     */
+    readRenewal: async (_request, response) => {
+      const who = gate.whoIsSignedIn(response);
+      const body: RenewalResponse = {
+        renewal: await clubService.renewalFor({
+          name: who.account.name,
+          paidThrough: who.paidThrough,
+        }),
+      };
       response.json(body);
     },
 

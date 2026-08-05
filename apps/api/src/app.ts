@@ -37,7 +37,7 @@ import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
-import { createApiRouter } from './routes/api-router.js';
+import { API_MOUNT, createApiRouter } from './routes/api-router.js';
 import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
@@ -104,22 +104,12 @@ export function createApp(dependencies: AppDependencies): Express {
   const { config, clock, db, emailSender, paymentProvider } = dependencies;
 
   // Before anything else. A non-production environment that could reach a real member or a real
-  // mandate does not get to exist, and neither does a production one still wearing the stand-in
-  // Editor gate — every way of starting this application comes through here.
+  // mandate does not get to exist, and neither does a production one that has not been told the
+  // address its invitations point at — every way of starting this application comes through here.
   assertSafeForEnvironment({ config, emailSender, paymentProvider });
 
   const logger = dependencies.logger ?? createLogger(config);
   const fileStore = dependencies.fileStore ?? createFileStore(config.files.storagePath);
-
-  if (config.editorGate.password === undefined) {
-    // No longer "nobody can sign in" — members do, with their own passwords. What it means now is
-    // that a roster with no Administrator on it has no way to grow one, which is the state a
-    // fresh clone is in. Ticket 15 removes the stand-in and this warning with it.
-    logger.warn(
-      'EDITOR_PASSWORD is not set. Members sign in with their own passwords, but the stand-in ' +
-        'gate is how the first Administrator is added to an empty roster. Set it in .env.',
-    );
-  }
 
   const passwordHasher = dependencies.passwordHasher ?? createPasswordHasher();
 
@@ -217,7 +207,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ gate, accountService });
   const rosterController = createRosterController({ gate, rosterService });
-  const clubController = createClubController({ clubService });
+  const clubController = createClubController({ gate, clubService });
   const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
   const tavolaController = createTavolaController({ tavolaService });
@@ -255,7 +245,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use(express.json({ limit: '1mb' }));
 
   app.use(
-    '/api',
+    API_MOUNT,
     createApiRouter({
       gate,
       maxScanBytes: config.files.maxScanBytes,
@@ -275,7 +265,7 @@ export function createApp(dependencies: AppDependencies): Express {
       scanController,
     }),
   );
-  app.use('/api', notFoundHandler);
+  app.use(API_MOUNT, notFoundHandler);
 
   const staticSite = createStaticSiteHandler({
     webDistPath: config.webDistPath,

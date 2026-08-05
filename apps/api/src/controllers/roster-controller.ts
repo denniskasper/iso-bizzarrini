@@ -85,9 +85,8 @@ export function createRosterController(dependencies: {
       const payment = paymentBody.parse(request.body);
 
       // Who recorded it, taken from the session rather than from the request — money is the one
-      // place where "who says so" must not be something the request gets to claim. The stand-in
-      // gate is a passphrase rather than a person, so it records nobody.
-      const recordedBy = gate.whoIsSignedIn(response).account?.id ?? null;
+      // place where "who says so" must not be something the request gets to claim.
+      const recordedBy = gate.whoIsSignedIn(response).account.id;
 
       const member = await rosterService.recordPayment(accountId, payment, recordedBy);
       const body: RosterEntryResponse = { member };

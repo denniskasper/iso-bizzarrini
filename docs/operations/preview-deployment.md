@@ -15,12 +15,14 @@ limitation to work around — it is the point:
 
 - Everything is stamped with the DEMO band, the warm chrome and `DEMO` in the browser tab, so
   no screenshot of it can be mistaken for the Club's archive.
-- The e-mail sender, the payment provider and the renewal reminders are all refused. It cannot
-  reach a real person or a real mandate, and it will not start if it is handed something that
-  could.
-- Setting `ENVIRONMENT_MODE=production` on this stack **will not start**, because production
-  refuses to run with the stand-in Editor gate configured (ADR 0012 and ticket 03). The
-  promotion path from preview to archive is deliberately not a configuration flag.
+- The payment provider and the renewal reminders are refused outright, and its e-mail is written
+  to the log rather than sent. It cannot reach a real person or a real mandate, and it will not
+  start if it is handed something that could.
+- Setting `ENVIRONMENT_MODE=production` on this stack **will not start**: it writes its e-mail to
+  the log, and production refuses that outright — an invitation nobody receives, with its
+  single-use secret left in a log file (ADR 0012). It seeds itself an invented catalog too, which
+  production refuses as well. The promotion path from preview to archive is deliberately not a
+  configuration flag.
 
 **Nothing real goes into it.** It writes itself an invented catalog: three cars the factory
 really made, four Tavole and three drawings generated in SVG. There is no import path from
@@ -28,13 +30,16 @@ anywhere, because there is no importer.
 
 ## Before you start
 
-You need three secrets. Generate them; do not think them up.
+You need two secrets. Generate them; do not think them up.
 
 ```sh
 openssl rand -base64 24   # POSTGRES_PASSWORD
-openssl rand -base64 24   # EDITOR_PASSWORD  — this is what you give the person you are showing
 openssl rand -hex 32      # SESSION_SECRET
 ```
+
+There is **no shared passphrase** — there is no credential you can hand somebody. Everyone who
+reaches this stack is a person on its roster with a password of their own, and the way the first
+one gets there is a command you run once, after it is up. That is below.
 
 **None of them, and no hostname, belongs in this repository** (`AGENTS.md`, Security). They go
 into Dokploy's environment editor, which keeps them on the server.
@@ -50,9 +55,12 @@ into Dokploy's environment editor, which keeps them on the server.
    ```
    ENVIRONMENT_NAME=preview
    POSTGRES_PASSWORD=…
-   EDITOR_PASSWORD=…
    SESSION_SECRET=…
+   PUBLIC_URL=https://<your-host>
    ```
+
+   `PUBLIC_URL` is the address invitation links point at. Get it wrong and the letters go out
+   pointing somewhere nobody can reach.
 
 4. **Domain** — attach your hostname to the `app` service on **port 3000**, with HTTPS and
    "redirect to HTTPS" on. Traefik requests the certificate; there is nothing to configure in
@@ -61,22 +69,42 @@ into Dokploy's environment editor, which keeps them on the server.
    logs for `Schema is up to date` and
    `Wrote an invented catalog into an empty practice archive`.
 
+## Getting yourself in
+
+Nobody is on the roster, so nobody can sign in — including you. Put yourself on it, from a shell
+on the box:
+
+```sh
+docker compose exec app pnpm roster:invite-administrator -- \
+  --name "Your Name" --email you@example.org
+```
+
+It sets no password. It sends you an invitation, and this stack writes its mail to the log
+instead of sending it, so read the link out of there:
+
+```sh
+docker compose logs app | grep set-password
+```
+
+Open the link and choose a password. That is your account; from then on you add everybody else
+from the roster screen, and each of them chooses their own the same way.
+
 ## Checking it before anybody sees it
 
 - `https://<host>/api/status` reports `"mode":"non-production"` and `"database":"reachable"`.
 - The home page shows the DEMO band and **"The archive is members-only."** — signed out, that
   is all anybody gets.
-- Sign in with `EDITOR_PASSWORD`. Three cars, and a Grifo with two drawings and one Tavola
-  reading "Not scanned yet".
+- Signed in: three cars, and a Grifo with two drawings and one Tavola reading "Not scanned yet".
 - Open a drawing, then **sign out and reload it**: the page should refuse rather than show a
   broken image. That is the promise the whole archive rests on, and it is worth seeing work
   once with your own eyes.
 
 ## Showing it
 
-Give the person the address and the passphrase. There are no accounts yet — one shared
-passphrase is all there is until ticket 14 brings the roster, so everyone who signs in is
-indistinguishable and everything is editable by all of them. Say so; it is a preview.
+Add them on the roster screen, with the role you want them to have, and read their invitation out
+of the log the same way you read your own. They choose their own password and nobody, you
+included, ever sees it. An **Editor** can record cars, drawings and parts; a **Member** can only
+read. Say which you gave them; it is a preview and the difference is the point of showing it.
 
 They can add cars, add drawings and upload real scans through the Editor screens. **Anything
 recorded that way survives a redeployment** — the boot-time seed only ever writes into an

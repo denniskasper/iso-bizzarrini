@@ -9,7 +9,7 @@ import { z } from 'zod';
  */
 /**
  * A variable written in a `.env` file with nothing after the `=` is a variable somebody meant
- * to leave unset — an empty string is not a passphrase and not a signing key.
+ * to leave unset — an empty string is not a signing key.
  */
 function blankAsUnset(value: unknown): unknown {
   return typeof value === 'string' && value.trim() === '' ? undefined : value;
@@ -76,23 +76,6 @@ const environmentSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
-
-  /**
-   * The **stand-in** Editor gate: one shared passphrase, which is the whole of M1's
-   * "single hard-coded admin login". Accounts, Memberships, invitations and per-person
-   * passwords arrive with ticket 14 and replace this entirely.
-   *
-   * Unset means nobody can sign in, and therefore nobody can reach a scan. That is the safe
-   * direction: an archive that refuses everyone is a nuisance, an archive that admits everyone
-   * is the promise the Club made to its members, broken.
-   *
-   * The application refuses to start in **production** while this is set, so the stand-in
-   * cannot become the thing that guards the real archive by nobody getting round to it.
-   */
-  EDITOR_PASSWORD: z.preprocess(
-    blankAsUnset,
-    z.string().min(10, 'EDITOR_PASSWORD must be at least 10 characters').optional(),
-  ),
 
   /**
    * Signs the session cookie. Unset means one is generated at startup, so sessions simply do
@@ -194,10 +177,12 @@ export interface AppConfig {
    * not go through `createApp`, owes `assertSafeForEnvironment` a call of its own (ADR 0012).
    */
   remindersEnabled: boolean;
-  /** The stand-in Editor gate. `password` unset means nobody can sign in. */
-  editorGate: {
-    password: string | undefined;
-    sessionSecret: string | undefined;
+  /**
+   * The gate. Every person who reaches the archive is an Account with a password of their own
+   * (ticket 14), so the only thing configuration decides here is what signs their cookie.
+   */
+  session: {
+    secret: string | undefined;
   };
   files: {
     /** Absolute, so nothing depends on where the process happens to have been started. */
@@ -248,9 +233,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       provider: env.PAYMENT_PROVIDER,
     },
     remindersEnabled: env.REMINDERS_ENABLED,
-    editorGate: {
-      password: env.EDITOR_PASSWORD,
-      sessionSecret: env.SESSION_SECRET,
+    session: {
+      secret: env.SESSION_SECRET,
     },
     files: {
       storagePath: resolve(env.FILE_STORAGE_PATH),

@@ -150,9 +150,16 @@ the marking tool and the editor tooling need nothing but a laptop.
 | Postgres | `localhost:5433`, user `ricambi` |
 
 **You will land on "The archive is members-only", and that is the archive working.** Everything
-is behind the sign-in gate, so use the passphrase in `EDITOR_PASSWORD` — `.env.example` starts it
-at `change-this-passphrase`, and a `.env` written before ticket 03 will not have the key at all.
-Unset admits nobody, which is the safe direction and not a bug.
+is behind the sign-in gate and there is no shared credential of any kind, so a fresh clone has
+nobody who can get in. Put yourself on the roster once:
+
+```sh
+pnpm roster:invite-administrator -- --name "Your Name" --email you@example.org
+```
+
+It sets no password. It sends an invitation, and with `EMAIL_TRANSPORT=log` in your `.env` that
+letter goes to the terminal the API is running in — open the `/set-password?token=…` link out of
+it and choose your own. Everybody else you add from the roster screen the same way.
 
 Signed in, you can record a car, record a drawing and upload a scan. If you would rather start
 from something, **`pnpm db:seed` empties the catalog and writes an invented one** — it is
@@ -230,10 +237,11 @@ It applies its own migrations, writes itself an invented catalog **only if there
 there** — so nothing recorded through the Editor screens is lost to a redeployment — and is a
 non-production system throughout: the DEMO band, the warm chrome, and refusals in front of
 everything that could reach a real person. Setting `ENVIRONMENT_MODE=production` on it **will
-not start**, because production refuses the stand-in Editor gate. The promotion path from
-preview to archive is deliberately not a configuration flag.
+not start**: it writes its e-mail to the log so an operator can read an invitation back out, and
+production refuses that outright — a link no member receives, left in a log file. The promotion
+path from preview to archive is deliberately not a configuration flag.
 
-The procedure, the three secrets it needs and what to check before anybody sees it are in
+The procedure, the secrets it needs and what to check before anybody sees it are in
 [`docs/operations/preview-deployment.md`](docs/operations/preview-deployment.md). **No hostname
 and no secret is committed to this repository** (`AGENTS.md`); they live on the host.
 
@@ -272,11 +280,10 @@ position numbers are the smallest marks on the sheet and a quality slider eats t
 it has no such marks in it and a member is confirming a shape. Both go through `images/`, which
 is also the upload path member Contributions reuse at ticket 19.
 
-The gate in front of it is **a stand-in**: one shared passphrase in `EDITOR_PASSWORD`, which is
-the whole of M1's "single hard-coded admin login". Accounts, Memberships and a live-membership
-check on every request arrive with tickets 14 and 15. The application **refuses to start in
-production** while that passphrase is set, so the stand-in cannot become the real gate by nobody
-getting round to it.
+The gate in front of it is the Club's roster. Every request that reaches a drawing is an Account
+with a live Membership, re-checked on that request; there is no shared credential, and the way
+onto an empty roster is a command run once on the box
+(`apps/api/src/composition/first-administrator.ts`).
 
 `packages/contracts` is **types only** — it emits no JavaScript, is consumed with `import type`,
 and so needs no build step and appears in neither bundle. That is what makes it free; put a

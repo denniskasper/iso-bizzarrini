@@ -1090,13 +1090,12 @@ export type RosterStanding = 'lapsed' | 'invited' | 'active';
 /**
  * `GET /api/session`
  *
- * `account` is null for the **stand-in Editor gate** — one shared passphrase, which is a
- * credential rather than a person — and ticket 15 takes both the null case and the gate away.
+ * **Signed in is always somebody** (ticket 15). A pair rather than a boolean beside a nullable
+ * field, so a screen that has established `signedIn` is holding the Account rather than one it
+ * still has to check for null — there is no longer a third state where neither is true.
  */
-export interface SessionResponse {
-  signedIn: boolean;
-  account: SignedInAccount | null;
-}
+export type SessionResponse =
+  { signedIn: true; account: SignedInAccount } | { signedIn: false; account: null };
 
 /** Who the browser is signed in as, and whether their Membership still lets them read. */
 export interface SignedInAccount {
@@ -1113,11 +1112,13 @@ export interface SignedInAccount {
 /**
  * `POST /api/session`
  *
- * Two shapes, because there are two gates for as long as the stand-in exists. A member signs in
- * with the e-mail address the Club has for them; the passphrase is M1's shared Editor gate and
- * leaves with ticket 15.
+ * The e-mail address the Club has for them, and the password they chose themselves. There is no
+ * other credential this archive accepts.
  */
-export type SignInRequest = { email: string; password: string } | { passphrase: string };
+export interface SignInRequest {
+  email: string;
+  password: string;
+}
 
 /**
  * `POST /api/password-resets` — "I have forgotten my password".
@@ -1231,6 +1232,14 @@ export interface ClubRecord {
   /** Free text with `{name}` and `{year}` in it. The format is the Club's; nothing parses it. */
   paymentReference: string;
   reminderText: string;
+  /**
+   * Where a member writes when something is wrong that a transfer will not fix.
+   *
+   * The **one** thing on the Club's record that is shown to somebody who is not an
+   * Administrator: it is on the renewal screen, because "contact the Club office" is advice
+   * nobody can act on without an address to act on it at (ticket 15).
+   */
+  officeEmail: string | null;
 }
 
 export interface ClubResponse {
@@ -1238,3 +1247,38 @@ export interface ClubResponse {
 }
 
 export type CorrectClubRequest = Partial<ClubRecord>;
+
+/**
+ * `GET /api/renewal` — **everything a member needs in order to pay, in the words to use.**
+ *
+ * Readable by anybody signed in, and deliberately not behind a live Membership: the whole point
+ * is that a member whose term has run out can reach it. It is a subset of the Club's record and
+ * not the record itself, because widening `GET /api/club` would hand every member the reminder
+ * text and the screen that edits it; what a member needs is the amount, where to send it, what
+ * to write on it and who to ask.
+ *
+ * The reference arrives **rendered** rather than as the Club's `{name}`/`{year}` format. Asking
+ * a member standing in a garage to substitute their own name into a template is asking for a
+ * transfer the treasurer cannot match to anybody.
+ *
+ * **The Paid-through is deliberately not here.** It is on `SignedInAccount`, which every screen
+ * already holds, and the same date served from two addresses is two dates free to disagree. The
+ * one thing this needs it for is working out which year the member is paying for, and that
+ * arrives written into the reference.
+ */
+export interface Renewal {
+  /** As typed and as read — `45.00`. */
+  fee: string;
+  currency: Currency;
+  bankAccountHolder: string | null;
+  bankName: string | null;
+  iban: string | null;
+  bic: string | null;
+  /** The Club's format with this member's name and the year they are paying for written in. */
+  reference: string;
+  officeEmail: string | null;
+}
+
+export interface RenewalResponse {
+  renewal: Renewal;
+}

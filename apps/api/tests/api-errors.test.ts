@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 describe('how the API fails', () => {
@@ -13,7 +14,7 @@ describe('how the API fails', () => {
   });
 
   it('answers an unknown API path with JSON, never an HTML error page', async () => {
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const response = await member.get('/api/tavole').expect('Content-Type', /json/).expect(404);
 

@@ -26,6 +26,7 @@ import {
   type PartsRow,
 } from './support/archive-source.js';
 import { givenScanImage } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -52,7 +53,7 @@ describe('the club’s archive, migrated from its spreadsheets', () => {
 
   beforeEach(async () => {
     await app.reset();
-    editor = await app.editor();
+    editor = await givenAnEditor(app);
   });
 
   afterEach(async () => {

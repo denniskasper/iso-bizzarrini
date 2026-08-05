@@ -5,7 +5,6 @@ import { ForbiddenError, MembershipLapsedError, NotSignedInError } from '../http
 import type { Clock } from '../platform/clock.js';
 import {
   createSessionSigner,
-  passphraseMatches,
   readCookie,
   SESSION_COOKIE_NAME,
   SESSION_DURATION_MS,
@@ -27,12 +26,12 @@ import {
  */
 export interface SignedIn {
   /**
-   * Null for the **stand-in Editor gate** — the shared passphrase, which is a credential and not
-   * a person. It is treated as an Administrator, because that is what M1's "single hard-coded
-   * admin login" was for: it is how the first real Administrator gets onto an empty roster.
-   * Ticket 15 removes it and this null with it.
+   * **Always a person.** There was once a second kind of session — one shared passphrase, which
+   * was a credential rather than anybody — and ticket 15 removed it, along with every `account
+   * === null` branch that had to keep asking whether a request had a name behind it. What puts
+   * the first Administrator on an empty roster now is `composition/first-administrator.ts`.
    */
-  account: { id: string; name: string; email: string; role: Role } | null;
+  account: { id: string; name: string; email: string; role: Role };
   /** Whether at least one Membership's Paid-through has not passed. */
   membershipIsLive: boolean;
   /** ISO date — the furthest term's last day. Null where no term was ever recorded. */
@@ -69,8 +68,6 @@ export interface Gate {
   identify(cookieHeader: string | undefined): Promise<SignedIn | null>;
   /** Who a handler behind one of the `require` middlewares is serving. */
   whoIsSignedIn(response: Response): SignedIn;
-  /** Whether an offered passphrase opens the stand-in gate. False when none is configured. */
-  admitsPassphrase(passphrase: string): boolean;
   signIn(response: Response, claim: SessionClaim): void;
   signOut(response: Response): void;
 }
@@ -88,17 +85,12 @@ export function createGate(dependencies: {
   accounts: SignedInReader;
 }): Gate {
   const { config, clock, accounts } = dependencies;
-  const signer: SessionSigner = createSessionSigner(config.editorGate.sessionSecret);
+  const signer: SessionSigner = createSessionSigner(config.session.secret);
 
   async function identify(cookieHeader: string | undefined): Promise<SignedIn | null> {
     const claim = signer.read(readCookie(cookieHeader, SESSION_COOKIE_NAME), clock.now());
     if (claim === null) {
       return null;
-    }
-
-    // The stand-in gate names nobody, so there is nothing to look up and nothing to lapse.
-    if (claim.accountId === null) {
-      return { account: null, membershipIsLive: true, paidThrough: null };
     }
 
     return accounts.identify(claim.accountId, claim.epoch);
@@ -144,14 +136,13 @@ export function createGate(dependencies: {
     }),
 
     requireEditor: requiring((who) => {
-      // The stand-in gate is the M1 Editor login, so it passes; a Member does not.
-      if (who.account !== null && !mayEdit.has(who.account.role)) {
+      if (!mayEdit.has(who.account.role)) {
         throw new ForbiddenError('Editing the archive is an Editor’s job.');
       }
     }),
 
     requireAdministrator: requiring((who) => {
-      if (who.account !== null && who.account.role !== 'administrator') {
+      if (who.account.role !== 'administrator') {
         throw new ForbiddenError('The roster is an Administrator’s to keep.');
       }
     }),
@@ -165,8 +156,6 @@ export function createGate(dependencies: {
       }
       return who;
     },
-
-    admitsPassphrase: (passphrase) => passphraseMatches(config.editorGate.password, passphrase),
 
     signIn(response, claim) {
       // `maxAge` rather than an absolute `expires`: the attribute is read against the browser's

@@ -1,6 +1,7 @@
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { givenModel, givenTavola } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -20,7 +21,7 @@ describe('recording a Model and its Tavole', () => {
 
   beforeEach(async () => {
     await app.reset();
-    editor = await app.editor();
+    editor = await givenAnEditor(app);
   });
 
   describe('a Model', () => {

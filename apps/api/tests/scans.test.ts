@@ -6,6 +6,7 @@ import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { scans } from '../src/db/schema.js';
 import { givenModel, givenScanImage, givenTavola } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -30,7 +31,7 @@ describe('a Tavola’s scan', () => {
 
   beforeEach(async () => {
     await app.reset();
-    editor = await app.editor();
+    editor = await givenAnEditor(app);
 
     const model = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
     tavolaId = (await givenTavola(app.db, model.id, { number: '12' })).id;
@@ -260,7 +261,7 @@ describe('an upload larger than this archive accepts', () => {
 
   it('is refused rather than read into memory', async () => {
     await app.reset();
-    const editor = await app.editor();
+    const editor = await givenAnEditor(app);
     const model = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
     const tavola = await givenTavola(app.db, model.id);
 

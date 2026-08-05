@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { assertSeedable, EnvironmentSafetyError } from '../src/composition/environment-safety.js';
+import {
+  assertSafeForEnvironment,
+  assertSeedable,
+  EnvironmentSafetyError,
+} from '../src/composition/environment-safety.js';
 import { loadConfig, type AppConfig } from '../src/config/config.js';
-import type { EmailSender } from '../src/platform/email.js';
-import type { PaymentEvent, PaymentProvider } from '../src/platform/payments.js';
+import { InMemoryEmailSender, type EmailSender } from '../src/platform/email.js';
+import {
+  UnconfiguredPaymentProvider,
+  type PaymentEvent,
+  type PaymentProvider,
+} from '../src/platform/payments.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -75,6 +83,49 @@ describe('generated seed data', () => {
   });
 });
 
+/**
+ * **The one refusal that points the other way**, and the thing that stops a practice stack
+ * becoming the archive by having `ENVIRONMENT_MODE` flipped.
+ *
+ * `log` writes the whole letter to the log instead of sending it, which is how an operator reads
+ * an invitation link back out of a laptop or a preview. In production it is two failures at once:
+ * every member invited waits for an e-mail that was never sent, and the single-use secret in each
+ * is left in a log file that gets read, shipped and backed up.
+ */
+describe('production and an e-mail transport that sends nothing', () => {
+  function assertSafe(overrides: Record<string, string>): void {
+    assertSafeForEnvironment({
+      config: configFor({
+        ENVIRONMENT_MODE: 'production',
+        PUBLIC_URL: 'https://ricambi.example',
+        ...overrides,
+      }),
+      emailSender: new InMemoryEmailSender(),
+      paymentProvider: new UnconfiguredPaymentProvider(),
+    });
+  }
+
+  it('refuses to start while invitations would be written to the log', () => {
+    expect(() => assertSafe({ EMAIL_TRANSPORT: 'log' })).toThrow(/EMAIL_TRANSPORT=log/);
+  });
+
+  /** A nuisance is not a hazard: `none` refuses to send, and it refuses out loud. */
+  it('is content with a transport that refuses, because a refusal is not a silence', () => {
+    expect(() => assertSafe({ EMAIL_TRANSPORT: 'none' })).not.toThrow();
+  });
+
+  /** The preview stack is exactly this configuration, which is what makes it unpromotable. */
+  it('leaves a practice system free to write its mail wherever it likes', () => {
+    expect(() =>
+      assertSafeForEnvironment({
+        config: configFor({ ENVIRONMENT_MODE: 'non-production', EMAIL_TRANSPORT: 'log' }),
+        emailSender: new InMemoryEmailSender(),
+        paymentProvider: new UnconfiguredPaymentProvider(),
+      }),
+    ).not.toThrow();
+  });
+});
+
 describe('production', () => {
   it('is allowed every one of them, because the refusals are about the mode and nothing else', async () => {
     let app: TestApp | undefined;
@@ -83,7 +134,6 @@ describe('production', () => {
         env: {
           ENVIRONMENT_MODE: 'production',
           REMINDERS_ENABLED: 'true',
-          EDITOR_PASSWORD: '',
           PUBLIC_URL: 'https://ricambi.example',
         },
         emailSender: senderThatReachesMembers,

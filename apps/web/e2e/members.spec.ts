@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openFirstDrawing } from './support/archive.js';
 import { landed, MEMBER_PASSWORD, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
@@ -53,10 +54,12 @@ test.describe('signing in as a person', () => {
 });
 
 /**
- * **A lapsed member gets in and is then told plainly what is wrong** (story 8). Ticket 15 turns
- * this into a renewal screen carrying the amount, the bank details and the reference; what is
- * asserted here is the half that ticket 14 owns — that authenticating works, and that the answer
- * names the date rather than refusing at the door.
+ * **A lapsed member gets in and is then handed everything they need to fix it** (stories 8 and 9).
+ *
+ * Only a browser can say whether this actually happened. That the archive answered 403 and that
+ * `/api/renewal` carried an IBAN are two facts proved at the API seam; that a person who signed
+ * in successfully is looking at the amount, the account and the exact words to write on the
+ * transfer — rather than at a refusal — is a fact about a screen.
  */
 test.describe('a Membership that has run out', () => {
   test('signs in successfully and is told the date it expired', async ({ page }) => {
@@ -66,6 +69,82 @@ test.describe('a Membership that has run out', () => {
     // Signed in, not turned away: the control in the chrome offers to sign them *out*.
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   });
+
+  test('is shown what to pay, where to send it and what to write on it', async ({ page }) => {
+    await signInAs(page, PRACTICE.lapsed);
+    await expect(page.getByRole('heading', { name: 'Your Membership has run out.' })).toBeVisible();
+
+    await expect(page.getByText('What renewing costs')).toBeVisible();
+    await expect(page.getByText('Where to send it')).toBeVisible();
+    await expect(page.getByText('IBAN', { exact: true })).toBeVisible();
+
+    // **The reference, written out in their own name.** It is the one thing on this screen a
+    // member could not have worked out for themselves, and the thing that makes a transfer
+    // matchable to a person — so it is the assertion that matters most here.
+    await expect(page.getByText(/^Ricambi \d{4} Elena Moretti$/)).toBeVisible();
+
+    // Somebody to write to when the money is not the problem.
+    await expect(page.getByRole('link', { name: 'office@example.invalid' })).toBeVisible();
+  });
+
+  /**
+   * Cold hands, a phone, and a run of characters that has to reach a banking app unaltered.
+   * Selecting text precisely on a phone is the part that goes wrong, so it is a press instead.
+   */
+  test('puts the reference on the clipboard in one press', async ({ page }) => {
+    await signInAs(page, PRACTICE.lapsed);
+
+    const copy = page.getByRole('button', { name: 'Copy the reference' });
+    await expect(copy).toBeVisible();
+    await copy.click();
+    await expect(copy).toContainText('Copied');
+  });
+
+  test('gives every control on it a target a cold hand can hit', async ({ page }) => {
+    await signInAs(page, PRACTICE.lapsed);
+    await expect(page.getByRole('heading', { name: 'Your Membership has run out.' })).toBeVisible();
+
+    for (const control of await page.locator('main button:visible, main a:visible').all()) {
+      const box = await control.boundingBox();
+      const description = (await control.textContent())?.trim() || 'a control';
+      expect(
+        Math.round(box?.height ?? 0),
+        `"${description}" is too short to hit`,
+      ).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
+/**
+ * **A link to a Position survives the sign-in redirect** (stories 52 and 53).
+ *
+ * This is the whole reason `next` exists, and it is the one thing about the gate that cannot be
+ * proved anywhere but in a browser: a member sends another member the address bar, it is opened
+ * by somebody who is signed out, and what they end up looking at afterwards has to be the circle
+ * they were sent — not the catalog, and not the screen they were bounced off.
+ */
+test('a deep link into the archive opens what it named, after signing in', async ({ page }) => {
+  await openFirstDrawing(page);
+  await page.locator('[data-testid="sheet-line"][data-position="3"]').click();
+  await expect(page).toHaveURL(/[?&]position=3\b/);
+
+  const sent = page.url();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+
+  // Somebody else's browser, arriving at the link cold.
+  await page.goto(sent);
+  await expect(page.getByRole('heading', { name: 'The archive is members-only.' })).toBeVisible();
+
+  // The gate screen's own way in, and not the one in the chrome — both carry `next`, and this
+  // is the one somebody who has just been stopped actually presses.
+  await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click();
+  await page.getByLabel('E-mail address').fill(PRACTICE.member);
+  await page.getByLabel('Password').fill(MEMBER_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+  // Where they were going, not where signing in usually lands.
+  await expect(page).toHaveURL(/[?&]position=3\b/);
+  await expect(page.getByTestId('selected-position')).toHaveText('3');
 });
 
 test.describe('the roster', () => {

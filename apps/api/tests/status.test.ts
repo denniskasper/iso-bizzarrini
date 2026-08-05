@@ -36,7 +36,6 @@ describe('service status', () => {
     const production = await startTestApp({
       env: {
         ENVIRONMENT_MODE: 'production',
-        EDITOR_PASSWORD: '',
         // Production refuses to point invitations at a laptop, so it has to say where it is.
         PUBLIC_URL: 'https://ricambi.example',
       },

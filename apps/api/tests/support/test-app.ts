@@ -42,8 +42,6 @@ export interface TestApp {
   request(): TestAgent;
   /** A request agent that keeps its cookies, for signed-in flows. */
   agent(): TestAgent;
-  /** An agent that has been through the stand-in Editor gate. */
-  editor(): Promise<TestAgent>;
   /** An agent signed in as a member, by their address and their own password. */
   memberAgent(credentials: { email: string; password: string }): Promise<TestAgent>;
   /** Empties the database between tests. */
@@ -99,15 +97,6 @@ export const TEST_PASSWORD_COST = { N: 2 ** 14, r: 8, p: 1 };
 /** Well before any date the catalog cares about, and stable, so tests never depend on today. */
 export const DEFAULT_TEST_NOW = new Date('2026-01-15T09:00:00.000Z');
 
-/**
- * The stand-in Editor gate's passphrase, in tests. Nothing anywhere else knows it.
- *
- * Every test app is handed it, so signing in is one call. A test that starts a **production**
- * environment has to clear it with `EDITOR_PASSWORD: ''`: the application refuses to start in
- * production while the shared-passphrase gate is configured, which is the whole point of it.
- */
-export const TEST_EDITOR_PASSPHRASE = 'a-passphrase-for-tests';
-
 export async function startTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const filesPath = await mkdtemp(join(tmpdir(), 'ricambi-files-'));
 
@@ -117,7 +106,6 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
     DATABASE_URL: 'postgres://unused-in-tests/the-connection-is-injected',
     LOG_LEVEL: 'silent',
     EMAIL_TRANSPORT: 'memory',
-    EDITOR_PASSWORD: TEST_EDITOR_PASSPHRASE,
     SESSION_SECRET: 'a-session-secret-long-enough-for-the-schema',
     FILE_STORAGE_PATH: filesPath,
     ...options.env,
@@ -162,11 +150,6 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
     filesPath,
     request: () => supertest(app),
     agent: () => supertest.agent(app),
-    async editor() {
-      const agent = supertest.agent(app);
-      await agent.post('/api/session').send({ passphrase: TEST_EDITOR_PASSPHRASE }).expect(201);
-      return agent;
-    },
     async memberAgent(credentials) {
       const agent = supertest.agent(app);
       await agent.post('/api/session').send(credentials).expect(201);

@@ -6,6 +6,7 @@ import {
 } from '../src/catalog/practice-archive.js';
 import { createFileStore } from '../src/storage/file-store.js';
 import { givenModel } from './support/fixtures.js';
+import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -60,7 +61,7 @@ describe('a practice system writing itself a catalog', () => {
       sources: 4,
     });
 
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
     const response = await member.get('/api/models').expect(200);
     expect(response.body.models).toHaveLength(3);
   });
@@ -71,7 +72,7 @@ describe('a practice system writing itself a catalog', () => {
 
     expect(await seed()).toBeNull();
 
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
     const response = await member.get('/api/models').expect(200);
     expect(response.body.models).toHaveLength(1);
     expect(response.body.models[0]).toMatchObject({ name: 'A car an Editor recorded' });
@@ -79,7 +80,7 @@ describe('a practice system writing itself a catalog', () => {
 
   it('draws its own Tavole, so a preview has something to open', async () => {
     await seed();
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const models = await member.get('/api/models').expect(200);
     const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
@@ -98,7 +99,7 @@ describe('a practice system writing itself a catalog', () => {
   // A drawing with no circles on it is a picture, and the product is a drawing you can click.
   it('marks up what it draws, including one Position the drawing does not show', async () => {
     await seed();
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const models = await member.get('/api/models').expect(200);
     const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
@@ -132,7 +133,7 @@ describe('a practice system writing itself a catalog', () => {
    */
   it('lists a Position with alternatives, fixings, and a Part carrying no number', async () => {
     await seed();
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const models = await member.get('/api/models').expect(200);
     const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
@@ -177,7 +178,7 @@ describe('a practice system writing itself a catalog', () => {
    */
   it('records what fits its Parts, what replaces them and where they have been for sale', async () => {
     await seed();
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const models = await member.get('/api/models').expect(200);
     const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
@@ -234,7 +235,7 @@ describe('a practice system writing itself a catalog', () => {
    */
   it('photographs some of its Parts, one of them more than once', async () => {
     await seed();
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const models = await member.get('/api/models').expect(200);
     const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
@@ -274,7 +275,7 @@ describe('a practice system writing itself a catalog', () => {
    */
   it('groups some of its numbers, and links two of them', async () => {
     await seed();
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
 
     const models = await member.get('/api/models').expect(200);
     const grifo = models.body.models.find((model: { name: string }) => model.name === 'Grifo');
@@ -331,7 +332,7 @@ describe('a practice system writing itself a catalog', () => {
     const again = await writePracticeArchive(dependencies());
     expect(again).toMatchObject({ models: 3, parts: 6, listings: 8 });
 
-    const member = await app.editor();
+    const member = await givenAnEditor(app);
     const models = await member.get('/api/models').expect(200);
     expect(models.body.models).toHaveLength(3);
   });
