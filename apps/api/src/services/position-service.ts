@@ -1,5 +1,4 @@
 import type { MarkPoint, RelatedPosition, Sheet } from '@ricambi/contracts';
-import { numericPrefixOf } from '../catalog/naming.js';
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
 import type { PositionRepository, PositionWithMarks } from '../repositories/position-repository.js';
@@ -152,11 +151,7 @@ export function createPositionService(dependencies: {
   async function findOrAdd(tavolaId: string, number: string) {
     await tavolaThatExists(tavolaId);
 
-    return positionRepository.findOrAdd({
-      tavolaId,
-      number,
-      numberSort: numericPrefixOf(number),
-    });
+    return positionRepository.findOrAdd({ tavolaId, number });
   }
 
   return {

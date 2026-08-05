@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, inArray, ne, notExists, or, sql } from 'drizzle-orm';
+import { catalogNumberKey } from '../catalog/part-identity.js';
 import type { DbSession } from '../db/client.js';
 import {
   listings,
@@ -71,6 +72,22 @@ export interface PartRepository {
   findPart(id: string): Promise<PartRow | null>;
   findPartByCatalogNumber(catalogNumber: string): Promise<PartRow | null>;
   /**
+   * The Parts a set of Catalog Numbers names, **in one query rather than one a number** — because
+   * the thing that asks is a paste of two hundred rows, and two hundred round trips to find out
+   * which of them the archive already has is how a paste becomes a minute of waiting.
+   *
+   * Matched with the catalog's own spacing ignored, exactly as an Editor's lookup matches it: a
+   * bracket stamped `26003150` and a catalog printing `260 03 150` are the same number, and a
+   * paste that took them for two would record the duplicate the identity rule exists to prevent
+   * (ADR 0001). The unique constraint cannot see that, because the two strings differ.
+   */
+  findPartsByCatalogNumbers(catalogNumbers: string[]): Promise<PartRow[]>;
+  /**
+   * A Part on its own, for a caller that is already inside a transaction and places the Listing
+   * itself. `addPartWithListing` below is what everything else uses, and the reason it exists.
+   */
+  addPart(part: NewPartRow): Promise<PartRow>;
+  /**
    * **An Editor's lookup, and deliberately not Search.** A Catalog Number matched exactly with
    * the printed spacing ignored, or a prefix of either name — enough to find a Part in order to
    * list it somewhere else. Ticket 22 owns Search and reaches further; when it lands it should
@@ -121,13 +138,11 @@ export interface PartRepository {
 }
 
 /**
- * A Catalog Number with the catalog's own spacing taken out of it, said in SQL.
+ * `catalogNumberKey` said in SQL — the *stored* side of a comparison whose other side goes
+ * through that function. One rule, two languages, and they have to stay the same rule.
  *
- * The catalog prints `260 03 150`; the bracket in somebody's hand is stamped `26003150`. Both are
- * the same number and an Editor should not have to guess which the archive was given, so both
- * sides of the comparison are squashed. It is deliberately **not** indexed: this archive holds a
- * few thousand Parts, and the lookup is a debt ticket 22 is meant to absorb rather than a surface
- * to build on.
+ * It is deliberately **not** indexed: this archive holds a few thousand Parts, and the lookup is
+ * a debt ticket 22 is meant to absorb rather than a surface to build on.
  */
 const squashedCatalogNumber = sql`lower(regexp_replace(coalesce(${parts.catalogNumber}, ''), '[[:space:]]', '', 'g'))`;
 
@@ -170,9 +185,25 @@ export function createPartRepository(db: DbSession): PartRepository {
       return row ?? null;
     },
 
+    async findPartsByCatalogNumbers(catalogNumbers) {
+      const squashed = catalogNumbers.map(catalogNumberKey).filter((number) => number !== '');
+      if (squashed.length === 0) {
+        return [];
+      }
+
+      return db.select().from(parts).where(inArray(squashedCatalogNumber, squashed));
+    },
+
+    async addPart(part) {
+      const [added] = await db.insert(parts).values(part).returning();
+      if (!added) {
+        throw new Error('Inserting a Part returned nothing.');
+      }
+      return added;
+    },
+
     async lookUpParts(query, limit) {
-      const squashed = query.replace(/\s+/g, '').toLowerCase();
-      const byNumber = sql`${squashedCatalogNumber} = ${squashed}`;
+      const byNumber = sql`${squashedCatalogNumber} = ${catalogNumberKey(query)}`;
       const prefix = asPrefixPattern(query);
 
       return (

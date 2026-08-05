@@ -184,11 +184,7 @@ export function createArchiveWriter(session: DbSession): ArchiveWriter {
     },
 
     async findOrAddPosition(tavolaId, number) {
-      const { position, added } = await positionRepository.findOrAdd({
-        tavolaId,
-        number,
-        numberSort: numericPrefixOf(number),
-      });
+      const { position, added } = await positionRepository.findOrAdd({ tavolaId, number });
       return { id: position.id, created: added };
     },
 

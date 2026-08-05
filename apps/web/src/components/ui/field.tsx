@@ -133,9 +133,19 @@ export function Select({
 export function TextArea({
   label,
   hint,
+  mono = false,
   className,
   ...props
-}: ComponentProps<'textarea'> & { label: string; hint?: ReactNode }) {
+}: ComponentProps<'textarea'> & {
+  label: string;
+  hint?: ReactNode;
+  /**
+   * Set the value in the mono face — for the one thing written here that is not prose: a table
+   * of the factory's own numbers, pasted out of a spreadsheet. Proportional type would let its
+   * columns drift, and a column an Editor cannot see is a column they cannot check.
+   */
+  mono?: boolean;
+}) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
 
@@ -152,6 +162,9 @@ export function TextArea({
           'w-full rounded-md border border-line-strong bg-surface-raised px-3 py-2',
           'text-base text-pretty text-text transition-colors duration-150 ease-[var(--ease-out-quick)]',
           'placeholder:text-faint focus:border-accent-ink',
+          // Nowrap and scrolled, not wrapped: a wrapped table is a table whose columns no longer
+          // line up, and lining up is the only reason it is in this face at all.
+          mono && 'tabular overflow-x-auto text-sm text-nowrap',
         )}
         {...props}
       />

@@ -840,6 +840,128 @@ export interface ReorderPhotographsRequest {
 }
 
 /**
+ * `POST /api/tavole/:tavolaId/paste` and `.../paste/preview` — **a whole catalog page at once,
+ * rather than two hundred forms** (story 113).
+ *
+ * The text is what the Editor's clipboard held: rows out of a spreadsheet, tab-separated, or a
+ * `.csv` saved from one. It is sent as it was pasted, header row and all — which columns it has
+ * is the archive's to work out and not something an Editor has to declare.
+ */
+export interface PasteRequest {
+  text: string;
+}
+
+/**
+ * Which of the archive's fields a column of the pasted table was read as.
+ *
+ * **The header is reported back**, exactly as the Editor's sheet spelt it, because the preview's
+ * job is to be checkable: a column read as the wrong field is the mistake that would otherwise
+ * be found two hundred rows later. `null` is a field this paste has no column for.
+ */
+export interface PastedColumns {
+  position: string | null;
+  catalogNumber: string | null;
+  nameEn: string | null;
+  nameIt: string | null;
+  quantityPerCar: string | null;
+  disegnoOrigine: string | null;
+  drawn: string | null;
+}
+
+/**
+ * What one pasted row will do to the archive.
+ *
+ * **The four are what an Editor has to be able to tell apart before pressing anything.** A row
+ * that records something new and a row that finds what the archive already has look identical on
+ * a spreadsheet and are entirely different afterwards — and `already-listed` is the one that
+ * makes an exported sheet safe to paste back, because a round trip is two hundred rows of it.
+ */
+export type PastedRowOutcome =
+  /** A Part the archive has not met, recorded here with its first Listing. */
+  | 'new-part'
+  /** A Part the archive already holds, listed at this number rather than recorded again. */
+  | 'matched-part'
+  /** That Part is already listed at that number on this sheet. Nothing to do, and nothing done. */
+  | 'already-listed'
+  /** The row could not be read. It is reported with its line and the rest are unaffected. */
+  | 'refused';
+
+/** What a row says a Part is — the columns of a printed catalog page, and nothing else. */
+export interface PastedPart {
+  nameEn: string | null;
+  nameIt: string | null;
+  catalogNumber: string | null;
+  disegnoOrigine: string | null;
+  quantityPerCar: number | null;
+  drawn: boolean;
+}
+
+/**
+ * One row of the paste, and what became — or would become — of it.
+ *
+ * `line` counts the header as line 1, which is the number the Editor's own spreadsheet shows
+ * beside the row. It is the only address they have for a row that could not be read.
+ */
+export interface PastedRow {
+  line: number;
+  outcome: PastedRowOutcome;
+  /**
+   * What an Editor has to be told about this row, in words they can act on.
+   *
+   * On a **refused** row it is why it could not be read. On an **already-listed** one it is the
+   * one thing a paste would otherwise swallow in silence: that the row disagrees with what is
+   * recorded — a quantity corrected in the spreadsheet, a drawn flag changed — and that nothing
+   * here is going to apply it. A bulk write over curated records is what this archive does not do
+   * (ADR 0005); saying nothing about the difference would be a different failure, and a worse one,
+   * because the Editor would believe the correction had landed.
+   */
+  why?: string;
+  /** As printed. `null` where the row names no number, which is a legitimate Listing. */
+  positionNumber: string | null;
+  /** Whether that number is one this sheet does not carry yet, and will gain. */
+  newPosition: boolean;
+  /** What the row says. Absent only where it could not be read that far. */
+  part?: PastedPart;
+  /** The Part the archive already holds, for a matched or already-listed row. */
+  matched?: Part;
+  /**
+   * The **line earlier in this same paste** that records the Part this row was matched to — a
+   * catalog number appearing twice, which is one Part listed at two numbers rather than two Parts.
+   * The archive has never seen it, so there is no `matched` to show instead.
+   */
+  matchedLine?: number;
+}
+
+/** How the paste came out, in the counts an Editor reads before deciding to press it. */
+export interface PasteTally {
+  newParts: number;
+  matchedParts: number;
+  alreadyListed: number;
+  refused: number;
+  /** Numbers this paste would add to the sheet, each counted once however many rows name it. */
+  newPositions: number;
+}
+
+/**
+ * **What the paste will do, or what it did** — one shape for both, because they are one answer.
+ *
+ * The preview is the same reading of the same text against the same archive; applying it does
+ * that reading again, inside the transaction, and then carries it out. So a preview cannot
+ * promise something the write then does differently, and the Editor is never shown a plan that
+ * was drawn by different code from the one that runs.
+ *
+ * `applied` is the only difference: `false` is a preview and **nothing whatever was written**,
+ * which is the box ticket 12 asks for before anything is created.
+ */
+export interface PastePlanResponse {
+  applied: boolean;
+  columns: PastedColumns;
+  /** In the order they were pasted. Every row is here, including the refused ones. */
+  rows: PastedRow[];
+  tally: PasteTally;
+}
+
+/**
  * What a refused Catalog Number carries in `ApiErrorBody.error.details`: **the Part that
  * already has it.**
  *

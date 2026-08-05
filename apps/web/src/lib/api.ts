@@ -21,6 +21,8 @@ import type {
   NewPositionRequest,
   NewSubAssemblyRequest,
   NewTavolaRequest,
+  PastePlanResponse,
+  PasteRequest,
   PositionListingsResponse,
   PositionsResponse,
   RelatePositionsRequest,
@@ -185,6 +187,24 @@ export const api = {
     request<void>(`/listings/${listingId}`, { method: 'DELETE' }),
 
   /**
+   * **A whole catalog page at once, and a way back out into a spreadsheet** (ticket 12).
+   *
+   * `previewPaste` writes nothing whatever. It is the same reading of the same text that
+   * `applyPaste` then does inside its transaction, so what an Editor is shown is what happens —
+   * and it is a separate call rather than a flag, because an address that records two hundred
+   * rows when a boolean is wrong is one press away from a very bad afternoon.
+   *
+   * The export is deliberately **not** here: it is a file to be saved rather than a response to be
+   * read, so the browser follows the link and the download lands where downloads land.
+   */
+  previewPaste: (tavolaId: string, paste: PasteRequest) =>
+    send<PastePlanResponse>('POST', `/tavole/${tavolaId}/paste/preview`, paste),
+  applyPaste: (tavolaId: string, paste: PasteRequest) =>
+    send<PastePlanResponse>('POST', `/tavole/${tavolaId}/paste`, paste),
+  /** Where a browser goes to download the drawing as a spreadsheet. Same-origin, same gate. */
+  spreadsheetUrl: (tavolaId: string) => `/api/tavole/${tavolaId}/export.csv`,
+
+  /**
    * The Part itself — **addressed as the thing it is** rather than through a drawing (ADR 0001),
    * because correcting a Part corrects it at every number it sits at on every sheet.
    *
@@ -300,6 +320,13 @@ export type {
   ObservedPrice,
   Part,
   PartInFull,
+  PastedColumns,
+  PastedPart,
+  PastedRow,
+  PastedRowOutcome,
+  PastePlanResponse,
+  PasteRequest,
+  PasteTally,
   PartListing,
   PartResponse,
   Photograph,

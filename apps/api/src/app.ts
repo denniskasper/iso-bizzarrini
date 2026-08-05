@@ -4,6 +4,7 @@ import { pinoHttp } from 'pino-http';
 import { createEditorGate } from './access/editor-gate.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import type { AppConfig } from './config/config.js';
+import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
@@ -29,6 +30,7 @@ import { createScanRepository } from './repositories/scan-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
 import { createApiRouter } from './routes/api-router.js';
+import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
@@ -127,6 +129,12 @@ export function createApp(dependencies: AppDependencies): Express {
     partRepository,
     partRecordService,
   });
+  // **The one service handed the database itself rather than repositories.** A paste is one
+  // press that writes a whole catalog page, so it runs in a transaction — half a page written is
+  // worse than none of it — and it re-reads the archive inside that transaction so that what an
+  // Editor was shown is what is carried out. The session decides the repositories, so the
+  // repositories cannot be decided here.
+  const bulkPasteService = createBulkPasteService({ db });
   const tavolaService = createTavolaService({
     modelRepository,
     categoryRepository,
@@ -156,6 +164,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const positionController = createPositionController({ positionService });
   const partController = createPartController({ partService });
   const partRecordController = createPartRecordController({ partRecordService });
+  const bulkPasteController = createBulkPasteController({ bulkPasteService });
   const photographController = createPhotographController({ photographService });
   const scanController = createScanController({ scanService });
 
@@ -198,6 +207,7 @@ export function createApp(dependencies: AppDependencies): Express {
       positionController,
       partController,
       partRecordController,
+      bulkPasteController,
       photographController,
       scanController,
     }),

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BelongsWithPanel } from '@/components/editor/belongs-with-panel';
+import { BulkPaste } from '@/components/editor/bulk-paste';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
 import { ScanUpload } from '@/components/editor/scan-upload';
@@ -374,6 +375,14 @@ export function TavolaPage() {
             ) : null
           }
         />
+      </div>
+
+      {/* An evening's transcription, rather than one number's. It is below the sheet's own list
+          of numbers because it is what an Editor turns to when working from a catalog page
+          instead of from the drawing — and it is a panel per sheet, deliberately, since what it
+          takes is one drawing's worth of rows and nothing wider (ADR 0005). */}
+      <div className="mt-12">
+        <BulkPaste tavolaId={tavola.id} />
       </div>
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">

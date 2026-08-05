@@ -24,8 +24,8 @@ import {
   splitReferences,
   type DateOrder,
   type PositionSpan,
-} from './cells.js';
-import { readSheet, type Sheet, type SheetRow } from './csv.js';
+} from '../sheets/cells.js';
+import { readSheet, type Sheet, type SheetRow } from '../sheets/csv.js';
 import {
   columnsNamedFor,
   readPlan,

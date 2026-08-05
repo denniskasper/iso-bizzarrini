@@ -15,11 +15,21 @@ links to the file it was read from. **Progress** comes from a ticket's own check
 **Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
 A ticket is ready to pick up when everything it is blocked by is finished.
 
-**Next up: [12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)** — the last of M2's editor
-tooling. Recording an archive, correcting one and photographing a part all work now; what is left
-of the evening's work an Editor actually does is pasting a catalog page in one go rather than in
-two hundred forms. Ticket 10 is done, so **19 is unblocked once 15 lands** — that is the whole of
-M4, and the upload path it needs is already built and reused rather than rewritten.
+**M2's editor tooling is finished.** [Ticket 12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)
+closed the last of it: an Editor pastes a whole catalog page rather than filling in two hundred
+forms, and can pull a drawing back out into a spreadsheet whenever they would rather work the way
+they always have. **Nothing is written until the archive has shown what it will do** — the preview
+is the same reading of the same text that the write then carries out, so it cannot promise
+something the write does differently. And it creates and matches but never *changes* a Part
+(ADR 0005): re-pasting the sheet a Part came from must not be able to overwrite, in bulk, what an
+Editor has since folded into it. Ticket 10 is done, so **19 is unblocked once 15 lands** — that is
+the whole of M4, and the upload path it needs is already built and reused rather than rewritten.
+
+**Next up is M3, which is the deployment**:
+[14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) brings Accounts,
+Memberships and the first real members, and with them the two things ticket 02 and ADR 0011 both
+defer to it — the practice system standing beside a production one, and whether an error-tracking
+vendor is worth a processor agreement now that there is something to track.
 
 Two others are unblocked and independent of them:
 [22](.scratch/ricambi/issues/22-search.md) and
@@ -53,7 +63,7 @@ now holds an idle connection for longer than anything in front of it will
 | 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Done | `done` | 06 |
 | 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Done | `done` | 06 |
 | 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Done | `done` | 05, 06 |
-| 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Not started | `ready-for-agent` | 06 |
+| 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Done | `done` | 06 |
 | 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | 11 of 12 | `ready-for-human` | 03, 08 |
 | 14 | [Accounts, Memberships, roster and invitations](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) | Not started | `ready-for-agent` | 01, club-website 01 |
 | 15 | [Authorisation and the renewal screen](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md) | Not started | `ready-for-agent` | 03, 14 |
@@ -160,6 +170,20 @@ system and in production, and differs only by what it is handed.
 | `pnpm db:generate` | a migration from a change to `schema.ts` (then rename it, and strip `"public".`) |
 | `pnpm scans:measure` | what the archive's own scans say about the tiling question (ADR 0013) |
 | `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
+
+### Pasting a catalog page, and getting one back
+
+Open a drawing and scroll past its numbers to **A whole page at once**. Paste the rows straight
+out of a spreadsheet — header row and all, tab-separated as the clipboard gives them — and the
+archive says what it made of every column and every row *before* there is a button that records
+anything. **Export this drawing** writes the same columns back out, so a sheet that goes out and
+comes back is matched to what is already recorded rather than duplicated.
+
+It is an editing convenience per drawing and deliberately **not** a catalog importer
+([ADR 0005](docs/adr/0005-bulk-import-is-not-a-product-feature.md)). It creates Parts the archive
+has never met and matches the ones it has — by Catalog Number, with the catalog's own spacing
+ignored — and it never changes a Part that already exists. Correcting one is a screen where a
+single Part is in front of a single person.
 
 ### Loading the Club's own archive
 

@@ -258,6 +258,13 @@ html.dark[data-environment-mode='non-production'] {
   --spacing-control-lg: 3.25rem;
   --spacing-gutter: 1.5rem;
   --spacing-measure: 34rem;
+  /*
+   * How tall a list of rows is allowed to grow before it scrolls inside itself rather than down
+   * the page. A pasted catalog page is two hundred rows, and a panel two hundred rows tall pushes
+   * the drawing it is about off the screen entirely. About a dozen rows: enough that the shape of
+   * the list is obvious without scrolling, short enough that what is above it stays in view.
+   */
+  --spacing-long-list: 28rem;
 
   /* ---- Motion ----------------------------------------------------------
    * Chrome moves quickly and briefly, or not at all. Nothing animates the artwork.

@@ -1,5 +1,6 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { EditorGate } from '../access/editor-gate.js';
+import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
@@ -36,6 +37,7 @@ export function createApiRouter(dependencies: {
   positionController: PositionController;
   partController: PartController;
   partRecordController: PartRecordController;
+  bulkPasteController: BulkPasteController;
   photographController: PhotographController;
   scanController: ScanController;
 }): Router {
@@ -48,6 +50,7 @@ export function createApiRouter(dependencies: {
     positionController,
     partController,
     partRecordController,
+    bulkPasteController,
     photographController,
     scanController,
   } = dependencies;
@@ -117,6 +120,20 @@ export function createApiRouter(dependencies: {
   // than *to* (story 46), and the only thing that knows which numbers have nothing at them yet.
   router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
   router.post('/tavole/:tavolaId/listings', partController.record);
+
+  // **A whole catalog page at once, and a way back out into a spreadsheet** (ticket 12). Hung
+  // off the Tavola because a paste is one drawing's worth of rows and an export is one drawing:
+  // this is editing convenience per sheet, and deliberately not the catalog importer (ADR 0005).
+  //
+  // The preview has an address of its own rather than a flag on the write. What it does — read
+  // the archive and answer — is what a `GET` does, and an address that writes two hundred rows
+  // when a field is set wrong is one press away from a very bad afternoon. It is a `POST` only
+  // because the text it reads is far too long to be a query string.
+  router.post('/tavole/:tavolaId/paste/preview', bulkPasteController.preview);
+  router.post('/tavole/:tavolaId/paste', bulkPasteController.apply);
+  // `.csv` in the address and not only in the header, so that a file saved out of a browser
+  // arrives in the spreadsheet it was meant for rather than in a text editor.
+  router.get('/tavole/:tavolaId/export.csv', bulkPasteController.spreadsheet);
   // Where a Part sits on this sheet, how many are fitted there, and whether the drawing shows it
   // — the three things a Listing has of its own. What the Part *is* is corrected below.
   router.patch('/listings/:listingId', partController.correctListing);

@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { numericPrefixOf } from '../catalog/naming.js';
 import type { DbSession } from '../db/client.js';
 import {
   marks,
@@ -7,7 +8,6 @@ import {
   subAssemblies,
   type MarkRow,
   type NewMarkRow,
-  type NewPositionRow,
   type PositionRow,
   type RelatedPositionRow,
   type SubAssemblyRow,
@@ -31,8 +31,19 @@ export interface PositionWithMarks extends PositionRow {
 export interface PositionRepository {
   listByTavola(tavolaId: string): Promise<PositionWithMarks[]>;
   findById(id: string): Promise<PositionWithMarks | null>;
-  /** The Position that number names on that sheet, recording it if the archive has none. */
-  findOrAdd(row: NewPositionRow): Promise<{ position: PositionRow; added: boolean }>;
+  /**
+   * The Position that number names on that sheet, recording it if the archive has none.
+   *
+   * **The sort key is derived here and is no caller's business.** It is the leading digits of the
+   * number, it is never shown and never compared, and three callers computing it — the marking
+   * tool, a paste and the archive loader — is three places a sheet could come to be ordered
+   * differently from the catalog it was printed in.
+   */
+  findOrAdd(where: {
+    tavolaId: string;
+    /** As printed on the sheet, suffix and all. */
+    number: string;
+  }): Promise<{ position: PositionRow; added: boolean }>;
   remove(id: string): Promise<boolean>;
   addMark(row: NewMarkRow): Promise<MarkRow>;
   /** Both answer with the Mark as it was, so the caller knows which Position to read back. */
@@ -104,7 +115,7 @@ export function createPositionRepository(db: DbSession): PositionRepository {
       // decides, rather than whoever read first.
       const [inserted] = await db
         .insert(positions)
-        .values(row)
+        .values({ ...row, numberSort: numericPrefixOf(row.number) })
         .onConflictDoNothing({ target: [positions.tavolaId, positions.number] })
         .returning();
 
