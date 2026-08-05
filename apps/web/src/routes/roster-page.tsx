@@ -1,4 +1,5 @@
 import type { RosterStanding } from '@ricambi/contracts';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AddMember } from '@/components/roster/add-member';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
@@ -55,11 +56,20 @@ function Roster() {
           </p>
         </div>
 
-        {/* One dominant action on the screen, and this is it. */}
+        {/*
+         * One dominant action on the screen, and this is it. The way to the annual list stands
+         * beside it as an outline and never competes with it: adding one person is what an
+         * Administrator opens this screen to do, and loading a hundred happens once a year.
+         */}
         {!adding && (
-          <Button variant="primary" size="lg" onClick={() => setAdding(true)}>
-            Add somebody
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild variant="outline" size="lg">
+              <Link to="/roster/import">Load a spreadsheet</Link>
+            </Button>
+            <Button variant="primary" size="lg" onClick={() => setAdding(true)}>
+              Add somebody
+            </Button>
+          </div>
         )}
       </div>
 

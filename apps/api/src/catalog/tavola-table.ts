@@ -1,6 +1,6 @@
 import type { PastedColumns, PastedPart } from '@ricambi/contracts';
 import { readDrawn, readQuantity, type Reading } from '../sheets/cells.js';
-import type { Sheet, SheetRow } from '../sheets/csv.js';
+import { columnsMatching, type Sheet, type SheetRow } from '../sheets/csv.js';
 
 /**
  * **A Tavola's Listings as a table of text, in both directions** — the rows an Editor pastes out
@@ -88,46 +88,12 @@ const ALIASES: Record<TableField, string[]> = {
 };
 
 /**
- * A column name with everything a spreadsheet varies taken out of it: case, accents and the
- * punctuation of `Pos.`, `Q.tà` and `Dis. Origine`.
- *
- * The same normalisation the Category slug makes, and for the same reason — two spellings of one
- * name must not become two things.
- */
-function normalised(column: string): string {
-  return column
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-/**
  * Which of the pasted table's columns the archive read as what — **reported back rather than
  * assumed**, because a column read as the wrong field is a mistake that would otherwise be
  * discovered two hundred rows later.
- *
- * The first column matching a field wins, and a column already taken is not offered to a second
- * field: a sheet whose only name column is headed `Name` is an English name, and nothing else is
- * then allowed to claim it as the Italian one.
  */
 export function columnsOf(sheet: Sheet): PastedColumns {
-  const taken = new Set<string>();
-  const found = {} as PastedColumns;
-
-  for (const field of Object.keys(ALIASES) as TableField[]) {
-    const aliases = ALIASES[field];
-    const column = sheet.columns.find(
-      (candidate) => !taken.has(candidate) && aliases.includes(normalised(candidate)),
-    );
-    found[field] = column ?? null;
-    if (column) {
-      taken.add(column);
-    }
-  }
-
-  return found;
+  return columnsMatching<TableField>(sheet, ALIASES);
 }
 
 /** Whether the archive made anything at all of the header it was handed. */

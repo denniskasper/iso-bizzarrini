@@ -1073,7 +1073,7 @@ export type PositionsResponse = Sheet;
 export type Role = 'member' | 'editor' | 'administrator';
 
 /** How the Club came to grant a term of Membership. Ticket 18 adds the payment provider's own. */
-export type MembershipGrant = 'opening-entry' | 'bank-transfer';
+export type MembershipGrant = 'opening-entry' | 'bank-transfer' | 'roster-import';
 
 /** The two reasons to send somebody a link that sets a password. */
 export type TokenPurpose = 'invitation' | 'password-reset';
@@ -1212,6 +1212,122 @@ export interface RecordPaymentRequest {
   reference: string | null;
   /** ISO date. The last day the new term covers. */
   paidThrough: string;
+}
+
+/**
+ * `POST /api/roster/import/preview` and `POST /api/roster/import` — **the Club's annual
+ * membership list, loaded instead of typed** (story 122).
+ *
+ * The text is the spreadsheet, saved as CSV and read in the browser: rows with a name, an e-mail
+ * address and a Paid-through date, header row and all. It is sent as it was written, because
+ * which columns it has is the archive's to work out rather than something an Administrator has
+ * to declare about their own file.
+ *
+ * **This is the one permanent import in the product** (ADR 0005). Everything else about the
+ * catalog is edited a record at a time, because a re-uploaded spreadsheet would silently
+ * overwrite what an Editor had folded into a Part. A roster has no curated state beneath it and
+ * genuinely recurs once a year, which is what earns it an importer of its own.
+ */
+export interface RosterImportRequest {
+  text: string;
+}
+
+/**
+ * Which of the file's columns each of the three fields was read from — **the Administrator's own
+ * header, quoted back**, so a column read as the wrong field is visible before anything is
+ * written rather than a hundred rows later. `null` is a field this file has no column for.
+ */
+export interface RosterImportColumns {
+  name: string | null;
+  email: string | null;
+  paidThrough: string | null;
+}
+
+/**
+ * What one row of the file will do to the roster.
+ *
+ * **There is deliberately no fifth outcome, because there is no removal.** A roster import adds
+ * and updates and does nothing else: a truncated or half-exported file must never be able to take
+ * anybody's access away, so somebody the file does not mention is somebody the import leaves
+ * exactly as they were. Removing access is a separate, deliberate act.
+ */
+export type RosterImportOutcome =
+  /** Nobody on the roster has this address. The person and their opening term are recorded. */
+  | 'new-member'
+  /** On the roster already: the term runs further than the roster has, or the name has changed. */
+  | 'updated'
+  /** On the roster, and the file says nothing the roster does not already hold. */
+  | 'unchanged'
+  /** The row could not be read. It is reported with its line and the rest are unaffected. */
+  | 'refused';
+
+/** What the roster holds for somebody a row matched, so the change is readable against it. */
+export interface RosterImportMatch {
+  name: string;
+  paidThrough: string | null;
+  standing: RosterStanding;
+}
+
+/**
+ * One row of the file, and what became — or would become — of it.
+ *
+ * `line` counts the header as line 1, which is the number the Administrator's own spreadsheet
+ * shows beside the row. It is the only address they have for a row that could not be read.
+ */
+export interface RosterImportRow {
+  line: number;
+  outcome: RosterImportOutcome;
+  /** Normalised to lower case, as the roster keys people. Null where the cell was not readable. */
+  email: string | null;
+  /** As the file wrote it. Null where the file left it blank. */
+  name: string | null;
+  /** ISO, once read. Null where the cell could not be read as one certain day. */
+  paidThrough: string | null;
+  /** What the roster holds for this person now. Absent for somebody it has never heard of. */
+  onTheRoster?: RosterImportMatch;
+  /**
+   * What an Administrator has to be told about this row, in words they can act on: why a refused
+   * row could not be read, what an updated row changes, and why an unchanged one changes nothing.
+   */
+  why?: string;
+}
+
+/** How the import came out, in the counts an Administrator reads before deciding to press it. */
+export interface RosterImportTally {
+  newMembers: number;
+  updated: number;
+  unchanged: number;
+  refused: number;
+  /**
+   * People on the roster this file does not mention.
+   *
+   * **The count that proves the import never deletes.** It is the number an Administrator who has
+   * just uploaded half a file needs to see, and the one figure on this screen that is about
+   * somebody the file says nothing about.
+   */
+  untouched: number;
+}
+
+/**
+ * **What the import will do, or what it did** — one shape for both, because it is one reading.
+ *
+ * The preview is the same reading of the same file against the same roster; importing does that
+ * reading again, inside the transaction, and then carries it out. So a preview cannot promise
+ * something the write does differently.
+ *
+ * `applied` is the only difference: `false` is a preview and **nothing whatever was written**,
+ * which is the box ticket 16 asks for before anything is created.
+ *
+ * **No invitation is ever sent from here.** A new member lands on the roster as somebody an
+ * Administrator has still to invite, deliberately: an import is a list arriving, and inviting a
+ * hundred people is not something that should be able to happen as a side effect of one press.
+ */
+export interface RosterImportPlan {
+  applied: boolean;
+  columns: RosterImportColumns;
+  /** In the order they were written. Every row is here, including the refused ones. */
+  rows: RosterImportRow[];
+  tally: RosterImportTally;
 }
 
 /**

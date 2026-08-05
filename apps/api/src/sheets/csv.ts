@@ -108,6 +108,53 @@ export function delimiterOf(text: string): string {
 }
 
 /**
+ * A column name with everything a spreadsheet varies taken out of it: case, accents and the
+ * punctuation of `Pos.`, `Q.tà`, `Dis. Origine` and `E-Mail-Adresse`.
+ *
+ * The same normalisation the Category slug makes, and for the same reason — two spellings of one
+ * name must not become two things. It lives here because every table this archive reads out of
+ * somebody else's spreadsheet needs it: the catalog pages an Editor pastes, and the Club's own
+ * membership list.
+ */
+export function normalisedColumn(column: string): string {
+  return column
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Which of a sheet's own columns each field was read from — the header quoted back, exactly as it
+ * was spelt, so a column read as the wrong field is visible before anything is written.
+ *
+ * The first column matching a field wins, and a column already taken is not offered to a second
+ * field: a sheet whose only name column is headed `Name` is an English name, and nothing else is
+ * then allowed to claim it as the Italian one.
+ */
+export function columnsMatching<Field extends string>(
+  sheet: Sheet,
+  aliases: Record<Field, readonly string[]>,
+): Record<Field, string | null> {
+  const taken = new Set<string>();
+  const found = {} as Record<Field, string | null>;
+
+  for (const field of Object.keys(aliases) as Field[]) {
+    const wanted = aliases[field];
+    const column = sheet.columns.find(
+      (candidate) => !taken.has(candidate) && wanted.includes(normalisedColumn(candidate)),
+    );
+    found[field] = column ?? null;
+    if (column) {
+      taken.add(column);
+    }
+  }
+
+  return found;
+}
+
+/**
  * A table back out as text, for an Editor who would rather work in the spreadsheet they already
  * have (story 114).
  *

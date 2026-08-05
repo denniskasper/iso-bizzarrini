@@ -227,7 +227,7 @@ export function createRosterService(dependencies: {
  * an Administrator has to fix first is the money. `activatedAt` and `invitationSentAt` are on the
  * row beside it, so a screen never has to infer what it was not told.
  */
-function standingOf(
+export function standingOf(
   account: AccountRow,
   paidThrough: string | null,
   today: string,

@@ -13,6 +13,7 @@ import { createPartRecordController } from './controllers/part-record-controller
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
 import { createRosterController } from './controllers/roster-controller.js';
+import { createRosterImportController } from './controllers/roster-import-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
 import { createSearchController } from './controllers/search-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
@@ -46,6 +47,7 @@ import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createSearchService } from './services/search-service.js';
@@ -155,6 +157,14 @@ export function createApp(dependencies: AppDependencies): Express {
     accountService,
     logger,
   });
+  /**
+   * **Handed the database itself rather than repositories**, like bulk paste and for the same
+   * reason: an import is one press that records a whole membership list, so it runs in a
+   * transaction, and it re-reads the roster inside that transaction so that what an Administrator
+   * was shown is what is carried out. The session decides the repositories, so the repositories
+   * cannot be decided here.
+   */
+  const rosterImportService = createRosterImportService({ db, clock });
   const clubService = createClubService({ clock, clubRepository });
 
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
@@ -207,6 +217,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ gate, accountService });
   const rosterController = createRosterController({ gate, rosterService });
+  const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
   const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
@@ -253,6 +264,7 @@ export function createApp(dependencies: AppDependencies): Express {
       statusController,
       sessionController,
       rosterController,
+      rosterImportController,
       clubController,
       searchController,
       catalogController,

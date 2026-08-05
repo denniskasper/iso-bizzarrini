@@ -116,38 +116,152 @@ export type DateOrder = 'day-first' | 'month-first';
  * order, which defaults to day-first because these sheets are kept in Germany and Italy.
  */
 export function readObservedOn(cell: string, order: DateOrder = 'day-first'): Reading<string> {
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(cell);
-  const written = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/.exec(cell);
-
-  const parts = iso
-    ? { year: iso[1] ?? '', month: iso[2] ?? '', day: iso[3] ?? '' }
-    : written
-      ? {
-          year: written[3] ?? '',
-          month: (order === 'day-first' ? written[2] : written[1]) ?? '',
-          day: (order === 'day-first' ? written[1] : written[2]) ?? '',
-        }
-      : null;
-
-  if (!parts) {
+  const written = splitDate(cell);
+  if (!written) {
     return no(`"${cell}" is not a date`);
   }
+  if (written.iso) {
+    return asDay(cell, written.year, written.first, written.second);
+  }
 
-  const year = Number(parts.year.length === 2 ? `20${parts.year}` : parts.year);
-  const month = Number(parts.month);
-  const day = Number(parts.day);
-  const date = new Date(Date.UTC(year, month - 1, day));
+  return order === 'day-first'
+    ? asDay(cell, written.year, written.second, written.first)
+    : asDay(cell, written.year, written.first, written.second);
+}
+
+/**
+ * What a **column** of written dates has proved about the order the sheet that holds it writes
+ * them in — because a cell reading `31/12` proves it for every other cell beside it.
+ *
+ * `unproven` is a column in which no single cell settles the question; `contradictory` is one in
+ * which two cells settle it opposite ways, which is a sheet somebody has pasted two exports
+ * into. Both leave the genuinely ambiguous cells unreadable, which is the point of asking.
+ */
+export type ProvenDateOrder = DateOrder | 'unproven' | 'contradictory';
+
+export function dateOrderProvenBy(cells: Iterable<string>): ProvenDateOrder {
+  let dayFirst = false;
+  let monthFirst = false;
+
+  for (const cell of cells) {
+    const written = splitDate(cell);
+    if (!written || written.iso) {
+      continue;
+    }
+
+    // Proof is a cell that reads as a date **one way only**. `31/12` is day-first; `12/31` is
+    // month-first; `13/13` is neither, and a garbage cell must not be allowed to decide anything.
+    const asDayFirst = asDay(cell, written.year, written.second, written.first).ok;
+    const asMonthFirst = asDay(cell, written.year, written.first, written.second).ok;
+    if (asDayFirst && !asMonthFirst) {
+      dayFirst = true;
+    }
+    if (asMonthFirst && !asDayFirst) {
+      monthFirst = true;
+    }
+  }
+
+  if (dayFirst && monthFirst) {
+    return 'contradictory';
+  }
+  return dayFirst ? 'day-first' : monthFirst ? 'month-first' : 'unproven';
+}
+
+/**
+ * A day as `YYYY-MM-DD` — **read rather than guessed at**, which is what makes it safe to load a
+ * membership roster from somebody else's spreadsheet (ticket 16).
+ *
+ * `03/04/2027` is the 3rd of April on one machine and the 4th of March on another, and there is
+ * no reading of the cell that can tell. The migration's answer is a declaration in its plan file,
+ * which is right for one export a person writes a plan for; this is the answer for a file
+ * uploaded by an Administrator who is not going to write one.
+ *
+ * So the file itself is the evidence. A cell that reads only one way reads that way whatever the
+ * column says; an ambiguous cell is read in the order the rest of its column has **proved**; and
+ * an ambiguous cell in a column that proves nothing is **refused, naming both readings**, because
+ * a guess here is a Membership silently a month wrong for as long as anybody has it.
+ */
+export function readCalendarDay(cell: string, order: ProvenDateOrder): Reading<string> {
+  const written = splitDate(cell);
+  if (!written) {
+    return no(`"${cell}" is not a date`);
+  }
+  if (written.iso) {
+    return asDay(cell, written.year, written.first, written.second);
+  }
+
+  const dayFirst = asDay(cell, written.year, written.second, written.first);
+  const monthFirst = asDay(cell, written.year, written.first, written.second);
+
+  if (!dayFirst.ok || !monthFirst.ok) {
+    // At most one of them is a day, so there is nothing to be ambiguous about. Where neither is,
+    // the refusal either of them wrote is the one to hand back.
+    return dayFirst.ok ? dayFirst : monthFirst.ok ? monthFirst : dayFirst;
+  }
+
+  if (order === 'day-first') {
+    return dayFirst;
+  }
+  if (order === 'month-first') {
+    return monthFirst;
+  }
+
+  /*
+   * Both readings are real days, and the column has not settled which was meant. Say both, in the
+   * one spelling that cannot be read two ways, so the fix is to write that cell that way.
+   *
+   * The two ways a column fails to settle it are **different things to be told**: one where
+   * nothing in it happens to prove an order, and one where two cells prove opposite orders — that
+   * second is a sheet somebody has pasted two exports into, and "nothing says which" would be a
+   * plainly false description of a file that says both.
+   */
+  return no(
+    `"${cell}" could be ${dayFirst.value} or ${monthFirst.value}, and ` +
+      (order === 'contradictory'
+        ? 'that column writes some dates day-first and others month-first'
+        : 'nothing else in that column says which') +
+      '. Write it as 2027-12-31 and there is nothing left to guess.',
+  );
+}
+
+/** A date as somebody wrote it, split but not yet decided: which number is the day is the question. */
+interface WrittenDate {
+  year: string;
+  first: string;
+  second: string;
+  /** `YYYY-MM-DD`, which means what it says whatever any column has proved. */
+  iso: boolean;
+}
+
+function splitDate(cell: string): WrittenDate | null {
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(cell);
+  if (iso) {
+    return { year: iso[1] ?? '', first: iso[2] ?? '', second: iso[3] ?? '', iso: true };
+  }
+
+  const written = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/.exec(cell);
+  return written
+    ? { year: written[3] ?? '', first: written[1] ?? '', second: written[2] ?? '', iso: false }
+    : null;
+}
+
+/** The three numbers as a day, or a refusal — 31 February is written down and is not a date. */
+function asDay(cell: string, writtenYear: string, month: string, day: string): Reading<string> {
+  const year = Number(writtenYear.length === 2 ? `20${writtenYear}` : writtenYear);
+  const asMonth = Number(month);
+  const asDate = Number(day);
+  const date = new Date(Date.UTC(year, asMonth - 1, asDate));
 
   if (
     date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
+    date.getUTCMonth() !== asMonth - 1 ||
+    date.getUTCDate() !== asDate
   ) {
     return no(`"${cell}" is not a day of any month`);
   }
 
   return ok(
-    `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+    `${String(year).padStart(4, '0')}-${String(asMonth).padStart(2, '0')}-${String(asDate).padStart(2, '0')}`,
   );
 }
 

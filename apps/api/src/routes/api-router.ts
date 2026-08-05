@@ -4,6 +4,7 @@ import type { BulkPasteController } from '../controllers/bulk-paste-controller.j
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
+import type { RosterImportController } from '../controllers/roster-import-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
 import type { PhotographController } from '../controllers/photograph-controller.js';
@@ -41,6 +42,7 @@ export function createApiRouter(dependencies: {
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
+  rosterImportController: RosterImportController;
   clubController: ClubController;
   searchController: SearchController;
   catalogController: CatalogController;
@@ -57,6 +59,7 @@ export function createApiRouter(dependencies: {
     statusController,
     sessionController,
     rosterController,
+    rosterImportController,
     clubController,
     searchController,
     catalogController,
@@ -101,6 +104,15 @@ export function createApiRouter(dependencies: {
   router.post('/roster/:accountId/invitation', administratorsOnly, rosterController.invite);
   // Money that arrived by bank transfer. A new term, never an edit of an old one.
   router.post('/roster/:accountId/payments', administratorsOnly, rosterController.recordPayment);
+
+  // **The Club's annual membership list, loaded instead of typed** (ticket 16). Above
+  // `/roster/:accountId` in the file and below it on the wire either way — `import` is not a uuid,
+  // so the two never compete for a request.
+  //
+  // The preview has an address of its own rather than a flag on the write, exactly as bulk paste
+  // does: nothing about this may be one wrong boolean away from writing a hundred rows.
+  router.post('/roster/import/preview', administratorsOnly, rosterImportController.preview);
+  router.post('/roster/import', administratorsOnly, rosterImportController.apply);
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);

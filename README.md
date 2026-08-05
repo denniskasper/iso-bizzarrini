@@ -25,11 +25,22 @@ something the write does differently. And it creates and matches but never *chan
 Editor has since folded into it. Ticket 10 is done, so **19 is unblocked once 15 lands** — that is
 the whole of M4, and the upload path it needs is already built and reused rather than rewritten.
 
-**Next up is M3, which is the deployment**:
-[14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) brings Accounts,
-Memberships and the first real members, and with them the two things ticket 02 and ADR 0011 both
-defer to it — the practice system standing beside a production one, and whether an error-tracking
-vendor is worth a processor agreement now that there is something to track.
+**M3 is now code-complete except for the deployment itself.**
+[14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) brought Accounts,
+Memberships, the roster and invitations; [15](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md)
+made the archive genuinely members-only and gave a lapsed member a screen that tells them plainly
+what to pay and how; and [16](.scratch/ricambi/issues/16-roster-spreadsheet-import.md) loads the
+Club's annual list from a spreadsheet instead of typing it — **the one permanent import in the
+product** (ADR 0005), and the only one, because a roster has no curated state beneath it. It adds
+and updates and there is no outcome that removes anybody, so the ordinary accident of a truncated
+export can do nothing at all.
+
+What is left of ticket 14 is its **six deployment boxes**, which need a host: the Ricambi hostname
+behind Caddy, mail that reaches a real inbox, and with them the two things ticket 02 and ADR 0011
+both defer to it — the practice system standing beside a production one, and whether an
+error-tracking vendor is worth a processor agreement now that there is something to track.
+[17](.scratch/ricambi/issues/17-renewal-reminders.md), [18](.scratch/ricambi/issues/18-stripe-subscriptions.md)
+and [19](.scratch/ricambi/issues/19-members-contribute.md) are all unblocked by what has landed.
 
 Two others are unblocked and independent of them:
 [22](.scratch/ricambi/issues/22-search.md) and
@@ -65,9 +76,9 @@ now holds an idle connection for longer than anything in front of it will
 | 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Done | `done` | 05, 06 |
 | 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Done | `done` | 06 |
 | 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | 11 of 12 | `ready-for-human` | 03, 08 |
-| 14 | [Accounts, Memberships, roster and invitations](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) | Not started | `ready-for-agent` | 01, club-website 01 |
-| 15 | [Authorisation and the renewal screen](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md) | Not started | `ready-for-agent` | 03, 14 |
-| 16 | [Roster spreadsheet import](.scratch/ricambi/issues/16-roster-spreadsheet-import.md) | Not started | `ready-for-agent` | 14 |
+| 14 | [Accounts, Memberships, roster and invitations](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) | 14 of 20 | `ready-for-agent` | 01, club-website 01 |
+| 15 | [Authorisation and the renewal screen](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md) | Done | `done` | 03, 14 |
+| 16 | [Roster spreadsheet import](.scratch/ricambi/issues/16-roster-spreadsheet-import.md) | Done | `done` | 14 |
 | 17 | [Renewal reminders](.scratch/ricambi/issues/17-renewal-reminders.md) | Not started | `ready-for-agent` | 14 |
 | 18 | [Stripe subscriptions](.scratch/ricambi/issues/18-stripe-subscriptions.md) | Not started | `ready-for-agent` | 15 |
 | 19 | [Members contribute](.scratch/ricambi/issues/19-members-contribute.md) | Not started | `ready-for-agent` | 10, 15 |

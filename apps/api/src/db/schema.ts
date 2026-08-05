@@ -623,12 +623,19 @@ export const ROLES = ['member', 'editor', 'administrator'] as const satisfies re
 
 /**
  * How the Club came to grant a term. `opening-entry` is an Administrator asserting one that was
- * paid for before this system existed; `bank-transfer` is money that arrived. Ticket 18 adds the
- * payment provider's own.
+ * paid for before this system existed; `bank-transfer` is money that arrived; `roster-import` is
+ * a term the Club's own annual membership list asserted (ticket 16). Ticket 18 adds the payment
+ * provider's own.
+ *
+ * **Which of them granted a term is worth keeping** rather than folding the last into the first:
+ * an opening entry is one Administrator's assertion about one person, and an imported one arrived
+ * in a file of two hundred. When a member says the Club has their date wrong, that difference is
+ * the first thing anybody looking into it wants to know.
  */
 export const MEMBERSHIP_GRANTS = [
   'opening-entry',
   'bank-transfer',
+  'roster-import',
 ] as const satisfies readonly MembershipGrant[];
 
 /** The two reasons to send somebody a link that sets a password. */

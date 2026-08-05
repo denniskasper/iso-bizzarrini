@@ -54,6 +54,33 @@ export function useRecordPayment() {
   );
 }
 
+/**
+ * Loading the Club's list — the preview, which is a question, and the import, which is an answer.
+ *
+ * The preview is a **mutation** rather than a query, and that is not a slip. It writes nothing,
+ * but it is an act the Administrator performs on a file they have just chosen: nothing about it is
+ * cacheable by address, nothing should re-run it on a window regaining focus, and the one thing a
+ * query would offer — being repeated for free — is the thing this must not do.
+ */
+export function usePreviewRosterImport() {
+  return useMutation({ mutationFn: (text: string) => api.previewRosterImport({ text }) });
+}
+
+/**
+ * Written out rather than through `useRosterMutation`, because it breaks that helper's promise in
+ * the one way that matters: what it answers with is not a roster row to be thrown away and re-read
+ * but the plan the screen then shows. The roster is still invalidated, because a hundred people
+ * may have arrived on it.
+ */
+export function useImportRoster() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (text: string) => api.importRoster({ text }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ROSTER_QUERY_KEY }),
+  });
+}
+
 export function useClub() {
   return useQuery({ queryKey: CLUB_QUERY_KEY, queryFn: api.club });
 }

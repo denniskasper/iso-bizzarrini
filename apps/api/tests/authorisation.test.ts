@@ -56,6 +56,11 @@ const ADMINISTRATORS_ONLY = new Set([
   'PATCH /api/roster/:accountId',
   'POST /api/roster/:accountId/invitation',
   'POST /api/roster/:accountId/payments',
+  // The Club's membership list, loaded instead of typed (ticket 16). Behind the role like the
+  // rest of the roster: a lapsed Administrator loading the file that un-lapses the Club is
+  // exactly who this must not stop.
+  'POST /api/roster/import',
+  'POST /api/roster/import/preview',
   'GET /api/club',
   'PATCH /api/club',
 ]);

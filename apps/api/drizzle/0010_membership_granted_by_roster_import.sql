@@ -1,0 +1,2 @@
+ALTER TABLE "memberships" DROP CONSTRAINT "memberships_granted_by_is_known";--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_granted_by_is_known" CHECK ("memberships"."granted_by" in ('opening-entry', 'bank-transfer', 'roster-import'));

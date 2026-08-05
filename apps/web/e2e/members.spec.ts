@@ -248,12 +248,24 @@ test.describe('the Club', () => {
 test('gives every control on the new screens a target a cold hand can hit', async ({ page }) => {
   await signIn(page);
 
-  for (const path of ['/roster', '/club']) {
+  // The import screen is here rather than in a test of its own: every test in this suite costs a
+  // real sign-in, and the rule is the same rule on all three screens.
+  for (const path of ['/roster', '/roster/import', '/club']) {
     await page.goto(path);
     await expect(page.locator('h1')).toBeVisible();
 
+    /*
+     * **`.sr-only` is excluded, because it is not a thing anybody aims at.**
+     *
+     * A file picker is a `<label>` styled as a button in front of a visually-hidden `<input>` —
+     * the input stays in the accessibility tree so the label still operates it, and `sr-only`
+     * leaves it a 1×1px box, which Playwright counts as visible. Measuring it would be measuring
+     * the wrong element: what a cold hand presses is the label, and `/roster/import` asserts that
+     * where the picker is actually used. Labels are not swept in here, because most of them are a
+     * `Field`'s caption sitting above the 44px box that is the real target.
+     */
     for (const control of await page
-      .locator('button:visible, a:visible, input:visible, select:visible')
+      .locator('button:visible, a:visible, input:not(.sr-only):visible, select:visible')
       .all()) {
       const box = await control.boundingBox();
       const description =

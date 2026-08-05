@@ -71,6 +71,13 @@
       "when": 1785959210926,
       "tag": "0009_club_office_email",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785967288604,
+      "tag": "0010_membership_granted_by_roster_import",
+      "breakpoints": true
     }
   ]
 }

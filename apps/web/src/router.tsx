@@ -11,6 +11,7 @@ import { CatalogPage } from '@/routes/catalog-page';
 import { ClubPage } from '@/routes/club-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
+import { RosterImportPage } from '@/routes/roster-import-page';
 import { RosterPage } from '@/routes/roster-page';
 import { SearchPage } from '@/routes/search-page';
 import { SetPasswordPage } from '@/routes/set-password-page';
@@ -95,11 +96,22 @@ const setPasswordRoute = createRoute({
   },
 });
 
-/** An Administrator's two screens. The archive enforces the role; these only say so. */
+/** An Administrator's screens. The archive enforces the role; these only say so. */
 const rosterRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/roster',
   component: RosterPage,
+});
+
+/**
+ * Loading the Club's list (ticket 16). Under `/roster` in the address as well as in the chrome,
+ * so it is covered by the same `OUTSIDE_THE_GATE` prefix and needs no second rule about who may
+ * reach it — it is the roster's, and behind the roster's role.
+ */
+const rosterImportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/roster/import',
+  component: RosterImportPage,
 });
 
 const clubRoute = createRoute({
@@ -161,6 +173,7 @@ export const router = createRouter({
     signInRoute,
     setPasswordRoute,
     rosterRoute,
+    rosterImportRoute,
     clubRoute,
     searchRoute,
     modelRoute,

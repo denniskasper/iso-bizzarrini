@@ -629,23 +629,59 @@
   }
 
   /*
-   * **A lapsed Membership is ruled off down its left edge**, the same 2px rule this archive uses
-   * wherever something in a list is in a state worth seeing without reading. It is what makes the
-   * one row an Administrator is looking for findable in a hundred at a glance, and it carries no
-   * colour: the word beside it already says which state it is.
+   * **A row worth finding in a hundred is ruled off down its left edge**, in the same 2px rule
+   * this archive uses wherever something in a list is in a state worth seeing without reading.
+   * Two weights, meaning two things, and written once for both lists that use them:
+   *
+   * **Solid** is something wrong that somebody has to act on — a Membership that has run out, a
+   * row of a file that could not be read. **Dashed** is something *waiting* rather than wrong —
+   * a member who has been invited and not yet chosen a password, and a member an import is about
+   * to record who will then need inviting. It is the same distinction the sheet's index draws
+   * between a Part on the plate and one that was never drawn on it.
+   *
+   * Neither carries colour: the word beside it already says which state it is.
    */
-  .roster-row[data-standing='lapsed'] {
+  .roster-row[data-standing='lapsed'],
+  .import-row[data-outcome='refused'] {
     padding-left: --spacing(4);
     border-left: 2px solid var(--line-strong);
   }
 
-  /* Invited and not yet activated is a *waiting* state rather than a wrong one, so the rule is
-     dashed — the same distinction the sheet's index draws between a Part on the plate and one
-     that was never drawn on it. */
-  .roster-row[data-standing='invited'] {
+  .roster-row[data-standing='invited'],
+  .import-row[data-outcome='new-member'] {
     padding-left: --spacing(4);
     border-left: 2px dashed var(--line-strong);
   }
+
+  /*
+   * One row of a membership list about to be loaded (ticket 16) — **the roster's own row, one
+   * step before it is the roster.**
+   *
+   * Deliberately the same printed list rather than a table of its own: what an Administrator is
+   * reading is who the Club will have afterwards, so it is set the way the roster is set and the
+   * date sits in a fixed column because it is a number to be compared with the one beside it.
+   * The extra column is the line number, which is the only address a row in somebody's
+   * spreadsheet has.
+   */
+  .import-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: baseline;
+    column-gap: --spacing(6);
+    row-gap: --spacing(2);
+    padding-block: --spacing(4);
+    border-top: 1px solid var(--line);
+  }
+
+  @media (width >= 48rem) {
+    .import-row {
+      grid-template-columns: 3rem 1fr 11rem 7rem;
+    }
+  }
+
+  /* Its two ruled states are written with the roster's own, above — same rule, same meanings. A
+     row that merely extends a Membership carries none, because there is nothing to go and look
+     at. */
 
   /*
    * The mark a non-production system wears: a proof stamp. Everything in this archive is

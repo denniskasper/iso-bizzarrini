@@ -11,6 +11,8 @@ import type {
   RecordPaymentRequest,
   RenewalResponse,
   RosterEntryResponse,
+  RosterImportPlan,
+  RosterImportRequest,
   RosterResponse,
   SignInRequest,
   CorrectListingRequest,
@@ -164,6 +166,22 @@ export const api = {
     send<RosterEntryResponse>('POST', `/roster/${accountId}/invitation`, {}),
   recordPayment: (accountId: string, payment: RecordPaymentRequest) =>
     send<RosterEntryResponse>('POST', `/roster/${accountId}/payments`, payment),
+
+  /**
+   * **The Club's annual membership list, loaded instead of typed** (ticket 16).
+   *
+   * `previewRosterImport` writes nothing whatever. It is the same reading of the same file that
+   * `importRoster` then does inside its transaction, so what an Administrator is shown is what
+   * happens — and it is a separate call rather than a flag, because an address that records a
+   * hundred people when a boolean is wrong is one press away from a very bad afternoon.
+   *
+   * Neither of them ever sends an invitation. Inviting stays the deliberate act it is on the
+   * roster screen, one person at a time.
+   */
+  previewRosterImport: (file: RosterImportRequest) =>
+    send<RosterImportPlan>('POST', '/roster/import/preview', file),
+  importRoster: (file: RosterImportRequest) =>
+    send<RosterImportPlan>('POST', '/roster/import', file),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),
@@ -394,6 +412,11 @@ export type {
   Renewal,
   Role,
   RosterEntry,
+  RosterImportColumns,
+  RosterImportOutcome,
+  RosterImportPlan,
+  RosterImportRow,
+  RosterImportTally,
   RosterStanding,
   SessionResponse,
   SignedInAccount,
