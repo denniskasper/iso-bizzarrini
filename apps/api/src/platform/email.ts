@@ -1,10 +1,12 @@
+import type { Logger } from './logger.js';
+
 /**
  * The e-mail edge.
  *
- * One of the two external edges that are faked in tests. Invitations, password resets and
- * renewal reminders all leave through here, so it is the single place a test can assert that
- * exactly one reminder went out per membership term — and the single place a non-production
- * environment has to neutralise to be incapable of mailing a real member.
+ * One of the external edges that are faked in tests. Invitations, password resets and renewal
+ * reminders all leave through here, so it is the single place a test can assert that exactly one
+ * reminder went out per membership term — and the single place a non-production environment has
+ * to neutralise to be incapable of mailing a real member.
  */
 export interface OutboundEmail {
   to: string;
@@ -43,6 +45,32 @@ export class InMemoryEmailSender implements EmailSender {
 
   clear(): void {
     this.#sent.length = 0;
+  }
+}
+
+/**
+ * **The laptop's mail catcher**: every letter written to the log, in full.
+ *
+ * An invitation is a link, and a developer working on the roster has to be able to click it.
+ * This is the smallest thing that makes that true — no container, no port, no inbox — and the
+ * letter is printed whole rather than summarised, because the point of it *is* the link.
+ *
+ * Never in production. It reaches nobody, so `assertSafeForEnvironment` is content with it in a
+ * practice system; what stops it being used for real is that it delivers to a terminal.
+ */
+export class LoggedEmailSender implements EmailSender {
+  readonly reachesRealPeople = false;
+  readonly #logger: Logger;
+
+  constructor(logger: Logger) {
+    this.#logger = logger;
+  }
+
+  async send(email: OutboundEmail): Promise<void> {
+    this.#logger.info(
+      { to: email.to, subject: email.subject },
+      `\n──────── e-mail to ${email.to} ────────\n${email.subject}\n\n${email.text}\n────────`,
+    );
   }
 }
 

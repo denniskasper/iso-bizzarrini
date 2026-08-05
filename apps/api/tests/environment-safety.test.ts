@@ -80,7 +80,12 @@ describe('production', () => {
     let app: TestApp | undefined;
     try {
       app = await startTestApp({
-        env: { ENVIRONMENT_MODE: 'production', REMINDERS_ENABLED: 'true', EDITOR_PASSWORD: '' },
+        env: {
+          ENVIRONMENT_MODE: 'production',
+          REMINDERS_ENABLED: 'true',
+          EDITOR_PASSWORD: '',
+          PUBLIC_URL: 'https://ricambi.example',
+        },
         emailSender: senderThatReachesMembers,
         paymentProvider: providerThatReachesRealMandates,
       });

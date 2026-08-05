@@ -43,6 +43,17 @@ export function assertSafeForEnvironment(assembled: {
           '(ticket 14). Unset EDITOR_PASSWORD.',
       );
     }
+
+    // An invitation carries a link, and a link needs a hostname. A production system that has
+    // not been told its own is one that mails a hundred members a link to somebody's laptop —
+    // discovered by the first member who cannot get in, days after the roster went out.
+    if (namesNowhere(config.publicUrl)) {
+      throw new EnvironmentSafetyError(
+        `"${config.environmentName}" is production and PUBLIC_URL is ${config.publicUrl}. ` +
+          'That is the address invitations and reset links point at. Set PUBLIC_URL to the ' +
+          'hostname members actually reach.',
+      );
+    }
     return;
   }
 
@@ -107,6 +118,12 @@ export function assertSeedable(config: AppConfig): void {
         'in a practice system; the archive is edited and migrated, never seeded.',
     );
   }
+}
+
+/** A URL that only resolves on the machine it was typed on. */
+function namesNowhere(url: string): boolean {
+  const { hostname } = new URL(url);
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
 
 function refusal(config: AppConfig, because: string): string {

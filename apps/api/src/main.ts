@@ -1,7 +1,11 @@
 import { createApp } from './app.js';
 import { seedPracticeArchiveIfEmpty } from './catalog/practice-archive.js';
 import { assertSeedable } from './composition/environment-safety.js';
-import { createEmailSender, createPaymentProvider } from './composition/platform.js';
+import {
+  createBreachedPasswordCheck,
+  createEmailSender,
+  createPaymentProvider,
+} from './composition/platform.js';
 import { loadConfig } from './config/config.js';
 import { loadEnvFile } from './config/env-file.js';
 import { createDatabase } from './db/client.js';
@@ -64,8 +68,9 @@ const app = createApp({
   config,
   clock: systemClock,
   db: database.db,
-  emailSender: createEmailSender(config),
+  emailSender: createEmailSender(config, logger),
   paymentProvider: createPaymentProvider(config),
+  breachedPasswords: createBreachedPasswordCheck(config, logger),
   fileStore,
   logger,
 });

@@ -11,6 +11,7 @@
  */
 import { asc } from 'drizzle-orm';
 import { createEmailSender, createPaymentProvider } from '../src/composition/platform.js';
+import { createLogger } from '../src/platform/logger.js';
 import { assertSafeForEnvironment } from '../src/composition/environment-safety.js';
 import { loadConfig } from '../src/config/config.js';
 import { loadEnvFile } from '../src/config/env-file.js';
@@ -35,7 +36,7 @@ const config = loadConfig();
 // remove, and the next maintenance script copied from this one may not be read-only.
 assertSafeForEnvironment({
   config,
-  emailSender: createEmailSender(config),
+  emailSender: createEmailSender(config, createLogger(config)),
   paymentProvider: createPaymentProvider(config),
 });
 

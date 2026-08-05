@@ -1,6 +1,17 @@
 import type {
   ApiErrorBody,
   CategoriesResponse,
+  ClubResponse,
+  CorrectClubRequest,
+  CorrectMemberRequest,
+  InspectPasswordSetupRequest,
+  NewMemberRequest,
+  PasswordSetup,
+  PasswordSetupRequest,
+  RecordPaymentRequest,
+  RosterEntryResponse,
+  RosterResponse,
+  SignInRequest,
   CorrectListingRequest,
   CorrectPartRequest,
   EquivalentRequest,
@@ -64,6 +75,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * What a failed request says on screen.
+ *
+ * Every refusal this archive writes is already a sentence a member can act on, so the API's own
+ * words are what gets shown; the fallback is for the case where there were no words at all,
+ * because the archive was not reached. Written once rather than in the six places that show one.
+ */
+export function refusalText(error: unknown): string {
+  return error instanceof ApiError ? error.message : 'The archive could not be reached.';
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
     credentials: 'same-origin',
@@ -81,9 +103,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
-  // A refusal has a body worth reading and a removal has none — 204 is the archive saying "it
-  // is gone", and asking it for JSON would fail on nothing at all.
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  // **Not every success carries a body**, and asking one of them for JSON fails on nothing at
+  // all. A removal answers 204 — "it is gone" — and asking for a password reset answers 202 with
+  // deliberately nothing in it, because whether that address is on the roster is the one thing
+  // that answer must not disclose. The content type is what decides, rather than a list of status
+  // codes somebody has to remember to extend.
+  const isJson = response.headers.get('Content-Type')?.includes('application/json') ?? false;
+  return (isJson ? await response.json() : undefined) as T;
 }
 
 function send<T>(method: string, path: string, body: unknown): Promise<T> {
@@ -97,9 +123,52 @@ function send<T>(method: string, path: string, body: unknown): Promise<T> {
 export const api = {
   status: () => request<ServiceStatus>('/status'),
 
+  /**
+   * Who this browser is, and whether their Membership still lets them read.
+   *
+   * `signIn` takes either shape the archive accepts: a member's address and their own password,
+   * or the stand-in Editor passphrase, which leaves with ticket 15.
+   */
   session: () => request<SessionResponse>('/session'),
-  signIn: (passphrase: string) => send<SessionResponse>('POST', '/session', { passphrase }),
+  signIn: (credentials: SignInRequest) => send<SessionResponse>('POST', '/session', credentials),
   signOut: () => request<SessionResponse>('/session', { method: 'DELETE' }),
+
+  /**
+   * **The way back in, for somebody who cannot get in.**
+   *
+   * `requestPasswordReset` answers the same whether or not that address is on the roster, so
+   * there is nothing in its answer to read — which is the point (story 7). The token travels in
+   * the body rather than in the address, so the secret in a reset link is not written to the
+   * access log of everything it passes through.
+   */
+  requestPasswordReset: (email: string) => send<void>('POST', '/password-resets', { email }),
+  inspectPasswordSetup: (token: string) =>
+    send<PasswordSetup>('POST', '/password-setups/inspect', {
+      token,
+    } satisfies InspectPasswordSetupRequest),
+  setPassword: (setup: PasswordSetupRequest) =>
+    send<SessionResponse>('POST', '/password-setups', setup),
+
+  /**
+   * **The roster** — an Administrator's, and the answer to "I paid, why can't I get in".
+   *
+   * Adding somebody sends their invitation in the same breath, because a row that says "invited"
+   * and has invited nobody is the state this screen exists to make impossible. Recording a
+   * payment answers with the whole row, so a screen never has to work out what a new term did to
+   * somebody's standing.
+   */
+  roster: () => request<RosterResponse>('/roster'),
+  addMember: (member: NewMemberRequest) => send<RosterEntryResponse>('POST', '/roster', member),
+  correctMember: (accountId: string, fields: CorrectMemberRequest) =>
+    send<RosterEntryResponse>('PATCH', `/roster/${accountId}`, fields),
+  inviteAgain: (accountId: string) =>
+    send<RosterEntryResponse>('POST', `/roster/${accountId}/invitation`, {}),
+  recordPayment: (accountId: string, payment: RecordPaymentRequest) =>
+    send<RosterEntryResponse>('POST', `/roster/${accountId}/payments`, payment),
+
+  /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
+  club: () => request<ClubResponse>('/club'),
+  correctClub: (fields: CorrectClubRequest) => send<ClubResponse>('PATCH', '/club', fields),
 
   /**
    * **The way into the archive that does not start at the car** (ticket 22).
@@ -310,6 +379,15 @@ export const api = {
 export type {
   CatalogModel,
   CatalogProvenance,
+  ClubRecord,
+  MembershipGrant,
+  PasswordSetup,
+  Role,
+  RosterEntry,
+  RosterStanding,
+  SessionResponse,
+  SignedInAccount,
+  TokenPurpose,
   Category,
   CatalogNumberConflict,
   CorrectListingRequest,

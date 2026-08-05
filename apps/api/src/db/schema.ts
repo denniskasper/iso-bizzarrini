@@ -1,4 +1,11 @@
-import type { Currency, EquivalentKind, SourceCondition } from '@ricambi/contracts';
+import type {
+  Currency,
+  EquivalentKind,
+  MembershipGrant,
+  Role,
+  SourceCondition,
+  TokenPurpose,
+} from '@ricambi/contracts';
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -608,6 +615,226 @@ export const photographs = pgTable(
   ],
 );
 
+/**
+ * The three roles, in the order of what they may do. Club Officer is deliberately folded into
+ * Administrator while there is one Club.
+ */
+export const ROLES = ['member', 'editor', 'administrator'] as const satisfies readonly Role[];
+
+/**
+ * How the Club came to grant a term. `opening-entry` is an Administrator asserting one that was
+ * paid for before this system existed; `bank-transfer` is money that arrived. Ticket 18 adds the
+ * payment provider's own.
+ */
+export const MEMBERSHIP_GRANTS = [
+  'opening-entry',
+  'bank-transfer',
+] as const satisfies readonly MembershipGrant[];
+
+/** The two reasons to send somebody a link that sets a password. */
+export const TOKEN_PURPOSES = [
+  'invitation',
+  'password-reset',
+] as const satisfies readonly TokenPurpose[];
+
+/** The Club is one row and this is its id. Written into the check constraint that says so. */
+export const SOLE_CLUB_ROW = 1;
+
+/**
+ * An Account is one person, keyed by their e-mail address.
+ *
+ * **"On the roster" and "has an account" are distinct states**, and this one row carries both:
+ * an Administrator adds a person, which is a row here with no password; the person redeems
+ * their invitation and chooses one, which is `passwordSetAt`. The roster screen reads the
+ * difference and answers "I paid, why can't I get in" without anyone guessing.
+ *
+ * `passwordHash` is the only thing here nobody may read back — not an Administrator, not an
+ * Editor, not a screen. Nothing in the application selects it except the sign-in check.
+ */
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /**
+     * Normalised to lower case before it is written, because `A@club.example` and
+     * `a@club.example` are one person and a roster that thinks otherwise invites them twice.
+     */
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    role: text('role').notNull().$type<Role>().default('member'),
+    /**
+     * Argon2 would be better; this is scrypt, whose parameters travel inside the string so a
+     * cost raised years from now still verifies what was written under the old one. Null until
+     * the member has redeemed their invitation — an Administrator never sets it (story 3).
+     */
+    passwordHash: text('password_hash'),
+    /** When the member chose their password. What "activated" means on the roster screen. */
+    passwordSetAt: timestamp('password_set_at', { withTimezone: true }),
+    /**
+     * Which generation of sessions is still good. Every cookie carries the number it was issued
+     * under, and a session whose number is not this one is dead however far off its own expiry is.
+     *
+     * This is what makes a password reset mean something: setting a password bumps it, so the
+     * browser doing the resetting gets the new number and every other one stops working. A
+     * counter rather than a timestamp, deliberately — the session being issued and the sessions
+     * being killed happen in the same instant, and an instant cannot tell them apart.
+     */
+    sessionEpoch: integer('session_epoch').notNull().default(0),
+    /** From the injected clock. When an Administrator put this person on the roster. */
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [check('accounts_role_is_one_of_three', sql`${table.role} in (${oneOf(ROLES)})`)],
+);
+
+/**
+ * A Membership is **one term**, not a switch. Access requires at least one whose Paid-through
+ * has not passed, so a member's history is the rows and their access is the latest date among
+ * them.
+ *
+ * Recording a payment writes a new row rather than moving an old one, which is what makes the
+ * money auditable: a term that was granted is never edited away, and the statutory retention
+ * period (ADR 0007) has something to retain.
+ */
+export const memberships = pgTable(
+  'memberships',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** The last day this term covers. A date, because membership runs in days and not instants. */
+    paidThrough: date('paid_through', { mode: 'string' }).notNull(),
+    /** How the Club came to grant this term — see `MEMBERSHIP_GRANTS`. */
+    grantedBy: text('granted_by').notNull().$type<MembershipGrant>(),
+    /** In the currency's minor unit, like every other amount here. Null for an opening entry. */
+    amount: integer('amount'),
+    currency: text('currency').$type<Currency>(),
+    /** The day the money arrived, as the Administrator read it off the statement. */
+    receivedOn: date('received_on', { mode: 'string' }),
+    /** The reference the member actually used, which is how a transfer is matched to a person. */
+    reference: text('reference'),
+    /**
+     * Who recorded it. Null where the stand-in Editor gate did, since that is a passphrase
+     * rather than a person — one more thing ticket 15 takes away when it removes the stand-in.
+     */
+    recordedBy: uuid('recorded_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('memberships_account_id_paid_through_index').on(table.accountId, table.paidThrough),
+    check(
+      'memberships_granted_by_is_known',
+      sql`${table.grantedBy} in (${oneOf(MEMBERSHIP_GRANTS)})`,
+    ),
+    check('memberships_amount_is_an_amount', sql`${table.amount} is null or ${table.amount} > 0`),
+    check(
+      'memberships_currency_is_tradeable',
+      sql`${table.currency} is null or ${table.currency} in (${oneOf(CURRENCIES)})`,
+    ),
+    // An amount and its currency travel together, for the same reason a price and its date do.
+    check(
+      'memberships_amount_carries_its_currency',
+      sql`(${table.amount} is null) = (${table.currency} is null)`,
+    ),
+  ],
+);
+
+/**
+ * The Club. **One row, and the check constraint says so** — this is a single-club system with no
+ * switcher and no per-club branding, and a second row here would be a quiet fork of the truth.
+ *
+ * What it holds is everything about the association that changes without a developer: what
+ * membership costs, where the money goes, how a member should reference their transfer, and what
+ * a renewal reminder says. A change of bank is an afternoon on this screen, not a deployment.
+ */
+export const club = pgTable(
+  'club',
+  {
+    id: integer('id').primaryKey().default(SOLE_CLUB_ROW),
+    /** In the currency's minor unit. Never a fraction, never a float. */
+    fee: integer('fee').notNull(),
+    currency: text('currency').notNull().$type<Currency>(),
+    /** The four things a member needs to make a transfer, and nothing else. */
+    bankAccountHolder: text('bank_account_holder'),
+    bankName: text('bank_name'),
+    iban: text('iban'),
+    bic: text('bic'),
+    /**
+     * How a member should label their transfer, written the way the treasurer wants to read it
+     * on a statement. Free text with `{name}` and `{year}` in it — the format is the Club's, and
+     * nothing here parses what a member actually typed.
+     */
+    paymentReference: text('payment_reference').notNull(),
+    /** What a renewal reminder says. Sent by ticket 17; editable here from now. */
+    reminderText: text('reminder_text').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check('club_is_one_row', sql`${table.id} = ${sql.raw(String(SOLE_CLUB_ROW))}`),
+    check('club_fee_is_an_amount', sql`${table.fee} >= 0`),
+    check('club_currency_is_tradeable', sql`${table.currency} in (${oneOf(CURRENCIES)})`),
+  ],
+);
+
+/**
+ * A link that lets somebody set a password: the invitation an Administrator sends, and the reset
+ * a member asks for themselves. One table, because they are the same object — a single-use,
+ * expiring secret naming one Account — and two would be the same rules written twice.
+ *
+ * **Only the hash is here.** The token itself exists in the e-mail and nowhere else, so a copy of
+ * this table is not a way into anybody's account. It is 32 random bytes, so a plain SHA-256 is
+ * the right hash for it: there is nothing to brute-force.
+ */
+export const accountTokens = pgTable(
+  'account_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    purpose: text('purpose').notNull().$type<TokenPurpose>(),
+    tokenHash: text('token_hash').notNull().unique(),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /** Single-use: set the moment it is redeemed, and never null again. */
+    usedAt: timestamp('used_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('account_tokens_account_id_purpose_index').on(table.accountId, table.purpose),
+    check('account_tokens_purpose_is_known', sql`${table.purpose} in (${oneOf(TOKEN_PURPOSES)})`),
+  ],
+);
+
+/**
+ * How sign-in has been going for one e-mail address. Only failure is recorded, and it is
+ * recorded against **the address that was offered** rather than an Account — because an address
+ * nobody has heard of has to be rate limited exactly like one on the roster, or the lockout
+ * itself becomes the roster-membership oracle the sign-in form refuses to be.
+ */
+export const signInFailures = pgTable('sign_in_failures', {
+  email: text('email').primaryKey(),
+  failures: integer('failures').notNull(),
+  firstFailureAt: timestamp('first_failure_at', { withTimezone: true }).notNull(),
+  lastFailureAt: timestamp('last_failure_at', { withTimezone: true }).notNull(),
+  /** Set once the count crosses the threshold. Null means nothing is being refused. */
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+});
+
+export const accountsRelations = relations(accounts, ({ many }) => ({
+  memberships: many(memberships),
+  tokens: many(accountTokens),
+}));
+
+export const membershipsRelations = relations(memberships, ({ one }) => ({
+  account: one(accounts, { fields: [memberships.accountId], references: [accounts.id] }),
+}));
+
+export const accountTokensRelations = relations(accountTokens, ({ one }) => ({
+  account: one(accounts, { fields: [accountTokens.accountId], references: [accounts.id] }),
+}));
+
 export const modelsRelations = relations(models, ({ many }) => ({
   tavole: many(tavole),
   fitments: many(fitments),
@@ -707,3 +934,12 @@ export type SourceRow = typeof sources.$inferSelect;
 export type NewSourceRow = typeof sources.$inferInsert;
 export type PhotographRow = typeof photographs.$inferSelect;
 export type NewPhotographRow = typeof photographs.$inferInsert;
+export type AccountRow = typeof accounts.$inferSelect;
+export type NewAccountRow = typeof accounts.$inferInsert;
+export type MembershipRow = typeof memberships.$inferSelect;
+export type NewMembershipRow = typeof memberships.$inferInsert;
+export type ClubRow = typeof club.$inferSelect;
+export type NewClubRow = typeof club.$inferInsert;
+export type AccountTokenRow = typeof accountTokens.$inferSelect;
+export type NewAccountTokenRow = typeof accountTokens.$inferInsert;
+export type SignInFailureRow = typeof signInFailures.$inferSelect;

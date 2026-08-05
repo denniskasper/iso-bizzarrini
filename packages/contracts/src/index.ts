@@ -1067,12 +1067,174 @@ export interface ListingResponse {
 export type PositionsResponse = Sheet;
 
 /**
+ * What a person may do. Editor is global — it moderates and edits every Model — and Club Officer
+ * is deliberately folded into Administrator while there is one Club.
+ */
+export type Role = 'member' | 'editor' | 'administrator';
+
+/** How the Club came to grant a term of Membership. Ticket 18 adds the payment provider's own. */
+export type MembershipGrant = 'opening-entry' | 'bank-transfer';
+
+/** The two reasons to send somebody a link that sets a password. */
+export type TokenPurpose = 'invitation' | 'password-reset';
+
+/**
+ * Where somebody stands on the roster. **The three states the screen has to tell apart** so that
+ * "I paid, why can't I get in" is answerable without anyone opening a database (story 124).
+ *
+ * They are ordered by what is wrong: a lapsed Membership stops a person reaching the archive
+ * whether or not they ever chose a password, so it wins over `invited`.
+ */
+export type RosterStanding = 'lapsed' | 'invited' | 'active';
+
+/**
  * `GET /api/session`
  *
- * The stand-in gate that stands in front of the scans until ticket 14 brings Accounts and
- * Memberships. It admits Editors and nobody else, so being signed in is what "may edit" means
- * for as long as it exists.
+ * `account` is null for the **stand-in Editor gate** — one shared passphrase, which is a
+ * credential rather than a person — and ticket 15 takes both the null case and the gate away.
  */
 export interface SessionResponse {
   signedIn: boolean;
+  account: SignedInAccount | null;
 }
+
+/** Who the browser is signed in as, and whether their Membership still lets them read. */
+export interface SignedInAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  /** Whether at least one Membership's Paid-through has not passed. */
+  membershipIsLive: boolean;
+  /** ISO date — the last day the furthest term covers. Null where no term was ever recorded. */
+  paidThrough: string | null;
+}
+
+/**
+ * `POST /api/session`
+ *
+ * Two shapes, because there are two gates for as long as the stand-in exists. A member signs in
+ * with the e-mail address the Club has for them; the passphrase is M1's shared Editor gate and
+ * leaves with ticket 15.
+ */
+export type SignInRequest = { email: string; password: string } | { passphrase: string };
+
+/**
+ * `POST /api/password-resets` — "I have forgotten my password".
+ *
+ * There is no response body worth reading. **The answer is the same whether or not the address
+ * is on the roster** (story 7), so there is nothing in it that could differ.
+ */
+export interface PasswordResetRequest {
+  email: string;
+}
+
+/**
+ * `POST /api/password-setups/inspect` — what is behind a link, before anybody types a password
+ * into it.
+ *
+ * Worth a call of its own so that an expired invitation says so on arrival rather than after the
+ * member has chosen a password and pressed the button.
+ */
+export interface InspectPasswordSetupRequest {
+  token: string;
+}
+
+export interface PasswordSetup {
+  purpose: TokenPurpose;
+  /** So the screen can greet the person by name and show which address this is for. */
+  name: string;
+  email: string;
+}
+
+/** `POST /api/password-setups` — the member choosing their own password. Answers signed in. */
+export interface PasswordSetupRequest {
+  token: string;
+  password: string;
+}
+
+/** One person on the roster, as an Administrator reads them. Never carries a password. */
+export interface RosterEntry {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  standing: RosterStanding;
+  /** ISO date — the last day the furthest term covers. Null where none was ever recorded. */
+  paidThrough: string | null;
+  /** ISO instant. Null until the member has redeemed an invitation and chosen a password. */
+  activatedAt: string | null;
+  /** When the outstanding invitation was sent, and when it stops working. Null once redeemed. */
+  invitationSentAt: string | null;
+  invitationExpiresAt: string | null;
+  addedAt: string;
+}
+
+/** `GET /api/roster` */
+export interface RosterResponse {
+  members: RosterEntry[];
+}
+
+/** One person's row and nothing else, for a screen that has just changed one of them. */
+export interface RosterEntryResponse {
+  member: RosterEntry;
+}
+
+/** `POST /api/roster` — an Administrator adds a person and the invitation goes out (story 121). */
+export interface NewMemberRequest {
+  name: string;
+  email: string;
+  /** ISO date. The term the Club has already been paid for, asserted by the Administrator. */
+  paidThrough: string;
+  role?: Role;
+}
+
+/** `PATCH /api/roster/:accountId` — correcting a name, appointing or standing down an Editor. */
+export interface CorrectMemberRequest {
+  name?: string;
+  role?: Role;
+}
+
+/**
+ * `POST /api/roster/:accountId/payments` — money that arrived by bank transfer (story 125).
+ *
+ * `paidThrough` is stated rather than calculated, because a treasurer reconciling a statement
+ * knows what the transfer was for and a system guessing at term lengths does not.
+ */
+export interface RecordPaymentRequest {
+  /** As typed — `45`, `45.00`, `45,50`. Null where the Club is granting a term for nothing. */
+  amount: string | null;
+  currency: Currency;
+  /** ISO date. The day the money arrived, off the statement. */
+  receivedOn: string;
+  /** The reference the member actually used, which is how a transfer is matched to a person. */
+  reference: string | null;
+  /** ISO date. The last day the new term covers. */
+  paidThrough: string;
+}
+
+/**
+ * The Club — `GET /api/club`, and `PATCH /api/club` with any subset of it.
+ *
+ * Everything about the association that has to change without a developer (story 130): what
+ * membership costs, where the money goes, how a member should label their transfer, and what a
+ * renewal reminder will say when ticket 17 sends one.
+ */
+export interface ClubRecord {
+  /** As typed and as read — `45.00`. Rendered rather than the minor units it is stored in. */
+  fee: string;
+  currency: Currency;
+  bankAccountHolder: string | null;
+  bankName: string | null;
+  iban: string | null;
+  bic: string | null;
+  /** Free text with `{name}` and `{year}` in it. The format is the Club's; nothing parses it. */
+  paymentReference: string;
+  reminderText: string;
+}
+
+export interface ClubResponse {
+  club: ClubRecord;
+}
+
+export type CorrectClubRequest = Partial<ClubRecord>;

@@ -34,7 +34,12 @@ describe('service status', () => {
 
   it('calls itself production only when the environment says so', async () => {
     const production = await startTestApp({
-      env: { ENVIRONMENT_MODE: 'production', EDITOR_PASSWORD: '' },
+      env: {
+        ENVIRONMENT_MODE: 'production',
+        EDITOR_PASSWORD: '',
+        // Production refuses to point invitations at a laptop, so it has to say where it is.
+        PUBLIC_URL: 'https://ricambi.example',
+      },
     });
     try {
       const response = await production.request().get('/api/status').expect(200);

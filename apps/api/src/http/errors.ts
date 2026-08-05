@@ -43,6 +43,68 @@ export class NotSignedInError extends HttpError {
   }
 }
 
+/**
+ * We know who this is, and they may not. Distinct from `NotSignedInError` in exactly the way
+ * authorisation is distinct from authentication: signing in again would not help.
+ */
+export class ForbiddenError extends HttpError {
+  constructor(message: string) {
+    super(403, 'forbidden', message);
+  }
+}
+
+/**
+ * The member is who they say they are, and their Membership has run out.
+ *
+ * **Authenticated, and therefore told plainly.** They have proved who they are, so naming the
+ * date discloses nothing to anybody else — and "your Membership ran out on the 3rd" is a sentence
+ * somebody can act on, where a sign-in error is a sentence they telephone the Club about. Ticket
+ * 15 gives it a screen carrying the amount, the bank details and the reference.
+ */
+export class MembershipLapsedError extends HttpError {
+  constructor(paidThrough: string | null) {
+    super(
+      403,
+      'membership_lapsed',
+      paidThrough === null
+        ? 'The Club has no Membership recorded for you. Contact the Club office.'
+        : `Your Membership ran out on ${paidThrough}.`,
+      { paidThrough },
+    );
+  }
+}
+
+/**
+ * Too many attempts, too quickly. A 429 rather than a refusal, and it says the same thing to an
+ * address on the roster and one nobody has heard of — the lockout must not become the disclosure
+ * the sign-in form refuses to be.
+ */
+export class TooManyAttemptsError extends HttpError {
+  constructor(message: string) {
+    super(429, 'too_many_attempts', message);
+  }
+}
+
+/**
+ * The person is on the roster and the letter did not get out.
+ *
+ * **A refusal that is also a half-success**, which is why it says both halves. The alternative
+ * shapes are both worse: a 500 leaves an Administrator retrying an address that is now taken, and
+ * a silent success leaves somebody on the roster waiting for an e-mail that was never sent.
+ *
+ * 502 rather than 500, because what failed is somebody else's service rather than this one.
+ */
+export class InvitationNotSentError extends HttpError {
+  constructor(email: string) {
+    super(
+      502,
+      'invitation_not_sent',
+      `${email} is on the roster, but the invitation could not be sent. ` +
+        'Use \u201cSend the invitation again\u201d once e-mail is working.',
+    );
+  }
+}
+
 /** The request contradicts something already recorded — a Tavola number used twice on a Model. */
 export class ConflictError extends HttpError {
   constructor(message: string, details?: unknown) {

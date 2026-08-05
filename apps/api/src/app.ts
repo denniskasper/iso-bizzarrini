@@ -1,15 +1,18 @@
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
-import { createEditorGate } from './access/editor-gate.js';
+import { createGate } from './access/gate.js';
+import { createPasswordHasher, type PasswordHasher } from './access/passwords.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
+import { createClubController } from './controllers/club-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createRosterController } from './controllers/roster-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
 import { createSearchController } from './controllers/search-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
@@ -17,26 +20,33 @@ import { createStatusController } from './controllers/status-controller.js';
 import { createTavolaController } from './controllers/tavola-controller.js';
 import type { Db } from './db/client.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
+import type { BreachedPasswordCheck } from './platform/breached-passwords.js';
 import type { Clock } from './platform/clock.js';
 import type { EmailSender } from './platform/email.js';
 import { createLogger, type Logger } from './platform/logger.js';
 import type { PaymentProvider } from './platform/payments.js';
+import { createAccountRepository } from './repositories/account-repository.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
+import { createClubRepository } from './repositories/club-repository.js';
 import { createModelRepository } from './repositories/model-repository.js';
 import { createPartRecordRepository } from './repositories/part-record-repository.js';
 import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
+import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
 import { createApiRouter } from './routes/api-router.js';
+import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
+import { createClubService } from './services/club-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createSearchService } from './services/search-service.js';
 import { createStatusService } from './services/status-service.js';
@@ -46,7 +56,7 @@ import { createStaticSiteHandler } from './http/static-site.js';
 
 /**
  * Everything the application needs from the outside world, handed in rather than reached for.
- * Tests supply a real database, a clock they can move, and fakes for the two external edges.
+ * Tests supply a real database, a clock they can move, and fakes for the three external edges.
  */
 export interface AppDependencies {
   config: AppConfig;
@@ -54,7 +64,18 @@ export interface AppDependencies {
   db: Db;
   emailSender: EmailSender;
   paymentProvider: PaymentProvider;
+  /**
+   * The third external edge (ADR 0003): somebody else's list of passwords already stolen. Faked
+   * in tests for the same reason the other two are — a seam must not need a third party to be up.
+   */
+  breachedPasswords: BreachedPasswordCheck;
   logger?: Logger;
+  /**
+   * How hard passwords are to store. Defaults to the recommended cost, which is deliberately a
+   * third of a second; a suite that signs in a hundred times hands in a cheaper one, and still
+   * runs the same scrypt through the same encoding rather than a stub that proves nothing.
+   */
+  passwordHasher?: PasswordHasher;
   /**
    * Where the archive's images live. Defaults to the directory `config` names — handed in only
    * so a test can put a suite's scans in a directory of its own and throw it away afterwards.
@@ -91,16 +112,22 @@ export function createApp(dependencies: AppDependencies): Express {
   const fileStore = dependencies.fileStore ?? createFileStore(config.files.storagePath);
 
   if (config.editorGate.password === undefined) {
+    // No longer "nobody can sign in" — members do, with their own passwords. What it means now is
+    // that a roster with no Administrator on it has no way to grow one, which is the state a
+    // fresh clone is in. Ticket 15 removes the stand-in and this warning with it.
     logger.warn(
-      'EDITOR_PASSWORD is not set, so nobody can sign in and no scan can be reached. ' +
-        'Set it in .env to use the Editor screens.',
+      'EDITOR_PASSWORD is not set. Members sign in with their own passwords, but the stand-in ' +
+        'gate is how the first Administrator is added to an empty roster. Set it in .env.',
     );
   }
 
-  const editorGate = createEditorGate({ config, clock });
+  const passwordHasher = dependencies.passwordHasher ?? createPasswordHasher();
 
   // repositories → services → controllers → routes
   const systemRepository = createSystemRepository(db);
+  const accountRepository = createAccountRepository(db);
+  const signInFailureRepository = createSignInFailureRepository(db);
+  const clubRepository = createClubRepository(db);
   const modelRepository = createModelRepository(db);
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
@@ -116,6 +143,30 @@ export function createApp(dependencies: AppDependencies): Express {
     environmentMode: config.environmentMode,
     systemRepository,
   });
+  /**
+   * **Who a person is** — and, deliberately, not what they may do. The gate below takes this as
+   * its way of turning a session into somebody; the authorising happens there, downstream, so
+   * that a lapsed member still authenticates and can be told plainly what is wrong (story 8).
+   */
+  const accountService = createAccountService({
+    clock,
+    accountRepository,
+    signInFailureRepository,
+    passwordHasher,
+    breachedPasswords: dependencies.breachedPasswords,
+    emailSender,
+    publicUrl: config.publicUrl,
+  });
+  const gate = createGate({ config, clock, accounts: accountService });
+
+  const rosterService = createRosterService({
+    clock,
+    accountRepository,
+    accountService,
+    logger,
+  });
+  const clubService = createClubService({ clock, clubRepository });
+
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
   // **The way into the archive that does not start at the car** (ticket 22). Two repositories and
   // nothing else: it asks what the query names and where those Parts are listed, and everything a
@@ -164,7 +215,9 @@ export function createApp(dependencies: AppDependencies): Express {
   });
 
   const statusController = createStatusController({ statusService });
-  const sessionController = createSessionController({ editorGate });
+  const sessionController = createSessionController({ gate, accountService });
+  const rosterController = createRosterController({ gate, rosterService });
+  const clubController = createClubController({ clubService });
   const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
   const tavolaController = createTavolaController({ tavolaService });
@@ -204,11 +257,13 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use(
     '/api',
     createApiRouter({
-      editorGate,
+      gate,
       maxScanBytes: config.files.maxScanBytes,
       maxPhotographBytes: config.files.maxPhotographBytes,
       statusController,
       sessionController,
+      rosterController,
+      clubController,
       searchController,
       catalogController,
       tavolaController,

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { openFirstDrawing, openGrifo } from './support/archive.js';
-import { PASSPHRASE, signIn } from './support/gate.js';
+import { MEMBER_PASSWORD, PRACTICE, signIn } from './support/gate.js';
 
 /**
  * The browser seam, and deliberately thin: everything a request and a response can prove is
@@ -78,7 +78,8 @@ test.describe('a link into the archive', () => {
     await expect(page.getByRole('heading', { name: 'The archive is members-only.' })).toBeVisible();
 
     await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click();
-    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByLabel('E-mail address').fill(PRACTICE.administrator);
+    await page.getByLabel('Password').fill(MEMBER_PASSWORD);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
     await expect

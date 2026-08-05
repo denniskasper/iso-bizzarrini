@@ -14,6 +14,7 @@ import type {
 import type { PartRepository } from '../repositories/part-repository.js';
 import type { PhotographRepository } from '../repositories/photograph-repository.js';
 import { toPartInFull } from './catalog-view.js';
+import { ISO_DATE, readAmount } from './money.js';
 
 /**
  * What fits a Part, what can be bought instead of it, and where it has been available.
@@ -90,12 +91,6 @@ export interface PartRecordService {
   correctSource(sourceId: string, source: NewSource): Promise<PartInFull>;
   removeSource(sourceId: string): Promise<PartInFull>;
 }
-
-/** Nothing else is a price: not a range, not "about", not a thousands separator nobody agrees on. */
-const PRICE = /^(\d{1,9})(?:[.,](\d{1,2}))?$/;
-
-/** What the archive stores dates as, and the only thing a date field may send. */
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function createPartRecordService(dependencies: {
   clock: Clock;
@@ -210,14 +205,12 @@ export function createPartRecordService(dependencies: {
       return { ...common, priceAmount: null, priceCurrency: null, observedOn: null };
     }
 
-    const typed = PRICE.exec(source.price);
-    if (!typed) {
+    const amount = readAmount(source.price);
+    if (amount === null) {
       throw new ValidationError(
         'A price is an amount — 250, 250.00 or 250,50. Leave it blank if none was seen.',
       );
     }
-    const [, whole = '0', fraction = ''] = typed;
-    const amount = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
     if (amount <= 0) {
       throw new ValidationError('A price of nothing is not a price. Leave it blank instead.');
     }

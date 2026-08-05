@@ -15,6 +15,9 @@ const webDistPath = fileURLToPath(new URL('./dist', import.meta.url));
 const databaseUrl =
   process.env.E2E_DATABASE_URL ?? 'postgres://ricambi:ricambi@localhost:5433/ricambi_e2e';
 
+/** What the seeded practice members sign in with. Known to this suite and to nothing else. */
+const practicePassword = process.env.E2E_MEMBER_PASSWORD ?? 'a-practice-members-passphrase';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -67,6 +70,18 @@ export default defineConfig({
       // suite signs in through the real form rather than being handed a cookie.
       EDITOR_PASSWORD: process.env.E2E_EDITOR_PASSWORD ?? 'an-end-to-end-passphrase',
       SESSION_SECRET: 'an-end-to-end-session-secret-long-enough',
+      // Members sign in with their own passwords (ticket 14), so the suite adds people to the
+      // roster and reads the invitation out of the log. `log` is what puts it there.
+      EMAIL_TRANSPORT: 'log',
+      // The built app is served by the API here, so an invitation link points at this server.
+      PUBLIC_URL: baseURL,
+      // **No third party is reached from a test run.** The breached-password rule is proved at
+      // the API seam against a list the suite writes; what this seam is for is the browser.
+      BREACHED_PASSWORD_CHECK: 'none',
+      // The generated roster is left unable to sign in unless this says otherwise, so that no
+      // password committed to this repository works on a practice system deployed from it. This
+      // seam is the thing that needs one, so this seam is where it is said.
+      PRACTICE_MEMBER_PASSWORD: practicePassword,
       // The scans this run ingests, thrown away with the rest of the run's output.
       FILE_STORAGE_PATH: fileURLToPath(new URL('./test-results/files', import.meta.url)),
     },

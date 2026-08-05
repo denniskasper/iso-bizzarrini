@@ -38,8 +38,31 @@ const environmentSchema = z.object({
   WEB_DIST_PATH: z.string().min(1).optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
-  /** `memory` captures mail for inspection; `none` refuses to send at all. */
-  EMAIL_TRANSPORT: z.enum(['none', 'memory']).default('none'),
+  /**
+   * `memory` captures mail for a test to read, `log` writes it whole to the log so a developer
+   * can click the link in an invitation, and `none` refuses to send at all.
+   */
+  EMAIL_TRANSPORT: z.enum(['none', 'memory', 'log']).default('none'),
+
+  /**
+   * Where a browser reaches this system, so that the link in an invitation lands on the right
+   * host. Nothing else uses it: the application is one origin and the app always talks to
+   * `/api` on whatever host it was served from.
+   *
+   * The default is the development app, which is where a fresh clone's invitations should go.
+   * A production environment that has not been told its own address refuses to start rather
+   * than mailing a hundred members a link to `localhost`.
+   */
+  PUBLIC_URL: z.url('PUBLIC_URL must be a URL').default('http://localhost:5173'),
+
+  /**
+   * Whether a password a member chooses is checked against a known-breached-password range API
+   * (ADR 0003). **The default is the real check**, so a deployment gets it without anybody
+   * remembering to ask; `none` is how a laptop on a train opts out, in writing.
+   *
+   * The password itself never leaves this process either way — see `breached-passwords.ts`.
+   */
+  BREACHED_PASSWORD_CHECK: z.enum(['range-api', 'none']).default('range-api'),
 
   /** `none` refuses every webhook delivery. Stripe arrives with ticket 18. */
   PAYMENT_PROVIDER: z.enum(['none']).default('none'),
@@ -154,9 +177,14 @@ export interface AppConfig {
   port: number;
   databaseUrl: string;
   webDistPath: string | undefined;
+  /** Where a browser reaches this system. Only ever used to build a link for an e-mail. */
+  publicUrl: string;
   logLevel: Environment['LOG_LEVEL'];
   email: {
     transport: Environment['EMAIL_TRANSPORT'];
+  };
+  passwords: {
+    breachCheck: Environment['BREACHED_PASSWORD_CHECK'];
   };
   payments: {
     provider: Environment['PAYMENT_PROVIDER'];
@@ -208,9 +236,13 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     port: env.PORT,
     databaseUrl: env.DATABASE_URL,
     webDistPath: env.WEB_DIST_PATH,
+    publicUrl: env.PUBLIC_URL,
     logLevel: env.LOG_LEVEL,
     email: {
       transport: env.EMAIL_TRANSPORT,
+    },
+    passwords: {
+      breachCheck: env.BREACHED_PASSWORD_CHECK,
     },
     payments: {
       provider: env.PAYMENT_PROVIDER,

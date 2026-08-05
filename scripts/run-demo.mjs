@@ -26,6 +26,10 @@ const environment = {
   DATABASE_URL:
     process.env.DEMO_DATABASE_URL ?? 'postgres://ricambi:ricambi@localhost:5433/ricambi_demo',
   WEB_DIST_PATH: fileURLToPath(new URL('../apps/web/dist', import.meta.url)),
+  // The demo serves the app itself rather than Vite, so an invitation sent from it points at
+  // the demo's own port — and `log` is what makes the link readable, in this terminal.
+  PUBLIC_URL: process.env.DEMO_PUBLIC_URL ?? `http://localhost:${process.env.DEMO_PORT ?? '3200'}`,
+  EMAIL_TRANSPORT: 'log',
 };
 
 run('pnpm', ['setup']);

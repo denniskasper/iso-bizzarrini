@@ -5,8 +5,10 @@ import type { Express } from 'express';
 import supertest from 'supertest';
 import type TestAgent from 'supertest/lib/agent.js';
 import { createApp } from '../../src/app.js';
+import { createPasswordHasher } from '../../src/access/passwords.js';
 import { loadConfig, type AppConfig } from '../../src/config/config.js';
 import type { Db } from '../../src/db/client.js';
+import type { BreachedPasswordCheck } from '../../src/platform/breached-passwords.js';
 import { MutableClock } from '../../src/platform/clock.js';
 import { InMemoryEmailSender, type EmailSender } from '../../src/platform/email.js';
 import { createLogger, type Logger } from '../../src/platform/logger.js';
@@ -15,12 +17,16 @@ import { createTestDatabase, type TestDatabase } from './test-database.js';
 
 /**
  * The primary test seam: the application driven in-process over real HTTP, against a real
- * Postgres, with none of our own code mocked. Only the three edges the spec names are faked —
- * the clock, the e-mail sender and the payment provider.
+ * Postgres, with none of our own code mocked. Only the edges the spec names are faked — the
+ * clock, the e-mail sender, the payment provider and the breached-password list.
  *
  * The image store is **not** faked. It is a directory, and a directory of its own in the
  * system's temporary space is both cheaper and truer than a stub: ingest really runs, the
  * files really land, and the image route really reads them back.
+ *
+ * **Neither is the password hasher.** It is the real scrypt through the real encoding, at a cost
+ * this suite can afford to pay a few hundred times — a stub would stop proving that what is
+ * written can be read back, which is the only thing about password storage worth a test.
  */
 export interface TestApp {
   readonly app: Express;
@@ -28,6 +34,7 @@ export interface TestApp {
   readonly db: Db;
   readonly clock: MutableClock;
   readonly emails: InMemoryEmailSender;
+  readonly breached: KnownBreachedPasswords;
   readonly logger: Logger;
   /** Where this app's scans are written, for a test that wants to look at the store itself. */
   readonly filesPath: string;
@@ -35,8 +42,10 @@ export interface TestApp {
   request(): TestAgent;
   /** A request agent that keeps its cookies, for signed-in flows. */
   agent(): TestAgent;
-  /** An agent that has been through the Editor gate. */
+  /** An agent that has been through the stand-in Editor gate. */
   editor(): Promise<TestAgent>;
+  /** An agent signed in as a member, by their address and their own password. */
+  memberAgent(credentials: { email: string; password: string }): Promise<TestAgent>;
   /** Empties the database between tests. */
   reset(): Promise<void>;
   close(): Promise<void>;
@@ -54,6 +63,38 @@ export interface TestAppOptions {
   emailSender?: EmailSender;
   paymentProvider?: PaymentProvider;
 }
+
+/**
+ * The breached-password edge, faked: a list this suite writes rather than one somebody else
+ * hosts. Everything about the rule is exercised except the HTTP call, which is the part a test
+ * seam must not depend on being up.
+ */
+export class KnownBreachedPasswords implements BreachedPasswordCheck {
+  readonly name = 'a list of passwords this test wrote';
+  readonly #breached = new Set<string>();
+
+  async isBreached(password: string): Promise<boolean> {
+    return this.#breached.has(password);
+  }
+
+  treatAsBreached(password: string): void {
+    this.#breached.add(password);
+  }
+
+  clear(): void {
+    this.#breached.clear();
+  }
+}
+
+/**
+ * A cost far below the recommended one, and deliberately still a real one.
+ *
+ * `2^14` runs in about a twentieth of the time `2^17` does, which is what makes a suite that
+ * signs in a few hundred times affordable. What it does *not* do is change the algorithm, the
+ * encoding, or the path a password takes — and because the parameters travel inside the stored
+ * string, a hash written here would still verify under production's cost.
+ */
+export const TEST_PASSWORD_COST = { N: 2 ** 14, r: 8, p: 1 };
 
 /** Well before any date the catalog cares about, and stable, so tests never depend on today. */
 export const DEFAULT_TEST_NOW = new Date('2026-01-15T09:00:00.000Z');
@@ -87,6 +128,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
   const emails = new InMemoryEmailSender();
   const emailSender = options.emailSender ?? emails;
   const paymentProvider = options.paymentProvider ?? new UnconfiguredPaymentProvider();
+  const breached = new KnownBreachedPasswords();
 
   const database: TestDatabase = await createTestDatabase();
 
@@ -98,6 +140,8 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       db: database.db,
       emailSender,
       paymentProvider,
+      breachedPasswords: breached,
+      passwordHasher: createPasswordHasher(TEST_PASSWORD_COST),
       logger,
     });
   } catch (error) {
@@ -113,6 +157,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
     db: database.db,
     clock,
     emails,
+    breached,
     logger,
     filesPath,
     request: () => supertest(app),
@@ -122,9 +167,15 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       await agent.post('/api/session').send({ passphrase: TEST_EDITOR_PASSPHRASE }).expect(201);
       return agent;
     },
+    async memberAgent(credentials) {
+      const agent = supertest.agent(app);
+      await agent.post('/api/session').send(credentials).expect(201);
+      return agent;
+    },
     async reset() {
       await database.truncateAll();
       emails.clear();
+      breached.clear();
       clock.setTo(options.now ?? DEFAULT_TEST_NOW);
     },
     async close() {

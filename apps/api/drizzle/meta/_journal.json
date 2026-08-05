@@ -57,6 +57,13 @@
       "when": 1785867285120,
       "tag": "0007_photographs",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785954254438,
+      "tag": "0008_accounts_memberships_and_the_club",
+      "breakpoints": true
     }
   ]
 }

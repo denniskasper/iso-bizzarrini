@@ -8,9 +8,12 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { ArchiveGate } from '@/components/archive-gate';
 import { CatalogPage } from '@/routes/catalog-page';
+import { ClubPage } from '@/routes/club-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
+import { RosterPage } from '@/routes/roster-page';
 import { SearchPage } from '@/routes/search-page';
+import { SetPasswordPage } from '@/routes/set-password-page';
 import { SignInPage } from '@/routes/sign-in-page';
 import { TavolaPage } from '@/routes/tavola-page';
 
@@ -19,12 +22,19 @@ import { TavolaPage } from '@/routes/tavola-page';
  *
  * The gate is applied here rather than route by route because it is not a property of any one
  * screen: the archive is members-only, the API refuses all of it, and a screen that discovered
- * that for itself would be one of several slightly different ways of saying so. The one route
- * outside it is the gate itself — asking to be let in cannot require already being in.
+ * that for itself would be one of several slightly different ways of saying so.
+ *
+ * **Four routes stand outside it**, and all four for the same reason: asking to be let in cannot
+ * require already being in. Signing in and choosing a password from a link are the two ways in;
+ * the roster and the Club are outside it because they are behind a *role* rather than behind a
+ * Membership, and an Administrator whose own Membership has run out must still be able to reach
+ * the screen that records their payment.
  */
+const OUTSIDE_THE_GATE = ['/sign-in', '/set-password', '/roster', '/club'];
+
 function RootLayout() {
   const atTheGate = useRouterState({
-    select: (state) => state.location.pathname.startsWith('/sign-in'),
+    select: (state) => OUTSIDE_THE_GATE.some((path) => state.location.pathname.startsWith(path)),
   });
 
   return (
@@ -68,6 +78,34 @@ const signInRoute = createRoute({
       ? { next }
       : {};
   },
+});
+
+/**
+ * Where an invitation and a reset link both land. The token is in the address because that is
+ * where an e-mail client puts it; it is sent to the archive in a request **body**, so it does not
+ * end up in an access log on the way.
+ */
+const setPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/set-password',
+  component: SetPasswordPage,
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = search['token'];
+    return typeof token === 'string' && token.trim() !== '' ? { token } : {};
+  },
+});
+
+/** An Administrator's two screens. The archive enforces the role; these only say so. */
+const rosterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/roster',
+  component: RosterPage,
+});
+
+const clubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/club',
+  component: ClubPage,
 });
 
 const searchRoute = createRoute({
@@ -121,6 +159,9 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     catalogRoute,
     signInRoute,
+    setPasswordRoute,
+    rosterRoute,
+    clubRoute,
     searchRoute,
     modelRoute,
     tavolaRoute,

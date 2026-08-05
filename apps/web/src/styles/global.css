@@ -601,6 +601,53 @@
   }
 
   /*
+   * One person on the roster: who they are, where they stand, and what the Club has been paid to.
+   *
+   * **Set as a printed membership list**, for the same reason the sheet's index is set as a
+   * printed table: hairlines between the rows, a fixed column for the date because it is a number
+   * to be compared, and no decoration whatever on a row that is nothing but four facts. Dense
+   * information presented calmly is the Google half of the direction, and a hundred rows is where
+   * it has to hold.
+   *
+   * The column measure lives here rather than in feature code, so the header above the list and
+   * the rows below it cannot drift apart.
+   */
+  .roster-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: baseline;
+    column-gap: --spacing(6);
+    row-gap: --spacing(2);
+    padding-block: --spacing(4);
+    border-top: 1px solid var(--line);
+  }
+
+  @media (width >= 48rem) {
+    .roster-row {
+      grid-template-columns: 1fr 11rem 8rem;
+    }
+  }
+
+  /*
+   * **A lapsed Membership is ruled off down its left edge**, the same 2px rule this archive uses
+   * wherever something in a list is in a state worth seeing without reading. It is what makes the
+   * one row an Administrator is looking for findable in a hundred at a glance, and it carries no
+   * colour: the word beside it already says which state it is.
+   */
+  .roster-row[data-standing='lapsed'] {
+    padding-left: --spacing(4);
+    border-left: 2px solid var(--line-strong);
+  }
+
+  /* Invited and not yet activated is a *waiting* state rather than a wrong one, so the rule is
+     dashed — the same distinction the sheet's index draws between a Part on the plate and one
+     that was never drawn on it. */
+  .roster-row[data-standing='invited'] {
+    padding-left: --spacing(4);
+    border-left: 2px dashed var(--line-strong);
+  }
+
+  /*
    * The mark a non-production system wears: a proof stamp. Everything in this archive is
    * printed matter, and a proof sheet is a print that is explicitly not the finished one —
    * hatched along its edge so that nobody files it as the real thing. It is the only element

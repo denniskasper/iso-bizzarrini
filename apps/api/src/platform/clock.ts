@@ -14,6 +14,19 @@ export const systemClock: Clock = {
 };
 
 /**
+ * Today, as `YYYY-MM-DD`, from the injected clock and never the machine's idea of now.
+ *
+ * It lives here rather than beside whichever service wanted it first, because **membership runs
+ * in days**: a term covers its Paid-through date, a payment arrived on a day, and a lapse happens
+ * at a boundary rather than at an instant. Every one of those comparisons is a string comparison
+ * against this, and two services having written it out separately is two places for the timezone
+ * to be decided differently.
+ */
+export function today(clock: Clock): string {
+  return clock.now().toISOString().slice(0, 10);
+}
+
+/**
  * A clock tests (and seeded non-production data) can move about. Advancing it is how expiry,
  * reminder windows and retention are driven.
  */

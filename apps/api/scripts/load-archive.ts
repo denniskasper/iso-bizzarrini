@@ -60,7 +60,7 @@ const config = loadConfig();
 // so what it checks for is a practice system holding something that can reach a real person.
 assertSafeForEnvironment({
   config,
-  emailSender: createEmailSender(config),
+  emailSender: createEmailSender(config, createLogger(config)),
   paymentProvider: createPaymentProvider(config),
 });
 

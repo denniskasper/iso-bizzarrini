@@ -15,7 +15,8 @@
     "scans:measure": "tsx scripts/scan-measurements.ts",
     "archive:load": "tsx scripts/load-archive.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "roster:invite-administrator": "tsx scripts/invite-administrator.ts"
   },
   "dependencies": {
     "@ricambi/contracts": "workspace:*",

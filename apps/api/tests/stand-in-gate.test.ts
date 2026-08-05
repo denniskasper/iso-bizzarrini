@@ -3,11 +3,13 @@ import { assertSafeForEnvironment } from '../src/composition/environment-safety.
 import { loadConfig } from '../src/config/config.js';
 import { InMemoryEmailSender } from '../src/platform/email.js';
 import { UnconfiguredPaymentProvider } from '../src/platform/payments.js';
+import { SESSION_DURATION_MS } from '../src/access/session.js';
 import { startTestApp, TEST_EDITOR_PASSPHRASE, type TestApp } from './support/test-app.js';
 
 /**
  * The stand-in Editor gate. One shared passphrase is the whole of M1's "single hard-coded admin
- * login"; Accounts, Memberships and per-person passwords arrive with ticket 14.
+ * login", and after ticket 14 it stands beside per-person sign-in rather than instead of it:
+ * `account: null` is what "signed in, and nobody in particular" looks like. Ticket 15 removes it.
  */
 describe('the stand-in Editor gate', () => {
   let app: TestApp;
@@ -27,7 +29,7 @@ describe('the stand-in Editor gate', () => {
   it('reports nobody signed in before anyone has been through it', async () => {
     const response = await app.request().get('/api/session').expect(200);
 
-    expect(response.body).toEqual({ signedIn: false });
+    expect(response.body).toEqual({ signedIn: false, account: null });
   });
 
   it('admits the configured passphrase and remembers it', async () => {
@@ -36,7 +38,7 @@ describe('the stand-in Editor gate', () => {
     await agent.post('/api/session').send({ passphrase: TEST_EDITOR_PASSPHRASE }).expect(201);
 
     const response = await agent.get('/api/session').expect(200);
-    expect(response.body).toEqual({ signedIn: true });
+    expect(response.body).toEqual({ signedIn: true, account: null });
   });
 
   it('refuses the wrong passphrase', async () => {
@@ -55,26 +57,26 @@ describe('the stand-in Editor gate', () => {
     await agent.delete('/api/session').expect(200);
 
     const response = await agent.get('/api/session').expect(200);
-    expect(response.body).toEqual({ signedIn: false });
+    expect(response.body).toEqual({ signedIn: false, account: null });
   });
 
   it('ignores a cookie it did not sign', async () => {
     const response = await app
       .request()
       .get('/api/session')
-      .set('Cookie', 'ricambi_editor=made.up')
+      .set('Cookie', 'ricambi_session=made.up')
       .expect(200);
 
-    expect(response.body).toEqual({ signedIn: false });
+    expect(response.body).toEqual({ signedIn: false, account: null });
   });
 
   it('stops honouring a session once it has expired', async () => {
     const agent = await app.editor();
 
-    app.clock.advanceByDays(31);
+    app.clock.advanceBy(SESSION_DURATION_MS + 1);
 
     const response = await agent.get('/api/session').expect(200);
-    expect(response.body).toEqual({ signedIn: false });
+    expect(response.body).toEqual({ signedIn: false, account: null });
   });
 });
 
@@ -104,6 +106,9 @@ describe('the stand-in gate and production', () => {
     ENVIRONMENT_NAME: 'the-archive',
     ENVIRONMENT_MODE: 'production',
     DATABASE_URL: 'postgres://unused/in-this-test',
+    // Production will not start pointing invitations at a laptop, so every production
+    // environment in these tests has to say where members actually reach it.
+    PUBLIC_URL: 'https://ricambi.example',
   };
 
   function assertSafe(overrides: Record<string, string>): void {

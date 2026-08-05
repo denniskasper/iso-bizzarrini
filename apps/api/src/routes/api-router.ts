@@ -1,7 +1,9 @@
 import express, { Router, type RequestHandler } from 'express';
-import type { EditorGate } from '../access/editor-gate.js';
+import type { Gate } from '../access/gate.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
+import type { ClubController } from '../controllers/club-controller.js';
+import type { RosterController } from '../controllers/roster-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
 import type { PhotographController } from '../controllers/photograph-controller.js';
@@ -21,18 +23,22 @@ import type { TavolaController } from '../controllers/tavola-controller.js';
  * scans are the obvious thing to protect, but a Tavola's number, its two names and the
  * factory's own Sezione and Gruppo are the Club's archive too, and an open catalog is a
  * catalog a search engine indexes. What is left open is exactly what has to be: the status the
- * footer reports, and the session routes themselves, since asking to be let in cannot require
- * already being in.
+ * footer reports, and the ways in — signing in, asking for a reset link, and redeeming one —
+ * since asking to be let in cannot require already being in.
  *
- * Ticket 15 replaces *who* the gate admits — an Account with a live Membership, re-checked on
- * every request — not *what* it stands in front of.
+ * **Two gates stand here, not one.** The archive is behind a live Membership, checked on every
+ * request; the roster and the Club are behind the Administrator role and deliberately *not*
+ * behind a Membership, because administering the association is not reading the archive and an
+ * Administrator who forgot to pay must not be locked out of the screen that records payment.
  */
 export function createApiRouter(dependencies: {
-  editorGate: EditorGate;
+  gate: Gate;
   maxScanBytes: number;
   maxPhotographBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
+  rosterController: RosterController;
+  clubController: ClubController;
   searchController: SearchController;
   catalogController: CatalogController;
   tavolaController: TavolaController;
@@ -44,9 +50,11 @@ export function createApiRouter(dependencies: {
   scanController: ScanController;
 }): Router {
   const {
-    editorGate,
+    gate,
     statusController,
     sessionController,
+    rosterController,
+    clubController,
     searchController,
     catalogController,
     tavolaController,
@@ -59,7 +67,8 @@ export function createApiRouter(dependencies: {
   } = dependencies;
 
   const router = Router();
-  const editorsOnly: RequestHandler = editorGate.requireEditor;
+  const editorsOnly: RequestHandler = gate.requireEditor;
+  const administratorsOnly: RequestHandler = gate.requireAdministrator;
 
   // Open, and only these. The status strip has to be able to say the database is unreachable
   // to somebody who cannot sign in because the database is unreachable.
@@ -68,7 +77,49 @@ export function createApiRouter(dependencies: {
   router.post('/session', sessionController.signIn);
   router.delete('/session', sessionController.signOut);
 
-  router.use(editorsOnly);
+  // **The way back in.** All three are open and all three are careful about what they answer: a
+  // reset request says nothing about whether the address is on the roster, and a link that never
+  // existed is refused in the same words as one already spent.
+  //
+  // The token travels in the **body** rather than in the path, and that is not decoration: an
+  // address is written to the access log of everything it passes through, and the secret in a
+  // reset link is the one thing that must not be sitting in a log file a week later.
+  router.post('/password-resets', sessionController.requestPasswordReset);
+  router.post('/password-setups/inspect', sessionController.inspectPasswordSetup);
+  router.post('/password-setups', sessionController.setPassword);
+
+  // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
+  // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still
+  // record the payment that un-lapses somebody.
+  router.get('/roster', administratorsOnly, rosterController.list);
+  router.post('/roster', administratorsOnly, rosterController.add);
+  router.patch('/roster/:accountId', administratorsOnly, rosterController.correct);
+  // Sending the invitation again, to somebody who missed it or whose link expired (story 5).
+  router.post('/roster/:accountId/invitation', administratorsOnly, rosterController.invite);
+  // Money that arrived by bank transfer. A new term, never an edit of an old one.
+  router.post('/roster/:accountId/payments', administratorsOnly, rosterController.recordPayment);
+
+  router.get('/club', administratorsOnly, clubController.read);
+  router.patch('/club', administratorsOnly, clubController.correct);
+
+  // Everything below is the archive, and the archive is what a live Membership buys.
+  router.use(gate.requireLiveMembership);
+
+  /**
+   * **Reading the archive is what a Membership buys; changing it is an Editor's job.**
+   *
+   * Stated as a rule about the method rather than repeated on thirty-five addresses, because it
+   * is genuinely true of every one of them: everything under here that is not a `GET` writes to
+   * the archive or is an Editor's tool for deciding what to write. Ticket 14 introduced Members,
+   * who could otherwise reach every write below; ticket 15 owns proving the whole surface.
+   */
+  router.use((request, response, next) => {
+    if (request.method === 'GET') {
+      next();
+      return;
+    }
+    editorsOnly(request, response, next);
+  });
 
   // **The way in that does not start at the car** (ticket 22). It is behind the gate like
   // everything else, and here that is load-bearing rather than consistent: a search address

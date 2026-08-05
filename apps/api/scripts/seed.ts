@@ -12,6 +12,7 @@
  */
 import { Client } from 'pg';
 import { emptyCatalog, writePracticeArchive } from '../src/catalog/practice-archive.js';
+import { writePracticeRoster } from '../src/catalog/practice-roster.js';
 import { assertSeedable } from '../src/composition/environment-safety.js';
 import { loadConfig } from '../src/config/config.js';
 import { loadEnvFile } from '../src/config/env-file.js';
@@ -34,6 +35,21 @@ try {
   await runMigrations(database.db);
   await emptyCatalog(database.db, fileStore);
 
+  /**
+   * The invented membership, and the invented Club (ticket 14). Nobody in it is real and every
+   * address is on `example.invalid`, which nothing can deliver to.
+   *
+   * A password is written **only** if this environment handed one in. A known password committed
+   * to the repository would work on every practice system ever deployed from it, so there is not
+   * one: without `PRACTICE_MEMBER_PASSWORD` every generated member is left on the roster as
+   * invited, which is a perfectly good practice roster and admits nobody.
+   */
+  const roster = await writePracticeRoster({
+    db: database.db,
+    clock: systemClock,
+    password: process.env.PRACTICE_MEMBER_PASSWORD || undefined,
+  });
+
   const written = await writePracticeArchive({
     db: database.db,
     fileStore,
@@ -50,6 +66,10 @@ try {
       `and ${written.fitments} Fitments, ${written.equivalents} Equivalents, ` +
       `${written.sources} Sources and ${written.photographs} Photographs ` +
       `into "${config.environmentName}".`,
+  );
+  console.log(
+    `Seeded ${roster.members} generated members and one Club, ` +
+      `${roster.activated} of them able to sign in.`,
   );
 } finally {
   await database.close();
