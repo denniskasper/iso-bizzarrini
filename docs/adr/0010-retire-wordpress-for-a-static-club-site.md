@@ -25,3 +25,8 @@ required at all. A complete mirror of the old site is archived before it is swit
 is the record of anything not carried over. The club site lives in **its own repository**:
 the CMS grants non-developers write access, which must not reach the code handling the roster,
 payments or sessions.
+
+That repository now exists, checked out beside this one as `../club-website`, and carries the
+site's spec, its eleven tickets and a copy of this decision as its own ADR 0001. This record
+stays here because it is also a **scope** decision about Ricambi — it is why the archive shares a
+VPS with a site it shares no code with — and because ADR 0008 refers to it.

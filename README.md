@@ -122,9 +122,13 @@ the Club's, measured from its live site; the logo asset is dropped in at deploy 
 
 The club's public site is a **separate stream in a separate repository** with its own host
 (spec: *"No shared code, separate repositories, separate deployables, separate test suites"*).
-Its eleven tickets live in [`.scratch/club-website/`](.scratch/club-website/) and none of them
-has been started. The two streams run in parallel and converge only at Ricambi ticket 14, where
-real members first have to reach this application.
+Its spec and its eleven tickets used to live here under `.scratch/club-website/`; they now live
+in that repository, checked out beside this one as `../club-website`, and none of them has been
+started. Ticket numbers written as *club-website NN* in this repository refer to those.
+
+The two streams run in parallel and converge only at Ricambi ticket 14, where real members first
+have to reach this application. The one thing neither can route around is the club's **domain**,
+which club-website tickets 04 and 11 untangle.
 
 ## Running it
 
