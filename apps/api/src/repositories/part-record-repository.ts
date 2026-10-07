@@ -23,7 +23,7 @@ import {
  * **Three tables in one file, and "the Part's record" is not a fourth noun.** None of the three
  * is a thing a member navigates to: they are read together, on the Part, at the moment somebody
  * decides whether to order something — so a file each would be three files nothing ever opens
- * one of. The language of the archive is unchanged (`CONTEXT.md`); this is only where the code
+ * one of. The language of the archive is unchanged (`GLOSSARY.md`); this is only where the code
  * for it lives.
  *
  * Every read takes a **set** of Part ids rather than one, because a Position carrying two

@@ -30,7 +30,7 @@ export type RosterField = keyof RosterImportColumns;
  * Compared with punctuation, accents and case taken out, so `E-Mail`, `e_mail` and `EMAIL` are
  * one name.
  *
- * **`expiry`, `expires` and `valid until` are words `CONTEXT.md` tells this archive to avoid**, and
+ * **`expiry`, `expires` and `valid until` are words `GLOSSARY.md` tells this archive to avoid**, and
  * they are here deliberately. The rule is about the language Ricambi *speaks* — a Paid-through is
  * never called an expiry on a screen, in a message or in a type. This is the archive **listening**,
  * and a club secretary's column is headed whatever it is headed. The catalog's own table makes the

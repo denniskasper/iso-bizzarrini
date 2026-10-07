@@ -508,7 +508,7 @@ export interface PositionListingsResponse {
  * of each without the other.
  *
  * **They are counts and not a score, and nothing here can tell the difference.** A number the
- * catalog prints that the drawing never showed is *finished* with no Mark on it (CONTEXT.md), so
+ * catalog prints that the drawing never showed is *finished* with no Mark on it (GLOSSARY.md), so
  * `marked` short of `positions` may mean an evening's work or may mean a sheet that is done —
  * and which of the two it is lives on paper in front of an Editor, not in this archive. Screens
  * may print `marked` against `positions`, because that is the fact; what none of them may do is

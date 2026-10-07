@@ -4,125 +4,48 @@ A members-only parts reference for Iso and Bizzarrini cars, keyed to the origina
 catalogs. Members navigate the way enthusiasts already do: **choose a car, open the factory
 drawing, click the numbered position, read the part.**
 
-The domain language is in [`CONTEXT.md`](CONTEXT.md); the decisions behind the shape of this
-repository are in [`docs/adr/`](docs/adr/); the specification and tickets are in
-[`.scratch/ricambi/`](.scratch/ricambi/).
+The domain language is in [`GLOSSARY.md`](GLOSSARY.md); the decisions behind the shape of this
+repository are in [`docs/adr/`](docs/adr/); the specification is [`docs/spec.md`](docs/spec.md);
+the work that is left is in this repository's GitHub issues.
 
-## Ticket status
+## Where it stands
 
-The tickets themselves are the source of truth — this table is a read of them, and each row
-links to the file it was read from. **Progress** comes from a ticket's own checklist;
-**Status** is its triage label ([`docs/agents/triage-labels.md`](docs/agents/triage-labels.md)).
-A ticket is ready to pick up when everything it is blocked by is finished.
+The drawing viewer, the marking tool, Parts and Listings, Fitments, Equivalents and Sources,
+photographs, the editor's tooling, search, Accounts, Memberships, the roster and the members-only
+gate are all built and tested at both seams. What is open is tracked as GitHub issues, labelled
+with the triage roles in [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md):
 
-**M2's editor tooling is finished.** [Ticket 12](.scratch/ricambi/issues/12-bulk-paste-and-export.md)
-closed the last of it: an Editor pastes a whole catalog page rather than filling in two hundred
-forms, and can pull a drawing back out into a spreadsheet whenever they would rather work the way
-they always have. **Nothing is written until the archive has shown what it will do** — the preview
-is the same reading of the same text that the write then carries out, so it cannot promise
-something the write does differently. And it creates and matches but never *changes* a Part
-(ADR 0005): re-pasting the sheet a Part came from must not be able to overwrite, in bulk, what an
-Editor has since folded into it. Ticket 10 is done, so **19 is unblocked once 15 lands** — that is
-the whole of M4, and the upload path it needs is already built and reused rather than rewritten.
+| # | Issue | Label | Blocked by |
+|---|---|---|---|
+| 1 | Migration scripts for the existing archive | `ready-for-human` | — |
+| 2 | First deployment: a preview on Dokploy, then the Club's own | `ready-for-human` | — |
+| 3 | Renewal reminders | `ready-for-agent` | 2 |
+| 4 | Stripe subscriptions | `ready-for-agent` | — |
+| 5 | Members contribute | `ready-for-agent` | — |
+| 6 | Editor moderation | `ready-for-agent` | 5 |
+| 7 | Retention and erasure | `ready-for-agent` | 6 |
+| 8 | Category filters | `ready-for-agent` | — |
+| 9 | Platform legal pages and data-protection records | `ready-for-agent` | 7 |
 
-**M3 is now code-complete except for the deployment itself.**
-[14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) brought Accounts,
-Memberships, the roster and invitations; [15](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md)
-made the archive genuinely members-only and gave a lapsed member a screen that tells them plainly
-what to pay and how; and [16](.scratch/ricambi/issues/16-roster-spreadsheet-import.md) loads the
-Club's annual list from a spreadsheet instead of typing it — **the one permanent import in the
-product** (ADR 0005), and the only one, because a roster has no curated state beneath it. It adds
-and updates and there is no outcome that removes anybody, so the ordinary accident of a truncated
-export can do nothing at all.
+The issues are the source of truth; this table is a read of them.
 
-What is left of ticket 14 is its **six deployment boxes**, which need a host: the Ricambi hostname
-behind Caddy, mail that reaches a real inbox, and with them the two things ticket 02 and ADR 0011
-both defer to it — the practice system standing beside a production one, and whether an
-error-tracking vendor is worth a processor agreement now that there is something to track.
-[17](.scratch/ricambi/issues/17-renewal-reminders.md), [18](.scratch/ricambi/issues/18-stripe-subscriptions.md)
-and [19](.scratch/ricambi/issues/19-members-contribute.md) are all unblocked by what has landed.
+**The work before these issues was tracked as numbered local tickets, 01 to 26.** Commit messages,
+code comments and the documents under `docs/` still name them that way ("ticket 03", `feat(16)`).
+Those numbers are not GitHub issue numbers. The ticket files are in this repository's history,
+last present at commit `819919c`.
 
-Two others are unblocked and independent of them:
-[22](.scratch/ricambi/issues/22-search.md) and
-[23](.scratch/ricambi/issues/23-category-filters.md) are M5. Twenty-three's blocker, ticket 03, is
-closed — its last three boxes are a *measurement of the Club's archive* rather than work, deferred
-until there is an archive to measure and taken automatically by `pnpm scans:measure` when there
-is. **Ticket 22 has a debt waiting for it**: ticket 25 built an
-Editor's lookup that matches a Catalog Number regardless of the spacing the catalog prints, which
-is one of Search's own rules implemented early. Search should absorb it rather than stand beside
-it — two implementations of one matching rule is exactly the inconsistency this product exists to
-remove.
-
-**[26](.scratch/ricambi/issues/26-keep-alive-and-a-reliable-browser-seam.md) is closed, and the
-browser seam can be trusted in CI.** The API had been taking Node's five-second keep-alive
-default, which races any client that pools connections — Playwright's does, and so does Caddy in
-front of the real deployment. It surfaced as two `socket hang up` failures on different tests in
-one sitting, and it was a production defect the browser seam happened to be reporting. The API
-now holds an idle connection for longer than anything in front of it will
-(`apps/api/src/http/keep-alive.ts`), so it is never the side that closes first.
-
-| # | Ticket | Progress | Status | Blocked by |
-| --- | --- | --- | --- | --- |
-| 01 | [App skeleton with both test seams](.scratch/ricambi/issues/01-app-skeleton-and-test-seams.md) | Done | `done` | — |
-| 02 | [Non-production environment](.scratch/ricambi/issues/02-non-production-environment.md) | 10 of 11 | `done` | 01 |
-| 03 | [Model, Tavola, scan ingest and private tiles](.scratch/ricambi/issues/03-model-tavola-scan-ingest-private-tiles.md) | 15 of 18, 3 deferred | `done` | 01 |
-| 04 | [The drawing viewer](.scratch/ricambi/issues/04-drawing-viewer.md) | 9 of 10 | `done` | 03 |
-| 05 | [Positions and the marking tool](.scratch/ricambi/issues/05-positions-and-marking-tool.md) | Done | `done` | 04 |
-| 06 | [Parts, Listings, and reading a part from a circle](.scratch/ricambi/issues/06-parts-listings-and-reading-a-part.md) | Done | `done` | 05 |
-| 07 | [Two-way navigation](.scratch/ricambi/issues/07-two-way-navigation.md) | Done | `done` | 06 |
-| 08 | [Fitments, Equivalents and Sources](.scratch/ricambi/issues/08-fitments-equivalents-sources.md) | Done | `done` | 06 |
-| 09 | [Sub-assemblies and Related Positions](.scratch/ricambi/issues/09-sub-assemblies-and-related-positions.md) | Done | `done` | 06 |
-| 10 | [Part photographs](.scratch/ricambi/issues/10-part-photographs.md) | Done | `done` | 06 |
-| 11 | [Editor progress view](.scratch/ricambi/issues/11-editor-progress-view.md) | Done | `done` | 05, 06 |
-| 12 | [Bulk paste and spreadsheet export](.scratch/ricambi/issues/12-bulk-paste-and-export.md) | Done | `done` | 06 |
-| 13 | [Migration scripts for the existing archive](.scratch/ricambi/issues/13-migration-scripts.md) | 11 of 12 | `ready-for-human` | 03, 08 |
-| 14 | [Accounts, Memberships, roster and invitations](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md) | 14 of 20 | `ready-for-agent` | 01, club-website 01 |
-| 15 | [Authorisation and the renewal screen](.scratch/ricambi/issues/15-authorisation-and-renewal-screen.md) | Done | `done` | 03, 14 |
-| 16 | [Roster spreadsheet import](.scratch/ricambi/issues/16-roster-spreadsheet-import.md) | Done | `done` | 14 |
-| 17 | [Renewal reminders](.scratch/ricambi/issues/17-renewal-reminders.md) | Not started | `ready-for-agent` | 14 |
-| 18 | [Stripe subscriptions](.scratch/ricambi/issues/18-stripe-subscriptions.md) | Not started | `ready-for-agent` | 15 |
-| 19 | [Members contribute](.scratch/ricambi/issues/19-members-contribute.md) | Not started | `ready-for-agent` | 10, 15 |
-| 20 | [Editor moderation](.scratch/ricambi/issues/20-editor-moderation.md) | Not started | `ready-for-agent` | 19, 25 |
-| 21 | [Retention and erasure](.scratch/ricambi/issues/21-retention-and-erasure.md) | Not started | `ready-for-agent` | 20 |
-| 22 | [Search](.scratch/ricambi/issues/22-search.md) | Not started | `ready-for-agent` | 08 |
-| 23 | [Category filters](.scratch/ricambi/issues/23-category-filters.md) | Not started | `ready-for-agent` | 03 |
-| 24 | [Platform legal pages and data-protection records](.scratch/ricambi/issues/24-platform-legal-pages-and-gdpr-records.md) | Not started | `ready-for-agent` | 15, 21 |
-| 25 | [Correcting a Part and its Listings](.scratch/ricambi/issues/25-correcting-a-part-and-its-listings.md) | Done | `done` | 06 |
-| 26 | [Keep-alive, and a browser seam that does not flake](.scratch/ricambi/issues/26-keep-alive-and-a-reliable-browser-seam.md) | Done | `done` | — |
-
-**Ticket 25 is numbered last because it was written after 06 landed**, taking the next free number
-rather than a place in the order. It closed the two trapdoors 06 left behind — a Part with no
-Catalog Number could be listed exactly once, and a Part whose last Listing went became invisible
-while still holding its number — and it unblocked ticket 20, which had assumed all along that
-corrections reach the record through an Editor's hands.
-
-Ticket 02's one open box — the practice system *deployed* alongside production, behind the same
-sign-in gate — is carried by [ticket 14](.scratch/ricambi/issues/14-accounts-memberships-roster-invitations.md),
-which lists it. The environment itself is built and runs today; there is simply nothing yet to
-stand it beside.
-
-**Ticket 03's three open boxes need a person, not code.** It asks for at least a dozen *real*
-scans from the club archive to be measured before the deep-zoom question is settled, and none has
-been obtained — the only genuine drawing anyone has seen was supplied downsized. The other two
-are conditional on that measurement. Everything the ticket asks for in code is built, and the
-measurement is now taken by the archive itself: ingest records every scan's dimensions and byte
-sizes, and `pnpm scans:measure` reads them back and applies the threshold. Its fourth box closed
-at ticket 05, which placed the first Mark in fractional image coordinates. See
+**The deep-zoom question is still open, and it needs a person.** At least a dozen real scans from
+the club archive have to be measured before it is settled, and none has been obtained. The
+measurement is taken by the archive itself: ingest records every scan's dimensions and byte sizes,
+and `pnpm scans:measure` reads them back and applies the threshold. See
 [ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md).
 
-**Ticket 04's one open box is the tile box, and it is open because there are no tiles.** The
-same ADR 0013 serves one private image per Tavola, so "only the visible tiles are fetched" names
-a delivery format this system does not have. What it was protecting is delivered either way:
-listing a Model's Tavole downloads no drawing, and opening one fetches derived images only —
-never the upload, which has no address at all. `pnpm scans:measure` against real scans is what
-reopens it.
-
-### Two things worth knowing about ticket 01
+### Two things worth knowing
 
 **There is no error-tracking vendor** (ADR 0011). Sentry was specified, built and tested, then
 removed: it could not earn a processor agreement and 44 MB of image before there was even a
 deployment. Unhandled errors are logged on the box through pino. The seam a reporter would
-attach to is kept, and the decision is to be reconsidered at ticket 14, which carries the first
+attach to is kept, and the decision is to be reconsidered at issue #2, which carries the first
 deployment and the first real members.
 
 **The Club's logo file is deliberately not in this repository.** It carries the association's
@@ -133,11 +56,11 @@ the Club's, measured from its live site; the logo asset is dropped in at deploy 
 
 The club's public site is a **separate stream in a separate repository** with its own host
 (spec: *"No shared code, separate repositories, separate deployables, separate test suites"*).
-Its spec and its eleven tickets used to live here under `.scratch/club-website/`; they now live
-in that repository, checked out beside this one as `../club-website`, and none of them has been
-started. Ticket numbers written as *club-website NN* in this repository refer to those.
+Its spec and its eleven tickets live in that repository, checked out beside this one as
+`../club-website`, and none of them has been started. Ticket numbers written as
+*club-website NN* in this repository refer to those.
 
-The two streams run in parallel and converge only at Ricambi ticket 14, where real members first
+The two streams run in parallel and converge only at Ricambi's first deployment (issue #2), where real members first
 have to reach this application. The one thing neither can route around is the club's **domain**,
 which club-website tickets 04 and 11 untangle.
 

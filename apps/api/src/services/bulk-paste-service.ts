@@ -154,7 +154,7 @@ export function createBulkPasteService(dependencies: { db: Db }): BulkPasteServi
      * The unnumbered Parts already listed on this sheet, by where they sit and what they are
      * called — **several to a key, and taken one at a time.**
      *
-     * Two unnumbered Parts under one name at one number is an ordinary state (CONTEXT.md: several
+     * Two unnumbered Parts under one name at one number is an ordinary state (GLOSSARY.md: several
      * Parts at a Position are alternatives), and there is no number to tell them apart, so the key
      * genuinely names both. A map holding one of them would quietly drop the other — and then a
      * sheet exported with two such rows would come back with the second refused as a duplicate of

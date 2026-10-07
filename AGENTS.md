@@ -29,17 +29,17 @@ docs: update setup instructions
 
 ### Issue tracker
 
-Issues and specs live as markdown files under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
+Issues and specs live as GitHub issues in this repository, worked through the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
-`.scratch/` is committed on purpose — do not add it to `.gitignore`. The Security rules above still apply to its contents: use placeholders such as `<CLIENT>` rather than real names.
+The Security rules above still apply to issue titles, bodies and comments: use placeholders such as `<CLIENT>` rather than real names.
 
 ### Triage labels
 
-The five canonical triage roles, used verbatim as `Status:` values. See `docs/agents/triage-labels.md`.
+The five canonical triage roles, each a GitHub label of the same name. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context — `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ## UI and design
 

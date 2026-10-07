@@ -15,7 +15,7 @@ import type { SheetProgress } from '@/lib/progress';
  *
  * **It reports and it does not judge**, which is the one thing this panel had to get right. A
  * number the catalog prints that the drawing does not show is *finished* with no Mark on it
- * (CONTEXT.md), so nothing here calls a sheet a fraction done or a number outstanding. It prints
+ * (GLOSSARY.md), so nothing here calls a sheet a fraction done or a number outstanding. It prints
  * three counts and the numbers behind two of them, and the Editor — who has the drawing in front
  * of them — knows which of those the factory never drew.
  *

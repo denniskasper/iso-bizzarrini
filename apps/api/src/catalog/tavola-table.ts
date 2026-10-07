@@ -24,7 +24,7 @@ export type TableField = keyof PastedColumns;
  * The header the archive writes — **and therefore the one it is guaranteed to read back.**
  *
  * English, because Ricambi is English, except where the factory's own word *is* the term:
- * a Disegno Origine is not a drawing number (CONTEXT.md).
+ * a Disegno Origine is not a drawing number (GLOSSARY.md).
  */
 export const TAVOLA_COLUMNS: Record<TableField, string> = {
   position: 'Position',
