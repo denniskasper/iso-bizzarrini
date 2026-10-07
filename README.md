@@ -5,64 +5,30 @@ catalogs. Members navigate the way enthusiasts already do: **choose a car, open 
 drawing, click the numbered position, read the part.**
 
 The domain language is in [`GLOSSARY.md`](GLOSSARY.md); the decisions behind the shape of this
-repository are in [`docs/adr/`](docs/adr/); the specification is [`docs/spec.md`](docs/spec.md);
-the work that is left is in this repository's GitHub issues.
+repository are in [`docs/adr/`](docs/adr/); the specification is [`docs/spec.md`](docs/spec.md).
 
-## Where it stands
-
-The drawing viewer, the marking tool, Parts and Listings, Fitments, Equivalents and Sources,
-photographs, the editor's tooling, search, Accounts, Memberships, the roster and the members-only
-gate are all built and tested at both seams. What is open is tracked as GitHub issues, labelled
-with the triage roles in [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md):
-
-| # | Issue | Label | Blocked by |
-|---|---|---|---|
-| 1 | Migration scripts for the existing archive | `ready-for-human` | — |
-| 2 | First deployment: a preview on Dokploy, then the Club's own | `ready-for-human` | — |
-| 3 | Renewal reminders | `ready-for-agent` | 2 |
-| 4 | Stripe subscriptions | `ready-for-agent` | — |
-| 5 | Members contribute | `ready-for-agent` | — |
-| 6 | Editor moderation | `ready-for-agent` | 5 |
-| 7 | Retention and erasure | `ready-for-agent` | 6 |
-| 8 | Category filters | `ready-for-agent` | — |
-| 9 | Platform legal pages and data-protection records | `ready-for-agent` | 7 |
-
-The issues are the source of truth; this table is a read of them.
-
-**The work before these issues was tracked as numbered local tickets, 01 to 26.** Commit messages,
-code comments and the documents under `docs/` still name them that way ("ticket 03", `feat(16)`).
-Those numbers are not GitHub issue numbers. The ticket files are in this repository's history,
-last present at commit `819919c`.
-
-**The deep-zoom question is still open, and it needs a person.** At least a dozen real scans from
-the club archive have to be measured before it is settled, and none has been obtained. The
-measurement is taken by the archive itself: ingest records every scan's dimensions and byte sizes,
-and `pnpm scans:measure` reads them back and applies the threshold. See
-[ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md).
-
-### Two things worth knowing
+## Two things worth knowing
 
 **There is no error-tracking vendor** (ADR 0011). Sentry was specified, built and tested, then
 removed: it could not earn a processor agreement and 44 MB of image before there was even a
 deployment. Unhandled errors are logged on the box through pino. The seam a reporter would
-attach to is kept, and the decision is to be reconsidered at issue #2, which carries the first
-deployment and the first real members.
+attach to is kept, and the decision is to be reconsidered at the first deployment that carries
+real members.
 
 **The Club's logo file is deliberately not in this repository.** It carries the association's
 name, and `AGENTS.md` forbids client-identifying material here. The colour and typography *are*
 the Club's, measured from its live site; the logo asset is dropped in at deploy time.
 
-### The club website
+## The club website
 
 The club's public site is a **separate stream in a separate repository** with its own host
 (spec: *"No shared code, separate repositories, separate deployables, separate test suites"*).
-Its spec and its eleven tickets live in that repository, checked out beside this one as
-`../club-website`, and none of them has been started. Ticket numbers written as
-*club-website NN* in this repository refer to those.
+Its spec and its tickets live in that repository, checked out beside this one as
+`../club-website`. Ticket numbers written as *club-website NN* in this repository refer to those.
 
-The two streams run in parallel and converge only at Ricambi's first deployment (issue #2), where real members first
-have to reach this application. The one thing neither can route around is the club's **domain**,
-which club-website tickets 04 and 11 untangle.
+The two streams run in parallel and converge only at Ricambi's first deployment, where real
+members first have to reach this application. The one thing neither can route around is the
+club's **domain**, which the club-website stream untangles.
 
 ## Running it
 
@@ -212,7 +178,7 @@ thing to that rule and different things to an encoder: the drawing is kept lossl
 position numbers are the smallest marks on the sheet and a quality slider eats those first
 ([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)); a photograph is not, because
 it has no such marks in it and a member is confirming a shape. Both go through `images/`, which
-is also the upload path member Contributions reuse at ticket 19.
+is also the upload path member Contributions will reuse.
 
 The gate in front of it is the Club's roster. Every request that reaches a drawing is an Account
 with a live Membership, re-checked on that request; there is no shared credential, and the way
