@@ -9,24 +9,29 @@
  *   pnpm --filter @ricambi/api roster:invite-administrator -- \
  *     --name "A Person" --email person@example.org --paid-through 2027-12-31
  *
+ * **It lives under `src/` so that it is compiled into the image.** A deployment has no `tsx` and
+ * no `scripts/` folder, and a way in that only runs on a laptop is not a way into a deployment:
+ *
+ *   node dist/cli/invite-administrator.js --name "A Person" --email person@example.org
+ *
  * It is meant to be run against production, which is the point of it. It sets no password: the
  * person it names chooses their own from the invitation, and neither the operator nor this script
  * ever sees it.
  */
 import { parseArgs } from 'node:util';
-import { assertSafeForEnvironment } from '../src/composition/environment-safety.js';
-import { inviteAdministrator } from '../src/composition/first-administrator.js';
+import { assertSafeForEnvironment } from '../composition/environment-safety.js';
+import { inviteAdministrator } from '../composition/first-administrator.js';
 import {
   createBreachedPasswordCheck,
   createEmailSender,
   createPaymentProvider,
-} from '../src/composition/platform.js';
-import { loadConfig } from '../src/config/config.js';
-import { loadEnvFile } from '../src/config/env-file.js';
-import { createDatabase } from '../src/db/client.js';
-import { runMigrations } from '../src/db/migrate.js';
-import { systemClock } from '../src/platform/clock.js';
-import { createLogger } from '../src/platform/logger.js';
+} from '../composition/platform.js';
+import { loadConfig } from '../config/config.js';
+import { loadEnvFile } from '../config/env-file.js';
+import { createDatabase } from '../db/client.js';
+import { runMigrations } from '../db/migrate.js';
+import { systemClock } from '../platform/clock.js';
+import { createLogger } from '../platform/logger.js';
 
 const { values } = parseArgs({
   // `pnpm roster:invite-administrator -- --name …` hands the `--` down to the script, where it

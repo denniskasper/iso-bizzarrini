@@ -13,7 +13,9 @@ services:
       # 5433 on the host so a Postgres already running on 5432 is left alone.
       - '127.0.0.1:5433:5432'
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # The parent directory, not `…/data` — Postgres 18 keeps its cluster in a versioned
+      # directory beneath this one, so a volume at the old path would stay empty.
+      - postgres-data:/var/lib/postgresql
       - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ricambi -d ricambi']

@@ -75,16 +75,16 @@ Nobody is on the roster, so nobody can sign in — including you. Put yourself o
 on the box:
 
 ```sh
-docker compose exec app pnpm roster:invite-administrator -- \
+docker compose exec app node dist/cli/invite-administrator.js \
   --name "Your Name" --email you@example.org
 ```
 
-It sets no password. It sends you an invitation, and this stack writes its mail to the log
-instead of sending it, so read the link out of there:
+In Dokploy, the same command runs from the `app` container's terminal, without the
+`docker compose exec app` in front of it.
 
-```sh
-docker compose logs app | grep set-password
-```
+It sets no password. It sends you an invitation, and this stack writes its mail to the log
+instead of sending it — **the log of the process that sent it, which here is the command you
+just ran.** The `/set-password?token=…` link is in its output, not in the application's log.
 
 Open the link and choose a password. That is your account; from then on you add everybody else
 from the roster screen, and each of them chooses their own the same way.
@@ -102,7 +102,13 @@ from the roster screen, and each of them chooses their own the same way.
 ## Showing it
 
 Add them on the roster screen, with the role you want them to have, and read their invitation out
-of the log the same way you read your own. They choose their own password and nobody, you
+of the application's log, since this time it is the application that sent it:
+
+```sh
+docker compose logs app | grep set-password
+```
+
+They choose their own password and nobody, you
 included, ever sees it. An **Editor** can record cars, drawings and parts; a **Member** can only
 read. Say which you gave them; it is a preview and the difference is the point of showing it.
 

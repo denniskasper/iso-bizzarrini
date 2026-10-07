@@ -58,7 +58,7 @@ pnpm roster:invite-administrator -- --name "Your Name" --email you@example.org
 ```
 
 It sets no password. It sends an invitation, and with `EMAIL_TRANSPORT=log` in your `.env` that
-letter goes to the terminal the API is running in — open the `/set-password?token=…` link out of
+letter goes to the terminal you ran the command in — open the `/set-password?token=…` link out of
 it and choose your own. Everybody else you add from the roster screen the same way.
 
 Signed in, you can record a car, record a drawing and upload a scan. If you would rather start
