@@ -63,6 +63,10 @@ const ADMINISTRATORS_ONLY = new Set([
   'POST /api/roster/import/preview',
   'GET /api/club',
   'PATCH /api/club',
+  // The list of Categories is kept by an Administrator (issue #8). An Editor chooses from it,
+  // and is refused here like anybody else who is not one.
+  'POST /api/categories',
+  'PATCH /api/categories/:categoryId',
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */

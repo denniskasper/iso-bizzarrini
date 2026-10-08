@@ -8,6 +8,8 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { ArchiveGate } from '@/components/archive-gate';
 import { CatalogPage } from '@/routes/catalog-page';
+import { CategoriesPage } from '@/routes/categories-page';
+import { CategoryPage } from '@/routes/category-page';
 import { ClubPage } from '@/routes/club-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
@@ -144,6 +146,32 @@ const modelRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/models/$modelId',
   component: ModelPage,
+  /**
+   * Which system of the car is being looked at, **in the address** (issue #8), for the reason
+   * the Position on a Tavola is: `?category=brakes` can be sent to somebody, reloaded, and
+   * reached again from history. It is the Category's slug, a word a person can read.
+   */
+  validateSearch: (search: Record<string, unknown>): { category?: string } => {
+    const category = search['category'];
+    return typeof category === 'string' && category.trim() !== '' ? { category } : {};
+  },
+});
+
+/**
+ * The systems of a car, and one of them across every car (issue #8). Inside the gate like the
+ * rest of the archive: an Administrator keeps the list from the first of these, and what makes
+ * that theirs is the role the archive checks, not where the screen sits.
+ */
+const categoriesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/categories',
+  component: CategoriesPage,
+});
+
+const categoryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/categories/$slug',
+  component: CategoryPage,
 });
 
 const tavolaRoute = createRoute({
@@ -177,6 +205,8 @@ export const router = createRouter({
     clubRoute,
     searchRoute,
     modelRoute,
+    categoriesRoute,
+    categoryRoute,
     tavolaRoute,
   ]),
   defaultPreload: 'intent',

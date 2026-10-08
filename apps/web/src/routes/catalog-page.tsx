@@ -42,6 +42,16 @@ export function CatalogPage() {
           Or start from a number stamped on the part
         </Link>
       </p>
+      {/* And the third way in: by the system being worked on, whichever car it is on. */}
+      <p className="mt-2 max-w-measure text-lg text-pretty">
+        <Link
+          to="/categories"
+          className="text-accent-ink underline-offset-4 hover:underline"
+          data-testid="categories-from-the-catalog"
+        >
+          Or compare one system across every car
+        </Link>
+      </p>
 
       <NewModelForm className="mt-12" />
 

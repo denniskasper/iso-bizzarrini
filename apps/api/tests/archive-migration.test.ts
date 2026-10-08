@@ -114,7 +114,7 @@ describe('the club’s archive, migrated from its spreadsheets', () => {
       nameIt: 'Impianto frenante anteriore',
       nameEn: 'Front brake system',
     });
-    expect(sheet?.category.name).toBe('Brakes');
+    expect(sheet?.category?.name).toBe('Brakes');
     // The factory's own header, recorded verbatim as provenance.
     expect(drawing.tavola.provenance).toEqual({ section: '260', group: '03', subgroup: '150' });
 

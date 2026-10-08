@@ -68,7 +68,7 @@ export function toTavolaSummary(row: TavolaWithCategoryAndScan): TavolaSummary {
     number: row.number,
     nameIt: row.nameIt,
     nameEn: row.nameEn,
-    category: toCategory(row.category),
+    category: row.category ? toCategory(row.category) : null,
     scan: row.scan ? toTavolaScan(row.scan) : null,
   };
 }

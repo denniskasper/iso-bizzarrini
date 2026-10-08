@@ -111,6 +111,82 @@
   }
 
   /*
+   * The thumb index above a contact sheet: the systems of the car, as a row of plain names.
+   *
+   * The row wraps and never scrolls sideways — a system that is off the edge of a phone is a
+   * system nobody finds. The entry in use is ruled underneath in the heading ink rather than
+   * filled, because the accent on these screens means the one dominant action and a filter is
+   * not it. Every entry is a full touch height.
+   */
+  .filter-index {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: --spacing(6);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .filter-index-entry {
+    display: inline-flex;
+    align-items: baseline;
+    gap: --spacing(2);
+    min-height: var(--spacing-control);
+    padding-block: --spacing(3);
+    /* Sits on the row's own rule, so the mark under the entry in use replaces it exactly. */
+    margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    transition:
+      color 150ms var(--ease-out-quick),
+      border-color 150ms var(--ease-out-quick);
+  }
+
+  .filter-index-entry:hover {
+    color: var(--text);
+    border-bottom-color: var(--line-strong);
+  }
+
+  .filter-index-entry-current,
+  .filter-index-entry-current:hover {
+    color: var(--text);
+    border-bottom-color: var(--text);
+  }
+
+  /*
+   * One entry on the list of Categories: the name, what an Administrator may do to it, and how
+   * much is filed under it. The same ruled row as the catalog index, with the count where the
+   * model years are — a number to compare, in a column of its own.
+   *
+   * The name is the link and it covers the row, so the whole width is the target; anything else
+   * on the row is lifted above it to stay pressable.
+   */
+  .category-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: --spacing(4);
+    min-height: var(--spacing-control-lg);
+    padding-block: --spacing(3);
+    border-top: 1px solid var(--line);
+    transition: background-color 150ms var(--ease-out-quick);
+  }
+
+  .category-row:hover {
+    background-color: var(--surface-sunken);
+  }
+
+  .category-row-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .category-row-action {
+    position: relative;
+    z-index: 1;
+  }
+
+  /*
    * A plate: one drawing on the sheet it was printed on.
    *
    * A Model's Tavole are laid out as a **contact sheet** — the way anyone with a box of plates

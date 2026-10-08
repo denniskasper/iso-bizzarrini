@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BelongsWithPanel } from '@/components/editor/belongs-with-panel';
 import { BulkPaste } from '@/components/editor/bulk-paste';
+import { FileUnder } from '@/components/editor/file-under';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
 import { ScanUpload } from '@/components/editor/scan-upload';
@@ -251,7 +252,17 @@ export function TavolaPage() {
         <span>
           Tavola <span className="tabular text-text">{tavola.number}</span>
         </span>
-        <span>{tavola.category.name}</span>
+        {/* The way from one drawing to the same system on every other car (story 36). */}
+        {tavola.category && (
+          <Link
+            to="/categories/$slug"
+            params={{ slug: tavola.category.slug }}
+            className="-my-2 flex min-h-control items-center underline-offset-4 hover:text-text hover:underline"
+            data-testid="tavola-category"
+          >
+            {tavola.category.name}
+          </Link>
+        )}
       </p>
 
       <h1 className="mt-2 text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
@@ -392,6 +403,7 @@ export function TavolaPage() {
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
         <Provenance provenance={tavola.provenance} />
         <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
+        <FileUnder tavolaId={tavola.id} modelId={tavola.model.id} category={tavola.category} />
       </div>
     </div>
   );
@@ -403,7 +415,7 @@ export function TavolaPage() {
  * **Evidence, and nothing navigates by it.** It is here so a member can match this screen
  * against a paper catalog, which is why the labels are the Italian words as printed rather than
  * translations of them, and why nothing here is a link. The Category above is what navigation
- * uses.
+ * uses, and it is the link.
  */
 function Provenance({ provenance }: { provenance: CatalogProvenance }) {
   const entries: [string, string | null][] = [

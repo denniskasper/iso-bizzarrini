@@ -43,6 +43,9 @@ export async function signInAs(page: Page, email: string): Promise<void> {
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 }
 
+/** How long a sign-in may take before it counts as not having happened. */
+const SIGN_IN_TIMEOUT = 20_000;
+
 /**
  * **The click is not the sign-in.** The gate screen leaves for the catalog only once the archive
  * has answered and the session cookie is in the browser's jar, and until that has happened every
@@ -54,7 +57,14 @@ export async function signInAs(page: Page, email: string): Promise<void> {
  * unless the archive really did let this browser in. What was here before — that the members-only
  * heading is absent — is true of the sign-in screen as well, so it was answered before the
  * passphrase had been sent anywhere and never made anybody wait for anything.
+ *
+ * **It waits longer than an assertion usually does**, because what it waits on is a password
+ * being hashed, and that is slow on purpose. With every worker signing in at once on a busy
+ * machine the answer has been seen to take longer than the default five seconds, which failed
+ * a test that had nothing wrong with it.
  */
 export async function landed(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Covered cars' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Covered cars' })).toBeVisible({
+    timeout: SIGN_IN_TIMEOUT,
+  });
 }

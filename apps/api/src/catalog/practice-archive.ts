@@ -30,6 +30,7 @@ import { createPhotographService } from '../services/photograph-service.js';
 import { createScanService } from '../services/scan-service.js';
 import type { FileStore } from '../storage/file-store.js';
 import { categorySlug, numericPrefixOf } from './naming.js';
+import { standingCategories } from './standing-categories.js';
 
 /**
  * An invented catalog, for a system that is not the archive.
@@ -85,7 +86,7 @@ export const practiceTavole = [
     number: '12 bis',
     nameIt: 'Alzacristallo porta',
     nameEn: 'Door window winder',
-    category: 'Body',
+    category: 'Body/Exterior',
     catalogSection: '260',
     catalogGroup: '03',
     catalogSubgroup: '151',
@@ -98,11 +99,25 @@ export const practiceTavole = [
     number: '1',
     nameIt: 'Alimentazione',
     nameEn: 'Fuel system',
-    category: 'Fuel System',
+    category: 'Fuel',
     catalogSection: '110',
     catalogGroup: '02',
     catalogSubgroup: null,
     drawn: true,
+  },
+  {
+    // The second car with a drawing of its brakes. One system on one car is a filter; it takes
+    // a second car before a Category is a way to compare, and a practice archive should show
+    // the thing a Category is for.
+    model: '5300 GT Strada',
+    number: '7',
+    nameIt: 'Impianto frenante',
+    nameEn: 'Brake system',
+    category: 'Brakes',
+    catalogSection: '260',
+    catalogGroup: '01',
+    catalogSubgroup: null,
+    drawn: false,
   },
 ];
 
@@ -445,6 +460,13 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
   const modelIdsByName = new Map(insertedModels.map((model) => [model.name, model.id]));
 
   const categoryRepository = createCategoryRepository(db);
+  // The whole list, and not only the four entries the drawings below happen to use: emptying
+  // the archive empties the list a migration put there, and a practice system an Administrator
+  // is shown has to offer the same thirteen the real one will.
+  for (const name of standingCategories) {
+    await categoryRepository.findOrAdd(name, categorySlug(name));
+  }
+
   const scanService = createScanService({
     tavolaRepository: createTavolaRepository(db),
     scanRepository: createScanRepository(db),

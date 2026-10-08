@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
+import { CategoryFilter } from '@/components/categories/category-filter';
 import { NewTavolaForm } from '@/components/editor/new-tavola-form';
-import { Plate } from '@/components/plate';
 import { ModelProgress } from '@/components/progress/model-progress';
-import { api, type TavolaSummary } from '@/lib/api';
+import { TavolaSheet } from '@/components/tavola-plate';
+import { api } from '@/lib/api';
+import { drawings, filedUnder, filterChoices, UNCATEGORISED } from '@/lib/categories';
 
 /**
  * One car, and every drawing the factory made of it.
@@ -15,6 +17,7 @@ import { api, type TavolaSummary } from '@/lib/api';
  */
 export function ModelPage() {
   const { modelId } = useParams({ from: '/models/$modelId' });
+  const { category: asked } = useSearch({ from: '/models/$modelId' });
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['model', modelId],
@@ -38,6 +41,12 @@ export function ModelPage() {
   }
 
   const { model, tavole } = data;
+
+  // A filter is only offered when it would divide the sheet. One system, or none recorded, and
+  // the row would be a single choice that changes nothing.
+  const choices = filterChoices(tavole);
+  const chosen = choices.find((choice) => choice.slug === asked);
+  const shown = chosen ? tavole.filter((tavola) => filedUnder(tavola, chosen.slug)) : tavole;
 
   return (
     <div className="animate-rise">
@@ -69,16 +78,56 @@ export function ModelPage() {
       <NewTavolaForm modelId={modelId} className="mt-12" />
 
       {tavole.length > 0 && (
-        <ul
-          data-testid="tavola-sheet"
-          className="mt-16 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {tavole.map((tavola) => (
-            <li key={tavola.id}>
-              <TavolaPlate tavola={tavola} />
-            </li>
-          ))}
-        </ul>
+        <div className="mt-16">
+          {choices.length > 1 && (
+            <CategoryFilter
+              modelId={modelId}
+              choices={choices}
+              total={tavole.length}
+              chosen={chosen?.slug}
+            />
+          )}
+
+          {/*
+            What the address asked for and this car does not have — a link from another car, or
+            a Category renamed since it was sent. Said plainly, with every drawing still shown
+            underneath: an empty sheet would read as a car with no drawings at all.
+          */}
+          {asked !== undefined && !chosen && (
+            <p className="mt-6 max-w-measure text-pretty text-muted" role="status">
+              This car has no drawings filed under “{asked}”. Showing all {tavole.length}.
+            </p>
+          )}
+
+          {/*
+            The same system on every other car (story 36), offered at the moment a member has
+            said which system they mean. Drawings filed under none have no such page: they are
+            reached from their own car, which is here.
+          */}
+          {chosen && chosen.slug !== UNCATEGORISED && (
+            <p className="mt-6 text-muted">
+              {drawings(chosen.tavole)} on this car.{' '}
+              <Link
+                to="/categories/$slug"
+                params={{ slug: chosen.slug }}
+                className="text-accent-ink underline-offset-4 hover:underline"
+                data-testid="category-across-cars"
+              >
+                See {chosen.name} on every car
+              </Link>
+            </p>
+          )}
+          {chosen?.slug === UNCATEGORISED && (
+            <p className="mt-6 max-w-measure text-pretty text-muted">
+              {drawings(chosen.tavole)} on this car not filed under a Category yet. An Editor can
+              file each one from its own page.
+            </p>
+          )}
+
+          <div className={choices.length > 1 ? 'mt-10' : undefined}>
+            <TavolaSheet tavole={shown} />
+          </div>
+        </div>
       )}
 
       {/* Under the contact sheet, because looking is how a member finds the drawing they want
@@ -90,38 +139,5 @@ export function ModelPage() {
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * One plate on the sheet: the drawing, its number, and the two names the factory gave it.
- *
- * The Italian name is set first and largest because it is the name printed on the sheet the
- * member is holding; the English one is underneath, for the member who is not. The number is
- * mono, like every number in this archive — it is an identifier to be compared, not read.
- */
-function TavolaPlate({ tavola }: { tavola: TavolaSummary }) {
-  return (
-    <Link
-      to="/tavole/$tavolaId"
-      params={{ tavolaId: tavola.id }}
-      data-testid="tavola-plate"
-      className="group block"
-    >
-      <Plate
-        scan={tavola.scan}
-        alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
-        className="aspect-[4/3] transition-opacity duration-150 ease-[var(--ease-out-quick)] group-hover:opacity-85"
-      />
-
-      <div className="mt-4 flex items-baseline gap-4">
-        <span className="tabular text-xl text-muted">{tavola.number}</span>
-        <span className="min-w-0 flex-1 text-xl text-pretty">{tavola.nameIt}</span>
-      </div>
-      <div className="mt-1 flex items-baseline justify-between gap-4">
-        <span className="text-sm text-muted">{tavola.nameEn}</span>
-        <span className="text-2xs text-faint uppercase">{tavola.category.name}</span>
-      </div>
-    </Link>
   );
 }

@@ -1,3 +1,5 @@
+import type { Uncategorised } from '@ricambi/contracts';
+
 /**
  * Two small rules about catalog text that the archive applies rather than asks its Editors to
  * remember. They live here, together, because both exist for the same reason: the reference
@@ -6,11 +8,12 @@
  */
 
 /**
- * What decides whether two typed Category names are the same Category. "Fuel System",
- * "fuel system" and "Fuel  system" all reduce to `fuel-system`, so an Editor typing a Category
- * they have used before gets that one rather than a near-duplicate.
+ * What decides whether two Category names are the same Category. "Fuel System", "fuel system"
+ * and "Fuel  system" all reduce to `fuel-system`, so a name already on the list is found
+ * however it was capitalised, and cannot be added a second time under another spelling.
  *
- * The Editor's own spelling is still what members read; this is only the key.
+ * The spelling on the list is still what members read; this is the key, and the word an address
+ * names a Category by.
  */
 export function categorySlug(name: string): string {
   return name
@@ -20,6 +23,12 @@ export function categorySlug(name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+/**
+ * What a filter and an address call a Tavola with no Category. No Category may reduce to it, or
+ * "everything filed under Uncategorised" and "everything not filed" would be one address.
+ */
+export const UNCATEGORISED: Uncategorised = 'uncategorised';
 
 /**
  * The leading digits of a number printed on a sheet, so a list of Tavole reads 2, 10, 12

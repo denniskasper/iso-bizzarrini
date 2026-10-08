@@ -1,9 +1,10 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { DbSession } from '../db/client.js';
 import {
   listings,
   marks,
+  models,
   positions,
   tavole,
   type CategoryRow,
@@ -14,12 +15,14 @@ import {
 } from '../db/schema.js';
 
 /**
- * A Tavola never travels alone: it is meaningless without its Category, and a screen showing
- * one always wants to know whether there is a scan behind it. Reading them separately would be
- * three round trips and three chances to forget one, so the repository returns them together.
+ * A Tavola never travels alone: a screen showing one always wants the system it is filed under
+ * and whether there is a scan behind it. Reading them separately would be three round trips and
+ * three chances to forget one, so the repository returns them together.
+ *
+ * Either may be missing — no Category yet, no scan yet — and both are legitimate states.
  */
 export interface TavolaWithCategoryAndScan extends TavolaRow {
-  category: CategoryRow;
+  category: CategoryRow | null;
   scan: ScanRow | null;
 }
 
@@ -37,6 +40,11 @@ export interface TavolaProgressRow {
 
 export interface TavolaRepository {
   listByModel(modelId: string): Promise<TavolaWithCategoryAndScan[]>;
+  /**
+   * Every Tavola filed under one Category, on whichever car — brand, then Model, then the order
+   * each catalog prints its sheets in, so the answer is already grouped the way it is shown.
+   */
+  listByCategory(categoryId: string): Promise<TavolaInContext[]>;
   findById(id: string): Promise<TavolaInContext | null>;
   /**
    * How much of each of a Model's sheets has been done, **in one query rather than one a sheet.**
@@ -53,6 +61,8 @@ export interface TavolaRepository {
    */
   exists(id: string): Promise<boolean>;
   add(tavola: NewTavolaRow): Promise<TavolaRow>;
+  /** Files the sheet under a Category, or under none. `false` when there is no such sheet. */
+  setCategory(id: string, categoryId: string | null): Promise<boolean>;
 }
 
 export function createTavolaRepository(db: DbSession): TavolaRepository {
@@ -67,6 +77,31 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
         with: { category: true, scan: true },
         orderBy: byNumber,
       });
+    },
+
+    async listByCategory(categoryId) {
+      // The order is another table's columns, which the relational reader cannot sort by — so
+      // the ids are put in order first and the sheets read whole afterwards, by those ids.
+      const ordered = await db
+        .select({ id: tavole.id })
+        .from(tavole)
+        .innerJoin(models, eq(models.id, tavole.modelId))
+        .where(eq(tavole.categoryId, categoryId))
+        .orderBy(asc(models.brand), asc(models.name), asc(models.series), ...byNumber);
+
+      if (ordered.length === 0) {
+        return [];
+      }
+
+      const rows = await db.query.tavole.findMany({
+        where: inArray(
+          tavole.id,
+          ordered.map((row) => row.id),
+        ),
+        with: { category: true, scan: true, model: true },
+      });
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      return ordered.flatMap(({ id }) => byId.get(id) ?? []);
     },
 
     async findById(id) {
@@ -131,6 +166,15 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
         throw new Error('Inserting a Tavola returned nothing.');
       }
       return row;
+    },
+
+    async setCategory(id, categoryId) {
+      const written = await db
+        .update(tavole)
+        .set({ categoryId })
+        .where(eq(tavole.id, id))
+        .returning({ id: tavole.id });
+      return written.length > 0;
     },
   };
 }
