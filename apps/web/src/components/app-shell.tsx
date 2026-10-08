@@ -90,7 +90,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
       </div>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-gutter py-16 sm:py-24">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-gutter pt-10 pb-16 sm:pt-14 sm:pb-24">
+        {children}
+      </main>
 
       <footer className="border-t border-line bg-surface-raised">
         <div className="mx-auto w-full max-w-6xl px-gutter py-6">

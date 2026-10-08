@@ -121,7 +121,7 @@ export function TavolaParts({
 /**
  * One number, and what sits at it.
  *
- * The number wears ice blue when it is the one being read — the same blue as its circle on
+ * The number wears the Mark's blue, as a chip, when it is the one being read — the same blue as its circle on
  * the sheet, because they are one thing being pointed at and colouring them differently would
  * leave a member to work out that they are the same.
  */
@@ -163,8 +163,8 @@ function SheetLine({
         <span
           className={cn(
             'tabular text-lg',
-            selected ? 'text-accent-ink' : 'text-text',
-            position.marks.length === 0 && 'text-muted',
+            position.marks.length === 0 ? 'text-muted' : 'text-text',
+            selected && 'self-start rounded-sm bg-mark px-2 text-mark-contrast',
           )}
         >
           {position.number}

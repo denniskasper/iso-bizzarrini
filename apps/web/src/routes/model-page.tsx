@@ -41,17 +41,24 @@ export function ModelPage() {
 
   return (
     <div className="animate-rise">
-      <Link to="/" className="text-2xs text-faint uppercase hover:text-muted">
-        The archive
-      </Link>
+      {/* The way back is the brand's own line: where this car sits in the catalog, said once. */}
+      <p className="flex flex-wrap items-baseline gap-x-4 text-lg text-muted">
+        <Link to="/" className="-my-2 flex min-h-control items-center hover:text-text">
+          The archive
+        </Link>
+        <span aria-hidden className="text-line-strong">
+          /
+        </span>
+        <span>{model.brand}</span>
+        {model.series && <span className="tabular">{model.series}</span>}
+        {model.modelYears && <span className="tabular text-text">{model.modelYears}</span>}
+      </p>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-2">
-        <h1 className="text-4xl font-semibold text-balance sm:text-5xl">
-          <span className="text-muted">{model.brand}</span> {model.name}
-        </h1>
-        {model.series && <span className="tabular text-lg text-muted">{model.series}</span>}
-        {model.modelYears && <span className="tabular text-lg text-faint">{model.modelYears}</span>}
-      </div>
+      {/* The car's name at poster size, as on the catalog's own band for it. */}
+      <h1 className="display mt-4 text-display text-balance">
+        <span className="sr-only">{model.brand} </span>
+        {model.name}
+      </h1>
 
       <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
         {tavole.length === 0

@@ -110,12 +110,15 @@ function Reading({
         <CopyLink />
       </div>
       {/*
-       * The number in ice blue, which the visual language sanctions for a Mark **and the
+       * The number on the Mark's own blue, which the visual language sanctions for a Mark **and the
        * Position it belongs to wherever else that Position appears**. The circle on the sheet and
        * this number are one thing being pointed at, and colouring them differently would leave a
        * member to work out that they are the same.
        */}
-      <p className="tabular mt-2 text-4xl text-accent-ink" data-testid="selected-position">
+      <p
+        className="tabular mt-2 w-fit rounded-md bg-mark px-3 py-1 text-4xl text-mark-contrast"
+        data-testid="selected-position"
+      >
         {position.number}
       </p>
 

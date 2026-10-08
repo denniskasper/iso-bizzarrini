@@ -322,7 +322,7 @@ function Row({ row, applied }: { row: RosterImportRow; applied: boolean }) {
         {row.why && (
           <span
             className={`mt-1 block text-xs text-pretty ${
-              row.outcome === 'refused' ? 'text-accent-ink' : 'text-faint'
+              row.outcome === 'refused' ? 'text-alarm' : 'text-faint'
             }`}
           >
             {row.why}

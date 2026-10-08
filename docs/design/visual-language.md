@@ -37,8 +37,12 @@ decorative wears either:
 - **Ice blue is what points.** Marks on a drawing, **and the Position one belongs to wherever
   else that Position appears** — the circle on the sheet and its number in the list below are one
   thing being pointed at, and colouring them differently would leave a member to work out that
-  they are the same. Links, and a failure the member needs to notice, are the same colour for the
-  same reason: each is the interface pointing at something.
+  they are the same. Links are the same colour for the same reason: each is the interface
+  pointing at something. Wherever a Position being read is named off the sheet, it is a chip in
+  the Mark's own deep blue, so the list and the drawing show one colour rather than two blues.
+
+**A failure is red, and red is nothing else.** `alarm` is text only — never a fill, never
+decoration, never an action — so the one red thing on a screen is the thing that went wrong.
 
 The wordmark wears neither: it is set in the text colour, because identity here is the lettering
 and the roundel rather than a hue.
@@ -72,9 +76,9 @@ Nothing interactive is under 44px in either dimension — `--spacing-control`, a
 that figure is also written as a number is `MARK_TOUCH` in the drawing viewer, which has to do
 the arithmetic in the drawing's own pixels and cannot read a token to do it. Body text clears 4.5:1 against its
 surface and non-text marks clear 3:1, including the faintest tokens. The focus ring is 3px of
-amber in both themes — amber, not the accent, so "focused" never reads as "this is the action".
-Champagne sits near it in hue and far from it in strength: the ring is saturated, the fill is
-nearly grey beside it.
+ink — the text colour, white on graphite and graphite on paper — so it is the strongest contrast
+the surface has and can never read as either accent. A Mark is focused on paper in both themes
+and always takes the graphite ring.
 
 **The one ornament is the Club's roundel.** A thin-ruled circle quartered by a diagonal cross —
 the geometry of the Club's own emblem, which doubles as the registration mark a printer aligns a
@@ -90,8 +94,8 @@ drawing's way; this does not, because the failure it prevents is someone taking 
 for the archive. It is the same orange in light and dark, because it is a mark printed *on* the
 archive rather than part of it, and it must look identical in a screenshot however the reader's
 phone is set. Its hue is one the Club uses nowhere — that is what makes it legible as
-"not the real thing" — and it is far enough from the amber focus ring to be read as a caution
-label rather than as a focused control.
+"not the real thing" — and it is orange where a failure is red, and a band rather than a
+line of text, so it reads as a caution label and not as something that went wrong.
 
 **And the surfaces go warm with it.** In a non-production system `surface`, `surface-raised`,
 `surface-sunken` and the rules take a warm cast, so no screenshot of any part of any screen can

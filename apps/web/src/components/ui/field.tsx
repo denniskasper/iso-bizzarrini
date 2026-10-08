@@ -204,7 +204,7 @@ export function EditorPanel({
 /** What a failed request says, where the eye already is: just above the action that failed. */
 export function Refusal({ children }: { children: ReactNode }) {
   return (
-    <p role="alert" className="text-sm text-pretty text-accent-ink">
+    <p role="alert" className="text-sm text-pretty text-alarm">
       {children}
     </p>
   );

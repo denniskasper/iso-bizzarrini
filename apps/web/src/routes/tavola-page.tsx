@@ -236,22 +236,26 @@ export function TavolaPage() {
 
   return (
     <div className="animate-rise">
-      <Link
-        to="/models/$modelId"
-        params={{ modelId: tavola.model.id }}
-        className="text-2xs text-faint uppercase hover:text-muted"
-      >
-        {tavola.model.brand} {tavola.model.name}
-      </Link>
-
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1">
-        <span className="tabular text-3xl text-muted sm:text-4xl">{tavola.number}</span>
-        <h1 className="text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
-      </div>
-      <p className="mt-2 text-lg text-muted">
-        {tavola.nameEn}
-        <span className="ml-4 text-2xs text-faint uppercase">{tavola.category.name}</span>
+      {/* Where this sheet sits, on one line: the car it belongs to, its number, its Category. */}
+      <p className="flex flex-wrap items-baseline gap-x-4 text-lg text-muted">
+        <Link
+          to="/models/$modelId"
+          params={{ modelId: tavola.model.id }}
+          className="-my-2 flex min-h-control items-center hover:text-text"
+        >
+          {tavola.model.brand} {tavola.model.name}
+        </Link>
+        <span aria-hidden className="text-line-strong">
+          /
+        </span>
+        <span>
+          Tavola <span className="tabular text-text">{tavola.number}</span>
+        </span>
+        <span>{tavola.category.name}</span>
       </p>
+
+      <h1 className="mt-2 text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
+      <p className="mt-1 text-lg text-muted">{tavola.nameEn}</p>
 
       {/*
        * **The drawing and the text of the sheet, side by side** — which is the whole of story 44
@@ -264,7 +268,7 @@ export function TavolaPage() {
        * too small to read a number off and a column too narrow to read a sentence in. The
        * reading is simply the next thing down, which is where a hand scrolls to anyway.
        */}
-      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <DrawingViewer
           ref={view}
           scan={tavola.scan}

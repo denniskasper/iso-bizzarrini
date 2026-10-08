@@ -110,10 +110,7 @@ function Notice({
   tone?: 'plain' | 'alarm';
 }) {
   return (
-    <p
-      className={tone === 'alarm' ? 'text-lg text-accent-ink' : 'text-lg text-muted'}
-      role="status"
-    >
+    <p className={tone === 'alarm' ? 'text-lg text-alarm' : 'text-lg text-muted'} role="status">
       {children}
     </p>
   );

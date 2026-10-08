@@ -154,6 +154,14 @@
     border: 1px solid var(--line);
   }
 
+  /* Beside its facing page there is room to be taller; on a phone the reading is the next thing
+     down and has to stay within a thumb's scroll. */
+  @media (width >= 64rem) {
+    .drawing-stage {
+      height: clamp(20rem, 76vh, 56rem);
+    }
+  }
+
   /*
    * Full screen, and this is the whole of it where a browser has no element fullscreen — iOS
    * Safari — so a phone still gets every pixel it has. Where the real API exists it is asked for
@@ -336,13 +344,13 @@
   }
 
   /* The focus ring is the application's, sized to the circle rather than to the touch area —
-     otherwise a keyboard lands on an amber square the size of a thumb. */
+     otherwise a keyboard lands on a ringed square the size of a thumb. */
   .drawing-mark:focus-visible {
     outline: none;
   }
 
   .drawing-mark:focus-visible::before {
-    outline: max(3px, calc(var(--mark-ring) / 10)) solid var(--focus);
+    outline: max(3px, calc(var(--mark-ring) / 10)) solid var(--focus-on-paper);
     outline-offset: calc(var(--mark-ring) / 10);
   }
 

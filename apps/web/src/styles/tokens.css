@@ -86,7 +86,7 @@
   /*
    * The accent pair (ADR 0014). `accent` is **champagne**, the fill of the one dominant action;
    * `accent-ink` is **ice blue**, the colour of anything that points — a link, a Position's
-   * number, a failure to notice. Paper is where champagne is weakest, so the light theme takes
+   * number. Paper is where champagne is weakest, so the light theme takes
    * both from the deep end of their hues: white sits on the bronze fill at 5.8:1, and the blue
    * clears 6:1 on every light surface. Hover darkens the fill, which only adds contrast.
    */
@@ -95,19 +95,30 @@
   --accent-ink: oklch(0.47 0.09 243);
   --accent-contrast: oklch(0.99 0 0);
 
-  /* Amber, in both themes, so "focused" never reads as "this is the action" — and never as
-     the champagne fill, which is far paler and nearly grey beside it. Dark enough here to clear
-     3:1 against paper. */
-  --focus: oklch(0.575 0.15 70);
+  /*
+   * The focus ring is **ink**: the text colour, the strongest contrast the surface has, so it is
+   * found in poor light and is never mistaken for either accent. 14.6:1 here, 13.7:1 on graphite.
+   *
+   * A Mark is focused on paper whatever the theme, so it has its own ring, which is this theme's
+   * value and is not themed.
+   */
+  --focus: oklch(0.279 0.015 257);
+  --focus-on-paper: oklch(0.279 0.015 257);
+
+  /*
+   * Something went wrong and the member has to notice. **A red that means nothing else**: it is
+   * never a fill, never decoration, and never the colour of an action. 5.9:1 or better on every
+   * light surface; the dark value clears 6.6:1 on the chrome.
+   */
+  --alarm: oklch(0.5 0.17 27);
 
   /*
    * The stamp a non-production system wears. Deliberately **not** themed: it is the same
    * orange in light and dark, because it is a mark printed on top of the archive rather than
    * part of it, and it must look identical in a screenshot however the reader's phone is set.
    *
-   * The hue is one the Club uses nowhere — that is the point. It is far enough from the amber
-   * focus ring (55° against 70°) to read as a caution label rather than as a focused control.
-   * The ink sits on the band at 6.6:1.
+   * The hue is one the Club uses nowhere — that is the point. It is orange where a failure is
+   * red (55° against 27°), and a band rather than a line of text. The ink sits on it at 6.6:1.
    */
   --demo-band: oklch(0.74 0.145 55);
   --demo-band-ink: oklch(0.26 0.07 50);
@@ -138,7 +149,8 @@
   --accent-ink: oklch(0.865 0.045 243);
   --accent-contrast: oklch(0.2 0.012 264);
 
-  --focus: oklch(0.78 0.16 75);
+  --focus: oklch(0.97 0.002 264);
+  --alarm: oklch(0.76 0.13 25);
 }
 
 /* ---------------------------------------------------------------------------
@@ -204,6 +216,7 @@ html.dark[data-environment-mode='non-production'] {
   --color-accent-contrast: var(--accent-contrast);
 
   --color-focus: var(--focus);
+  --color-alarm: var(--alarm);
 
   /* ---- Type ------------------------------------------------------------
    * Two faces and the numbers. **Barlow Condensed** for display and the wordmark — the nearest

@@ -344,7 +344,7 @@ function Row({ row, applied }: { row: PastedRow; applied: boolean }) {
           </span>
         )}
 
-        {row.why && <span className="block text-xs text-pretty text-accent-ink">{row.why}</span>}
+        {row.why && <span className="block text-xs text-pretty text-alarm">{row.why}</span>}
       </td>
       <td className="py-3 text-right text-2xs text-muted uppercase">{said[row.outcome]}</td>
     </tr>

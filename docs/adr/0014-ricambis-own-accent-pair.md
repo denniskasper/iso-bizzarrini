@@ -3,7 +3,8 @@
 Ricambi's surfaces, rules, text and body face are still the Club's, measured from its site. Its
 accent is not. The Club's one teal is replaced by a pair with separate jobs: **champagne** for
 what is pressed, **ice blue** for what points at something — a Mark on a drawing, the Position
-it belongs to, a link, a failure. Display lettering moves from Raleway to a tall condensed
+it belongs to, a link. A failure gets a red of its own that means nothing else, and the focus
+ring becomes ink rather than amber, which sat too close to champagne. Display lettering moves from Raleway to a tall condensed
 capital, which is closer to the Club's own lockup than Raleway was.
 
 ## Why
