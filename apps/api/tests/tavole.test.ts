@@ -1,6 +1,6 @@
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { givenModel, givenTavola } from './support/fixtures.js';
+import { givenCategories, givenModel, givenTavola } from './support/fixtures.js';
 import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
@@ -22,6 +22,9 @@ describe('recording a Model and its Tavole', () => {
   beforeEach(async () => {
     await app.reset();
     editor = await givenAnEditor(app);
+    // The list is an Administrator's and an Editor only chooses from it, so there has to be
+    // something on it before a sheet can be filed anywhere.
+    await givenCategories(app.db, 'Brakes', 'Fuel System');
   });
 
   describe('a Model', () => {
@@ -159,26 +162,96 @@ describe('recording a Model and its Tavole', () => {
     });
   });
 
-  describe('a Category', () => {
+  describe('a Tavola’s Category', () => {
+    const sheet = { number: '3', nameIt: 'Alimentazione', nameEn: 'Fuel' };
+
     // "Fuel System" and "fuel system" are the same system of the car. The reference sites this
     // replaces are inconsistent because nothing in them enforced that.
-    it('is the same Category however an Editor capitalised it', async () => {
+    it('is the one on the list, however an Editor capitalised it', async () => {
       const grifo = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
-      const fidia = await givenModel(app.db, { brand: 'Iso', name: 'Fidia' });
 
-      await editor
+      const created = await editor
         .post(`/api/models/${grifo.id}/tavole`)
-        .send({ number: '3', nameIt: 'Alimentazione', nameEn: 'Fuel', category: 'Fuel System' })
-        .expect(201);
-      await editor
-        .post(`/api/models/${fidia.id}/tavole`)
-        .send({ number: '4', nameIt: 'Alimentazione', nameEn: 'Fuel', category: 'fuel  system' })
+        .send({ ...sheet, category: 'fuel  system' })
         .expect(201);
 
-      const response = await editor.get('/api/categories').expect(200);
-      expect(response.body.categories).toEqual([
-        { id: expect.any(String), name: 'Fuel System', slug: 'fuel-system' },
+      expect(created.body.tavola.category).toMatchObject({
+        name: 'Fuel System',
+        slug: 'fuel-system',
+      });
+    });
+
+    // The list is maintained. A name typed into a form is not how it grows — that is how
+    // "Brakes" and "Braking" become two systems.
+    it('is refused when it is not on the list, and adds nothing to it', async () => {
+      const grifo = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
+
+      const refused = await editor
+        .post(`/api/models/${grifo.id}/tavole`)
+        .send({ ...sheet, category: 'Braking' })
+        .expect(400);
+      expect(refused.body.error).toMatchObject({ code: 'validation_failed' });
+      expect(refused.body.error.message).toContain('Braking');
+
+      const listed = await editor.get('/api/categories').expect(200);
+      expect(listed.body.categories.map((category: { name: string }) => category.name)).toEqual([
+        'Brakes',
+        'Fuel System',
       ]);
+    });
+
+    it('may be left off, and the sheet is still on its Model', async () => {
+      const grifo = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
+
+      const created = await editor
+        .post(`/api/models/${grifo.id}/tavole`)
+        .send({ ...sheet, category: '  ' })
+        .expect(201);
+      expect(created.body.tavola.category).toBeNull();
+
+      const model = await editor.get(`/api/models/${grifo.id}`).expect(200);
+      expect(model.body.tavole).toMatchObject([{ number: '3', category: null }]);
+
+      const read = await editor.get(`/api/tavole/${created.body.tavola.id}`).expect(200);
+      expect(read.body.tavola.category).toBeNull();
+    });
+
+    it('can be chosen later, changed, and taken off again', async () => {
+      const grifo = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
+      const tavola = await givenTavola(app.db, grifo.id, { category: null });
+      const address = `/api/tavole/${tavola.id}/category`;
+
+      const filed = await editor.put(address).send({ category: 'brakes' }).expect(200);
+      expect(filed.body.tavola.category).toMatchObject({ name: 'Brakes' });
+
+      const moved = await editor.put(address).send({ category: 'Fuel System' }).expect(200);
+      expect(moved.body.tavola.category).toMatchObject({ name: 'Fuel System' });
+
+      const taken = await editor.put(address).send({ category: '' }).expect(200);
+      expect(taken.body.tavola.category).toBeNull();
+
+      const read = await editor.get(`/api/tavole/${tavola.id}`).expect(200);
+      expect(read.body.tavola.category).toBeNull();
+    });
+
+    it('cannot be changed to one that is not on the list', async () => {
+      const grifo = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
+      const tavola = await givenTavola(app.db, grifo.id, { category: 'Brakes' });
+
+      await editor
+        .put(`/api/tavole/${tavola.id}/category`)
+        .send({ category: 'Braking' })
+        .expect(400);
+
+      const read = await editor.get(`/api/tavole/${tavola.id}`).expect(200);
+      expect(read.body.tavola.category).toMatchObject({ name: 'Brakes' });
+    });
+
+    it('is a 404 to change on a Tavola that does not exist', async () => {
+      await editor
+        .put('/api/tavole/00000000-0000-4000-8000-000000000000/category')
+        .send({ category: 'Brakes' })
+        .expect(404);
     });
   });
 

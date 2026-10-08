@@ -23,8 +23,8 @@ export function Field({
   mono?: boolean;
   /**
    * What has been typed here before, offered rather than imposed. A `datalist` and not a
-   * `select`, because the Editor must still be able to write something that is not on the
-   * list — the first Tavola of a new Category has to be recordable.
+   * `select`, for a value where the Editor must still be able to write something that is not
+   * on the list.
    */
   suggestions?: readonly string[];
 }) {
@@ -71,9 +71,10 @@ export function Field({
  * in. Each of them is a check constraint in the database, so a box an Editor could type into
  * would be a box that mostly produces refusals.
  *
- * That is the whole test for using this rather than `Field`'s `suggestions`: a Category is typed,
- * because the first Tavola of a new one has to be recordable; a currency is chosen, because
- * there is no fifth.
+ * That is the whole test for using this rather than `Field`'s `suggestions`: is there anything
+ * an Editor could rightly enter that is not on the list? A currency is chosen, because there is
+ * no fifth; so is a Category, because the list is an Administrator's and a name typed into a
+ * form is not how it grows.
  */
 export function Select({
   label,

@@ -1,19 +1,20 @@
-import type { CategoriesResponse, TavolaResponse, TavolaSummary } from '@ricambi/contracts';
+import type { TavolaResponse, TavolaSummary } from '@ricambi/contracts';
 import { categorySlug, numericPrefixOf } from '../catalog/naming.js';
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
 import type { CategoryRepository } from '../repositories/category-repository.js';
+import type { CategoryRow } from '../db/schema.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
-import { toCatalogModel, toCategory, toTavolaSummary } from './catalog-view.js';
+import { toCatalogModel, toTavolaSummary } from './catalog-view.js';
 import type { PositionService } from './position-service.js';
 
 export interface NewTavola {
   number: string;
   nameIt: string;
   nameEn: string;
-  /** As the Editor typed it. Its slug decides whether this is a new Category or an old one. */
-  category: string;
+  /** A Category on the list, by name or by slug — or `null` for none yet. */
+  category: string | null;
   /** The factory's own words, or nothing. Never tidied, never used to navigate. */
   catalogSection: string | null;
   catalogGroup: string | null;
@@ -21,9 +22,10 @@ export interface NewTavola {
 }
 
 export interface TavolaService {
-  listCategories(): Promise<CategoriesResponse>;
   readTavola(tavolaId: string): Promise<TavolaResponse>;
   createTavola(modelId: string, tavola: NewTavola): Promise<TavolaSummary>;
+  /** Files a sheet under a Category on the list, moves it to another, or takes it out. */
+  categorise(tavolaId: string, category: string | null): Promise<TavolaSummary>;
 }
 
 export function createTavolaService(dependencies: {
@@ -34,11 +36,27 @@ export function createTavolaService(dependencies: {
 }): TavolaService {
   const { modelRepository, categoryRepository, tavolaRepository, positionService } = dependencies;
 
-  return {
-    async listCategories() {
-      return { categories: (await categoryRepository.listAll()).map(toCategory) };
-    },
+  /**
+   * **Chosen, never typed into existence.** The list is an Administrator's, so a name that is
+   * not on it is refused here rather than quietly added — which is how "Brakes" and "Braking"
+   * became two systems on every reference site this archive replaces. Found by slug, so the
+   * spelling an Editor used does not matter and the spelling on the list is what is recorded.
+   */
+  async function onTheList(category: string | null): Promise<CategoryRow | null> {
+    if (category === null) {
+      return null;
+    }
 
+    const found = await categoryRepository.findBySlug(categorySlug(category));
+    if (!found) {
+      throw new ValidationError(
+        `“${category}” is not on the list of Categories. An Administrator can add it.`,
+      );
+    }
+    return found;
+  }
+
+  return {
     async readTavola(tavolaId) {
       const row = await tavolaRepository.findById(tavolaId);
       if (!row) {
@@ -73,11 +91,7 @@ export function createTavolaService(dependencies: {
         throw new NotFoundError('No such Model.');
       }
 
-      const slug = categorySlug(tavola.category);
-      if (slug === '') {
-        throw new ValidationError('A Category needs at least one letter or digit in its name.');
-      }
-      const category = await categoryRepository.findOrAdd(tavola.category, slug);
+      const category = await onTheList(tavola.category);
 
       const row = await tavolaRepository
         .add({
@@ -86,7 +100,7 @@ export function createTavolaService(dependencies: {
           numberSort: numericPrefixOf(tavola.number),
           nameIt: tavola.nameIt,
           nameEn: tavola.nameEn,
-          categoryId: category.id,
+          categoryId: category?.id ?? null,
           catalogSection: tavola.catalogSection,
           catalogGroup: tavola.catalogGroup,
           catalogSubgroup: tavola.catalogSubgroup,
@@ -104,6 +118,20 @@ export function createTavolaService(dependencies: {
         });
 
       return toTavolaSummary({ ...row, category, scan: null });
+    },
+
+    async categorise(tavolaId, category) {
+      const chosen = await onTheList(category);
+
+      if (!(await tavolaRepository.setCategory(tavolaId, chosen?.id ?? null))) {
+        throw new NotFoundError('No such Tavola.');
+      }
+
+      const row = await tavolaRepository.findById(tavolaId);
+      if (!row) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      return toTavolaSummary(row);
     },
   };
 }

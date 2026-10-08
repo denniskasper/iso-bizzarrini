@@ -6,6 +6,7 @@ import {
   categories,
   models,
   tavole,
+  type CategoryRow,
   type ModelRow,
   type NewModelRow,
   type TavolaRow,
@@ -28,11 +29,39 @@ export async function givenModel(db: Db, row: NewModelRow): Promise<ModelRow> {
   return model;
 }
 
+/**
+ * A Category on the list, as an Administrator would have put it there. Asking for one that is
+ * already listed returns that one, so a test can name the same system twice without caring.
+ */
+export async function givenCategory(db: Db, name: string): Promise<CategoryRow> {
+  const slug = categorySlug(name);
+
+  await db
+    .insert(categories)
+    .values({ name, slug })
+    .onConflictDoNothing({ target: categories.slug });
+
+  const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
+  if (!category) {
+    throw new Error('The Category fixture inserted nothing.');
+  }
+  return category;
+}
+
+export async function givenCategories(db: Db, ...names: string[]): Promise<CategoryRow[]> {
+  const listed: CategoryRow[] = [];
+  for (const name of names) {
+    listed.push(await givenCategory(db, name));
+  }
+  return listed;
+}
+
 export interface TavolaFixture {
   number?: string;
   nameIt?: string;
   nameEn?: string;
-  category?: string;
+  /** `null` for a sheet filed under no Category. Left out, it is filed under Brakes. */
+  category?: string | null;
   catalogSection?: string | null;
   catalogGroup?: string | null;
   catalogSubgroup?: string | null;
@@ -43,18 +72,8 @@ export async function givenTavola(
   modelId: string,
   fixture: TavolaFixture = {},
 ): Promise<TavolaRow> {
-  const categoryName = fixture.category ?? 'Brakes';
-  const slug = categorySlug(categoryName);
-
-  await db
-    .insert(categories)
-    .values({ name: categoryName, slug })
-    .onConflictDoNothing({ target: categories.slug });
-
-  const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
-  if (!category) {
-    throw new Error('The Category fixture inserted nothing.');
-  }
+  const category =
+    fixture.category === null ? null : await givenCategory(db, fixture.category ?? 'Brakes');
 
   const number = fixture.number ?? '12';
   const [row] = await db
@@ -65,7 +84,7 @@ export async function givenTavola(
       numberSort: numericPrefixOf(number),
       nameIt: fixture.nameIt ?? 'Impianto freni',
       nameEn: fixture.nameEn ?? 'Brake system',
-      categoryId: category.id,
+      categoryId: category?.id ?? null,
       catalogSection: fixture.catalogSection ?? null,
       catalogGroup: fixture.catalogGroup ?? null,
       catalogSubgroup: fixture.catalogSubgroup ?? null,

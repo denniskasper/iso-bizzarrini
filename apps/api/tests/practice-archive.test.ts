@@ -4,6 +4,7 @@ import {
   seedPracticeArchiveIfEmpty,
   writePracticeArchive,
 } from '../src/catalog/practice-archive.js';
+import { standingCategories } from '../src/catalog/standing-categories.js';
 import { createFileStore } from '../src/storage/file-store.js';
 import { givenModel } from './support/fixtures.js';
 import { givenAnEditor } from './support/roster.js';
@@ -49,7 +50,7 @@ describe('a practice system writing itself a catalog', () => {
 
     expect(written).toMatchObject({
       models: 3,
-      tavole: 4,
+      tavole: 5,
       drawings: 3,
       positions: 15,
       parts: 6,
@@ -94,6 +95,25 @@ describe('a practice system writing itself a catalog', () => {
     expect(read.body.tavole).toHaveLength(3);
 
     await member.get(drawn[0].scan.displayUrl).expect(200);
+  });
+
+  // Emptying the archive empties the list a migration put there. A practice system has to
+  // offer the same thirteen systems the real one will, and show what a Category is for.
+  it('offers the Club’s whole list of Categories, with one system drawn on two cars', async () => {
+    await seed();
+    const member = await givenAnEditor(app);
+
+    const listed = await member.get('/api/categories').expect(200);
+    expect(listed.body.categories.map((category: { name: string }) => category.name)).toEqual(
+      [...standingCategories].sort(),
+    );
+    expect(listed.body.uncategorised).toBe(0);
+
+    const brakes = await member.get('/api/categories/brakes').expect(200);
+    expect(brakes.body.models).toMatchObject([
+      { model: { name: '5300 GT Strada' }, tavole: [{ number: '7' }] },
+      { model: { name: 'Grifo' }, tavole: [{ number: '2' }] },
+    ]);
   });
 
   // A drawing with no circles on it is a picture, and the product is a drawing you can click.

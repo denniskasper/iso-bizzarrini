@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { EditorPanel, Field, Refusal } from '@/components/ui/field';
+import { EditorPanel, Field, Refusal, Select } from '@/components/ui/field';
 import { api, type NewTavolaRequest } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,8 @@ const EMPTY: NewTavolaRequest = {
  *
  * The form is laid out in the order the sheet is: the number and the two names as printed, then
  * the Category the archive navigates by, then the factory's own header transcribed verbatim.
+ * The Category is the one thing here that is chosen rather than copied off the sheet, and the
+ * only one that may be left for later.
  */
 export function NewTavolaForm({ modelId, className }: { modelId: string; className?: string }) {
   const [open, setOpen] = useState(false);
@@ -29,9 +31,8 @@ export function NewTavolaForm({ modelId, className }: { modelId: string; classNa
   const queryClient = useQueryClient();
 
   // A Category groups tavole across every car, so the one thing that must not happen is
-  // "Fuel System" and "Fuel system" becoming two. The slug already prevents that at the API;
-  // this is the same rule made visible, so an Editor picks the existing one and never learns
-  // about it by being corrected.
+  // "Fuel System" and "Fuel system" becoming two. The list is an Administrator's, and an
+  // Editor chooses from it — so the field is the list, and there is nothing to type.
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: api.categories,
@@ -47,8 +48,10 @@ export function NewTavolaForm({ modelId, className }: { modelId: string; classNa
     },
   });
 
-  const set = (field: keyof NewTavolaRequest) => (event: React.ChangeEvent<HTMLInputElement>) =>
-    setTavola({ ...tavola, [field]: event.target.value });
+  const set =
+    (field: keyof NewTavolaRequest) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setTavola({ ...tavola, [field]: event.target.value });
 
   if (!open) {
     return (
@@ -77,14 +80,19 @@ export function NewTavolaForm({ modelId, className }: { modelId: string; classNa
             value={tavola.number}
             onChange={set('number')}
           />
-          <Field
+          <Select
             label="Category"
-            required
-            hint="The system of the car. Grouped across every car in the archive."
-            suggestions={categories?.categories.map((category) => category.name)}
+            hint="The system of the car, from the Club’s list. It can be chosen later."
             value={tavola.category}
             onChange={set('category')}
-          />
+          >
+            <option value="">No Category yet</option>
+            {categories?.categories.map((category) => (
+              <option key={category.id} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
+          </Select>
           <Field label="Italian name" required value={tavola.nameIt} onChange={set('nameIt')} />
           <Field label="English name" required value={tavola.nameEn} onChange={set('nameEn')} />
         </div>

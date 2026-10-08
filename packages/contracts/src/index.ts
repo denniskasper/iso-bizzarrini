@@ -72,16 +72,79 @@ export interface CatalogModelResponse {
  */
 export interface Category {
   id: string;
-  /** As an Editor wrote it. */
+  /** As the Administrator who keeps the list wrote it. */
   name: string;
-  /** What decides whether two typed names are the same Category. */
+  /**
+   * What decides whether two names are the same Category, and what an address names it by:
+   * `/categories/brakes`. It follows the name, so renaming a Category moves its address.
+   */
   slug: string;
 }
 
-/** `GET /api/categories` */
-export interface CategoriesResponse {
-  categories: Category[];
+/** A Category as the list reports it: the name, and how much of the archive is filed under it. */
+export interface CategoryListing extends Category {
+  /** How many Tavole carry it, across every Model. Zero is an entry nobody has used yet. */
+  tavole: number;
 }
+
+/**
+ * `GET /api/categories` — the maintained list, in alphabetical order.
+ *
+ * Every entry is here whether or not anything is filed under it: this is what an Editor chooses
+ * from when recording a Tavola, and a system nobody has drawn yet still has to be choosable.
+ */
+export interface CategoriesResponse {
+  categories: CategoryListing[];
+  /** How many Tavole in the archive have no Category yet. They are reached from their Model. */
+  uncategorised: number;
+}
+
+/** One Model's share of a Category: the car, and its drawings of that system. */
+export interface CategoryOnModel {
+  model: CatalogModel;
+  /** In the order the catalog prints them. Never empty — a Model with none is not listed. */
+  tavole: TavolaSummary[];
+}
+
+/**
+ * `GET /api/categories/:slug` — one system, across **every** Model, so the same system can be
+ * compared between cars.
+ */
+export interface CategoryResponse {
+  category: Category;
+  /** Brand, then Model, the order the catalog index is in. */
+  models: CategoryOnModel[];
+}
+
+/**
+ * `POST /api/categories` and `PATCH /api/categories/:categoryId` — an Administrator adding to
+ * the list or renaming an entry. A name is all a Category has: there is no code and no number.
+ */
+export interface CategoryNameRequest {
+  name: string;
+}
+
+/** What both of those answer. */
+export interface CategoryWrittenResponse {
+  category: Category;
+}
+
+/**
+ * `PUT /api/tavole/:tavolaId/category` — an Editor putting a drawing under a system, moving it
+ * to another, or taking it out again.
+ */
+export interface TavolaCategoryRequest {
+  /** A Category on the list, by name or by slug. Blank for none. */
+  category: string;
+}
+
+/**
+ * What the address and the filter call a Tavola with no Category. Reserved, so no Category can
+ * be given a name that would collide with it.
+ *
+ * A type and not a constant: this package is types only, and each side spells the word once.
+ */
+export type Uncategorised = 'uncategorised';
 
 /**
  * A Tavola's scan, as the browser may reach it.
@@ -108,7 +171,8 @@ export interface TavolaSummary {
   number: string;
   nameIt: string;
   nameEn: string;
-  category: Category;
+  /** `null` until an Editor puts it under a system. Like a missing scan, a legitimate state. */
+  category: Category | null;
   /** `null` until a scan is uploaded. A Tavola without one is a legitimate state. */
   scan: TavolaScan | null;
 }
@@ -564,7 +628,10 @@ export interface NewTavolaRequest {
   number: string;
   nameIt: string;
   nameEn: string;
-  /** Typed, not chosen: its slug decides whether this is a new Category or one already used. */
+  /**
+   * Chosen from the maintained list, by name or by slug — never typed into existence. Blank
+   * records the Tavola with no Category yet; a name that is not on the list is refused.
+   */
   category: string;
   /** The factory's own header, as printed. Blank where the sheet prints none. */
   catalogSection: string;

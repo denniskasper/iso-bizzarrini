@@ -2,6 +2,7 @@ import express, { Router, type RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
+import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
@@ -46,6 +47,7 @@ export function createApiRouter(dependencies: {
   clubController: ClubController;
   searchController: SearchController;
   catalogController: CatalogController;
+  categoryController: CategoryController;
   tavolaController: TavolaController;
   positionController: PositionController;
   partController: PartController;
@@ -63,6 +65,7 @@ export function createApiRouter(dependencies: {
     clubController,
     searchController,
     catalogController,
+    categoryController,
     tavolaController,
     positionController,
     partController,
@@ -117,6 +120,13 @@ export function createApiRouter(dependencies: {
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
 
+  // **Keeping the list of Categories** (issue #8) — an Administrator's, like the roster, and up
+  // here with it for the same reason: it is behind the *role*. The rule further down makes every
+  // write in the archive an Editor's, and this is the one list an Editor chooses from and does
+  // not add to. Reading the list is the archive's, and is below with everything else.
+  router.post('/categories', administratorsOnly, categoryController.add);
+  router.patch('/categories/:categoryId', administratorsOnly, categoryController.rename);
+
   // **What a lapsed member is shown instead of the archive** (ticket 15). Behind the gate,
   // because it carries the Club's bank details; deliberately *not* behind a live Membership,
   // because the person who needs it is precisely the person whose Membership has run out.
@@ -161,9 +171,16 @@ export function createApiRouter(dependencies: {
   router.get('/models/:modelId/progress', catalogController.readModelProgress);
   router.post('/models', catalogController.createModel);
 
-  router.get('/categories', tavolaController.listCategories);
+  // **The systems of a car, and one of them across every car** (issue #8). Named by slug and
+  // not by id: `/categories/brakes` is an address a member can read, and say down a telephone.
+  router.get('/categories', categoryController.list);
+  router.get('/categories/:slug', categoryController.read);
+
   router.get('/tavole/:tavolaId', tavolaController.read);
   router.post('/models/:modelId/tavole', tavolaController.create);
+  // Filing a sheet under a system, moving it, or taking it out — the one thing about a Tavola
+  // that changes after it is recorded, because the list it is chosen from changes too.
+  router.put('/tavole/:tavolaId/category', tavolaController.categorise);
 
   // **One click is one request**, which is why the Position is named by its printed number here
   // rather than by an id: at the moment an Editor clicks the drawing they know what the factory

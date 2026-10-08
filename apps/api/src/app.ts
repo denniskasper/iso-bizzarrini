@@ -7,6 +7,7 @@ import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
+import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
@@ -42,6 +43,7 @@ import { API_MOUNT, createApiRouter } from './routes/api-router.js';
 import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
+import { createCategoryService } from './services/category-service.js';
 import { createClubService } from './services/club-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
@@ -192,6 +194,7 @@ export function createApp(dependencies: AppDependencies): Express {
   // Editor was shown is what is carried out. The session decides the repositories, so the
   // repositories cannot be decided here.
   const bulkPasteService = createBulkPasteService({ db });
+  const categoryService = createCategoryService({ categoryRepository, tavolaRepository });
   const tavolaService = createTavolaService({
     modelRepository,
     categoryRepository,
@@ -221,6 +224,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const clubController = createClubController({ gate, clubService });
   const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
+  const categoryController = createCategoryController({ categoryService });
   const tavolaController = createTavolaController({ tavolaService });
   const positionController = createPositionController({ positionService });
   const partController = createPartController({ partService });
@@ -268,6 +272,7 @@ export function createApp(dependencies: AppDependencies): Express {
       clubController,
       searchController,
       catalogController,
+      categoryController,
       tavolaController,
       positionController,
       partController,

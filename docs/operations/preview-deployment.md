@@ -25,7 +25,7 @@ limitation to work around — it is the point:
   configuration flag.
 
 **Nothing real goes into it.** It writes itself an invented catalog: three cars the factory
-really made, four Tavole and three drawings generated in SVG. There is no import path from
+really made, five Tavole and three drawings generated in SVG. There is no import path from
 anywhere, because there is no importer.
 
 ## Before you start

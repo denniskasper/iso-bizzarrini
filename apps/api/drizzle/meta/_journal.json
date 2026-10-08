@@ -78,6 +78,13 @@
       "when": 1785967288604,
       "tag": "0010_membership_granted_by_roster_import",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791406238915,
+      "tag": "0011_optional_category_and_the_standing_list",
+      "breakpoints": true
     }
   ]
 }

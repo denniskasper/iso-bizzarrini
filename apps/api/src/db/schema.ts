@@ -53,9 +53,10 @@ export const models = pgTable('models', {
  * A Category is the system of the car a Tavola belongs to — Brakes, Electrical, Fuel System.
  *
  * It is a table rather than a string on the Tavola because a Category groups tavole *across*
- * Models, which "Brakes", "brakes" and "Braking" cannot do. Editors type a name and the slug
- * decides whether that is a new Category or one that already exists, so consistency comes from
- * the system rather than from discipline.
+ * Models, which "Brakes", "brakes" and "Braking" cannot do. **The list is maintained**: an
+ * Administrator adds to it and renames what is on it, and an Editor filing a Tavola chooses from
+ * it. The slug decides whether two names are the same Category, so consistency comes from the
+ * system rather than from discipline.
  *
  * It is **not** the factory's Sezione: that is provenance recorded on the Tavola below.
  */
@@ -91,9 +92,11 @@ export const tavole = pgTable(
     numberSort: integer('number_sort'),
     nameIt: text('name_it').notNull(),
     nameEn: text('name_en').notNull(),
-    categoryId: uuid('category_id')
-      .notNull()
-      .references(() => categories.id, { onDelete: 'restrict' }),
+    /**
+     * `null` is a Tavola nobody has put under a system yet — a legitimate state, the same way a
+     * Tavola with no scan is. It is still on its Model's sheet and is never hidden by a filter.
+     */
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'restrict' }),
 
     /**
      * The factory's own classification, printed on the sheet as *Sezione*, *Gruppo* and

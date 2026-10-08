@@ -1,6 +1,10 @@
 import type {
   ApiErrorBody,
   CategoriesResponse,
+  CategoryNameRequest,
+  CategoryResponse,
+  CategoryWrittenResponse,
+  TavolaCategoryRequest,
   ClubResponse,
   CorrectClubRequest,
   CorrectMemberRequest,
@@ -223,11 +227,24 @@ export const api = {
   modelProgress: (modelId: string) => request<ModelProgressResponse>(`/models/${modelId}/progress`),
   createModel: (model: NewModelRequest) => send<{ model: CatalogModel }>('POST', '/models', model),
 
+  /**
+   * The systems of a car (issue #8): the list an Administrator keeps, one of them across every
+   * car, and the two ways the list changes. A Category is named by its slug in an address —
+   * `/categories/brakes` — and by its id when it is being renamed, since renaming moves the slug.
+   */
   categories: () => request<CategoriesResponse>('/categories'),
+  category: (slug: string) => request<CategoryResponse>(`/categories/${encodeURIComponent(slug)}`),
+  addCategory: (category: CategoryNameRequest) =>
+    send<CategoryWrittenResponse>('POST', '/categories', category),
+  renameCategory: (categoryId: string, category: CategoryNameRequest) =>
+    send<CategoryWrittenResponse>('PATCH', `/categories/${categoryId}`, category),
 
   tavola: (tavolaId: string) => request<TavolaResponse>(`/tavole/${tavolaId}`),
   createTavola: (modelId: string, tavola: NewTavolaRequest) =>
     send<{ tavola: TavolaSummary }>('POST', `/models/${modelId}/tavole`, tavola),
+  /** Filing a sheet under a system, moving it, or — with a blank — taking it out again. */
+  categoriseTavola: (tavolaId: string, category: TavolaCategoryRequest) =>
+    send<{ tavola: TavolaSummary }>('PUT', `/tavole/${tavolaId}/category`, category),
 
   /**
    * Marking up a drawing. **Every one of these answers with the sheet**, so nothing in this
@@ -405,6 +422,8 @@ export const api = {
 
 export type {
   CatalogModel,
+  CategoryListing,
+  CategoryOnModel,
   CatalogProvenance,
   ClubRecord,
   MembershipGrant,

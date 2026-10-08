@@ -17,8 +17,9 @@ name. Its number is meaningful only within its Model.
 _Avoid_: Diagram, plate, drawing, illustration
 
 **Category**:
-The system of the car a Tavola belongs to — Brakes, Electrical, Fuel System. Groups tavole
-within a Model and across Models.
+The system of the car a Tavola belongs to — Brakes, Electrical, Fuel. Groups tavole within a
+Model and across Models. A name, never a code. The list is maintained by an Administrator; an
+Editor chooses from it, and a Tavola may have none yet.
 _Avoid_: Section, group, type
 
 **Catalog Section / Catalog Group / Catalog Subgroup**:

@@ -1,4 +1,4 @@
-import type { CategoriesResponse, TavolaResponse } from '@ricambi/contracts';
+import type { TavolaResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { TavolaService } from '../services/tavola-service.js';
@@ -13,7 +13,11 @@ const createTavolaBody = z.object({
   number: required('A Tavola number is required'),
   nameIt: required('The Italian name is required'),
   nameEn: required('The English name is required'),
-  category: required('A Category is required'),
+  /**
+   * Optional. A sheet can be recorded before anybody has decided which system it belongs to,
+   * and one that is filed nowhere is still on its Model's sheet.
+   */
+  category: blankToNull(),
   /**
    * The factory's own Sezione, Gruppo and Sottogruppo. Optional, because plenty of sheets do
    * not print all three, and **recorded as written**: `SEZ.  26 / a` keeps both of its inner
@@ -24,10 +28,13 @@ const createTavolaBody = z.object({
   catalogSubgroup: blankToNull(),
 });
 
+/** Reads `TavolaCategoryRequest`. Blank is how a sheet is taken out of its Category. */
+const categoriseBody = z.object({ category: blankToNull() });
+
 export interface TavolaController {
-  listCategories: RequestHandler;
   read: RequestHandler;
   create: RequestHandler;
+  categorise: RequestHandler;
 }
 
 export function createTavolaController(dependencies: {
@@ -36,11 +43,6 @@ export function createTavolaController(dependencies: {
   const { tavolaService } = dependencies;
 
   return {
-    listCategories: async (_request, response) => {
-      const body: CategoriesResponse = await tavolaService.listCategories();
-      response.json(body);
-    },
-
     read: async (request, response) => {
       const { tavolaId } = tavolaIdParams.parse(request.params);
       const body: TavolaResponse = await tavolaService.readTavola(tavolaId);
@@ -54,6 +56,13 @@ export function createTavolaController(dependencies: {
         createTavolaBody.parse(request.body),
       );
       response.status(201).json({ tavola });
+    },
+
+    categorise: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+      const { category } = categoriseBody.parse(request.body);
+      const tavola = await tavolaService.categorise(tavolaId, category);
+      response.json({ tavola });
     },
   };
 }
