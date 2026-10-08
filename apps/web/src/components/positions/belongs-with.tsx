@@ -45,7 +45,7 @@ export function BelongsWith({
       {subAssembly && (
         <section data-testid="sub-assembly">
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-            <h3 className="text-2xs text-muted uppercase">Sub-assembly</h3>
+            <h3 className="label">Sub-assembly</h3>
             {/*
              * **Lighting the rest of it on the sheet is something a member asks for**, and can
              * stop asking for. It is not on by default: a drawing that dimmed two-thirds of itself
@@ -91,7 +91,7 @@ export function BelongsWith({
 
       {related.length > 0 && (
         <section data-testid="related-positions">
-          <h3 className="text-2xs text-muted uppercase">Works with</h3>
+          <h3 className="label">Works with</h3>
           <p className="mt-2 max-w-measure text-xs text-pretty text-faint">
             Picked by hand, because the parts at these numbers work against this one.
           </p>

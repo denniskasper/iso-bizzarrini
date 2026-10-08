@@ -30,7 +30,7 @@ export function MemberRow({ member, today }: { member: RosterEntry; today: strin
         </div>
 
         <div>
-          <p className="text-2xs text-muted uppercase">{member.standing}</p>
+          <p className="label capitalize">{member.standing}</p>
           <p className="mt-1 text-xs text-pretty text-faint">{standingReads(member)}</p>
         </div>
 
@@ -38,7 +38,7 @@ export function MemberRow({ member, today }: { member: RosterEntry; today: strin
           {/* A date is an identifier to be compared, so it is set in the mono face like every
               other number in this archive. */}
           <p className="tabular text-sm text-text">{member.paidThrough ?? '—'}</p>
-          <p className="mt-1 text-2xs text-faint uppercase">paid through</p>
+          <p className="tag mt-1">paid through</p>
         </div>
       </div>
 
@@ -83,9 +83,7 @@ export function MemberRow({ member, today }: { member: RosterEntry; today: strin
           </Button>
         )}
 
-        {member.role !== 'member' && (
-          <span className="ml-1 text-2xs text-faint uppercase">{member.role}</span>
-        )}
+        {member.role !== 'member' && <span className="tag ml-1">{member.role}</span>}
 
         {inviteAgain.isSuccess && !inviteAgain.isPending && (
           <span className="ml-1 text-xs text-faint">A fresh link is on its way.</span>

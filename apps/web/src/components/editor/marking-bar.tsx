@@ -39,13 +39,13 @@ export function MarkingBar({
       aria-labelledby="marking"
       className="editor-panel registration-mark w-full animate-rise"
     >
-      <h2 id="marking" className="text-2xs text-muted uppercase">
+      <h2 id="marking" className="label">
         Marking up this drawing
       </h2>
 
       <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-6">
         <div className="flex flex-col gap-2">
-          <label htmlFor={fieldId} className="text-2xs text-muted uppercase">
+          <label htmlFor={fieldId} className="label">
             Next number
           </label>
           <input

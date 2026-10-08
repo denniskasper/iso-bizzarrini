@@ -181,7 +181,7 @@ function Reach({ listedOn }: { listedOn: ListedOn[] }) {
         {listedOn.map((sheet) => (
           <li key={sheet.tavolaId} className="text-sm text-faint">
             <span className="tabular">Tavola {sheet.tavolaNumber}</span> · {sheet.nameEn}
-            <span className="ml-2 text-2xs uppercase">
+            <span className="ml-2 text-xs">
               {sheet.model.brand} {sheet.model.name}
             </span>
           </li>
@@ -203,7 +203,7 @@ function Reach({ listedOn }: { listedOn: ListedOn[] }) {
 function NumberBelongsToAnother({ part }: { part: Part }) {
   return (
     <div role="alert" className="border border-line-strong p-6" data-testid="catalog-number-clash">
-      <h4 className="text-2xs text-muted uppercase">That number is already recorded</h4>
+      <h4 className="label">That number is already recorded</h4>
       <p className="mt-3 max-w-measure text-pretty">
         <span className="tabular">{part.catalogNumber}</span> belongs to{' '}
         <strong className="font-semibold">{part.nameEn ?? part.nameIt}</strong>. Two parts never
@@ -237,7 +237,7 @@ function RemovePart({
 
   return (
     <div className="flex flex-col gap-3 border-t border-line pt-6">
-      <h4 className="text-2xs text-muted uppercase">Remove this part altogether</h4>
+      <h4 className="label">Remove this part altogether</h4>
 
       {listedOn.length > 0 ? (
         <p className="max-w-measure text-sm text-pretty text-faint">

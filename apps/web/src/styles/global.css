@@ -81,6 +81,28 @@
   }
 
   /*
+   * **What names the thing under it**: a section, a field, a column, a figure. Small and
+   * weighted rather than small and capitalised, so a screen of them reads as sentences and not as
+   * a form shouting. One class, so every label in the archive is the same label.
+   */
+  .label {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /*
+   * A word or two of standing beside something else — "Not drawn", "2 places", a role. The
+   * quietest text there is: it qualifies what it sits next to and is never read first.
+   */
+  .tag {
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    color: var(--text-faint);
+  }
+
+  /*
    * One row of the catalog index: **a car per band**, its name at poster size, then the numbers
    * the factory printed — series and years — set small and right, where the eye lands after the
    * name. The name is the target; the ruled band is how big the target is.

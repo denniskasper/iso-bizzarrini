@@ -104,7 +104,7 @@ function Reading({
       data-testid="part-reading"
     >
       <div className="flex items-center justify-between gap-4">
-        <h2 id="position" className="text-2xs text-muted uppercase">
+        <h2 id="position" className="label">
           Position
         </h2>
         <CopyLink />
@@ -124,7 +124,7 @@ function Reading({
 
       {/* Which car and which sheet: a member who has followed a link here has not seen the page
           header, and one who is deep in a drawing should never have to scroll up to check. */}
-      <p className="mt-3 text-2xs text-faint uppercase">
+      <p className="tag mt-3">
         {tavola.model.brand} {tavola.model.name} · Tavola{' '}
         <span className="tabular">{tavola.number}</span> · {tavola.nameEn}
       </p>
@@ -196,7 +196,7 @@ function Group({
 }) {
   return (
     <div className={className}>
-      {title && <h3 className="text-2xs text-muted uppercase">{title}</h3>}
+      {title && <h3 className="label">{title}</h3>}
       {note && <p className="mt-2 max-w-measure text-sm text-pretty text-faint">{note}</p>}
       <ul className={title ? 'mt-6 flex flex-col gap-10' : 'flex flex-col gap-10'}>
         {listings.map((listing) => (
@@ -249,8 +249,8 @@ function ListedPart({ listing }: { listing: PartListing }) {
        * tabular, because they are compared character by character against a stamped bracket.
        */}
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-line pt-4">
-        <dt className="text-2xs text-muted uppercase">Catalog number</dt>
-        <dt className="text-2xs text-muted uppercase">Disegno origine</dt>
+        <dt className="label">Catalog number</dt>
+        <dt className="label">Disegno origine</dt>
         <dd className="tabular text-lg" data-testid="catalog-number">
           {part.catalogNumber ?? <span className="text-sm text-faint">None recorded</span>}
         </dd>
@@ -280,13 +280,13 @@ function ListedPart({ listing }: { listing: PartListing }) {
        */}
       {part.catalogNote !== null && (
         <div className="transcription mt-6" data-testid="catalog-note">
-          <h5 className="text-2xs text-muted uppercase">From the factory catalog</h5>
+          <h5 className="label">From the factory catalog</h5>
           <p className="mt-2 text-sm text-pretty">{part.catalogNote}</p>
         </div>
       )}
       {part.note !== null && (
         <div className="mt-6" data-testid="club-note">
-          <h5 className="text-2xs text-muted uppercase">The club’s note</h5>
+          <h5 className="label">The club’s note</h5>
           <p className="mt-2 max-w-measure text-sm text-pretty text-muted">{part.note}</p>
         </div>
       )}
@@ -323,7 +323,7 @@ function Block({
 }) {
   return (
     <div className="mt-6 border-t border-line pt-4" data-testid={testId}>
-      <h5 className="text-2xs text-muted uppercase">{title}</h5>
+      <h5 className="label">{title}</h5>
       {note && <p className="mt-2 max-w-measure text-xs text-pretty text-faint">{note}</p>}
       <ul className="mt-3 flex flex-col gap-3">{children}</ul>
     </div>
@@ -376,7 +376,7 @@ function Equivalents({ part }: { part: PartInFull }): ReactNode {
     <Block title="Instead of the original" testId="equivalents">
       {part.equivalents.map((equivalent) => (
         <li key={equivalent.id}>
-          <p className="text-2xs text-faint uppercase">{EQUIVALENT_KIND_LABELS[equivalent.kind]}</p>
+          <p className="tag">{EQUIVALENT_KIND_LABELS[equivalent.kind]}</p>
           <div className="flex items-baseline justify-between gap-4">
             <p className="text-pretty">{equivalent.maker}</p>
             {/* Absent rather than empty. For a donor vehicle nobody usually knows the number,
@@ -425,7 +425,7 @@ function Sources({ part }: { part: PartInFull }): ReactNode {
             >
               {source.name}
             </a>
-            <p className="text-2xs text-faint uppercase">
+            <p className="tag">
               {source.condition === null
                 ? 'Condition not stated'
                 : SOURCE_CONDITION_LABELS[source.condition]}
@@ -471,7 +471,7 @@ function Prose({
 
   return (
     <div className="mt-5">
-      <h5 className="text-2xs text-muted uppercase">{label}</h5>
+      <h5 className="label">{label}</h5>
       <p className={mono ? 'tabular mt-1 text-base' : 'mt-1 max-w-measure text-pretty'}>
         {children}
       </p>
@@ -493,7 +493,7 @@ function Elsewhere({ listing }: { listing: PartListing }): ReactNode {
 
   return (
     <div className="mt-6 border-t border-line pt-4">
-      <h5 className="text-2xs text-muted uppercase">Also on</h5>
+      <h5 className="label">Also on</h5>
       <ul className="mt-2 flex flex-col gap-2">
         {listing.elsewhere.map((where, index) => (
           <li key={`${where.tavolaId}-${where.positionNumber ?? index}`} className="text-sm">

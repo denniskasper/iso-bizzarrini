@@ -47,7 +47,7 @@ export function CopyValue({
   return (
     <div className="flex items-end justify-between gap-4 border-b border-line pb-3">
       <div className="min-w-0">
-        <p className="text-2xs text-muted uppercase">{label}</p>
+        <p className="label">{label}</p>
         <p
           className={cn(
             'tabular mt-1 font-mono break-words text-text',

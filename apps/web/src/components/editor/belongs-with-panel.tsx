@@ -116,14 +116,14 @@ export function BelongsWithPanel({
 
   return (
     <section aria-labelledby="belongs-with" className="editor-panel registration-mark animate-rise">
-      <h2 id="belongs-with" className="text-2xs text-muted uppercase">
+      <h2 id="belongs-with" className="label">
         What goes with <span className="tabular">{position.number}</span>
       </h2>
 
       <div className="mt-8 grid gap-10 sm:grid-cols-2">
         <section className="flex flex-col gap-4">
           <div>
-            <h3 className="text-2xs text-muted uppercase">Sub-assembly</h3>
+            <h3 className="label">Sub-assembly</h3>
             <p className="mt-2 max-w-measure text-sm text-pretty text-faint">
               Everything that comes apart at once. A number belongs to one of these or to none, and
               naming it into another moves it.
@@ -154,7 +154,7 @@ export function BelongsWithPanel({
              * chosen, so the common case is type a name and press once.
              */}
             <fieldset className="flex flex-col gap-2">
-              <legend className="text-2xs text-muted uppercase">Numbers in it</legend>
+              <legend className="label">Numbers in it</legend>
               <ul className="mt-2 flex flex-wrap gap-2" data-testid="sub-assembly-picker">
                 {sheet.positions.map((candidate) => (
                   <li key={candidate.id}>
@@ -205,7 +205,7 @@ export function BelongsWithPanel({
 
         <section className="flex flex-col gap-4">
           <div>
-            <h3 className="text-2xs text-muted uppercase">Works with</h3>
+            <h3 className="label">Works with</h3>
             <p className="mt-2 max-w-measure text-sm text-pretty text-faint">
               The narrow one — the single number this part works against. Recorded once here and
               shown on both, so nobody enters it twice.

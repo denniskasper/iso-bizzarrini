@@ -80,6 +80,11 @@ ink — the text colour, white on graphite and graphite on paper — so it is th
 the surface has and can never read as either accent. A Mark is focused on paper in both themes
 and always takes the graphite ring.
 
+**Labels are sentences, not stamps.** Whatever names the thing under it — a section, a field, a
+column — is the `.label` class: small, weighted, in the sentence's own case. A word of standing
+beside something else ("Not drawn", "2 places", a role) is `.tag`. Nothing in the interface is
+set in small capitals except the proof stamp, which is meant to look stamped.
+
 **The one ornament is the Club's roundel.** A thin-ruled circle quartered by a diagonal cross —
 the geometry of the Club's own emblem, which doubles as the registration mark a printer aligns a
 plate with. It appears on the wordmark and on empty states, and nowhere else. Every drawing in

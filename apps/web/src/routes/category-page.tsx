@@ -104,7 +104,7 @@ function ModelShare({ slug, onModel }: { slug: string; onModel: CategoryOnModel 
           </Link>
         </h2>
         <span className="h-px flex-1 bg-line" />
-        <span className="tabular text-2xs text-faint">{tavole.length}</span>
+        <span className="tabular text-xs text-faint">{tavole.length}</span>
       </div>
 
       <div className="mt-8">

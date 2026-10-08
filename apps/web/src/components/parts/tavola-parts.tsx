@@ -55,7 +55,7 @@ export function TavolaParts({
 
   return (
     <section aria-labelledby="sheet-parts" data-testid="sheet-parts">
-      <h2 id="sheet-parts" className="text-2xs text-muted uppercase">
+      <h2 id="sheet-parts" className="label">
         The parts on this sheet
       </h2>
       <p className="mt-2 max-w-measure text-sm text-pretty text-muted">
@@ -101,7 +101,7 @@ export function TavolaParts({
        */}
       {unplaced.length > 0 && (
         <div className="mt-8">
-          <h3 className="text-2xs text-muted uppercase">Listed without a number</h3>
+          <h3 className="label">Listed without a number</h3>
           <p className="mt-2 max-w-measure text-sm text-pretty text-faint">
             Named on this sheet by the catalog, with no position of their own.
           </p>
@@ -178,9 +178,7 @@ function SheetLine({
          * different counts wearing one notation is how a member orders four of something the car
          * takes one of.
          */}
-        {position.marks.length > 1 && (
-          <span className="text-2xs text-faint uppercase">{position.marks.length} places</span>
-        )}
+        {position.marks.length > 1 && <span className="tag">{position.marks.length} places</span>}
       </span>
 
       {listings.length === 0 ? (
@@ -209,7 +207,7 @@ function ListedLine({ listing }: { listing: TavolaListing }) {
       )}
       {/* Said here too, because a member skimming a list must not read a fixing as an
           alternative — the panel that spells the difference out is one click away. */}
-      {!listing.drawn && <span className="text-2xs text-faint uppercase">Not drawn</span>}
+      {!listing.drawn && <span className="tag">Not drawn</span>}
     </span>
   );
 }

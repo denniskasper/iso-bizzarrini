@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * A labelled input. Plain and unambiguous, in the Google half of the direction: a small
- * uppercase label, a ruled box, and a note underneath when there is something worth saying.
+ * label in the sentence's own case, a ruled box, and a note underneath when there is something worth saying.
  *
  * The label is always present and never a placeholder. An Editor typing a Sezione into a form
  * has the paper catalog in their other hand, and a field whose name vanishes the moment they
@@ -34,7 +34,7 @@ export function Field({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <label htmlFor={id} className="text-2xs text-muted uppercase">
+      <label htmlFor={id} className="label">
         {label}
       </label>
       <input
@@ -98,7 +98,7 @@ export function Select({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <label htmlFor={id} className="text-2xs text-muted uppercase">
+      <label htmlFor={id} className="label">
         {label}
       </label>
       <select
@@ -129,7 +129,7 @@ export function Select({
  * A description, a transcribed catalog note, what the club has worked out — these run to
  * sentences, and a single-line box that scrolls sideways is one an Editor cannot re-read before
  * they file it. Everything else about it is the field above: the label is always present, in the
- * same small uppercase, because the paper catalog is in the Editor's other hand.
+ * same small weight, because the paper catalog is in the Editor's other hand.
  */
 export function TextArea({
   label,
@@ -152,7 +152,7 @@ export function TextArea({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <label htmlFor={id} className="text-2xs text-muted uppercase">
+      <label htmlFor={id} className="label">
         {label}
       </label>
       <textarea
@@ -195,7 +195,7 @@ export function EditorPanel({
 }) {
   return (
     <form onSubmit={onSubmit} className="editor-panel registration-mark animate-rise">
-      <h2 className="text-2xs text-muted uppercase">{title}</h2>
+      <h2 className="label">{title}</h2>
       {note && <p className="mt-3 max-w-measure text-sm text-pretty text-muted">{note}</p>}
       <div className="mt-8 flex flex-col gap-6">{children}</div>
     </form>

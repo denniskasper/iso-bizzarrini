@@ -40,7 +40,7 @@ export function FileUnder({
 
   return (
     <section aria-labelledby="file-under">
-      <h2 id="file-under" className="text-2xs text-muted uppercase">
+      <h2 id="file-under" className="label">
         File this drawing
       </h2>
       <p className="mt-4 max-w-measure text-pretty text-muted">

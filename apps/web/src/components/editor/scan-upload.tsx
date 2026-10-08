@@ -41,7 +41,7 @@ export function ScanUpload({ tavolaId, hasScan }: { tavolaId: string; hasScan: b
 
   return (
     <section aria-labelledby="scan-upload">
-      <h2 id="scan-upload" className="text-2xs text-muted uppercase">
+      <h2 id="scan-upload" className="label">
         {hasScan ? 'Replace the scan' : 'Upload the scan'}
       </h2>
       <p className="mt-4 max-w-measure text-pretty text-muted">

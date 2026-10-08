@@ -81,7 +81,7 @@ export function RosterImport() {
       </p>
 
       <section aria-labelledby="the-file" className="editor-panel registration-mark mt-12">
-        <h2 id="the-file" className="text-2xs text-muted uppercase">
+        <h2 id="the-file" className="label">
           The file
         </h2>
         <p className="mt-4 max-w-measure text-pretty text-muted">
@@ -243,7 +243,7 @@ function Counts({ plan }: { plan: RosterImportPlan }) {
         {counts.map(([count, label]) => (
           <div key={label}>
             <dd className={`tabular text-2xl ${count === 0 ? 'text-faint' : ''}`}>{count}</dd>
-            <dt className="mt-1 text-2xs text-muted uppercase">{label}</dt>
+            <dt className="label mt-1">{label}</dt>
           </div>
         ))}
       </dl>
@@ -268,7 +268,7 @@ function Counts({ plan }: { plan: RosterImportPlan }) {
 function Columns({ columns }: { columns: RosterImportColumns }) {
   return (
     <div className="mt-8">
-      <h3 className="text-2xs text-muted uppercase">Read from your columns</h3>
+      <h3 className="label">Read from your columns</h3>
       <dl className="mt-4 grid gap-x-8 sm:grid-cols-3">
         {FIELDS.map(([field, label]) => (
           <div
@@ -343,7 +343,7 @@ function Row({ row, applied }: { row: RosterImportRow; applied: boolean }) {
         )}
       </span>
 
-      <span className="text-2xs text-muted uppercase md:text-right">{said[row.outcome]}</span>
+      <span className="label md:text-right">{said[row.outcome]}</span>
     </li>
   );
 }

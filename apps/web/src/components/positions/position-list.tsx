@@ -39,7 +39,7 @@ export function PositionList({
     <section aria-labelledby="positions">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
         <div>
-          <h2 id="positions" className="text-2xs text-muted uppercase">
+          <h2 id="positions" className="label">
             Every number on this drawing
           </h2>
           <p className="mt-2 max-w-measure text-sm text-pretty text-muted">

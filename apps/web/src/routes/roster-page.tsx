@@ -48,7 +48,7 @@ function Roster() {
     <div className="animate-rise">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-semibold text-balance">The roster</h1>
+          <h1 className="display text-4xl tracking-display sm:text-5xl">The roster</h1>
           <p className="mt-4 text-lg text-pretty text-muted">
             {members.length === 0
               ? 'Nobody has been added yet.'

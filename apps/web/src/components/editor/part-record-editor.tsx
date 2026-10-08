@@ -80,7 +80,7 @@ function Section({
 }) {
   return (
     <section className="flex flex-col">
-      <h3 className="text-2xs text-muted uppercase">{title}</h3>
+      <h3 className="label">{title}</h3>
       <p className="mt-2 max-w-measure text-sm text-pretty text-faint">{note}</p>
 
       <ul className="mt-4 flex flex-col border-t border-line">{rows}</ul>
@@ -295,10 +295,7 @@ function Equivalents({ part }: { part: PartInFull }) {
           onCorrect={() => open(equivalent)}
           onRemove={() => remove.mutate(equivalent.id)}
         >
-          <span className="text-2xs text-faint uppercase">
-            {EQUIVALENT_KIND_LABELS[equivalent.kind]}
-          </span>{' '}
-          {equivalent.maker}
+          <span className="tag">{EQUIVALENT_KIND_LABELS[equivalent.kind]}</span> {equivalent.maker}
           {equivalent.reference !== null && (
             <span className="tabular ml-3 text-sm text-muted">{equivalent.reference}</span>
           )}
@@ -417,9 +414,7 @@ function Sources({ part }: { part: PartInFull }) {
         >
           {source.name}
           {source.condition !== null && (
-            <span className="ml-3 text-2xs text-faint uppercase">
-              {SOURCE_CONDITION_LABELS[source.condition]}
-            </span>
+            <span className="tag ml-3">{SOURCE_CONDITION_LABELS[source.condition]}</span>
           )}
           {source.price !== null && (
             <span className="ml-3 text-sm text-muted">
@@ -473,9 +468,7 @@ function Sources({ part }: { part: PartInFull }) {
              * is where an Editor finds that out before the refusal does it for them.
              */}
             <fieldset className="grid gap-6 border-t border-line pt-6 sm:grid-cols-3">
-              <legend className="text-2xs text-muted uppercase">
-                The price, and the day it was seen
-              </legend>
+              <legend className="label">The price, and the day it was seen</legend>
               <Field
                 label="Price"
                 mono

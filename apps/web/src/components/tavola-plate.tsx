@@ -66,9 +66,7 @@ export function TavolaPlate({
       </div>
       <div className="mt-1 flex items-baseline justify-between gap-4">
         <span className="text-sm text-muted">{tavola.nameEn}</span>
-        {nameCategory && tavola.category && (
-          <span className="text-2xs text-faint uppercase">{tavola.category.name}</span>
-        )}
+        {nameCategory && tavola.category && <span className="tag">{tavola.category.name}</span>}
       </div>
     </Link>
   );

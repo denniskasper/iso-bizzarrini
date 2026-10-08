@@ -152,7 +152,7 @@ export function ListingPanel({
        * "position" in it: the panel beside the drawing is *the* Position on this screen, and two
        * regions a screen reader announces as "Position…" would be one thing said twice.
        */}
-      <h2 id="listings" className="text-2xs text-muted uppercase">
+      <h2 id="listings" className="label">
         What sits at <span className="tabular">{position.number}</span>
       </h2>
 
@@ -336,7 +336,7 @@ function Listed({
           {listing.part.catalogNumber !== null && (
             <span className="tabular ml-4 text-sm text-muted">{listing.part.catalogNumber}</span>
           )}
-          <span className="ml-4 text-2xs text-faint uppercase">
+          <span className="tag ml-4">
             {listing.drawn ? 'Drawn' : 'Not drawn'}
             {listing.quantityPerCar !== null && (
               <span className="tabular"> · ×{listing.quantityPerCar}</span>
@@ -405,7 +405,7 @@ function AlreadyRecorded({
 }) {
   return (
     <div role="alert" className="border border-line-strong p-6" data-testid="catalog-number-clash">
-      <h3 className="text-2xs text-muted uppercase">That number is already recorded</h3>
+      <h3 className="label">That number is already recorded</h3>
       <p className="mt-3 max-w-measure text-pretty">
         <span className="tabular">{part.catalogNumber}</span> belongs to{' '}
         <strong className="font-semibold">{part.nameEn ?? part.nameIt}</strong>. The same part on

@@ -48,7 +48,7 @@ function ClubForm({ club }: { club: ClubRecord }) {
 
   return (
     <div className="mx-auto max-w-measure animate-rise">
-      <h1 className="text-4xl font-semibold text-balance">The Club</h1>
+      <h1 className="display text-4xl tracking-display sm:text-5xl">The Club</h1>
       <p className="mt-6 text-lg text-pretty text-muted">
         What membership costs, where the money goes, and what a member is asked to write on their
         transfer. All of it changes here rather than in a deployment.
@@ -62,7 +62,7 @@ function ClubForm({ club }: { club: ClubRecord }) {
         }}
       >
         <section className="flex flex-col gap-6">
-          <h2 className="text-2xs text-muted uppercase">Membership</h2>
+          <h2 className="label">Membership</h2>
           <div className="grid gap-6 sm:grid-cols-2">
             <Field
               label="Fee"
@@ -88,7 +88,7 @@ function ClubForm({ club }: { club: ClubRecord }) {
         </section>
 
         <section className="flex flex-col gap-6 border-t border-line pt-8">
-          <h2 className="text-2xs text-muted uppercase">Where a transfer goes</h2>
+          <h2 className="label">Where a transfer goes</h2>
           <Field
             label="Account holder"
             value={draft.bankAccountHolder ?? ''}
@@ -118,7 +118,7 @@ function ClubForm({ club }: { club: ClubRecord }) {
         </section>
 
         <section className="flex flex-col gap-6 border-t border-line pt-8">
-          <h2 className="text-2xs text-muted uppercase">What a member is told</h2>
+          <h2 className="label">What a member is told</h2>
           <Field
             label="Payment reference"
             value={draft.paymentReference}

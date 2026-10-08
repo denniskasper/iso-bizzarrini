@@ -18,7 +18,7 @@ export function ServiceStatusStrip() {
     <dl
       data-testid="service-status"
       aria-label="Service status"
-      className="flex flex-wrap items-baseline gap-x-8 gap-y-2 text-2xs text-faint uppercase"
+      className="tag flex flex-wrap items-baseline gap-x-8 gap-y-2"
     >
       <Entry label="Environment" value={isError ? 'unreachable' : (data?.environment ?? '—')} />
       <Entry label="Database" value={isError ? 'unreachable' : (data?.database ?? '—')} />

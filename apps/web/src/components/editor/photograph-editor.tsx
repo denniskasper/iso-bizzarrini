@@ -83,7 +83,7 @@ export function PhotographEditor({ part }: { part: PartInFull }) {
       data-testid="photograph-editor"
     >
       <div>
-        <h3 className="text-2xs text-muted uppercase">Photographs</h3>
+        <h3 className="label">Photographs</h3>
         <p className="mt-2 max-w-measure text-sm text-pretty text-faint">
           What the part looks like, which is the one thing a catalog number cannot tell anybody.
           They belong to the part itself, so they show on every sheet it is listed on — and the
@@ -196,9 +196,7 @@ function Editable({
         <img src={photograph.previewUrl} alt={`Photograph ${place}`} decoding="async" />
       </div>
 
-      <p className="text-2xs text-faint uppercase">
-        {at === 0 ? 'Shown first' : <span className="tabular">{place}</span>}
-      </p>
+      <p className="tag">{at === 0 ? 'Shown first' : <span className="tabular">{place}</span>}</p>
 
       <span className="ml-auto flex items-center gap-1">
         <Button

@@ -29,7 +29,7 @@ export function ModelProgress({ modelId, tavole }: { modelId: string; tavole: Ta
 
   return (
     <section aria-labelledby="model-progress" data-testid="model-progress">
-      <h2 id="model-progress" className="text-2xs text-muted uppercase">
+      <h2 id="model-progress" className="label">
         Where the work stands
       </h2>
       <p className="mt-2 max-w-measure text-sm text-pretty text-muted">
@@ -52,13 +52,13 @@ export function ModelProgress({ modelId, tavole }: { modelId: string; tavole: Ta
         <table className="tally-table mt-6">
           <thead>
             <tr className="border-b border-line">
-              <th scope="col" className="py-3 pr-4 text-left text-2xs text-muted uppercase">
+              <th scope="col" className="label py-3 pr-4 text-left">
                 Tavola
               </th>
-              <th scope="col" className="py-3 pl-4 text-right text-2xs text-muted uppercase">
+              <th scope="col" className="label py-3 pl-4 text-right">
                 Marked
               </th>
-              <th scope="col" className="py-3 pl-4 text-right text-2xs text-muted uppercase">
+              <th scope="col" className="label py-3 pl-4 text-right">
                 Listed
               </th>
             </tr>
@@ -111,7 +111,7 @@ function SheetRow({ tavola, progress }: { tavola: TavolaSummary; progress?: Tavo
            * list this table is already given; it costs no request and no column.
            */}
           {tavola.scan === null && (
-            <span className="text-2xs text-faint uppercase" data-testid="no-scan">
+            <span className="tag" data-testid="no-scan">
               No scan
             </span>
           )}

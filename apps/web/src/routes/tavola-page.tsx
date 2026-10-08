@@ -428,7 +428,7 @@ function Provenance({ provenance }: { provenance: CatalogProvenance }) {
 
   return (
     <section aria-labelledby="provenance">
-      <h2 id="provenance" className="text-2xs text-muted uppercase">
+      <h2 id="provenance" className="label">
         On the sheet
       </h2>
 

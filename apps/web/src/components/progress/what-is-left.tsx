@@ -44,7 +44,7 @@ export function WhatIsLeft({
 
   return (
     <section aria-labelledby="what-is-left" data-testid="sheet-progress">
-      <h2 id="what-is-left" className="text-2xs text-muted uppercase">
+      <h2 id="what-is-left" className="label">
         Where this sheet stands
       </h2>
 
@@ -154,7 +154,7 @@ function Count({
 }) {
   return (
     <div className="border-b border-line py-3">
-      <dt className="text-2xs text-muted uppercase">{label}</dt>
+      <dt className="label">{label}</dt>
       <dd className="tabular mt-1 text-2xl" data-testid={testId}>
         {children}
       </dd>
@@ -183,7 +183,7 @@ function Gap({
   return (
     <section data-testid={testId}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h3 className="text-2xs text-muted uppercase">
+        <h3 className="label">
           {heading} <span className="tabular text-faint">({positions.length})</span>
         </h3>
         {action}

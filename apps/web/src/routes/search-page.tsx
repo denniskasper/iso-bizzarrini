@@ -31,8 +31,7 @@ export function SearchPage() {
 
   return (
     <div className="animate-rise">
-      <p className="text-2xs text-faint uppercase">The archive</p>
-      <h1 className="mt-3 text-4xl font-semibold text-balance sm:text-5xl">Search</h1>
+      <h1 className="display text-4xl tracking-display sm:text-5xl">Search</h1>
       <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
         Start from the part rather than the car — a number stamped on it, a number quoted in a
         letter, or the number on the modern part that replaces it.
@@ -74,7 +73,7 @@ export function SearchPage() {
 function WhatIsSearched() {
   return (
     <div className="max-w-measure">
-      <h2 className="text-2xs text-muted uppercase">What is searched</h2>
+      <h2 className="label">What is searched</h2>
       <ul className="mt-4 space-y-3 text-pretty text-muted">
         <li>
           The <strong className="font-semibold text-text">Catalog Number</strong> and the{' '}
@@ -126,9 +125,7 @@ function Results({
   return (
     <div data-testid="search-results">
       <div className="flex items-baseline gap-4">
-        <h2 className="text-2xs text-muted uppercase">
-          {matches.length === 1 ? 'One part' : `${matches.length} parts`}
-        </h2>
+        <h2 className="label">{matches.length === 1 ? 'One part' : `${matches.length} parts`}</h2>
         <span className="h-px flex-1 bg-line" />
       </div>
 

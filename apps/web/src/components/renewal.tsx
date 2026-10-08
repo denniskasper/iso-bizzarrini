@@ -116,20 +116,20 @@ function HowToPay({ renewal }: { renewal: Renewal }) {
         thing above it.
       */}
       <section>
-        <h2 className="text-2xs text-muted uppercase">What renewing costs</h2>
+        <h2 className="label">What renewing costs</h2>
         <p className="tabular mt-4 font-mono text-3xl text-text">
           {renewal.fee} <span className="text-2xl text-muted">{renewal.currency}</span>
         </p>
       </section>
 
       <section className="border-t border-line pt-10">
-        <h2 className="text-2xs text-muted uppercase">Where to send it</h2>
+        <h2 className="label">Where to send it</h2>
         {/* The last row's rule and the next section's would otherwise be two lines a finger
             apart, which reads as a mistake rather than as a boundary. */}
         <dl className="mt-6 flex flex-col gap-4 [&>*:last-child]:border-b-0">
           {bank.map((row) => (
             <div key={row.label} className="border-b border-line pb-3">
-              <dt className="text-2xs text-muted uppercase">{row.label}</dt>
+              <dt className="label">{row.label}</dt>
               <dd className="mt-1 text-base text-pretty text-text">{row.value}</dd>
             </div>
           ))}
@@ -145,7 +145,7 @@ function HowToPay({ renewal }: { renewal: Renewal }) {
         money the treasurer cannot match to a person.
       */}
       <section className="border-t border-line pt-10">
-        <h2 className="text-2xs text-muted uppercase">What to write on it</h2>
+        <h2 className="label">What to write on it</h2>
         <div className="mt-6">
           <CopyValue label="Reference" value={renewal.reference} emphasis />
         </div>

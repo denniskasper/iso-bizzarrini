@@ -97,7 +97,7 @@ export function BulkPaste({ tavolaId }: { tavolaId: string }) {
   return (
     <section aria-labelledby="bulk-paste" className="editor-panel registration-mark animate-rise">
       <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3">
-        <h2 id="bulk-paste" className="text-2xs text-muted uppercase">
+        <h2 id="bulk-paste" className="label">
           A whole page at once
         </h2>
         {/*
@@ -247,7 +247,7 @@ function Counts({ plan }: { plan: PastePlanResponse }) {
       {counts.map(([count, label]) => (
         <div key={label}>
           <dd className={`tabular text-2xl ${count === 0 ? 'text-faint' : ''}`}>{count}</dd>
-          <dt className="mt-1 text-2xs text-muted uppercase">{label}</dt>
+          <dt className="label mt-1">{label}</dt>
         </div>
       ))}
     </dl>
@@ -262,7 +262,7 @@ function Counts({ plan }: { plan: PastePlanResponse }) {
 function Columns({ columns }: { columns: PastedColumns }) {
   return (
     <div className="mt-8">
-      <h3 className="text-2xs text-muted uppercase">Read from your columns</h3>
+      <h3 className="label">Read from your columns</h3>
       <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
         {FIELDS.map(([field, label]) => (
           <div
@@ -313,7 +313,7 @@ function Row({ row, applied }: { row: PastedRow; applied: boolean }) {
       <td className="tabular py-3 pr-4 text-xs text-faint">{row.line}</td>
       <td className="tabular py-3 pr-4 text-sm whitespace-nowrap">
         {row.positionNumber ?? <span className="text-faint">—</span>}
-        {row.newPosition && <span className="ml-2 text-2xs text-faint uppercase">new</span>}
+        {row.newPosition && <span className="tag ml-2">new</span>}
       </td>
       <td className="py-3 pr-4 text-sm text-pretty">
         {name ?? <span className="text-faint">—</span>}
@@ -321,7 +321,7 @@ function Row({ row, applied }: { row: PastedRow; applied: boolean }) {
           <span className="tabular ml-3 text-xs text-muted">{row.part.catalogNumber}</span>
         )}
         {row.part && (
-          <span className="ml-3 text-2xs text-faint uppercase">
+          <span className="tag ml-3">
             {row.part.drawn ? 'Drawn' : 'Not drawn'}
             {row.part.quantityPerCar !== null && (
               <span className="tabular"> · ×{row.part.quantityPerCar}</span>
@@ -346,7 +346,7 @@ function Row({ row, applied }: { row: PastedRow; applied: boolean }) {
 
         {row.why && <span className="block text-xs text-pretty text-alarm">{row.why}</span>}
       </td>
-      <td className="py-3 text-right text-2xs text-muted uppercase">{said[row.outcome]}</td>
+      <td className="label py-3 text-right">{said[row.outcome]}</td>
     </tr>
   );
 }
