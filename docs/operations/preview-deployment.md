@@ -123,7 +123,6 @@ measurement ticket 03 is waiting on ([ADR 0013](../adr/0013-one-private-image-no
 ## What this preview deliberately does not have
 
 - **Backups.** The volumes are the only copy. Do not put anything here that matters.
-- **Accounts, Memberships or invitations** — ticket 14.
 - **A processor agreement with the host.** So no real member's name or e-mail address goes on
   it, ever. Invented cars and drawings are not personal data; a roster is.
 - **An EU hosting requirement**, which the archive itself has (ADR 0009) because the
