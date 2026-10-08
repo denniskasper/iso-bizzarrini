@@ -54,7 +54,7 @@ export function BelongsWith({
              */}
             {/*
              * Ruled while it is on and plain while it is off, so "the drawing is answering this"
-             * is visible without reading the label. It does **not** wear the accent: the teal on
+             * is visible without reading the label. It does **not** wear the accent: the blue on
              * this screen means the Position being pointed at, and a switch wearing it would be
              * the third thing on the panel claiming to be what the member is looking at.
              */}

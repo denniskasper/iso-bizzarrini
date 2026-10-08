@@ -121,7 +121,7 @@ export function TavolaParts({
 /**
  * One number, and what sits at it.
  *
- * The number wears the Club's teal when it is the one being read — the same teal as its circle on
+ * The number wears ice blue when it is the one being read — the same blue as its circle on
  * the sheet, because they are one thing being pointed at and colouring them differently would
  * leave a member to work out that they are the same.
  */

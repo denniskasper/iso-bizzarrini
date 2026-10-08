@@ -5,11 +5,10 @@
  * plainness. The drawing is the hero; this is the instrument around it. See
  * docs/design/visual-language.md for the reasoning behind every value below.
  *
- * **The colour and type here are the Club's own, measured from the live Club site** rather
- * than invented — the computed values of its chrome, its rules, its body text and its link
- * colour, converted to OKLCH. Where a measured value could not carry text at 4.5:1 it was
- * moved along its own lightness axis until it could, and nowhere else: the hue and chroma are
- * the Club's.
+ * **The surfaces, rules and text here are the Club's own, measured from the live Club site**
+ * and converted to OKLCH. **The accent is not** (ADR 0014): it is a pair of Ricambi's own —
+ * champagne for what is pressed, ice blue for what points at a drawing — chosen against the
+ * Club's graphite in the design prototype on the `prototype/ricambi-design` branch.
  *
  * Feature code consumes the semantic names (`bg-surface`, `text-muted`, `border-line`) and
  * never the raw values. If a colour, size or radius is written inline in a component, it is a
@@ -24,7 +23,8 @@
  * Dark is the default, and the Club's own site agrees: its chrome is a cool graphite and its
  * hero is near-black. A scan is black lines on white paper, so graphite chrome also makes the
  * drawing the brightest thing on screen, which is what a phone in a dim garage wants.
- * `surface-raised` is the Club's chrome exactly; the page sits a step below it.
+ * `surface-raised` is the Club's chrome exactly; the page, and the archive's own header, sit a
+ * step below it.
  * ------------------------------------------------------------------------ */
 
 :root {
@@ -54,27 +54,29 @@
   --scrim: oklch(0.279 0.015 257 / 0.55);
 
   /*
-   * A Mark on a drawing — the second of the four things sanctioned to wear the Club's teal, and
-   * the one that most obviously earns it: a Mark is a link, and teal is what the Club marks
-   * links with. **The accent itself**, named for the job rather than restated, so the day the
-   * Club's teal is re-measured a circle on a drawing follows it.
+   * A Mark on a drawing: ice blue, the pointing half of the accent pair. **Not themed**, like
+   * paper, because it only ever sits on paper — so it is the deep end of the ice-blue hue
+   * rather than the pale one the dark chrome uses for text. 4.8:1 on paper, clearing the 3:1 a
+   * mark that carries no text needs.
    *
-   * The ring clears 3:1 on paper, which is the bar for a mark that carries no text. The wash is
-   * what makes a ring a *target* rather than another circle the factory printed; `mark-held` is
-   * the same teal at the weight a Position being read deserves, because that is the one
-   * dominant thing on a screen whose dominant thing is otherwise a drawing.
+   * The wash is what makes a ring a *target* rather than another circle the factory printed;
+   * `mark-held` is the same blue at the weight a Position being read deserves, because that is
+   * the one dominant thing on a screen whose dominant thing is otherwise a drawing.
    */
-  --mark: var(--accent);
-  --mark-wash: color-mix(in oklch, var(--accent) 12%, transparent);
-  --mark-held: color-mix(in oklch, var(--accent) 34%, transparent);
+  --mark: oklch(0.55 0.1 243);
+  --mark-wash: color-mix(in oklch, var(--mark) 12%, transparent);
+  --mark-held: color-mix(in oklch, var(--mark) 34%, transparent);
+  /* What sits on a Mark's own colour, as a chip naming the Position being read: paper white,
+     at the same 4.8:1 the Mark has on paper. */
+  --mark-contrast: oklch(1 0 0);
   /*
    * A circle that is **not** in the Sub-assembly a member asked to see — the fourth weight the
-   * one accent has, and the only one that is deliberately below the 3:1 bar every other non-text
+   * ice blue has, and the only one that is deliberately below the 3:1 bar every other non-text
    * mark clears (1.5:1 on paper, measured). It is the navigator's scrim applied to circles rather
    * than to the sheet: what recedes is what the member has just said they are not asking about,
    * it is still there, still hittable at its full touch size, and one press brings it back.
    */
-  --mark-receded: color-mix(in oklch, var(--accent) 30%, transparent);
+  --mark-receded: color-mix(in oklch, var(--mark) 30%, transparent);
 
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);
@@ -82,19 +84,20 @@
   --text-faint: oklch(0.535 0.009 264);
 
   /*
-   * The Club's teal — the one colour on an otherwise monochrome site, where it marks links.
-   * Two of them, because the measured teal carries white text at only 3.15:1: `accent` is a
-   * fill darkened until white sits on it at 4.5:1, `accent-ink` is the same teal made legible
-   * as text on a surface. Hover deepens the chroma rather than the lightness, so the contrast
-   * the fill was chosen for survives the interaction.
+   * The accent pair (ADR 0014). `accent` is **champagne**, the fill of the one dominant action;
+   * `accent-ink` is **ice blue**, the colour of anything that points — a link, a Position's
+   * number, a failure to notice. Paper is where champagne is weakest, so the light theme takes
+   * both from the deep end of their hues: white sits on the bronze fill at 5.8:1, and the blue
+   * clears 6:1 on every light surface. Hover darkens the fill, which only adds contrast.
    */
-  --accent: oklch(0.53 0.11 198);
-  --accent-hover: oklch(0.53 0.132 198);
-  --accent-ink: oklch(0.52 0.11 198);
+  --accent: oklch(0.5 0.07 87);
+  --accent-hover: oklch(0.44 0.07 87);
+  --accent-ink: oklch(0.47 0.09 243);
   --accent-contrast: oklch(0.99 0 0);
 
   /* Amber, in both themes, so "focused" never reads as "this is the action" — and never as
-     the Club's teal either. Dark enough here to clear 3:1 against paper. */
+     the champagne fill, which is far paler and nearly grey beside it. Dark enough here to clear
+     3:1 against paper. */
   --focus: oklch(0.575 0.15 70);
 
   /*
@@ -128,10 +131,12 @@
      `surface-raised`, which is where it is actually used — the status strip in the footer. */
   --text-faint: oklch(0.645 0.009 264);
 
-  --accent: oklch(0.53 0.11 198);
-  --accent-hover: oklch(0.53 0.132 198);
-  --accent-ink: oklch(0.62 0.1 198);
-  --accent-contrast: oklch(0.99 0 0);
+  /* Champagne under graphite ink at 9.5:1; ice blue as text at 10:1 on the chrome. Hover lifts
+     the fill, which only adds contrast to the ink on it. */
+  --accent: oklch(0.795 0.06 87);
+  --accent-hover: oklch(0.84 0.06 87);
+  --accent-ink: oklch(0.865 0.045 243);
+  --accent-contrast: oklch(0.2 0.012 264);
 
   --focus: oklch(0.78 0.16 75);
 }
@@ -187,6 +192,7 @@ html.dark[data-environment-mode='non-production'] {
   --color-line-strong: var(--line-strong);
   --color-paper: var(--paper);
   --color-mark: var(--mark);
+  --color-mark-contrast: var(--mark-contrast);
 
   --color-text: var(--text);
   --color-muted: var(--text-muted);
@@ -200,9 +206,10 @@ html.dark[data-environment-mode='non-production'] {
   --color-focus: var(--focus);
 
   /* ---- Type ------------------------------------------------------------
-   * The Club's own two faces, so the archive and the Club site read as one organisation:
-   * Raleway for display and the wordmark (the Club sets its lockup in it, wide-tracked and
-   * uppercase), Open Sans for body and interface.
+   * Two faces and the numbers. **Barlow Condensed** for display and the wordmark — the nearest
+   * open face to the tall, light, condensed capital the Club sets its own lockup in — used only
+   * at size, through the `.display` class. **Open Sans**, the Club's own body face, for
+   * everything that is read, headings included.
    *
    * IBM Plex Mono is ours, and additive: every number the factory printed. Catalog Number,
    * Disegno Origine, Tavola and Position numbers are identifiers to be compared character by
@@ -210,7 +217,7 @@ html.dark[data-environment-mode='non-production'] {
    * proportional. The Club site has no such need and therefore no opinion.
    * -------------------------------------------------------------------- */
   --font-sans: 'Open Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: 'Raleway Variable', 'Open Sans Variable', ui-sans-serif, sans-serif;
+  --font-display: 'Barlow Condensed', 'Open Sans Variable', ui-sans-serif, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
 
   --text-2xs: 0.6875rem;
@@ -238,9 +245,15 @@ html.dark[data-environment-mode='non-production'] {
   --text-5xl: 4rem;
   --text-5xl--line-height: 4.125rem;
   --text-5xl--letter-spacing: -0.03em;
+  /* The display face at poster size: a car's name, a front door. Fluid, because a phone and a
+     desk both deserve the name to fill the line. Only ever set through `.display`. */
+  --text-display: clamp(3.5rem, 11vw, 10rem);
+  --text-display--line-height: 0.9;
 
   /* The wordmark's tracking, so the one piece of lettering that is a logo is not a literal. */
-  --tracking-wordmark: 0.22em;
+  --tracking-wordmark: 0.12em;
+  /* A condensed capital set light needs air between its letters to stay legible at a distance. */
+  --tracking-display: 0.03em;
 
   /* ---- Shape -----------------------------------------------------------
    * Small radii. Instruments have edges; only the artwork is allowed to be soft.

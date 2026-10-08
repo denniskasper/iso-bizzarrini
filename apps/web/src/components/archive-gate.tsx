@@ -30,7 +30,7 @@ export function ArchiveGate({ children }: { children: ReactNode }) {
   if (!signedIn) {
     return (
       <div className="mx-auto max-w-measure animate-rise">
-        <Roundel className="size-7 text-accent-ink" />
+        <Roundel className="size-7 text-muted" />
         <h1 className="mt-8 text-4xl font-semibold text-balance">The archive is members-only.</h1>
         <p className="mt-6 text-lg text-pretty text-muted">
           The scanned drawings, and everything the Club has worked out about the parts on them, are

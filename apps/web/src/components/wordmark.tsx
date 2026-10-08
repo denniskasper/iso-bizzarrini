@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
 
 /**
- * The wordmark, set the way the Club sets its own: a roundel beside wide-tracked uppercase
- * lettering in Raleway at a light-to-medium weight. The Club's lockup is drawn this way, so
+ * The wordmark, set the way the Club sets its own: a roundel beside a tall, light, condensed
+ * capital in the display face. The Club's lockup is drawn this way, so
  * the archive and the Club site read as one organisation without the archive borrowing the
  * Club's German name — this is the English property.
  *
@@ -14,10 +14,8 @@ import { cn } from '@/lib/utils';
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn('inline-flex items-center gap-3', className)}>
-      <Roundel className="size-6 text-accent-ink" />
-      <span className="font-display text-lg leading-none font-medium tracking-wordmark uppercase">
-        Ricambi
-      </span>
+      <Roundel className="size-6" />
+      <span className="display text-2xl leading-none tracking-wordmark">Ricambi</span>
     </span>
   );
 }

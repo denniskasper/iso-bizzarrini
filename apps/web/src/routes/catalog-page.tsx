@@ -7,8 +7,8 @@ import { api, type CatalogModel } from '@/lib/api';
 /**
  * The catalog index — where a member starts, by finding their car.
  *
- * Laid out as the index page of a printed catalog rather than as a table: the brand is a
- * running head, each Model a ruled row, and every number the factory printed is set in mono.
+ * One car per band, its name in the display face at poster size, the way a showroom hangs one
+ * car per wall. The brand heads its cars; every number the factory printed is set in mono.
  */
 export function CatalogPage() {
   const { data, isPending, isError, error } = useQuery({
@@ -18,8 +18,7 @@ export function CatalogPage() {
 
   return (
     <div className="animate-rise">
-      <p className="text-2xs text-faint uppercase">The archive</p>
-      <h1 className="mt-3 text-4xl font-semibold text-balance sm:text-5xl">Covered cars</h1>
+      <h1 className="display text-4xl tracking-display sm:text-5xl">Covered cars</h1>
       <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
         Choose a car, open the factory drawing, click the numbered position, read the part.
       </p>
@@ -69,19 +68,15 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
   }
 
   return (
-    <div className="space-y-16" data-testid="model-index">
+    <div className="space-y-20" data-testid="model-index">
       {groupByBrand(models).map(([brand, brandModels]) => (
         <section key={brand} aria-labelledby={`brand-${brand}`}>
-          <div className="flex items-baseline gap-4">
-            <h2 id={`brand-${brand}`} className="text-2xs text-muted uppercase">
-              {brand}
-            </h2>
-            <span className="h-px flex-1 bg-line" />
-            <span className="tabular text-2xs text-faint">{brandModels.length}</span>
-          </div>
+          <h2 id={`brand-${brand}`} className="text-lg text-muted">
+            {brand}
+          </h2>
 
-          {/* Ruled top and bottom, so a brand's list closes the way a printed table does. */}
-          <ul className="mt-2 border-b border-line">
+          {/* Ruled top and bottom, so a brand's cars close the way a printed table does. */}
+          <ul className="mt-3 border-b border-line">
             {brandModels.map((model) => (
               <li key={model.id} data-testid="model-row">
                 <Link
@@ -90,10 +85,12 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
                   className="catalog-row"
                   aria-label={`${model.brand} ${model.name}`}
                 >
-                  <span className="text-xl">{model.name}</span>
-                  <span className="tabular text-sm text-muted">{model.series ?? ''}</span>
-                  <span className="tabular text-sm text-faint sm:text-right">
-                    {model.modelYears ?? ''}
+                  <span className="catalog-name display text-display text-balance">
+                    {model.name}
+                  </span>
+                  <span className="sm:pb-2 sm:text-right">
+                    <span className="tabular block text-muted">{model.series ?? ''}</span>
+                    <span className="tabular block">{model.modelYears ?? ''}</span>
                   </span>
                 </Link>
               </li>

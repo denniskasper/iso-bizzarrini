@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * One dominant action per screen, and it is the only thing wearing the accent. Everything else
+ * One dominant action per screen, and it is the only thing wearing the champagne fill. Everything else
  * is an outline or a piece of plain text that happens to be clickable.
  */
 const buttonVariants = cva(

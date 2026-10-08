@@ -7,8 +7,8 @@ import { fraction } from './viewport';
  * *choose your car, open the drawing, click the position, read the part.*
  *
  * **A ring and never a disc.** What a Mark points at is printed underneath it, and a filled dot
- * would cover the very number a member is trying to read. It is the Club's teal, which the
- * visual language sanctions for exactly four things and this is the second of them.
+ * would cover the very number a member is trying to read. It is ice blue, the pointing
+ * half of the accent pair (ADR 0014).
  *
  * **The layer knows nothing about zoom.** It positions every circle as a percentage of the
  * drawing, inside the drawing's own coordinate space, so the single transform that pans and
@@ -219,7 +219,7 @@ const MarkCircle = memo(function MarkCircle({
       data-testid="drawing-mark"
       data-position={position.number}
       data-selected={selected}
-      // Which of a number's several circles is the one being read. It is the same teal, ringed
+      // Which of a number's several circles is the one being read. It is the same blue, ringed
       // once more — a member cycling through four of them watches the heavier ring move.
       data-current={selected && current}
       // And which of them are not what the drawing was asked about.

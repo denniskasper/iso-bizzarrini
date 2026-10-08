@@ -22,9 +22,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="sticky top-0 z-10">
         <EnvironmentBanner />
 
-        {/* `surface-raised` is the Club's own chrome colour, measured from its site — so the
-            band across the top of the archive is the band across the top of the Club's. */}
-        <header className="border-b border-line bg-surface-raised">
+        {/* On the page's own surface, ruled off by a hairline: the chrome is the thinnest thing
+            on the screen, so the first thing seen is what the page is about. */}
+        <header className="border-b border-line bg-surface">
           {/*
             **It wraps for an Administrator and not for anybody else**, which is a narrower rule
             than it looks and is load-bearing rather than tidy.

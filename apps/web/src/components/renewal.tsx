@@ -32,7 +32,7 @@ export function RenewalScreen() {
 
   return (
     <div className="mx-auto max-w-measure animate-rise">
-      <Roundel className="size-7 text-accent-ink" />
+      <Roundel className="size-7 text-muted" />
       <h1 className="mt-8 text-4xl font-semibold text-balance">
         {paidThrough === null
           ? 'The Club has no Membership recorded for you.'

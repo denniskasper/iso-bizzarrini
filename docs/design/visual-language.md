@@ -29,35 +29,39 @@ class is the whole mechanism.
 **Depth comes from value, not from blur.** Hairline rules and a step in surface lightness, not
 drop shadows. A shadow implies a floating card; this is a printed index.
 
-**One accent, and it is the Club's.** A teal, measured from the Club site, where it is the one
-colour on an otherwise monochrome page and marks links. Nothing decorative wears it — if the
-accent appears, it either does something, points at something, or is the mark of the
-organisation. That is the whole list of sanctioned uses:
+**One accent pair, and it is Ricambi's own** (ADR 0014). Two colours with two jobs, and nothing
+decorative wears either:
 
-1. the single dominant action on a screen;
-2. Marks on a drawing, **and the Position one belongs to wherever else that Position appears** —
-   the circle on the sheet and its number in the list below are one thing being pointed at, and
-   colouring them differently would leave a member to work out that they are the same;
-3. a failure the member needs to notice;
-4. the wordmark, which is identity rather than decoration.
+- **Champagne is what is pressed.** The fill of the single dominant action on a screen, and
+  nothing else.
+- **Ice blue is what points.** Marks on a drawing, **and the Position one belongs to wherever
+  else that Position appears** — the circle on the sheet and its number in the list below are one
+  thing being pointed at, and colouring them differently would leave a member to work out that
+  they are the same. Links, and a failure the member needs to notice, are the same colour for the
+  same reason: each is the interface pointing at something.
 
-The accent exists as a fill and an ink because the measured teal carries white text at only
-3.15:1: `accent` is that teal darkened until white sits on it at 4.5:1 (with `accent-hover` and
-`accent-contrast` alongside it), `accent-ink` is the same teal made legible as text on a
-surface. Hover deepens the chroma rather than the lightness, so the contrast the fill was
-chosen for survives the interaction.
+The wordmark wears neither: it is set in the text colour, because identity here is the lettering
+and the roundel rather than a hue.
+
+Each exists at two depths of one hue. On graphite `accent` is the pale champagne with graphite
+ink on it at 9.5:1 and `accent-ink` is pale ice blue at 10:1; on paper, where a pale fill would
+vanish, both come from the deep end — a bronze fill carrying white at 5.8:1 and a blue that
+clears 6:1 on every light surface. A Mark is not themed at all: it only ever sits on paper, so
+it is always the deep blue (4.8:1), and a chip naming the Position being read is that same blue
+with paper white on it, at the same ratio.
 
 **Dark by default; light is the paper theme.** A scan is black lines on white paper, so
 graphite chrome makes the drawing the brightest thing on screen — and it is what a phone in a
 dim garage wants. The Club's own site agrees: its chrome is a cool graphite and its hero is
 near-black, so this was a hypothesis worth testing and the measurement settled it.
-`surface-raised` is the Club's chrome value exactly, which is why the band across the top of
-the archive is the band across the top of the Club's site. A stated system preference for light
+`surface-raised` is the Club's chrome value exactly; the archive's own header sits on the page
+surface a step below it, ruled off by a hairline, so the chrome is the thinnest thing on the
+screen. A stated system preference for light
 wins over the default; an explicit choice wins over both, and is remembered.
 
 **One value is deliberately under the bar, and it is a state the member switched on.** When a
 member asks to see a Sub-assembly on a drawing, the circles that are *not* in it recede to
-`--mark-receded` — the accent at 30%, which measures 1.5:1 on paper and clears nothing. That is
+`--mark-receded` — the Mark's blue at 30%, which measures 1.5:1 on paper and clears nothing. That is
 the point: it is the navigator's scrim applied to circles instead of to the sheet, so "the bright
 ones are the ones you asked for" needs no legend. Nothing is taken away — every receded circle is
 still there, still hittable at its full 44px, and one press on the same control brings the sheet
@@ -69,6 +73,8 @@ that figure is also written as a number is `MARK_TOUCH` in the drawing viewer, w
 the arithmetic in the drawing's own pixels and cannot read a token to do it. Body text clears 4.5:1 against its
 surface and non-text marks clear 3:1, including the faintest tokens. The focus ring is 3px of
 amber in both themes — amber, not the accent, so "focused" never reads as "this is the action".
+Champagne sits near it in hue and far from it in strength: the ring is saturated, the fill is
+nearly grey beside it.
 
 **The one ornament is the Club's roundel.** A thin-ruled circle quartered by a diagonal cross —
 the geometry of the Club's own emblem, which doubles as the registration mark a printer aligns a
@@ -99,15 +105,15 @@ the least that leaves them in gamut. Both were re-measured.
 
 ## Type
 
-The Club's own two faces, so the archive and the Club site read as one organisation.
+Two faces and the numbers.
 
 | Role | Face | Why |
 | --- | --- | --- |
-| Display, headings and the wordmark | Raleway Variable | The Club's own display face. It sets its lockup in it — uppercase, generously tracked, medium weight — which is the treatment this archive borrows. |
-| Body and interface | Open Sans Variable | The Club's own body face. Humanist, tall x-height, unfussy at small sizes and at arm's length. |
+| Display and the wordmark | Barlow Condensed | The nearest open face to the tall, light, condensed capital the Club sets its own lockup in. Light, uppercase and only at size, through the `.display` class: a car's name, a front door. Never for anything read in a sentence. |
+| Headings, body and interface | Open Sans Variable | The Club's own body face. Humanist, tall x-height, unfussy at small sizes and at arm's length. |
 | Every factory number | IBM Plex Mono | **Ours, and additive.** Tabular figures and a slashed zero, so two catalog numbers can be told apart by eye. The Club site has no numbers to compare and therefore no opinion. |
 
-All three are self-hosted, weight axis and Latin subsets only. No request ever leaves for a
+All three are self-hosted, Latin subsets only. No request ever leaves for a
 font, so no consent is owed for one — the same rule the club website is being rebuilt to
 satisfy, and the reason its current cookie banner exists.
 
@@ -125,13 +131,13 @@ utility classes in components. Feature code only ever sees the third layer.
 **It was measured, not invented.** The live Club site was loaded in a real browser and its
 *computed* styles were read — every element's font, colour, background and border — then ranked
 by how often each value actually appears. That gives the Club's real palette rather than
-whatever is left in a decade-old stylesheet: its chrome, its rule colour, its heading ink, its
-body grey and its one accent. Those sRGB values were converted to OKLCH and are the tokens.
+whatever is left in a decade-old stylesheet: its chrome, its rule colour, its heading ink and
+its body grey. Those sRGB values were converted to OKLCH and are the surface, rule and text
+tokens. The Club's one accent, a teal, was measured too and is no longer used (ADR 0014).
 
-**Only lightness was changed, and only where contrast demanded it.** Three measured values
-could not carry text at 4.5:1 — the teal as a fill under white, the teal as text on paper, and
-the body grey as this archive's `muted`. Each was moved along its own lightness axis until it
-cleared the bar and no further. Hue and chroma are the Club's throughout.
+**Only lightness was changed, and only where contrast demanded it.** The body grey could not
+carry text at 4.5:1 as this archive's `muted`, and was moved along its own lightness axis until
+it cleared the bar and no further. Hue and chroma of everything measured are the Club's.
 
 A fourth was found later, doing the same arithmetic for the non-production surfaces: dark
 `text-faint` cleared 4.5:1 against the page but reached only 4.20 against `surface-raised`,
@@ -145,6 +151,6 @@ tokens; the asset itself is dropped in at deploy time.
 
 **Capture this again before the Club site is retired.** The measurement above is a snapshot of a
 WordPress theme that is being replaced (club-website tickets 04 and 05). If the rebuild changes
-the Club's palette or faces, these tokens are the one place that has to follow — and the
+the Club's graphite or its body face, these tokens are the one place that has to follow — and the
 capture is worth re-running against whatever replaces it, so the two properties do not drift
 apart the moment the new site ships.

@@ -27,9 +27,7 @@ export function EnvironmentBanner() {
         {/* Set a step above the chrome around it, not below: the one element that must be read
             at arm's length in a garage cannot be the smallest type on the page. */}
         <p className="text-sm">
-          <span className="mr-3 font-display text-xs font-semibold tracking-wordmark uppercase">
-            Demo
-          </span>
+          <span className="mr-3 text-xs font-semibold tracking-wordmark uppercase">Demo</span>
           Practice archive — nothing here is real, and nothing reaches a member.
         </p>
       </div>

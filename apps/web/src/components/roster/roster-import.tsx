@@ -315,8 +315,8 @@ function Row({ row, applied }: { row: RosterImportRow; applied: boolean }) {
         </span>
         {/*
           **The accent only where something is wrong.** `why` is on every outcome here — an
-          unchanged row explains itself too — and painting all of them teal would spend the
-          archive's one accent on rows where nothing has happened. It is reserved for the row an
+          unchanged row explains itself too — and painting all of them in the accent would spend
+          it on rows where nothing has happened. It is reserved for the row an
           Administrator has to go and do something about, which is the one that could not be read.
         */}
         {row.why && (

@@ -1,12 +1,13 @@
 @import 'tailwindcss';
 
 /*
- * The Club's own two faces, self-hosted — so no request ever leaves for a font and no consent
- * is owed for one, which is the same rule the Club site is being rebuilt to satisfy. Weight
- * axis only, Latin only: this platform is English and uses no width axis.
+ * Self-hosted, so no request ever leaves for a font and no consent is owed for one, which is
+ * the same rule the Club site is being rebuilt to satisfy. Latin only: this platform is English.
+ * The display face is used light and at size, so it ships in two weights and no more.
  */
 @import '@fontsource-variable/open-sans/wght.css';
-@import '@fontsource-variable/raleway/wght.css';
+@import '@fontsource/barlow-condensed/latin-300.css';
+@import '@fontsource/barlow-condensed/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-500.css';
 @import '@fontsource/ibm-plex-mono/latin-600.css';
@@ -30,13 +31,6 @@
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-  }
-
-  /* The Club sets its headings in Raleway. Applied once here, so no feature component ever
-     names a typeface. */
-  h1,
-  h2 {
-    font-family: var(--font-display);
   }
 
   /* Every number in this archive is an identifier. Tabular figures keep columns of them
@@ -75,27 +69,44 @@
 
 @layer components {
   /*
-   * One row of a catalog index: the Model, then the numbers the factory printed, ruled off
-   * like the printed page. The column measure lives here rather than in feature code.
+   * Display lettering: the tall condensed capital, light, at poster size. **For the few words a
+   * screen is about** — a car's name, the archive's front door — and never for anything that has
+   * to be read in a sentence. Size is the caller's; the face, case and weight are this.
+   */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 300;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-display);
+  }
+
+  /*
+   * One row of the catalog index: **a car per band**, its name at poster size, then the numbers
+   * the factory printed — series and years — set small and right, where the eye lands after the
+   * name. The name is the target; the ruled band is how big the target is.
    */
   .catalog-row {
     display: grid;
     grid-template-columns: 1fr;
-    align-items: baseline;
+    align-items: end;
     column-gap: --spacing(6);
-    row-gap: --spacing(1);
-    padding-block: --spacing(5);
+    row-gap: --spacing(3);
+    padding-block: --spacing(8);
     border-top: 1px solid var(--line);
-    transition: background-color 150ms var(--ease-out-quick);
   }
 
-  .catalog-row:hover {
-    background-color: var(--surface-sunken);
+  .catalog-row .catalog-name {
+    transition: color 150ms var(--ease-out-quick);
+  }
+
+  .catalog-row:hover .catalog-name {
+    color: var(--accent-ink);
   }
 
   @media (width >= 40rem) {
     .catalog-row {
-      grid-template-columns: 1fr auto 9rem;
+      grid-template-columns: 1fr auto;
+      padding-block: --spacing(12);
     }
   }
 
@@ -285,7 +296,7 @@
    * It fills *and* wears a band outside itself, because on a sheet carrying two hundred rings a
    * heavier ring is not findable — the eye has to be able to pick this one out at the
    * magnification the whole sheet is on screen at, which is where a member starts. The number
-   * under it stays legible: teal at a third strength is a wash, not a lid.
+   * under it stays legible: blue at a third strength is a wash, not a lid.
    */
   .drawing-mark[data-selected='true']::before {
     border-width: calc(var(--mark-ring) / 7);
@@ -298,7 +309,7 @@
    *
    * The factory printed one number wherever the part is used, so a member selecting `2` again is
    * taken to the next place it appears (story 48) — a movement they can only follow if the sheet
-   * says which one they are at. One more band outside the ring, in the same teal: the Position's
+   * says which one they are at. One more band outside the ring, in the same blue: the Position's
    * circles are all lit because they are one Position, and this is the one under the eye.
    */
   .drawing-mark[data-current='true']::before {
@@ -312,7 +323,7 @@
    *
    * It recedes what was not named rather than painting what was in a second colour, which is the
    * navigator's move about what is not in view — and for the same reason: "the bright ones are the
-   * ones you asked for" needs no legend, and the archive's one accent already means "the Position
+   * ones you asked for" needs no legend, and ice blue already means "the Position
    * being pointed at". Two things wearing it would leave a member working out which is which.
    *
    * The weight is `--mark-receded`, argued and measured in the token file. Every circle here is
@@ -521,7 +532,7 @@
    * drawings is comparing lengths, and the counts are printed beside it for anybody who wants the
    * number.
    *
-   * It wears **no accent**, deliberately. The teal on these screens means the Position being
+   * It wears **no accent**, deliberately. The accent pair on these screens means the Position being
    * pointed at and the one dominant action, and a row of sixty tallies claiming to be either
    * would leave nothing on the page that still meant it.
    *
