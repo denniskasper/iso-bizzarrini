@@ -11,6 +11,7 @@
  */
 import { asc } from 'drizzle-orm';
 import { createEmailSender, createPaymentProvider } from '../src/composition/platform.js';
+import { systemClock } from '../src/platform/clock.js';
 import { createLogger } from '../src/platform/logger.js';
 import { assertSafeForEnvironment } from '../src/composition/environment-safety.js';
 import { loadConfig } from '../src/config/config.js';
@@ -37,7 +38,7 @@ const config = loadConfig();
 assertSafeForEnvironment({
   config,
   emailSender: createEmailSender(config, createLogger(config)),
-  paymentProvider: createPaymentProvider(config),
+  paymentProvider: createPaymentProvider(config, systemClock),
 });
 
 const database = createDatabase(config.databaseUrl, { maxConnections: 1 });

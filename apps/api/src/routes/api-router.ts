@@ -18,10 +18,14 @@ import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
 import type { StatusController } from '../controllers/status-controller.js';
+import type { SubscriptionController } from '../controllers/subscription-controller.js';
 import type { TavolaController } from '../controllers/tavola-controller.js';
 
 /** Where this router is mounted. Named once, so nothing has to agree with it by memory. */
 export const API_MOUNT = '/api';
+
+/** Under `API_MOUNT`. Named, because the application keeps this one address's body unparsed. */
+export const WEBHOOK_PATH = '/payments/webhook';
 
 /**
  * Routes name the addresses; controllers do the work. Nothing else belongs here — except the
@@ -47,6 +51,7 @@ export function createApiRouter(dependencies: {
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
+  subscriptionController: SubscriptionController;
   retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
@@ -69,6 +74,7 @@ export function createApiRouter(dependencies: {
     statusController,
     sessionController,
     rosterController,
+    subscriptionController,
     retentionController,
     rosterImportController,
     clubController,
@@ -167,6 +173,27 @@ export function createApiRouter(dependencies: {
   // reference already written in their name. The Club's record itself — the reminder text, the
   // format that reference came out of — stays an Administrator's.
   router.get('/renewal', gate.requireSignedIn, clubController.readRenewal);
+
+  // **Where the payment provider delivers**, and the only thing in the archive that can move a
+  // Paid-through without an Administrator. Nobody is signed in at it: what it is behind is the
+  // provider's signature over the exact bytes it sent, checked before anything is believed.
+  router.post(WEBHOOK_PATH, subscriptionController.receiveWebhook);
+
+  // **A member's own subscription** (ADR 0004, issue #4). Signed in is enough for all four, for
+  // the reason the renewal is: the member who needs to pay is the one the archive is refusing.
+  // None of them moves a Paid-through — only the provider's own confirmation does that.
+  router.get('/subscription', gate.requireSignedIn, subscriptionController.read);
+  router.post('/subscription', gate.requireSignedIn, subscriptionController.start);
+  router.put(
+    '/subscription/auto-renewal',
+    gate.requireSignedIn,
+    subscriptionController.setAutoRenewal,
+  );
+  router.get(
+    '/subscription/payments/:paymentId/receipt',
+    gate.requireSignedIn,
+    subscriptionController.readReceipt,
+  );
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);

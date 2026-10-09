@@ -13,6 +13,9 @@ import type {
   CategoryWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  MembershipStandingResponse,
+  SetAutoRenewalRequest,
+  StartSubscriptionResponse,
   LegalNoticeResponse,
   NameProcessorRequest,
   ProcessorResponse,
@@ -225,6 +228,20 @@ export const api = {
     send<RosterImportPlan>('POST', '/roster/import/preview', file),
   importRoster: (file: RosterImportRequest) =>
     send<RosterImportPlan>('POST', '/roster/import', file),
+
+  /**
+   * **A member's own Membership, and paying for it through the platform** (ADR 0004).
+   *
+   * `startSubscription` answers with the payment provider's page and changes nothing: the
+   * Paid-through moves when the provider tells the archive the money arrived, never when a
+   * member presses a button here. `setAutoRenewal(false)` is the one-press cancellation.
+   */
+  membership: () => request<MembershipStandingResponse>('/subscription'),
+  startSubscription: () => send<StartSubscriptionResponse>('POST', '/subscription', {}),
+  setAutoRenewal: (renews: boolean) =>
+    send<MembershipStandingResponse>('PUT', '/subscription/auto-renewal', {
+      renews,
+    } satisfies SetAutoRenewalRequest),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

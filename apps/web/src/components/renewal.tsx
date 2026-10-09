@@ -1,9 +1,11 @@
 import type { Renewal } from '@ricambi/contracts';
 import { Link } from '@tanstack/react-router';
 import { Mail } from 'lucide-react';
+import { PayOnline } from '@/components/membership/pay-online';
 import { Button } from '@/components/ui/button';
 import { CopyValue } from '@/components/ui/copy-value';
 import { Roundel } from '@/components/wordmark';
+import { useMembership } from '@/lib/membership';
 import { useRenewal, useSession } from '@/lib/session';
 
 /**
@@ -28,7 +30,13 @@ import { useRenewal, useSession } from '@/lib/session';
 export function RenewalScreen() {
   const { account, isAdministrator } = useSession();
   const renewal = useRenewal();
+  const membership = useMembership();
   const paidThrough = account?.paidThrough ?? null;
+  const subscription = membership.data?.membership.subscription;
+  const payOnline =
+    membership.data !== undefined &&
+    membership.data.membership.canPayOnline &&
+    membership.data.membership.subscription === null;
 
   return (
     <div className="mx-auto max-w-measure animate-rise">
@@ -55,6 +63,34 @@ export function RenewalScreen() {
         Nothing at all until the Club has answered. A skeleton of a bank account is worse than a
         pause: half an IBAN on screen is something somebody might act on.
       */}
+      {/*
+        **Paying through the platform comes first where it is on offer** (ADR 0004), and the
+        transfer stays directly under it — some members will never sign a mandate, and this is
+        the screen they are locked out behind. Somebody who has already started a subscription
+        is told their payment is on its way rather than offered a second one.
+      */}
+      {subscription != null && (
+        <div className="mt-10 border-l-2 border-line-strong pl-4">
+          <p className="text-pretty text-text">
+            {subscription.renews
+              ? 'You have set up a payment. Your access comes back when the bank confirms it — a few working days for a direct debit.'
+              : 'You have a subscription with auto-renewal turned off, so nothing more will be collected. Turn it back on from your Membership, or pay by bank transfer below.'}
+          </p>
+          <Button asChild variant="link" className="px-0">
+            <Link to="/membership">Your Membership</Link>
+          </Button>
+        </div>
+      )}
+      {payOnline && (
+        <div className="mt-14">
+          <PayOnline membership={membership.data.membership} />
+        </div>
+      )}
+      {payOnline && renewal.isSuccess && (
+        <h2 className="mt-14 border-t border-line pt-10 text-2xl font-semibold">
+          Or pay by bank transfer
+        </h2>
+      )}
       {renewal.isSuccess && <HowToPay renewal={renewal.data.renewal} />}
       {renewal.isError && (
         <p className="mt-10 text-lg text-pretty text-muted">
@@ -78,7 +114,7 @@ export function RenewalScreen() {
  * The transfer, in the order somebody fills a banking app in: how much, to whom, and what to
  * write on it. The reference comes last because it is the field people leave blank.
  */
-function HowToPay({ renewal }: { renewal: Renewal }) {
+export function HowToPay({ renewal }: { renewal: Renewal }) {
   const bank = [
     { label: 'Account holder', value: renewal.bankAccountHolder },
     { label: 'Bank', value: renewal.bankName },

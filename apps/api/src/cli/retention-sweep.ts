@@ -46,10 +46,11 @@ const logger = createLogger(config);
 
 // ADR 0012: an entry point that does not build the application owes the environment guard a
 // call of its own.
+const paymentProvider = createPaymentProvider(config, systemClock);
 assertSafeForEnvironment({
   config,
   emailSender: createEmailSender(config, logger),
-  paymentProvider: createPaymentProvider(config),
+  paymentProvider,
 });
 
 const database = createDatabase(config.databaseUrl, { maxConnections: 1 });
@@ -64,6 +65,7 @@ try {
       logger,
       fileStore: createFileStore(config.files.storagePath),
       retention: config.retention,
+      paymentProvider,
     },
     { dryRun },
   );

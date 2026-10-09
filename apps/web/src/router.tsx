@@ -12,6 +12,7 @@ import { CategoriesPage } from '@/routes/categories-page';
 import { CategoryPage } from '@/routes/category-page';
 import { ClubPage } from '@/routes/club-page';
 import { LegalNoticePage } from '@/routes/legal-notice-page';
+import { MembershipPage } from '@/routes/membership-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
 import { PrivacyPage } from '@/routes/privacy-page';
@@ -45,6 +46,7 @@ const OUTSIDE_THE_GATE = [
   '/club',
   '/privacy',
   '/legal-notice',
+  '/membership',
 ];
 
 function RootLayout() {
@@ -132,6 +134,19 @@ const clubRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/club',
   component: ClubPage,
+});
+
+/**
+ * A member's own Membership (ADR 0004). Outside the gate for the reason the roster is: the
+ * person who most needs it is the one whose Membership has run out. `paid` is what the payment
+ * provider sends a member back with, and says only that they have been to its page.
+ */
+const membershipRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/membership',
+  component: MembershipPage,
+  validateSearch: (search: Record<string, unknown>): { paid?: string } =>
+    search['paid'] === '1' ? { paid: '1' } : {},
 });
 
 /** What is kept about a person and for how long (ADR 0007). Open to anybody. */
@@ -240,6 +255,7 @@ export const router = createRouter({
     rosterImportRoute,
     clubRoute,
     privacyRoute,
+    membershipRoute,
     legalNoticeRoute,
     searchRoute,
     modelRoute,

@@ -44,6 +44,20 @@ const senderThatReachesMembers: EmailSender = {
 const providerThatReachesRealMandates: PaymentProvider = {
   name: 'live-provider-stand-in',
   reachesRealMandates: true,
+  takesPayments: true,
+  signatureHeader: 'provider-signature',
+  async startSubscription() {
+    throw new Error('This provider exists to be refused, not to be used.');
+  },
+  async setAutoRenewal() {
+    throw new Error('This provider exists to be refused, not to be used.');
+  },
+  async endSubscription() {
+    throw new Error('This provider exists to be refused, not to be used.');
+  },
+  async receiptUrlFor() {
+    throw new Error('This provider exists to be refused, not to be used.');
+  },
   readWebhookEvent(): PaymentEvent {
     throw new Error('This provider exists to be refused, not to be used.');
   },

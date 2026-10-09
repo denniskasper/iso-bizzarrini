@@ -65,7 +65,7 @@ const emailSender = createEmailSender(config, logger);
 assertSafeForEnvironment({
   config,
   emailSender,
-  paymentProvider: createPaymentProvider(config),
+  paymentProvider: createPaymentProvider(config, systemClock),
 });
 
 const database = createDatabase(config.databaseUrl, { maxConnections: 1 });

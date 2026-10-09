@@ -52,6 +52,9 @@ const OPEN = new Set([
   'GET /api/privacy',
   // Who is behind the platform (issue #9). Addressed to whoever lands here, member or not.
   'GET /api/legal-notice',
+  // Where the payment provider delivers (issue #4). Nobody is signed in at it; what it is
+  // behind is the provider's signature over the bytes, which `subscriptions.test.ts` proves.
+  'POST /api/payments/webhook',
 ]);
 
 /** An Administrator's, and behind the role rather than behind a Membership. */
@@ -83,7 +86,14 @@ const ADMINISTRATORS_ONLY = new Set([
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */
-const ANY_MEMBER = new Set(['GET /api/renewal']);
+const ANY_MEMBER = new Set([
+  'GET /api/renewal',
+  // Paying through the platform (issue #4): the member who needs to is the one being refused.
+  'GET /api/subscription',
+  'POST /api/subscription',
+  'PUT /api/subscription/auto-renewal',
+  'GET /api/subscription/payments/:paymentId/receipt',
+]);
 
 /**
  * **The writes a Member may make, and there are exactly these** (issue #5). A Contribution is
@@ -176,7 +186,8 @@ describe('who may reach what', () => {
         if (address.method === 'get' || OPEN.has(name) || ADMINISTRATORS_ONLY.has(name)) {
           continue;
         }
-        if (A_MEMBERS_TO_WRITE.has(name)) {
+        // What a member may do about their own subscription is theirs, live Membership or not.
+        if (A_MEMBERS_TO_WRITE.has(name) || ANY_MEMBER.has(name)) {
           continue;
         }
 

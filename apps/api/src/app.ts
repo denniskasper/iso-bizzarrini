@@ -23,6 +23,10 @@ import { createScanController } from './controllers/scan-controller.js';
 import { createSearchController } from './controllers/search-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
 import { createStatusController } from './controllers/status-controller.js';
+import {
+  createSubscriptionController,
+  type RawBodied,
+} from './controllers/subscription-controller.js';
 import { createTavolaController } from './controllers/tavola-controller.js';
 import type { Db } from './db/client.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
@@ -46,7 +50,7 @@ import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
-import { API_MOUNT, createApiRouter } from './routes/api-router.js';
+import { API_MOUNT, createApiRouter, WEBHOOK_PATH } from './routes/api-router.js';
 import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
@@ -65,6 +69,10 @@ import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createSearchService } from './services/search-service.js';
 import { createStatusService } from './services/status-service.js';
+import {
+  createSubscriptionEnding,
+  createSubscriptionService,
+} from './services/subscription-service.js';
 import { createTavolaService } from './services/tavola-service.js';
 import { createFileStore, type FileStore } from './storage/file-store.js';
 import { createStaticSiteHandler } from './http/static-site.js';
@@ -114,6 +122,9 @@ export interface PlatformLocals {
   emailSender: EmailSender;
   paymentProvider: PaymentProvider;
 }
+
+/** Where the payment provider delivers, as the request itself spells it. */
+const WEBHOOK_ADDRESS = API_MOUNT + WEBHOOK_PATH;
 
 export function createApp(dependencies: AppDependencies): Express {
   const { config, clock, db, emailSender, paymentProvider } = dependencies;
@@ -190,8 +201,17 @@ export function createApp(dependencies: AppDependencies): Express {
     clubService,
     processorRepository,
   });
+  const subscriptionService = createSubscriptionService({
+    db,
+    clock,
+    paymentProvider,
+    clubService,
+    logger,
+    publicUrl: config.publicUrl,
+  });
   const retentionService = createRetentionService({
     terms: config.retention,
+    endSubscriptions: createSubscriptionEnding({ db, clock, paymentProvider, logger }),
     clock,
     accountRepository,
     retentionRepository,
@@ -264,6 +284,11 @@ export function createApp(dependencies: AppDependencies): Express {
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ gate, accountService });
   const rosterController = createRosterController({ gate, rosterService });
+  const subscriptionController = createSubscriptionController({
+    gate,
+    paymentProvider,
+    subscriptionService,
+  });
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
@@ -319,7 +344,21 @@ export function createApp(dependencies: AppDependencies): Express {
     next();
   });
 
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      /**
+       * **The payment provider signs the bytes it sent**, and a body that has been parsed and
+       * written out again is not those bytes. So for that one address, and for no other, the
+       * bytes are kept beside what they parse to.
+       */
+      verify: (request, _response, body) => {
+        if (request.url === WEBHOOK_ADDRESS) {
+          (request as RawBodied).rawBody = body;
+        }
+      },
+    }),
+  );
 
   app.use(
     API_MOUNT,
@@ -330,6 +369,7 @@ export function createApp(dependencies: AppDependencies): Express {
       statusController,
       sessionController,
       rosterController,
+      subscriptionController,
       retentionController,
       rosterImportController,
       clubController,

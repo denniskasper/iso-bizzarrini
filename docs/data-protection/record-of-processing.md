@@ -76,8 +76,8 @@ Art. 30(1) GDPR, drafted for Ricambi. **A draft for the association to adopt** โ
 | Purpose | Recording that a member has paid, which is what moves their paid-through date; and keeping the association's accounts |
 | Legal basis | Art. 6(1)(b); Art. 6(1)(c) with ยง 147 AO for retention |
 | Data | Amount, currency, the date the money arrived, the reference on the transfer, the term it bought; the payer's name |
-| Source | An Administrator, reading the association's bank statement. Ricambi holds no member's bank details and takes no payment itself. |
-| Who sees it | Administrators |
+| Source | An Administrator, reading the association's bank statement; or, where the association takes the fee through Ricambi ([ADR 0004](../adr/0004-payment-in-scope.md)), the payment provider's signed confirmation that a payment arrived, with a link to its receipt. Ricambi holds no member's bank or card details: those are given to the payment provider on its own page. |
+| Who sees it | Administrators; each member, their own |
 | Erasure | **Not erased with the Account.** A payment record is kept with the payer's name until `PAYMENT_RECORD_RETENTION_YEARS` (ten) full calendar years after the year the money arrived, then deleted automatically. The privacy statement says so. |
 
 ### 6. The server's log

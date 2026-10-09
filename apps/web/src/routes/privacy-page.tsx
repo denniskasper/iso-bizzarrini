@@ -131,7 +131,11 @@ function Statement({ privacy }: { privacy: PrivacyResponse }) {
         <p>
           <strong className="font-semibold">Payments.</strong> The payments the Club has recorded
           from you: the amount, the day it arrived and the reference on the transfer. Ricambi does
-          not hold your bank details.
+          not hold your bank details. If you pay through Ricambi by direct debit or card, you give
+          those details to the Club’s payment provider on its own page. Ricambi passes the provider
+          your e-mail address so that it can write to you about the payment, and is told in return
+          that the payment arrived; it keeps the amount, the date and the provider’s reference for
+          the payment and for your subscription.
         </p>
         <p>
           <strong className="font-semibold">The server’s log.</strong> Each request to Ricambi is
