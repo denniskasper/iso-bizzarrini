@@ -113,10 +113,15 @@ export function createContributionController(dependencies: {
       const { photographId, variant } = imageParams.parse(request.params);
       const who = gate.whoIsSignedIn(response);
 
-      const image = await contributionService.openImage(who.account.id, photographId, variant);
+      // An Editor is shown a waiting Contribution's pictures: that is what checking it is.
+      const image = await contributionService.openImage(
+        { id: who.account.id, decides: gate.mayEdit(who) },
+        photographId,
+        variant,
+      );
       if (!image) {
         // The same answer for a photograph that does not exist and one this member may not see
-        // yet, so that asking is no way of finding out which.
+        // — not yet, or not ever — so that asking is no way of finding out which.
         throw new NotFoundError('No such photograph.');
       }
 

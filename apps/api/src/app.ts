@@ -10,6 +10,7 @@ import { createCatalogController } from './controllers/catalog-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
 import { createContributionController } from './controllers/contribution-controller.js';
+import { createContributionReviewController } from './controllers/contribution-review-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
@@ -47,6 +48,7 @@ import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
 import { createCategoryService } from './services/category-service.js';
 import { createClubService } from './services/club-service.js';
+import { createContributionReviewService } from './services/contribution-review-service.js';
 import { createContributionService } from './services/contribution-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
@@ -221,6 +223,12 @@ export function createApp(dependencies: AppDependencies): Express {
     clock,
     logger,
   });
+  const contributionReviewService = createContributionReviewService({
+    contributionRepository,
+    positionRepository,
+    tavolaRepository,
+    partService,
+  });
   const scanService = createScanService({
     tavolaRepository,
     scanRepository,
@@ -244,6 +252,10 @@ export function createApp(dependencies: AppDependencies): Express {
   const bulkPasteController = createBulkPasteController({ bulkPasteService });
   const photographController = createPhotographController({ photographService });
   const contributionController = createContributionController({ gate, contributionService });
+  const contributionReviewController = createContributionReviewController({
+    gate,
+    contributionReviewService,
+  });
   const scanController = createScanController({ scanService });
 
   const app = express();
@@ -302,6 +314,7 @@ export function createApp(dependencies: AppDependencies): Express {
       bulkPasteController,
       photographController,
       contributionController,
+      contributionReviewController,
       scanController,
     }),
   );

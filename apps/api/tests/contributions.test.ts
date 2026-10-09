@@ -24,8 +24,9 @@ import { startTestApp, type TestApp } from './support/test-app.js';
  * archive is only worth reading while that holds — so "nobody else sees it" is asserted of the
  * text, of the photographs, and of every address either can be asked for at.
  *
- * Publishing is an Editor's and arrives with issue #6. Where a test needs a Contribution that
- * has been published, it is arranged rather than driven, like every other starting state here.
+ * Publishing is an Editor's, and is proved in `contribution-review.test.ts`. Where a test here
+ * needs a Contribution that has been published, it is arranged rather than driven, like every
+ * other starting state.
  */
 
 /** What a form sends about a Part: every field a plain string, blank meaning "not recorded". */
@@ -382,16 +383,17 @@ describe('Contributions', () => {
      * **A picture is asked for by address, with nobody pressing anything**, so the rule about the
      * words has to be the rule about the image too — or a waiting Contribution is one guessed
      * link away from being seen. Refused as *not there*, which says nothing about whether it is.
+     *
+     * The Editor checking it is shown it, which is what checking is (issue #6) and is asserted
+     * where that is driven.
      */
-    it('are served to nobody else while the Contribution waits, and to members once it is published', async () => {
+    it('are served to no other member while the Contribution waits, and to all of them once it is published', async () => {
       const attached = await attach(clara.agent, await givenPhotographImage()).expect(201);
       const { displayUrl, previewUrl } = attached.body.contribution.photographs[0];
 
       for (const url of [displayUrl, previewUrl]) {
-        for (const somebodyElse of [dario.agent, editor]) {
-          const refused = await somebodyElse.get(url).expect(404);
-          expect(refused.body.error.code).toBe('not_found');
-        }
+        const refused = await dario.agent.get(url).expect(404);
+        expect(refused.body.error.code).toBe('not_found');
         await app.request().get(url).expect(401);
       }
 

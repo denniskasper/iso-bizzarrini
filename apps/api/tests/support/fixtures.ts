@@ -99,9 +99,9 @@ export async function givenTavola(
 }
 
 /**
- * A Contribution an Editor has published. **Arranged, because publishing is issue #6** — until
- * that lands there is no address that does it, and what this suite needs is only somewhere to
- * start from: what a member is shown *once* something has been checked.
+ * A Contribution an Editor has published. **Arranged rather than driven**, for the tests that
+ * are about what a member is shown *once* something has been checked and only need somewhere to
+ * start from. Publishing itself is proved over HTTP in `contribution-review.test.ts`.
  */
 export async function givenPublished(db: Db, contributionId: string): Promise<void> {
   const published = await db

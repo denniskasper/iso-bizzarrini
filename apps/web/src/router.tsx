@@ -13,6 +13,7 @@ import { CategoryPage } from '@/routes/category-page';
 import { ClubPage } from '@/routes/club-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
+import { ReviewPage } from '@/routes/review-page';
 import { RosterImportPage } from '@/routes/roster-import-page';
 import { RosterPage } from '@/routes/roster-page';
 import { SearchPage } from '@/routes/search-page';
@@ -174,6 +175,16 @@ const categoryRoute = createRoute({
   component: CategoryPage,
 });
 
+/**
+ * What members have sent that an Editor has yet to decide (issue #6). Inside the gate, because
+ * it is the archive's: the role that makes it an Editor's is checked where the queue is read.
+ */
+const reviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/review',
+  component: ReviewPage,
+});
+
 const tavolaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/tavole/$tavolaId',
@@ -207,6 +218,7 @@ export const router = createRouter({
     modelRoute,
     categoriesRoute,
     categoryRoute,
+    reviewRoute,
     tavolaRoute,
   ]),
   defaultPreload: 'intent',

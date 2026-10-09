@@ -70,8 +70,11 @@ const correctedListingBody = z.object({
  * second listing of it names it; a Part the archive has not met arrives whole. A request
  * carrying both is an Editor's tool contradicting itself, and one carrying neither has not said
  * what it is listing.
+ *
+ * Exported for the one other address that records a Listing: a Part recorded from a member's
+ * Contribution (`contribution-review-controller.ts`) is held to exactly these rules.
  */
-const newListingBody = correctedListingBody
+export const newListingBody = correctedListingBody
   .extend({
     partId: z.uuid('That is not a Part id.').optional(),
     part: partBody.optional(),

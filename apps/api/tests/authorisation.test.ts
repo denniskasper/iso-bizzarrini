@@ -87,6 +87,16 @@ const A_MEMBERS_TO_WRITE = new Set([
   'POST /api/contributions/:contributionId/photographs',
 ]);
 
+/**
+ * **The only reads in the archive that are not every member's** (issue #6): what members have
+ * sent and nobody has checked. The rule is that a Membership buys reading, so a read outside it
+ * is named here on purpose, exactly as a Member's writes are named above.
+ */
+const AN_EDITORS_TO_READ = new Set([
+  'GET /api/contributions/waiting',
+  'GET /api/contributions/waiting/count',
+]);
+
 describe('who may reach what', () => {
   let app: TestApp;
   let administrator: TestAgent;
@@ -113,7 +123,13 @@ describe('who may reach what', () => {
   it('finds the whole surface, so what follows is asking about all of it', () => {
     expect(surface.length).toBeGreaterThan(40);
 
-    for (const known of [...OPEN, ...ADMINISTRATORS_ONLY, ...ANY_MEMBER, ...A_MEMBERS_TO_WRITE]) {
+    for (const known of [
+      ...OPEN,
+      ...ADMINISTRATORS_ONLY,
+      ...ANY_MEMBER,
+      ...A_MEMBERS_TO_WRITE,
+      ...AN_EDITORS_TO_READ,
+    ]) {
       expect(surface.map(named), `${known} is not a route this application has`).toContain(known);
     }
   });
@@ -180,6 +196,17 @@ describe('who may reach what', () => {
         expect([401, 403], `${name} refused a Member: ${response.status}`).not.toContain(
           response.status,
         );
+      }
+    });
+
+    /** What is waiting to be checked is the one thing they were promised nobody would read. */
+    it('is refused what members have sent that nobody has checked', async () => {
+      for (const name of AN_EDITORS_TO_READ) {
+        const address = surface.find((route) => named(route) === name);
+        const response = await member[address!.method](fill(address!.path));
+
+        expect(response.status, `${name} let a Member read the queue`).toBe(403);
+        expect(response.body.error?.code).toBe('forbidden');
       }
     });
 

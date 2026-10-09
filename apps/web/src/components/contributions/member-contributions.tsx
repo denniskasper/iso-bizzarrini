@@ -4,7 +4,7 @@ import { PhotographStrip } from '@/components/parts/part-photographs';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Refusal, TextArea } from '@/components/ui/field';
 import { api, refusalText, type Contribution, type ContributionTarget } from '@/lib/api';
-import { useRereadContributions } from '@/lib/contributions';
+import { authorOf, useRereadContributions, writtenOn } from '@/lib/contributions';
 import { cn } from '@/lib/utils';
 
 /**
@@ -89,8 +89,7 @@ export function MemberContributions({
  */
 function Written({ contribution }: { contribution: Contribution }) {
   const waiting = contribution.state === 'waiting';
-  // "A former member" is the whole of what is said once the Account is gone (ADR 0007).
-  const author = contribution.authorName ?? 'A former member';
+  const author = authorOf(contribution);
 
   return (
     <article
@@ -409,13 +408,4 @@ function ChosenPhotographs({
       ))}
     </ul>
   );
-}
-
-/** The day it was written, as a member reads a date. The instant is in the markup. */
-function writtenOn(writtenAt: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(writtenAt));
 }

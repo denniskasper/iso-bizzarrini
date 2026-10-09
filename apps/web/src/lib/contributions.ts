@@ -34,6 +34,26 @@ export function useRereadContributions(): () => Promise<void> {
   const queryClient = useQueryClient();
 
   return useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['position-contributions'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['position-contributions'] }),
+      // An Editor is a Member too, and what they send waits like anybody's: the number in the
+      // chrome should say so at once rather than a minute later.
+      queryClient.invalidateQueries({ queryKey: ['contributions-waiting-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['contributions-waiting'] }),
+    ]);
   }, [queryClient]);
+}
+
+/** The day something was written, as a member reads a date. The instant is in the markup. */
+export function writtenOn(writtenAt: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(writtenAt));
+}
+
+/** "A former member" is the whole of what is said once the Account is gone (ADR 0007). */
+export function authorOf(contribution: { authorName: string | null }): string {
+  return contribution.authorName ?? 'A former member';
 }

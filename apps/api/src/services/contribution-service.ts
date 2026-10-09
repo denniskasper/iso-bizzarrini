@@ -10,6 +10,7 @@ import type { Logger } from '../platform/logger.js';
 import type {
   ContributionRepository,
   ContributionWithAuthor,
+  PhotographReader,
 } from '../repositories/contribution-repository.js';
 import type { PartRepository } from '../repositories/part-repository.js';
 import type { PositionRepository } from '../repositories/position-repository.js';
@@ -21,8 +22,8 @@ import { discardImageFiles, openStoredImage, storeImageFiles } from '../storage/
  * else sees it** (stories 83–91).
  *
  * This is the half a member does. What an Editor does with what arrives — publishing it,
- * discarding it, folding a correction into the Part — is issue #6, and nothing here decides
- * anything: every Contribution this file writes is `waiting`.
+ * discarding it, folding a correction into the Part — is `contribution-review-service.ts`, and
+ * nothing here decides anything: every Contribution this file writes is `waiting`.
  *
  * **Everything takes the person asking**, because every answer depends on them. The same address
  * returns a waiting Contribution to the member who wrote it and nothing to the member beside
@@ -61,7 +62,7 @@ export interface ContributionService {
 
   /** `null` when there is no such photograph *for this reader*, so the route answers 404. */
   openImage(
-    readerId: string,
+    reader: PhotographReader,
     photographId: string,
     variant: ImageVariant,
   ): Promise<StoredImage | null>;
@@ -78,39 +79,8 @@ export function createContributionService(dependencies: {
   const { contributionRepository, partRepository, positionRepository, fileStore, clock, logger } =
     dependencies;
 
-  function toContribution(
-    row: ContributionWithAuthor,
-    readerId: string,
-    photographs: ContributionPhotographRow[],
-  ): Contribution {
-    return {
-      id: row.id,
-      target: targetOf(row),
-      text: row.body,
-      correction: row.correction,
-      authorName: row.authorName,
-      writtenAt: row.writtenAt.toISOString(),
-      // Nothing discarded is ever read on anybody's behalf, so what is left is one of two.
-      state: row.state === 'published' ? 'published' : 'waiting',
-      mine: row.authorId === readerId,
-      photographs: photographs.map(toPhotograph),
-    };
-  }
-
-  /** Several Contributions and their photographs, in two reads however many there are. */
-  async function withPhotographs(
-    rows: ContributionWithAuthor[],
-    readerId: string,
-  ): Promise<Contribution[]> {
-    const photographs = await contributionRepository.listPhotographs(rows.map((row) => row.id));
-    return rows.map((row) =>
-      toContribution(
-        row,
-        readerId,
-        photographs.filter((photograph) => photograph.contributionId === row.id),
-      ),
-    );
-  }
+  const withPhotographs = (rows: ContributionWithAuthor[], readerId: string) =>
+    contributionsWithPhotographs(contributionRepository, rows, readerId);
 
   /** The Contribution as its reader sees it, re-read — which is what every write answers with. */
   async function readWhole(readerId: string, id: string): Promise<Contribution> {
@@ -227,13 +197,52 @@ export function createContributionService(dependencies: {
       return readWhole(authorId, contributionId);
     },
 
-    async openImage(readerId, photographId, variant) {
+    async openImage(reader, photographId, variant) {
       const photograph = await contributionRepository.findPhotographReadableBy(
-        readerId,
+        reader,
         photographId,
       );
       return photograph ? openStoredImage({ fileStore, logger }, photograph, variant) : null;
     },
+  };
+}
+
+/**
+ * Several Contributions and their photographs, in two reads however many there are. Shared with
+ * the Editor's half (`contribution-review-service.ts`), so one is the same shape in the queue as
+ * it is beside a Part.
+ */
+export async function contributionsWithPhotographs(
+  contributionRepository: ContributionRepository,
+  rows: ContributionWithAuthor[],
+  readerId: string,
+): Promise<Contribution[]> {
+  const photographs = await contributionRepository.listPhotographs(rows.map((row) => row.id));
+  return rows.map((row) =>
+    toContribution(
+      row,
+      readerId,
+      photographs.filter((photograph) => photograph.contributionId === row.id),
+    ),
+  );
+}
+
+function toContribution(
+  row: ContributionWithAuthor,
+  readerId: string,
+  photographs: ContributionPhotographRow[],
+): Contribution {
+  return {
+    id: row.id,
+    target: targetOf(row),
+    text: row.body,
+    correction: row.correction,
+    authorName: row.authorName,
+    writtenAt: row.writtenAt.toISOString(),
+    // Nothing discarded is ever read on anybody's behalf, so what is left is one of two.
+    state: row.state === 'published' ? 'published' : 'waiting',
+    mine: row.authorId === readerId,
+    photographs: photographs.map(toPhotograph),
   };
 }
 

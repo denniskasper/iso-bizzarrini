@@ -1046,6 +1046,67 @@ export interface ContributionsResponse {
 }
 
 /**
+ * What a waiting Contribution is **about, as the archive has it now** — which is what an Editor
+ * judges it against (story 116).
+ *
+ * For a Part that is the whole record and every sheet a correction to it would reach, exactly
+ * as `PartResponse` carries them. For a Position it is where the number is and whatever already
+ * sits at it — usually nothing, which is why the member wrote.
+ */
+export type ContributionSubject =
+  | { kind: 'part'; part: PartInFull; listedOn: ListedOn[] }
+  | {
+      kind: 'position';
+      position: { id: string; number: string };
+      tavola: { id: string; number: string; nameEn: string; model: CatalogModel };
+      listings: PartListing[];
+    };
+
+/** One Contribution an Editor has yet to decide, beside the record it is about. */
+export interface WaitingContribution {
+  contribution: Contribution;
+  subject: ContributionSubject;
+}
+
+/**
+ * `GET /api/contributions/waiting` — **everything members have sent that nobody has decided,
+ * oldest first**, so that nobody's is forgotten (story 115). An Editor's, and nobody else's.
+ *
+ * Every write an Editor makes while reviewing answers with this too, re-read: deciding one takes
+ * it out, and recording a Part from one changes what it is about.
+ */
+export interface WaitingContributionsResponse {
+  contributions: WaitingContribution[];
+}
+
+/**
+ * `GET /api/contributions/waiting/count` — how many, and nothing else. What the chrome asks on
+ * every screen, so that the queue is noticed without being opened.
+ */
+export interface WaitingCountResponse {
+  waiting: number;
+}
+
+/**
+ * `PUT /api/contributions/:contributionId/decision` — **published or discarded, and decided
+ * once.** There is nothing between the two and no way back from either: an Editor who wants a
+ * correction in the archive edits the Part, and that edit is the record of it.
+ */
+export interface DecideContributionRequest {
+  decision: 'publish' | 'discard';
+}
+
+/**
+ * `POST /api/contributions/:contributionId/part` — **a gap filled by the member who knew**
+ * (story 120). Records a Part and its Listing at the Position the Contribution is about, and
+ * the Contribution becomes that Part's.
+ *
+ * `NewListingRequest` without the Position, which is not the Editor's to choose here: it names
+ * an existing Part or describes a new one, under the same merge-or-correct rule.
+ */
+export type RecordPartFromContributionRequest = Omit<NewListingRequest, 'positionId'>;
+
+/**
  * `PATCH /api/parts/:partId/photographs` — **the whole order, every time.**
  *
  * Not "move this one up". An order is a statement about the list rather than about one member of

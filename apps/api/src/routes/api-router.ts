@@ -5,6 +5,7 @@ import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
 import type { ContributionController } from '../controllers/contribution-controller.js';
+import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
@@ -56,6 +57,7 @@ export function createApiRouter(dependencies: {
   bulkPasteController: BulkPasteController;
   photographController: PhotographController;
   contributionController: ContributionController;
+  contributionReviewController: ContributionReviewController;
   scanController: ScanController;
 }): Router {
   const {
@@ -75,6 +77,7 @@ export function createApiRouter(dependencies: {
     bulkPasteController,
     photographController,
     contributionController,
+    contributionReviewController,
     scanController,
   } = dependencies;
 
@@ -243,6 +246,35 @@ export function createApiRouter(dependencies: {
   // and one request like them. The answer depends on who asks: a Contribution still waiting to
   // be checked is returned to the member who wrote it and to nobody else.
   router.get('/positions/:positionId/contributions', contributionController.readAtPosition);
+
+  /**
+   * **What an Editor does with what members sent** (issue #6): read what is waiting, decide it,
+   * and carry a member's gap or a member's picture across into the record.
+   *
+   * The two reads say `editorsOnly` out loud, and they are the only `GET`s in the archive that
+   * do. The rule above lets every member read, because everything else under it reads the same
+   * for all of them — and this is the one thing in the archive members were promised nobody
+   * would be shown unchecked. The three writes are an Editor's by that rule already.
+   *
+   * Correcting the Part while reviewing has no address here on purpose. It is `PATCH
+   * /parts/:partId` and its neighbours below, the tools the archive already has: there is no
+   * diff to apply, and the Editor's hand is the audit trail.
+   */
+  router.get('/contributions/waiting', editorsOnly, contributionReviewController.listWaiting);
+  router.get(
+    '/contributions/waiting/count',
+    editorsOnly,
+    contributionReviewController.countWaiting,
+  );
+  router.put('/contributions/:contributionId/decision', contributionReviewController.decide);
+  // A Part and Listing at the empty number a Contribution is about, which is then that Part's.
+  router.post('/contributions/:contributionId/part', contributionReviewController.recordPart);
+  // Moved, not copied: the picture is the Part's from then on, at the address a Part's are at.
+  router.post(
+    '/contribution-photographs/:photographId/promotion',
+    contributionReviewController.promotePhotograph,
+  );
+
   // The sheet's own text, read whole: the list beside the drawing a member works *from* rather
   // than *to* (story 46), and the only thing that knows which numbers have nothing at them yet.
   router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
@@ -331,8 +363,8 @@ export function createApiRouter(dependencies: {
 
   router.get('/scans/:scanId/:variant', scanController.readImage);
   router.get('/photographs/:photographId/:variant', photographController.readImage);
-  // A member's own picture, until an Editor has looked: served to its author, and to the rest of
-  // the Club once the Contribution it came with is published.
+  // A member's own picture, until an Editor has looked: served to its author and to the Editor
+  // checking it, and to the rest of the Club once the Contribution it came with is published.
   router.get('/contribution-photographs/:photographId/:variant', contributionController.readImage);
 
   return router;

@@ -91,7 +91,12 @@ export function useRereadPart(): () => Promise<void> {
   return useCallback(async () => {
     // The prefix, so every cached Position goes — there is no cheap way to know which of them
     // hold this Part, and there is no expensive one worth having either.
-    await queryClient.invalidateQueries({ queryKey: ['position-listings'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['position-listings'] }),
+      // And the one other place a whole Part is on screen: beside a Contribution an Editor is
+      // checking, where correcting the record is the point of having it there (issue #6).
+      queryClient.invalidateQueries({ queryKey: ['contributions-waiting'] }),
+    ]);
   }, [queryClient]);
 }
 

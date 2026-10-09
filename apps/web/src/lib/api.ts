@@ -4,6 +4,9 @@ import type {
   ContributionsResponse,
   ContributionTarget,
   NewContributionRequest,
+  RecordPartFromContributionRequest,
+  WaitingContributionsResponse,
+  WaitingCountResponse,
   CategoriesResponse,
   CategoryNameRequest,
   CategoryResponse,
@@ -437,6 +440,30 @@ export const api = {
     }),
 
   /**
+   * **What an Editor does with what members sent** (issue #6): everything nobody has decided,
+   * oldest first and each beside the record it is about, and the three things that can be done
+   * to one besides correcting the Part with the tools above.
+   *
+   * Every write answers with the queue re-read, so deciding one is also learning which is next.
+   * The count is its own small call because the chrome asks it on every screen.
+   */
+  waitingContributions: () => request<WaitingContributionsResponse>('/contributions/waiting'),
+  waitingCount: () => request<WaitingCountResponse>('/contributions/waiting/count'),
+  decideContribution: (contributionId: string, decision: 'publish' | 'discard') =>
+    send<WaitingContributionsResponse>('PUT', `/contributions/${contributionId}/decision`, {
+      decision,
+    }),
+  recordPartFromContribution: (contributionId: string, part: RecordPartFromContributionRequest) =>
+    send<WaitingContributionsResponse>('POST', `/contributions/${contributionId}/part`, part),
+  /** Moved, not copied: the picture is the Part's from then on. */
+  promoteContributionPhotograph: (photographId: string) =>
+    send<WaitingContributionsResponse>(
+      'POST',
+      `/contribution-photographs/${photographId}/promotion`,
+      {},
+    ),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -451,7 +478,10 @@ export const api = {
 export type {
   CatalogModel,
   Contribution,
+  ContributionSubject,
   ContributionTarget,
+  RecordPartFromContributionRequest,
+  WaitingContribution,
   CategoryListing,
   CategoryOnModel,
   CatalogProvenance,

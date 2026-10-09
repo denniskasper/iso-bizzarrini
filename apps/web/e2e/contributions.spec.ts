@@ -10,8 +10,8 @@ import { landed, MEMBER_PASSWORD, PRACTICE, signInAs } from './support/gate.js';
  * actually *do* it — find the way in at a number with nothing recorded, write, attach a picture,
  * and see afterwards that it arrived and is waiting rather than wondering and sending it twice.
  *
- * Publishing is an Editor's and arrives with issue #6, so what a published Contribution looks
- * like to the rest of the Club is not driven here: there is no screen yet that publishes one.
+ * Publishing is an Editor's, and what a published Contribution looks like to the rest of the
+ * Club is driven where it is published from: `review.spec.ts`.
  */
 
 function reading(page: Page): Locator {
