@@ -35,7 +35,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18-alpine
+        # The official image, from AWS's public mirror of Docker Hub: runners share addresses,
+        # and Docker Hub's anonymous pull limit fails this job before a single test has run.
+        image: public.ecr.aws/docker/library/postgres:18-alpine
         env:
           POSTGRES_USER: ricambi
           POSTGRES_PASSWORD: ricambi
@@ -68,7 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18-alpine
+        # The official image, from AWS's public mirror of Docker Hub: runners share addresses,
+        # and Docker Hub's anonymous pull limit fails this job before a single test has run.
+        image: public.ecr.aws/docker/library/postgres:18-alpine
         env:
           POSTGRES_USER: ricambi
           POSTGRES_PASSWORD: ricambi
