@@ -4,6 +4,7 @@ import type { BulkPasteController } from '../controllers/bulk-paste-controller.j
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
+import type { ContributionController } from '../controllers/contribution-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
@@ -54,6 +55,7 @@ export function createApiRouter(dependencies: {
   partRecordController: PartRecordController;
   bulkPasteController: BulkPasteController;
   photographController: PhotographController;
+  contributionController: ContributionController;
   scanController: ScanController;
 }): Router {
   const {
@@ -72,6 +74,7 @@ export function createApiRouter(dependencies: {
     partRecordController,
     bulkPasteController,
     photographController,
+    contributionController,
     scanController,
   } = dependencies;
 
@@ -139,6 +142,24 @@ export function createApiRouter(dependencies: {
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);
+
+  /**
+   * **What a member offers** (issue #5) — above the rule below, and the only writes that are.
+   *
+   * A Contribution is not a change to the archive: it is something said *to* it, which nobody
+   * else is shown until an Editor has looked. So a live Membership is what it takes to send one,
+   * exactly as it is what it takes to read, and the Editor's hand the rule below insists on is
+   * still the only one that touches the record.
+   */
+  router.post('/parts/:partId/contributions', contributionController.writeAboutPart);
+  router.post('/positions/:positionId/contributions', contributionController.writeAboutPosition);
+  // A photograph with one, sent on its own once the words have arrived. The body is the
+  // picture, exactly as it is for a Part's, and nothing here trusts what it says it is.
+  router.post(
+    '/contributions/:contributionId/photographs',
+    express.raw({ type: () => true, limit: dependencies.maxPhotographBytes }),
+    contributionController.attachPhotograph,
+  );
 
   /**
    * **Reading the archive is what a Membership buys; changing it is an Editor's job.**
@@ -218,6 +239,10 @@ export function createApiRouter(dependencies: {
   // other appearances, and a member reads one. Recording a Part goes through the Tavola, because
   // a Listing is a Part's appearance on a *drawing* — the Position is optional.
   router.get('/positions/:positionId/listings', partController.listAtPosition);
+  // **What members have said about the number and the Parts at it**, read beside the Listings
+  // and one request like them. The answer depends on who asks: a Contribution still waiting to
+  // be checked is returned to the member who wrote it and to nobody else.
+  router.get('/positions/:positionId/contributions', contributionController.readAtPosition);
   // The sheet's own text, read whole: the list beside the drawing a member works *from* rather
   // than *to* (story 46), and the only thing that knows which numbers have nothing at them yet.
   router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
@@ -306,6 +331,9 @@ export function createApiRouter(dependencies: {
 
   router.get('/scans/:scanId/:variant', scanController.readImage);
   router.get('/photographs/:photographId/:variant', photographController.readImage);
+  // A member's own picture, until an Editor has looked: served to its author, and to the rest of
+  // the Club once the Contribution it came with is published.
+  router.get('/contribution-photographs/:photographId/:variant', contributionController.readImage);
 
   return router;
 }

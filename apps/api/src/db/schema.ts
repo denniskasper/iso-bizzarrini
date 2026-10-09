@@ -839,6 +839,112 @@ export const signInFailures = pgTable('sign_in_failures', {
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
 });
 
+/**
+ * Where a Contribution stands. `waiting` is how every one of them begins; the other two are an
+ * Editor's decision about it, which is issue #6. A discarded one is kept as a row rather than
+ * deleted, so that what was decided about a member's words is a fact rather than an absence.
+ */
+export const CONTRIBUTION_STATES = ['waiting', 'published', 'discarded'] as const;
+
+export type StoredContributionState = (typeof CONTRIBUTION_STATES)[number];
+
+/**
+ * A Contribution — what a Member knows about a Part or a Position, in their words.
+ *
+ * **Two nullable targets and a check that exactly one is set**, rather than a `target_kind` and
+ * an untyped id: each is a real foreign key, so a Contribution can never point at something the
+ * archive does not hold.
+ *
+ * Both targets **restrict**. Everything else hung off a Part or a Position goes when it does,
+ * because everything else is the archive's own record of it. This is a member's, written on the
+ * understanding that it would be read by somebody — so a Part or a number cannot be removed out
+ * from under what members have said about it, and the Editor who tries is told why.
+ *
+ * The author is the opposite, and it is ADR 0007 in one column: deleting an Account **sets it
+ * null**. The knowledge stays; the identification does not.
+ */
+export const contributions = pgTable(
+  'contributions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id').references(() => parts.id, { onDelete: 'restrict' }),
+    positionId: uuid('position_id').references(() => positions.id, { onDelete: 'restrict' }),
+    authorId: uuid('author_id').references(() => accounts.id, { onDelete: 'set null' }),
+    /** As the member wrote it. Never parsed, never tidied. */
+    body: text('body').notNull(),
+    /** Written because the Part's record is wrong (story 90). Only ever true of a Part. */
+    correction: boolean('correction').notNull().default(false),
+    state: text('state').notNull().$type<StoredContributionState>().default('waiting'),
+    /** From the injected clock, never the system's idea of now. */
+    writtenAt: timestamp('written_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      'contributions_target_is_a_part_or_a_position',
+      sql`num_nonnulls(${table.partId}, ${table.positionId}) = 1`,
+    ),
+    check(
+      'contributions_correction_is_about_a_part',
+      sql`not ${table.correction} or ${table.partId} is not null`,
+    ),
+    check(
+      'contributions_state_is_one_of_three',
+      sql`${table.state} in (${oneOf(CONTRIBUTION_STATES)})`,
+    ),
+    index('contributions_part_id_index').on(table.partId),
+    index('contributions_position_id_index').on(table.positionId),
+    index('contributions_author_id_index').on(table.authorId),
+  ],
+);
+
+/**
+ * A photograph a member attached to a Contribution.
+ *
+ * **A table of its own rather than rows in `photographs`**, because the two answer to different
+ * rules: a Part's photographs are the record and every member may see them, and these are one
+ * member's until an Editor has looked. The shape is the same one (`stored-images.ts`) and so is
+ * where the files live — under the photograph's own id, so that the day an Editor moves one onto
+ * the Part (story 119) nothing on disk has to be renamed.
+ */
+export const contributionPhotographs = pgTable(
+  'contribution_photographs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contributionId: uuid('contribution_id')
+      .notNull()
+      .references(() => contributions.id, { onDelete: 'cascade' }),
+
+    /** The order they were attached in, from `0`. Ties break on `id`, so the list is total. */
+    sequence: integer('sequence').notNull(),
+
+    sourceFormat: text('source_format').notNull(),
+    sourceByteSize: integer('source_byte_size').notNull(),
+    sourceWidth: integer('source_width').notNull(),
+    sourceHeight: integer('source_height').notNull(),
+
+    displayFormat: text('display_format').notNull(),
+    displayByteSize: integer('display_byte_size').notNull(),
+    displayWidth: integer('display_width').notNull(),
+    displayHeight: integer('display_height').notNull(),
+
+    previewByteSize: integer('preview_byte_size').notNull(),
+
+    /** Keys in the private file store. Not paths, not URLs — nothing here is reachable. */
+    originalKey: text('original_key').notNull(),
+    displayKey: text('display_key').notNull(),
+    previewKey: text('preview_key').notNull(),
+
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('contribution_photographs_contribution_id_sequence_index').on(
+      table.contributionId,
+      table.sequence,
+    ),
+    check('contribution_photographs_sequence_is_a_place', sql`${table.sequence} >= 0`),
+  ],
+);
+
 export const accountsRelations = relations(accounts, ({ many }) => ({
   memberships: many(memberships),
   tokens: many(accountTokens),
@@ -960,3 +1066,7 @@ export type NewClubRow = typeof club.$inferInsert;
 export type AccountTokenRow = typeof accountTokens.$inferSelect;
 export type NewAccountTokenRow = typeof accountTokens.$inferInsert;
 export type SignInFailureRow = typeof signInFailures.$inferSelect;
+export type ContributionRow = typeof contributions.$inferSelect;
+export type NewContributionRow = typeof contributions.$inferInsert;
+export type ContributionPhotographRow = typeof contributionPhotographs.$inferSelect;
+export type NewContributionPhotographRow = typeof contributionPhotographs.$inferInsert;

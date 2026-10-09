@@ -18,6 +18,18 @@ export function scanImageUrl(scanId: string, variant: ImageVariant): string {
   return `/api/scans/${scanId}/${variant}`;
 }
 
+/**
+ * A photograph a member attached to a Contribution. **An address of its own**, because who it
+ * is served to is a different question from a Part's: until an Editor has looked, the answer is
+ * its author and nobody else.
+ */
+export function contributionPhotographImageUrl(
+  photographId: string,
+  variant: ImageVariant,
+): string {
+  return `/api/contribution-photographs/${photographId}/${variant}`;
+}
+
 export function photographImageUrl(photographId: string, variant: ImageVariant): string {
   return `/api/photographs/${photographId}/${variant}`;
 }

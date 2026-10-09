@@ -14,7 +14,7 @@ import { isSupportedImageFormat, type ImageFormat } from './image-formats.js';
  * - **preview** — a thumbnail, so a list of things never downloads the things.
  *
  * **One implementation and two recipes, rather than two implementations.** Ticket 10 needed the
- * same machinery a scan already had and ticket 19 will need it again for what a Member offers;
+ * same machinery a scan already had and a Contribution uses it again for what a Member offers (issue #5);
  * written a second time, the copies drift in the direction that matters most — one of them
  * accepts a format the serving side has never heard of, or forgets that what a file *is* is
  * decided by reading it rather than by what the request claimed.

@@ -72,6 +72,21 @@ const ADMINISTRATORS_ONLY = new Set([
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */
 const ANY_MEMBER = new Set(['GET /api/renewal']);
 
+/**
+ * **The writes a Member may make, and there are exactly these** (issue #5). A Contribution is
+ * something said *to* the archive rather than a change to it — nobody else is shown it until an
+ * Editor has looked — so it takes what reading takes: a live Membership.
+ *
+ * Named one by one, and deliberately not as a pattern. The rule below is that every write is an
+ * Editor's, and the way a write ends up outside it has to be that somebody added it to this list
+ * on purpose.
+ */
+const A_MEMBERS_TO_WRITE = new Set([
+  'POST /api/parts/:partId/contributions',
+  'POST /api/positions/:positionId/contributions',
+  'POST /api/contributions/:contributionId/photographs',
+]);
+
 describe('who may reach what', () => {
   let app: TestApp;
   let administrator: TestAgent;
@@ -98,7 +113,7 @@ describe('who may reach what', () => {
   it('finds the whole surface, so what follows is asking about all of it', () => {
     expect(surface.length).toBeGreaterThan(40);
 
-    for (const known of [...OPEN, ...ADMINISTRATORS_ONLY, ...ANY_MEMBER]) {
+    for (const known of [...OPEN, ...ADMINISTRATORS_ONLY, ...ANY_MEMBER, ...A_MEMBERS_TO_WRITE]) {
       expect(surface.map(named), `${known} is not a route this application has`).toContain(known);
     }
   });
@@ -132,6 +147,9 @@ describe('who may reach what', () => {
         if (address.method === 'get' || OPEN.has(name) || ADMINISTRATORS_ONLY.has(name)) {
           continue;
         }
+        if (A_MEMBERS_TO_WRITE.has(name)) {
+          continue;
+        }
 
         const response = await member[address.method](fill(address.path));
         expect(response.status, `${name} let a Member write`).toBe(403);
@@ -146,6 +164,22 @@ describe('who may reach what', () => {
 
         expect(response.status, `${name} let a Member in`).toBe(403);
         expect(response.body.error?.code).toBe('forbidden');
+      }
+    });
+
+    /**
+     * **And is let through to offer what they know.** Nothing is sent that could be written, so
+     * what comes back is whatever the handler makes of an empty request about nothing — and the
+     * only thing asserted is that it was the handler that answered and not the gate.
+     */
+    it('is not refused the writes that are a Member’s to make', async () => {
+      for (const name of A_MEMBERS_TO_WRITE) {
+        const address = surface.find((route) => named(route) === name);
+        const response = await member[address!.method](fill(address!.path));
+
+        expect([401, 403], `${name} refused a Member: ${response.status}`).not.toContain(
+          response.status,
+        );
       }
     });
 

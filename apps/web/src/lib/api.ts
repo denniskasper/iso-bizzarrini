@@ -1,5 +1,9 @@
 import type {
   ApiErrorBody,
+  ContributionResponse,
+  ContributionsResponse,
+  ContributionTarget,
+  NewContributionRequest,
   CategoriesResponse,
   CategoryNameRequest,
   CategoryResponse,
@@ -388,7 +392,7 @@ export const api = {
 
   /**
    * **What the Part looks like** — the check no part number can give a member (story 77), and
-   * the file-upload path member Contributions reuse at ticket 19.
+   * the file-upload path member Contributions reuse (issue #5).
    *
    * All three answer with the whole Part, like the nine above, and for a sharper reason than
    * symmetry: the *order* is what a member reads first, so a browser handed back the one
@@ -409,6 +413,30 @@ export const api = {
     request<PartRecordResponse>(`/photographs/${photographId}`, { method: 'DELETE' }),
 
   /**
+   * **What members have said** about a number and the Parts at it, and the way to say something.
+   *
+   * The reading depends on who is asking: what is published, and what this member has sent that
+   * is still waiting to be checked. A photograph goes up on its own, after the words it belongs
+   * to have arrived — on the same upload path a Part's own photographs use.
+   */
+  positionContributions: (positionId: string) =>
+    request<ContributionsResponse>(`/positions/${positionId}/contributions`),
+  sendContribution: (target: ContributionTarget, written: NewContributionRequest) =>
+    send<ContributionResponse>(
+      'POST',
+      target.kind === 'part'
+        ? `/parts/${target.partId}/contributions`
+        : `/positions/${target.positionId}/contributions`,
+      written,
+    ),
+  attachContributionPhotograph: (contributionId: string, file: File) =>
+    request<ContributionResponse>(`/contributions/${contributionId}/photographs`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -422,6 +450,8 @@ export const api = {
 
 export type {
   CatalogModel,
+  Contribution,
+  ContributionTarget,
   CategoryListing,
   CategoryOnModel,
   CatalogProvenance,

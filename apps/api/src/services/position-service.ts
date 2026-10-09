@@ -170,7 +170,17 @@ export function createPositionService(dependencies: {
 
     async removePosition(positionId) {
       const tavolaId = await tavolaOfPosition(positionId);
-      await positionRepository.remove(positionId);
+      try {
+        await positionRepository.remove(positionId);
+      } catch (error) {
+        if (violates(error, 'contributions_position_id_positions_id_fk')) {
+          // Marks and links go with the number; what a member wrote about it does not.
+          throw new ConflictError(
+            'Members have written Contributions about this number. It stays while they do.',
+          );
+        }
+        throw error;
+      }
       // A number taken off the sheet takes its links with it — the rows cascade — and may have
       // been the last one in its Sub-assembly, which then has nothing left to be a name for.
       await positionRepository.removeEmptySubAssemblies(tavolaId);

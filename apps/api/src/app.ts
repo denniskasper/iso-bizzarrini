@@ -9,6 +9,7 @@ import { createBulkPasteController } from './controllers/bulk-paste-controller.j
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
+import { createContributionController } from './controllers/contribution-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
@@ -30,6 +31,7 @@ import type { PaymentProvider } from './platform/payments.js';
 import { createAccountRepository } from './repositories/account-repository.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
 import { createClubRepository } from './repositories/club-repository.js';
+import { createContributionRepository } from './repositories/contribution-repository.js';
 import { createModelRepository } from './repositories/model-repository.js';
 import { createPartRecordRepository } from './repositories/part-record-repository.js';
 import { createPartRepository } from './repositories/part-repository.js';
@@ -45,6 +47,7 @@ import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
 import { createCategoryService } from './services/category-service.js';
 import { createClubService } from './services/club-service.js';
+import { createContributionService } from './services/contribution-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
@@ -129,6 +132,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const partRepository = createPartRepository(db);
   const partRecordRepository = createPartRecordRepository(db);
   const photographRepository = createPhotographRepository(db);
+  const contributionRepository = createContributionRepository(db);
   const scanRepository = createScanRepository(db);
 
   const statusService = createStatusService({
@@ -209,6 +213,14 @@ export function createApp(dependencies: AppDependencies): Express {
     clock,
     logger,
   });
+  const contributionService = createContributionService({
+    contributionRepository,
+    partRepository,
+    positionRepository,
+    fileStore,
+    clock,
+    logger,
+  });
   const scanService = createScanService({
     tavolaRepository,
     scanRepository,
@@ -231,6 +243,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const partRecordController = createPartRecordController({ partRecordService });
   const bulkPasteController = createBulkPasteController({ bulkPasteService });
   const photographController = createPhotographController({ photographService });
+  const contributionController = createContributionController({ gate, contributionService });
   const scanController = createScanController({ scanService });
 
   const app = express();
@@ -245,6 +258,15 @@ export function createApp(dependencies: AppDependencies): Express {
       // The scans are served from this origin only; nothing is embedded anywhere else.
       crossOriginResourcePolicy: { policy: 'same-origin' },
       referrerPolicy: { policy: 'same-origin' },
+      contentSecurityPolicy: {
+        directives: {
+          // Helmet's own `img-src`, and one thing more: a photograph a member has picked and
+          // not yet sent is shown to them from a `blob:` address the browser made for it
+          // (issue #5). That is a picture already on their own phone, addressed by this page
+          // and readable by no other — nothing the archive serves is reachable through it.
+          'img-src': ["'self'", 'data:', 'blob:'],
+        },
+      },
     }),
   );
   app.use(pinoHttp({ logger }));
@@ -279,6 +301,7 @@ export function createApp(dependencies: AppDependencies): Express {
       partRecordController,
       bulkPasteController,
       photographController,
+      contributionController,
       scanController,
     }),
   );

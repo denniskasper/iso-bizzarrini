@@ -964,6 +964,88 @@ export interface PartRecordResponse {
 }
 
 /**
+ * Where a Contribution was written — **a Part or a Position, and the second matters as much as
+ * the first.** The archive deliberately shows members which circles have nothing recorded at
+ * them; if the only thing that could be written about were a Part that does not exist yet, it
+ * would be pointing at a gap and offering no way to fill it (story 84).
+ */
+export type ContributionTarget =
+  { kind: 'part'; partId: string } | { kind: 'position'; positionId: string };
+
+/**
+ * Where a Contribution stands, **as far as anybody reading the archive is ever told.**
+ *
+ * `waiting` is only ever said to the member who wrote it. A Contribution an Editor has discarded
+ * is not published and is not here at all.
+ */
+export type ContributionState = 'waiting' | 'published';
+
+/**
+ * Something a Member offers about a Part or a Position — what they know, in their words, with
+ * photographs if they have them (GLOSSARY.md).
+ *
+ * **It is prose and pictures and nothing else.** There is no field in it that names a field of
+ * the Part, and that is deliberate: a correction reaches the record through an Editor's hands,
+ * who reads this and edits the Part. `correction` says only that the member wrote it *because
+ * the record is wrong* (story 90), so that an Editor reads it as something to act on rather than
+ * something to publish beside the mistake.
+ */
+export interface Contribution {
+  id: string;
+  target: ContributionTarget;
+  /** As the member wrote it, line breaks and all. */
+  text: string;
+  /** The member is reporting that the Part's record is wrong. Never true of a Position. */
+  correction: boolean;
+  /**
+   * Who wrote it, which is what lets another member judge it and follow up (story 89).
+   *
+   * `null` where the Account behind it is gone: the knowledge stays and the identification does
+   * not (ADR 0007). A screen says "a former member" and nothing more.
+   */
+  authorName: string | null;
+  /** ISO instant, from the archive's clock. */
+  writtenAt: string;
+  state: ContributionState;
+  /** Whether the person asking is the person who wrote it. */
+  mine: boolean;
+  /** In the order they were attached. Addressed and served like every other image (ADR 0006). */
+  photographs: Photograph[];
+}
+
+/**
+ * `POST /api/parts/:partId/contributions` and `POST /api/positions/:positionId/contributions`.
+ *
+ * Photographs are not here. Each is sent on its own afterwards, to the Contribution this
+ * answers with — so the words have arrived before the first picture starts up a garage's
+ * reception, and a photograph that fails takes nothing with it.
+ */
+export interface NewContributionRequest {
+  text: string;
+  /** Only meaningful against a Part. Left out, it is an ordinary Contribution. */
+  correction?: boolean;
+}
+
+/** What writing one, or attaching a photograph to one, answers with: the whole of it, re-read. */
+export interface ContributionResponse {
+  contribution: Contribution;
+}
+
+/**
+ * `GET /api/positions/:positionId/contributions` — **everything members have said about what a
+ * member is looking at**: the number itself, and every Part listed at it.
+ *
+ * One request for a click, like the Listings it is read beside. A Part's Contributions are the
+ * Part's (ADR 0001), so the same ones answer at every number that Part sits at, on every sheet.
+ *
+ * **What is here depends on who asked.** Everybody is given what has been published; the member
+ * who wrote something still waiting is given that as well, and nobody else is. Oldest first.
+ */
+export interface ContributionsResponse {
+  contributions: Contribution[];
+}
+
+/**
  * `PATCH /api/parts/:partId/photographs` — **the whole order, every time.**
  *
  * Not "move this one up". An order is a statement about the list rather than about one member of

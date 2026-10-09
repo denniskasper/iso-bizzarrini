@@ -19,7 +19,7 @@ import type { PartRecordService } from './part-record-service.js';
  * where a boss sits have the same words written about them. The picture is what settles it, and
  * this is the only thing in the archive that answers without being read.
  *
- * **It is also the file-upload machinery that member Contributions reuse at ticket 19**, and that
+ * **It is also the file-upload machinery that member Contributions reuse (issue #5)**, and that
  * is why nothing here is specific to an Editor: what it knows about is a picture belonging to a
  * Part, prepared at ingest, stored privately, and answerable for its own removal. Who was allowed
  * to send it is the gate's business, one layer up.
