@@ -56,7 +56,7 @@ pointed somewhere it should not be.
 | `ENVIRONMENT_MODE` | `production` — set deliberately, once | anything else, including unset |
 | `ENVIRONMENT_NAME` | e.g. `production` | e.g. `demo` |
 | `DATABASE_URL` | the archive | **its own database**, never a copy of the archive's |
-| `EMAIL_TRANSPORT` | the real transport (ticket 14) | `none` or `memory` |
+| `EMAIL_TRANSPORT` | the real transport (ticket 14) | `none`, `memory` or `log` — never one that can reach an inbox |
 | `PAYMENT_PROVIDER` | live keys (ticket 18) | test-mode keys |
 | `REMINDERS_ENABLED` | `true` once an Administrator has previewed the recipients | must be `false` |
 
@@ -88,7 +88,7 @@ or database change touching it.** Record the date and who ran it.
 5. Every row in every table is accounted for by `scripts/seed.ts` or was created by hand in this
    environment. **No table contains a row that originated in production.** Today that is the
    `models` table; from ticket 14 it is the roster, and this step becomes the important one.
-6. `EMAIL_TRANSPORT` is `none` or `memory`; nothing captured has ever been delivered.
+6. `EMAIL_TRANSPORT` is `none`, `memory` or `log`; nothing captured or logged has ever been delivered.
 7. `PAYMENT_PROVIDER` holds no live key.
 8. `REMINDERS_ENABLED` is unset or `false`. (The application would not have started otherwise —
    confirm it anyway, because that is what a check is for.)
