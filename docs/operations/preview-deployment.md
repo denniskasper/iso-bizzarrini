@@ -89,6 +89,25 @@ just ran.** The `/set-password?token=…` link is in its output, not in the appl
 Open the link and choose a password. That is your account; from then on you add everybody else
 from the roster screen, and each of them chooses their own the same way.
 
+## Keeping it current
+
+Every push to `main` that passes CI redeploys the preview: the last job in
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) asks Dokploy to deploy, and Dokploy
+builds and restarts the stack as it does when you press the button. Nothing else deploys it —
+leave Dokploy's own "Autodeploy" off, or a push would go out before CI has seen it.
+
+The job needs three repository secrets, set once:
+
+```sh
+gh secret set DOKPLOY_URL          # https://<your-dokploy-host>, the panel's own address
+gh secret set DOKPLOY_API_KEY      # Dokploy → Settings → Profile → API/CLI → generate
+gh secret set DOKPLOY_COMPOSE_ID   # the id at the end of the Compose service's URL in Dokploy
+```
+
+A redeployment keeps the volumes, so the roster, anything recorded through the Editor screens
+and every uploaded scan survive it. The job only starts the deployment; whether it came up is in
+Dokploy's deployment log, and `/api/status` answers once it has.
+
 ## Checking it before anybody sees it
 
 - `https://<host>/api/status` reports `"mode":"non-production"` and `"database":"reachable"`.
