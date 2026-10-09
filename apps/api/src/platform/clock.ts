@@ -27,6 +27,16 @@ export function today(clock: Clock): string {
 }
 
 /**
+ * The same day, a number of years later — **real date arithmetic and not string arithmetic**. A
+ * term running to 29 February has no anniversary, and `Date.UTC` rolls it to 1 March rather than
+ * producing a day that does not exist.
+ */
+export function yearsOn(day: string, years: number): string {
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(year + years, month - 1, date)).toISOString().slice(0, 10);
+}
+
+/**
  * A clock tests (and seeded non-production data) can move about. Advancing it is how expiry,
  * reminder windows and retention are driven.
  */

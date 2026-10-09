@@ -250,7 +250,7 @@ test('gives every control on the new screens a target a cold hand can hit', asyn
 
   // The import screen is here rather than in a test of its own: every test in this suite costs a
   // real sign-in, and the rule is the same rule on all three screens.
-  for (const path of ['/roster', '/roster/import', '/club']) {
+  for (const path of ['/roster', '/roster/import', '/club', '/membership']) {
     await page.goto(path);
     await expect(page.locator('h1')).toBeVisible();
 

@@ -83,6 +83,10 @@ system and in production, and differs only by what it is handed.
 | `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
 | `pnpm roster:retention-sweep -- --dry-run` | who the daily retention sweep would delete (ADR 0007) — without the flag, it deletes them |
 
+Taking the fee through the platform is off unless an environment is given Stripe's keys; how to
+set that up, and what must be in place before a real member pays, is in
+[`docs/operations/payments.md`](docs/operations/payments.md).
+
 ### Pasting a catalog page, and getting one back
 
 Open a drawing and scroll past its numbers to **A whole page at once**. Paste the rows straight
@@ -199,7 +203,8 @@ untestable or unsafe:
   through one interface, so a test can assert on it and a non-production environment can
   neutralise it;
 - **the payment provider** (`platform/payments.ts`) — the provider owns subscriptions, retries,
-  dunning and mandates; we only need to trust what it tells us.
+  dunning and mandates. We send a member to its page, tell it to stop renewing, and otherwise
+  only need to trust what it tells us; Stripe is the one implementation (`stripe-payments.ts`).
 
 The latter two also declare what they can reach — `reachesRealPeople`, `reachesRealMandates` —
 and a non-production environment refuses to start holding one that can reach anything real.

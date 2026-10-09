@@ -769,6 +769,27 @@
   }
 
   /*
+   * One payment a member has made, on their own Membership page (ADR 0004): the day, what it
+   * was and what it bought, and the receipt. Three facts, and the date first because it is how
+   * somebody finds the one they are looking for.
+   */
+  .payment-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+    column-gap: --spacing(6);
+    row-gap: --spacing(2);
+    padding-block: --spacing(4);
+    border-top: 1px solid var(--line);
+  }
+
+  @media (width >= 40rem) {
+    .payment-row {
+      grid-template-columns: 8rem 1fr auto;
+    }
+  }
+
+  /*
    * **A row worth finding in a hundred is ruled off down its left edge**, in the same 2px rule
    * this archive uses wherever something in a list is in a state worth seeing without reading.
    * Two weights, meaning two things, and written once for both lists that use them:

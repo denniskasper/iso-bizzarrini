@@ -1,4 +1,4 @@
-import { useRouterState } from '@tanstack/react-router';
+import { Link, useRouterState } from '@tanstack/react-router';
 import { SignInLink } from '@/components/sign-in-link';
 import { Button } from '@/components/ui/button';
 import { useSession, useSignOut } from '@/lib/session';
@@ -36,10 +36,17 @@ export function SessionControl() {
 
   return (
     <div className="flex items-center gap-1">
+      {/*
+        Whose session this is — and, since the name is the one thing in the chrome that is
+        about the person, the way to their own Membership (ADR 0004). A phone's chrome has no
+        room for a name; there the way in is the foot of the page, where it is on every screen.
+      */}
       {account !== null && (
-        <span className="hidden max-w-40 truncate px-2 text-sm text-faint sm:block">
-          {account.name}
-        </span>
+        <Button asChild variant="ghost" className="hidden sm:inline-flex">
+          <Link to="/membership">
+            <span className="max-w-40 truncate">{account.name}</span>
+          </Link>
+        </Button>
       )}
       <Button variant="ghost" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
         Sign out

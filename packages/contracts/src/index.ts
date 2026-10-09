@@ -1282,8 +1282,12 @@ export type PositionsResponse = Sheet;
  */
 export type Role = 'member' | 'editor' | 'administrator';
 
-/** How the Club came to grant a term of Membership. Ticket 18 adds the payment provider's own. */
-export type MembershipGrant = 'opening-entry' | 'bank-transfer' | 'roster-import';
+/**
+ * How the Club came to grant a term of Membership. `payment-provider` is one a member paid for
+ * through the platform, granted when the provider confirmed the money had arrived (issue #4).
+ */
+export type MembershipGrant =
+  'opening-entry' | 'bank-transfer' | 'roster-import' | 'payment-provider';
 
 /** The two reasons to send somebody a link that sets a password. */
 export type TokenPurpose = 'invitation' | 'password-reset';
@@ -1775,4 +1779,74 @@ export interface Renewal {
 
 export interface RenewalResponse {
   renewal: Renewal;
+}
+
+/**
+ * One payment the Club has received from a member, as the member reads it back — however it
+ * arrived. A bank transfer an Administrator recorded stands in this list beside a direct debit.
+ */
+export interface MembershipPayment {
+  id: string;
+  /** ISO date. The day the money arrived. */
+  paidOn: string;
+  /** As read — `45.00`. */
+  amount: string;
+  currency: Currency;
+  /** ISO date. The last day the term this bought covers. */
+  paidThrough: string;
+  /**
+   * Whether the payment provider has a receipt for it — at
+   * `GET /api/subscription/payments/:id/receipt`, which sends the member on to the provider's
+   * own page. False for a payment that did not come through the provider.
+   */
+  hasReceipt: boolean;
+}
+
+/** A member's standing arrangement to pay the fee each year through the platform (ADR 0004). */
+export interface Subscription {
+  /** Whether it will collect again. False once the member has cancelled. */
+  renews: boolean;
+  /** ISO date — when the provider will next collect, where it has said. */
+  renewsOn: string | null;
+}
+
+/**
+ * `GET /api/subscription` — **where a member's Membership stands, and whether it renews itself.**
+ *
+ * Signed in is enough, like the Renewal: the person who most needs to pay is the one whose
+ * Membership has run out. Whose it is comes from the session and from nowhere else.
+ */
+export interface MembershipStanding {
+  /** ISO date — the last day the furthest term covers. Null where none was ever recorded. */
+  paidThrough: string | null;
+  /**
+   * Whether paying through the platform is on offer here at all. False where no provider is
+   * configured or the Club has not said what it charges — a bank transfer is then the only way.
+   */
+  canPayOnline: boolean;
+  /** What a year costs today, as read — `45.00`. */
+  fee: string;
+  currency: Currency;
+  /** Null where the member has no live subscription: never started one, or it has ended. */
+  subscription: Subscription | null;
+  /** Newest first. */
+  payments: MembershipPayment[];
+}
+
+export interface MembershipStandingResponse {
+  membership: MembershipStanding;
+}
+
+/**
+ * `POST /api/subscription` — the member asking to pay by direct debit or card. Answers with the
+ * provider's own page; **nothing about their Membership has changed yet**, and nothing does
+ * until the provider confirms the money arrived.
+ */
+export interface StartSubscriptionResponse {
+  paymentPageUrl: string;
+}
+
+/** `PUT /api/subscription/auto-renewal` — cancelling auto-renewal in one press, or turning it back on. */
+export interface SetAutoRenewalRequest {
+  renews: boolean;
 }

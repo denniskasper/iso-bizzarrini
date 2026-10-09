@@ -61,7 +61,7 @@ const config = loadConfig();
 assertSafeForEnvironment({
   config,
   emailSender: createEmailSender(config, createLogger(config)),
-  paymentProvider: createPaymentProvider(config),
+  paymentProvider: createPaymentProvider(config, systemClock),
 });
 
 const source = resolve(values.source);

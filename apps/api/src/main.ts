@@ -65,12 +65,14 @@ if (config.seedPracticeArchive) {
   );
 }
 
+const paymentProvider = createPaymentProvider(config, systemClock);
+
 const app = createApp({
   config,
   clock: systemClock,
   db: database.db,
   emailSender: createEmailSender(config, logger),
-  paymentProvider: createPaymentProvider(config),
+  paymentProvider,
   breachedPasswords: createBreachedPasswordCheck(config, logger),
   fileStore,
   logger,
@@ -88,6 +90,7 @@ const stopRetentionSweep = scheduleRetentionSweep({
   logger,
   fileStore,
   retention: config.retention,
+  paymentProvider,
 });
 
 const server = app.listen(config.port, () => {

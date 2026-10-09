@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
  * way: it says where you are, and it gets you somewhere else.
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { isAdministrator, isEditor, mayRead } = useSession();
+  const { isAdministrator, isEditor, mayRead, signedIn } = useSession();
   const waiting = useWaitingCount();
 
   return (
@@ -123,7 +123,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ServiceStatusStrip />
           {/* On every screen, signed in or not: who is behind the platform and what it keeps
               about a person are not things anybody should have to be a member to find out. */}
-          <nav aria-label="Legal" className="-mx-3 flex items-center gap-1">
+          <nav aria-label="Legal" className="-mx-3 flex flex-wrap items-center gap-1">
+            {/* A member's own Membership, on every screen and at every width (ADR 0004). */}
+            {signedIn && (
+              <Link to="/membership" className={chromeLink}>
+                Membership
+              </Link>
+            )}
             <Link to="/legal-notice" className={chromeLink}>
               Legal notice
             </Link>

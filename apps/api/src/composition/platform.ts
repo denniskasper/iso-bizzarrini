@@ -10,8 +10,10 @@ import {
   UnconfiguredEmailSender,
   type EmailSender,
 } from '../platform/email.js';
+import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { UnconfiguredPaymentProvider, type PaymentProvider } from '../platform/payments.js';
+import { StripePaymentProvider } from '../platform/stripe-payments.js';
 
 /**
  * Which implementation of each external edge this environment gets. The choice is
@@ -28,10 +30,12 @@ export function createEmailSender(config: AppConfig, logger: Logger): EmailSende
   }
 }
 
-export function createPaymentProvider(config: AppConfig): PaymentProvider {
+export function createPaymentProvider(config: AppConfig, clock: Clock): PaymentProvider {
   switch (config.payments.provider) {
     case 'none':
       return new UnconfiguredPaymentProvider();
+    case 'stripe':
+      return new StripePaymentProvider({ ...config.payments.stripe, clock });
   }
 }
 

@@ -628,8 +628,8 @@ export const ROLES = ['member', 'editor', 'administrator'] as const satisfies re
 /**
  * How the Club came to grant a term. `opening-entry` is an Administrator asserting one that was
  * paid for before this system existed; `bank-transfer` is money that arrived; `roster-import` is
- * a term the Club's own annual membership list asserted (ticket 16). Ticket 18 adds the payment
- * provider's own.
+ * a term the Club's own annual membership list asserted (ticket 16); `payment-provider` is money
+ * the payment provider confirmed had arrived (issue #4).
  *
  * **Which of them granted a term is worth keeping** rather than folding the last into the first:
  * an opening entry is one Administrator's assertion about one person, and an imported one arrived
@@ -640,6 +640,7 @@ export const MEMBERSHIP_GRANTS = [
   'opening-entry',
   'bank-transfer',
   'roster-import',
+  'payment-provider',
 ] as const satisfies readonly MembershipGrant[];
 
 /** The two reasons to send somebody a link that sets a password. */
@@ -743,6 +744,12 @@ export const memberships = pgTable(
       onDelete: 'set null',
     }),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    /**
+     * The payment provider's id for the payment that bought this term. **Unique, and that is the
+     * rule rather than an index**: one payment buys one term however many times the provider
+     * tells us about it, and under whatever event id.
+     */
+    providerPaymentId: text('provider_payment_id').unique(),
   },
   (table) => [
     index('memberships_account_id_paid_through_index').on(table.accountId, table.paidThrough),
@@ -904,6 +911,56 @@ export const accountTokens = pgTable(
     check('account_tokens_purpose_is_known', sql`${table.purpose} in (${oneOf(TOKEN_PURPOSES)})`),
   ],
 );
+
+/**
+ * A member's standing arrangement with the payment provider to pay the fee each year (ADR 0004).
+ *
+ * **Nothing here grants access.** The provider owns the mandate, the retries and the schedule;
+ * this row is what the archive has been *told* about one of its subscriptions, kept so that a
+ * member can see whether theirs will renew and stop it in one press. Whether they may read the
+ * archive is still the Memberships table and nothing else.
+ *
+ * It goes when the Account does — after the subscription itself has been ended at the provider,
+ * which is the erasure's job to do first.
+ */
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** The provider's own id. Every event about the subscription names it. */
+    providerSubscriptionId: text('provider_subscription_id').notNull().unique(),
+    /** Whether it will collect again. False once the member has cancelled. */
+    renews: boolean('renews').notNull().default(true),
+    /** When the provider will next collect, where it has said. */
+    renewsOn: date('renews_on', { mode: 'string' }),
+    /** Over for good. Kept as a row, so a late event about it finds something to be about. */
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    /**
+     * How recent the three facts above are, **by the provider's clock and not by ours**. Its
+     * deliveries arrive in no promised order, so one older than this is not news and is dropped.
+     */
+    stateAsOf: timestamp('state_as_of', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('subscriptions_account_id_index').on(table.accountId)],
+);
+
+/**
+ * Every delivery from the payment provider that has been acted on, by the provider's own id.
+ *
+ * **This table is the idempotency.** A provider redelivers — on a timeout, on a retry, when
+ * somebody presses "resend" in its dashboard — and the row is written in the same transaction as
+ * whatever the event did, so a delivery seen twice changes something once.
+ */
+export const paymentEvents = pgTable('payment_events', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
+});
 
 /**
  * How sign-in has been going for one e-mail address. Only failure is recorded, and it is
@@ -1149,6 +1206,8 @@ export type NewProcessorRow = typeof processors.$inferInsert;
 export type AccountTokenRow = typeof accountTokens.$inferSelect;
 export type NewAccountTokenRow = typeof accountTokens.$inferInsert;
 export type SignInFailureRow = typeof signInFailures.$inferSelect;
+export type SubscriptionRow = typeof subscriptions.$inferSelect;
+export type NewSubscriptionRow = typeof subscriptions.$inferInsert;
 export type ContributionRow = typeof contributions.$inferSelect;
 export type NewContributionRow = typeof contributions.$inferInsert;
 export type ContributionPhotographRow = typeof contributionPhotographs.$inferSelect;

@@ -2,9 +2,11 @@ import type { RetentionReport, RetentionTerms } from '@ricambi/contracts';
 import type { Db } from '../db/client.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
+import type { PaymentProvider } from '../platform/payments.js';
 import { createAccountRepository } from '../repositories/account-repository.js';
 import { createRetentionRepository } from '../repositories/retention-repository.js';
 import { createRetentionService } from '../services/retention-service.js';
+import { createSubscriptionEnding } from '../services/subscription-service.js';
 import type { FileStore } from '../storage/file-store.js';
 
 /**
@@ -25,16 +27,19 @@ export interface RetentionSweepDependencies {
   logger: Logger;
   fileStore: FileStore;
   retention: RetentionTerms;
+  /** So that somebody the sweep deletes stops being charged. */
+  paymentProvider: PaymentProvider;
 }
 
 export async function runRetentionSweep(
   dependencies: RetentionSweepDependencies,
   options: { dryRun?: boolean } = {},
 ): Promise<RetentionReport> {
-  const { db, clock, logger, fileStore, retention } = dependencies;
+  const { db, clock, logger, fileStore, retention, paymentProvider } = dependencies;
 
   const service = createRetentionService({
     terms: retention,
+    endSubscriptions: createSubscriptionEnding({ db, clock, paymentProvider, logger }),
     clock,
     accountRepository: createAccountRepository(db),
     retentionRepository: createRetentionRepository(db),

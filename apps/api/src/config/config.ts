@@ -64,8 +64,21 @@ const environmentSchema = z.object({
    */
   BREACHED_PASSWORD_CHECK: z.enum(['range-api', 'none']).default('range-api'),
 
-  /** `none` refuses every webhook delivery. Stripe arrives with ticket 18. */
-  PAYMENT_PROVIDER: z.enum(['none']).default('none'),
+  /**
+   * Who collects the fee when a member pays through the platform (ADR 0004). `none` offers
+   * nobody a way to pay online and refuses every webhook delivery, which is right for a laptop
+   * and for a preview; `stripe` needs both of the keys below.
+   */
+  PAYMENT_PROVIDER: z.enum(['none', 'stripe']).default('none'),
+
+  /**
+   * Stripe's secret key. **Whether it is a test key or a live one is read off the key itself**,
+   * and a non-production environment refuses to start with a live one.
+   */
+  STRIPE_SECRET_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+
+  /** The signing secret of the webhook endpoint Stripe delivers to (`whsec_…`). */
+  STRIPE_WEBHOOK_SECRET: z.preprocess(blankAsUnset, z.string().min(1).optional()),
 
   /**
    * Whether this environment may send renewal reminders. Off unless it says otherwise, because
@@ -183,9 +196,9 @@ export interface AppConfig {
   passwords: {
     breachCheck: Environment['BREACHED_PASSWORD_CHECK'];
   };
-  payments: {
-    provider: Environment['PAYMENT_PROVIDER'];
-  };
+  payments:
+    | { provider: 'none' }
+    | { provider: 'stripe'; stripe: { secretKey: string; webhookSecret: string } };
   /**
    * Read by the environment guard now, and by the reminder run at ticket 17 — which, if it does
    * not go through `createApp`, owes `assertSafeForEnvironment` a call of its own (ADR 0012).
@@ -245,9 +258,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     passwords: {
       breachCheck: env.BREACHED_PASSWORD_CHECK,
     },
-    payments: {
-      provider: env.PAYMENT_PROVIDER,
-    },
+    payments: paymentsFrom(env),
     remindersEnabled: env.REMINDERS_ENABLED,
     session: {
       secret: env.SESSION_SECRET,
@@ -263,5 +274,27 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     migrateOnStart: env.MIGRATE_ON_START,
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,
+  };
+}
+
+/**
+ * A provider and everything it needs, or a refusal to start. Half-configured is the state to
+ * rule out: a system that offers members a button and then cannot verify what comes back.
+ */
+function paymentsFrom(env: Environment): AppConfig['payments'] {
+  if (env.PAYMENT_PROVIDER === 'none') {
+    return { provider: 'none' };
+  }
+
+  if (env.STRIPE_SECRET_KEY === undefined || env.STRIPE_WEBHOOK_SECRET === undefined) {
+    throw new ConfigurationError(
+      'Invalid environment configuration:\n' +
+        '  PAYMENT_PROVIDER=stripe needs both STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET.',
+    );
+  }
+
+  return {
+    provider: 'stripe',
+    stripe: { secretKey: env.STRIPE_SECRET_KEY, webhookSecret: env.STRIPE_WEBHOOK_SECRET },
   };
 }

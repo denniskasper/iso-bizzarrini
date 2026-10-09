@@ -105,6 +105,21 @@ export class InvitationNotSentError extends HttpError {
   }
 }
 
+/**
+ * The payment provider could not be reached or would not answer. 502, for the reason an unsent
+ * invitation is: what failed is somebody else's service, and the member has done nothing wrong.
+ */
+export class PaymentProviderUnavailableError extends HttpError {
+  constructor() {
+    super(
+      502,
+      'payment_provider_unavailable',
+      'The payment provider is not answering just now. Nothing has been charged and nothing ' +
+        'has changed — try again in a few minutes, or pay by bank transfer.',
+    );
+  }
+}
+
 /** The request contradicts something already recorded — a Tavola number used twice on a Model. */
 export class ConflictError extends HttpError {
   constructor(message: string, details?: unknown) {

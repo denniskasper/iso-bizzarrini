@@ -5,7 +5,7 @@ import type {
   RetentionTerms,
 } from '@ricambi/contracts';
 import { ConflictError, NotFoundError } from '../http/errors.js';
-import { today, type Clock } from '../platform/clock.js';
+import { today, yearsOn, type Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import type { AccountRepository } from '../repositories/account-repository.js';
 import type { RetentionRepository } from '../repositories/retention-repository.js';
@@ -48,8 +48,15 @@ export function createRetentionService(dependencies: {
   retentionRepository: RetentionRepository;
   fileStore: FileStore;
   logger: Logger;
+  /**
+   * Ends whatever subscription the Account still has with the payment provider, and throws
+   * where it could not. **Somebody who has been erased must not go on being charged**, and
+   * once the Account is gone there is nothing left here that knows which subscription was theirs.
+   */
+  endSubscriptions: (accountId: string) => Promise<void>;
 }): RetentionService {
   const { terms, clock, accountRepository, retentionRepository, fileStore, logger } = dependencies;
+  const { endSubscriptions } = dependencies;
 
   /**
    * The rows first, in their transaction, and the files after it: a file is not part of any
@@ -60,6 +67,16 @@ export function createRetentionService(dependencies: {
     accountId: string,
     unless?: (paidThrough: string | null) => boolean,
   ): Promise<Erasure | null> {
+    // First, and outside the transaction: it is a call to somebody else's service. If it
+    // fails the person is not erased, which is the right way round — an Account that still
+    // exists can be tried again, and a subscription nobody can find cannot be stopped.
+    // Asked once here as well as inside the transaction, so that somebody who has just
+    // renewed keeps their subscription along with their Account.
+    if (unless && unless(await accountRepository.paidThrough(accountId))) {
+      return null;
+    }
+    await endSubscriptions(accountId);
+
     const erased = await retentionRepository.erase(accountId, unless);
     if (!erased) {
       return null;
@@ -139,12 +156,18 @@ export function createRetentionService(dependencies: {
       for (const account of due.accounts) {
         // Asked again with the Account held. A payment recorded since the report was read has
         // moved the date, and somebody who has just renewed is not somebody to delete.
-        const erased = await erase(
-          account.id,
-          (paidThrough) => paidThrough !== null && paidThrough !== account.paidThrough,
-        );
-        if (erased) {
-          accounts.push(account);
+        try {
+          const erased = await erase(
+            account.id,
+            (paidThrough) => paidThrough !== null && paidThrough !== account.paidThrough,
+          );
+          if (erased) {
+            accounts.push(account);
+          }
+        } catch (error) {
+          // One person the sweep could not finish is not a reason to leave the rest. They are
+          // still on the roster, still on the next dry run, and tomorrow's sweep tries again.
+          logger.error({ err: error, accountId: account.id }, 'Could not delete a lapsed Account');
         }
       }
 
@@ -171,16 +194,6 @@ export function createRetentionService(dependencies: {
       return erased;
     },
   };
-}
-
-/**
- * The same day, a number of years later — **real date arithmetic and not string arithmetic**. A
- * Membership running to 29 February has no anniversary, and `Date.UTC` rolls it to 1 March
- * rather than producing a day that does not exist.
- */
-function yearsOn(day: string, years: number): string {
-  const [year, month, date] = day.split('-').map(Number) as [number, number, number];
-  return new Date(Date.UTC(year + years, month - 1, date)).toISOString().slice(0, 10);
 }
 
 /**

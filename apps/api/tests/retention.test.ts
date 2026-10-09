@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type TestAgent from 'supertest/lib/agent.js';
 import { runRetentionSweep } from '../src/composition/retention-sweep.js';
 import { memberships } from '../src/db/schema.js';
+import { UnconfiguredPaymentProvider } from '../src/platform/payments.js';
 import { createFileStore } from '../src/storage/file-store.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { givenModel, givenPhotographImage, givenTavola } from './support/fixtures.js';
@@ -318,6 +319,7 @@ describe('The retention sweep', () => {
         logger: app.logger,
         fileStore: createFileStore(app.filesPath),
         retention: app.config.retention,
+        paymentProvider: new UnconfiguredPaymentProvider(),
       },
       options,
     );

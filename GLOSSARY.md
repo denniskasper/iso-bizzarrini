@@ -130,7 +130,7 @@ _Avoid_: User, profile, login, member record
 
 **Membership**:
 One Account's standing in the Club, ending on a date. An Account may hold more than one.
-_Avoid_: Subscription, plan, registration
+_Avoid_: Plan, registration, subscription (a **Subscription** is how one may be paid for, not the thing itself)
 
 **Paid-through**:
 The date a Membership runs to. Reading the archive requires one that has not passed.
@@ -169,12 +169,18 @@ the payer's name, whether or not their Account still exists — the one thing an
 not erase.
 _Avoid_: Invoice, receipt, transaction
 
+**Subscription**:
+A member's standing arrangement with the payment provider to pay the fee each year. Grants
+nothing by itself: a Membership term is granted when a payment under it is confirmed. Whether
+it will collect again is its *auto-renewal*, which the member can turn off in one press.
+_Avoid_: Plan, mandate, recurring payment, auto-pay
+
 **Renewal**:
 What a member is told in order to buy a new Membership term: the amount, where to send it,
 the words to write on the transfer and who to ask. Instructions to a person, not a record of
-anything — nothing is written when one is read, and paying is a bank transfer the Club
-receives and an Administrator records.
-_Avoid_: Renewal date (that is the **Paid-through**), invoice, subscription, checkout
+anything — nothing is written when one is read. It describes the bank transfer, which the
+Club receives and an Administrator records; paying through the platform is a **Subscription**.
+_Avoid_: Renewal date (that is the **Paid-through**), invoice, checkout
 
 **Club office**:
 Whoever answers for the association when something is wrong that money will not fix. A
