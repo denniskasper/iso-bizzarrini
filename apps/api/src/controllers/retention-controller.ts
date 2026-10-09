@@ -1,4 +1,4 @@
-import type { ErasureResponse, PrivacyResponse, RetentionReport } from '@ricambi/contracts';
+import type { ErasureResponse, RetentionReport } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { Gate } from '../access/gate.js';
@@ -17,7 +17,6 @@ const accountIdParams = z.object({
 });
 
 export interface RetentionController {
-  readTerms: RequestHandler;
   report: RequestHandler;
   erase: RequestHandler;
 }
@@ -29,11 +28,6 @@ export function createRetentionController(dependencies: {
   const { gate, retentionService } = dependencies;
 
   return {
-    readTerms: (_request, response) => {
-      const body: PrivacyResponse = { retention: retentionService.terms() };
-      response.json(body);
-    },
-
     report: async (_request, response) => {
       const body: RetentionReport = await retentionService.report();
       response.json(body);

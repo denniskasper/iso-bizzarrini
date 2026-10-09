@@ -26,8 +26,6 @@ import { photographKeyPrefix, type FileStore } from '../storage/file-store.js';
  * statutory accounting period, and the privacy statement says so rather than promising otherwise.
  */
 export interface RetentionService {
-  /** The figures the sweep applies, for the privacy statement to quote. */
-  terms(): RetentionTerms;
   /** An Administrator deleting one person's personal data on request (story 131). */
   erase(accountId: string, askedBy: string): Promise<Erasure>;
   /**
@@ -123,8 +121,6 @@ export function createRetentionService(dependencies: {
   }
 
   return {
-    terms: () => terms,
-
     report,
 
     async sweep() {

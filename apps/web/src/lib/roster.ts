@@ -7,6 +7,7 @@ import type {
   RosterStanding,
 } from '@ricambi/contracts';
 import { api } from '@/lib/api';
+import { LEGAL_QUERY_KEY, usePrivacy } from '@/lib/legal';
 
 /** The roster, and the four things an Administrator does to it. */
 export const ROSTER_QUERY_KEY = ['roster'] as const;
@@ -84,7 +85,7 @@ export function useEraseMember() {
  * retention figure typed into it.
  */
 export function useRetentionTerms() {
-  const privacy = useQuery({ queryKey: ['privacy'], queryFn: api.privacy });
+  const privacy = usePrivacy();
   return { ...privacy, data: privacy.data?.retention };
 }
 
@@ -129,7 +130,12 @@ export function useCorrectClub() {
 
   return useMutation({
     mutationFn: api.correctClub,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CLUB_QUERY_KEY }),
+    // The legal notice and the privacy statement are read out of this record too.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: CLUB_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: LEGAL_QUERY_KEY }),
+      ]),
   });
 }
 

@@ -1439,9 +1439,93 @@ export interface RetentionTerms {
   paymentRecordYears: number;
 }
 
-/** `GET /api/privacy` — the figures the privacy statement quotes. Open to anybody, like it. */
+/**
+ * `GET /api/legal-notice` — **who is behind the platform**, open to anybody.
+ *
+ * The public part of the Club's record and nothing beside it: `ClubRecord` also carries the bank
+ * details and the reminder text, which are an Administrator's. Every field is null until the
+ * association has written it — an invented address on a legal page would look finished.
+ */
+export interface LegalNotice {
+  /** The association's registered name, with its legal form. */
+  name: string | null;
+  postalAddress: string | null;
+  representedBy: string | null;
+  registerCourt: string | null;
+  registerNumber: string | null;
+  vatId: string | null;
+  /** The Club office's address — the same one the renewal screen points at. */
+  email: string | null;
+  phone: string | null;
+  further: string | null;
+}
+
+export interface LegalNoticeResponse {
+  legalNotice: LegalNotice;
+}
+
+/**
+ * What a processor does for the association. Five, because those are the five the privacy
+ * statement has to account for — `error-tracking` among them so that "nobody" is something the
+ * statement says on purpose (ADR 0011).
+ */
+export type ProcessorRole = 'hosting' | 'storage' | 'email' | 'payment' | 'error-tracking';
+
+/** A company that handles members' data on the association's behalf, as the public is told. */
+export interface Processor {
+  role: ProcessorRole;
+  name: string;
+  /** Where the data is handled — a country is enough. */
+  location: string;
+}
+
+/**
+ * The same processor as the association keeps it — `GET /api/processors`, an Administrator's.
+ *
+ * What is added is the one thing that is nobody else's business and is the association's to
+ * track to completion: whether the processor agreement has been signed.
+ */
+export interface ProcessorRecord extends Processor {
+  /** ISO date. Null while the agreement is outstanding, which none may be at go-live. */
+  agreementSignedOn: string | null;
+}
+
+export interface ProcessorsResponse {
+  processors: ProcessorRecord[];
+}
+
+export interface ProcessorResponse {
+  processor: ProcessorRecord;
+}
+
+/** `PUT /api/processors/:role` — naming who does this for the association, or correcting it. */
+export interface NameProcessorRequest {
+  name: string;
+  location: string;
+  agreementSignedOn?: string | null;
+}
+
+/**
+ * `GET /api/privacy` — everything in the privacy statement that is a fact about the association
+ * or the running system rather than a sentence about what the software does. Open to anybody,
+ * like the statement.
+ */
 export interface PrivacyResponse {
   retention: RetentionTerms;
+  /** The association, which is the controller. Null fields are ones nobody has written yet. */
+  controller: {
+    name: string | null;
+    postalAddress: string | null;
+    email: string | null;
+  };
+  dataProtectionContact: {
+    name: string | null;
+    email: string | null;
+  };
+  supervisoryAuthority: string | null;
+  /** In a fixed order — hosting, storage, e-mail, payment, error tracking. Only those named. */
+  processors: Processor[];
+  further: string | null;
 }
 
 /**
@@ -1628,6 +1712,28 @@ export interface ClubRecord {
    * nobody can act on without an address to act on it at (ticket 15).
    */
   officeEmail: string | null;
+  /**
+   * **Who the association is**, for the legal notice (issue #9): the registered name with its
+   * legal form, where it can be served, who may speak for it, and where it is registered. Public
+   * once written — see `LegalNotice` — and null until somebody has written it.
+   */
+  legalName: string | null;
+  /** As many lines as an address has. */
+  postalAddress: string | null;
+  representedBy: string | null;
+  registerCourt: string | null;
+  registerNumber: string | null;
+  vatId: string | null;
+  phone: string | null;
+  /** Anything else the association has to state on its legal notice, in its own words. */
+  legalNoticeFurther: string | null;
+  /** Who answers for data protection on the association's side. Named in the privacy statement. */
+  dataProtectionContact: string | null;
+  dataProtectionEmail: string | null;
+  /** The authority a member may complain to, as the association would name it. */
+  supervisoryAuthority: string | null;
+  /** Anything else the association has to state in its privacy statement, in its own words. */
+  privacyFurther: string | null;
 }
 
 export interface ClubResponse {

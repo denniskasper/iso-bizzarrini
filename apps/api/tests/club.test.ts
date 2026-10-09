@@ -59,7 +59,7 @@ describe('the Club', () => {
       })
       .expect(200);
 
-    expect(saved.body.club).toEqual({
+    expect(saved.body.club).toMatchObject({
       fee: '45.00',
       currency: 'EUR',
       bankAccountHolder: 'The Club',

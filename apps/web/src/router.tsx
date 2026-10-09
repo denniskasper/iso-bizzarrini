@@ -11,6 +11,7 @@ import { CatalogPage } from '@/routes/catalog-page';
 import { CategoriesPage } from '@/routes/categories-page';
 import { CategoryPage } from '@/routes/category-page';
 import { ClubPage } from '@/routes/club-page';
+import { LegalNoticePage } from '@/routes/legal-notice-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
 import { PrivacyPage } from '@/routes/privacy-page';
@@ -29,14 +30,22 @@ import { TavolaPage } from '@/routes/tavola-page';
  * screen: the archive is members-only, the API refuses all of it, and a screen that discovered
  * that for itself would be one of several slightly different ways of saying so.
  *
- * **Five routes stand outside it.** Four for the same reason: asking to be let in cannot
+ * **Six routes stand outside it.** Four for the same reason: asking to be let in cannot
  * require already being in. Signing in and choosing a password from a link are the two ways in;
  * the roster and the Club are outside it because they are behind a *role* rather than behind a
  * Membership, and an Administrator whose own Membership has run out must still be able to reach
- * the screen that records their payment. The fifth is the privacy statement, which is addressed
- * to people who are not members yet and people who no longer are.
+ * the screen that records their payment. The other two are the platform's own legal pages
+ * (issue #9): the privacy statement, which is addressed to people who are not members yet and
+ * people who no longer are, and the legal notice, which is addressed to anybody at all.
  */
-const OUTSIDE_THE_GATE = ['/sign-in', '/set-password', '/roster', '/club', '/privacy'];
+const OUTSIDE_THE_GATE = [
+  '/sign-in',
+  '/set-password',
+  '/roster',
+  '/club',
+  '/privacy',
+  '/legal-notice',
+];
 
 function RootLayout() {
   const atTheGate = useRouterState({
@@ -132,6 +141,13 @@ const privacyRoute = createRoute({
   component: PrivacyPage,
 });
 
+/** Who is behind the platform (issue #9). Open to anybody. */
+const legalNoticeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/legal-notice',
+  component: LegalNoticePage,
+});
+
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/search',
@@ -224,6 +240,7 @@ export const router = createRouter({
     rosterImportRoute,
     clubRoute,
     privacyRoute,
+    legalNoticeRoute,
     searchRoute,
     modelRoute,
     categoriesRoute,

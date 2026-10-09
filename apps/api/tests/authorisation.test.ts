@@ -50,6 +50,8 @@ const OPEN = new Set([
   // What the privacy statement quotes. A statement that could only be read after signing in
   // would be one nobody reads before handing over their address.
   'GET /api/privacy',
+  // Who is behind the platform (issue #9). Addressed to whoever lands here, member or not.
+  'GET /api/legal-notice',
 ]);
 
 /** An Administrator's, and behind the role rather than behind a Membership. */
@@ -69,6 +71,11 @@ const ADMINISTRATORS_ONLY = new Set([
   'POST /api/roster/import/preview',
   'GET /api/club',
   'PATCH /api/club',
+  // Who handles members' data for the association, and whether each agreement is signed
+  // (issue #9). The names are published in the privacy statement; this record says more.
+  'GET /api/processors',
+  'PUT /api/processors/:role',
+  'DELETE /api/processors/:role',
   // The list of Categories is kept by an Administrator (issue #8). An Editor chooses from it,
   // and is refused here like anybody else who is not one.
   'POST /api/categories',

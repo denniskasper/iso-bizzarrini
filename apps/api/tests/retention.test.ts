@@ -611,7 +611,7 @@ describe('The retention period', () => {
 
     const read = await app.request().get('/api/privacy').expect(200);
 
-    expect(read.body).toEqual({ retention: { accountYears: 3, paymentRecordYears: 10 } });
+    expect(read.body.retention).toEqual({ accountYears: 3, paymentRecordYears: 10 });
   });
 
   it('is whatever the environment says, in the sweep and in the privacy statement alike', async () => {
@@ -624,7 +624,7 @@ describe('The retention period', () => {
     const clara = await givenAMember(app, administrator.agent, { paidThrough: '2026-12-31' });
 
     const read = await app.request().get('/api/privacy').expect(200);
-    expect(read.body).toEqual({ retention: { accountYears: 1, paymentRecordYears: 8 } });
+    expect(read.body.retention).toEqual({ accountYears: 1, paymentRecordYears: 8 });
 
     app.clock.setTo(new Date('2028-01-01T09:00:00.000Z'));
     const signedIn = await app.memberAgent(administrator);

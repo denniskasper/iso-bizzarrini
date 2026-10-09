@@ -9,6 +9,7 @@ import { createBulkPasteController } from './controllers/bulk-paste-controller.j
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
+import { createLegalController } from './controllers/legal-controller.js';
 import { createContributionController } from './controllers/contribution-controller.js';
 import { createContributionReviewController } from './controllers/contribution-review-controller.js';
 import { createPartController } from './controllers/part-controller.js';
@@ -33,6 +34,7 @@ import type { PaymentProvider } from './platform/payments.js';
 import { createAccountRepository } from './repositories/account-repository.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
 import { createClubRepository } from './repositories/club-repository.js';
+import { createProcessorRepository } from './repositories/processor-repository.js';
 import { createContributionRepository } from './repositories/contribution-repository.js';
 import { createModelRepository } from './repositories/model-repository.js';
 import { createPartRecordRepository } from './repositories/part-record-repository.js';
@@ -50,6 +52,7 @@ import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
 import { createCategoryService } from './services/category-service.js';
 import { createClubService } from './services/club-service.js';
+import { createLegalService } from './services/legal-service.js';
 import { createContributionReviewService } from './services/contribution-review-service.js';
 import { createContributionService } from './services/contribution-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
@@ -130,6 +133,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const accountRepository = createAccountRepository(db);
   const signInFailureRepository = createSignInFailureRepository(db);
   const clubRepository = createClubRepository(db);
+  const processorRepository = createProcessorRepository(db);
   const modelRepository = createModelRepository(db);
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
@@ -178,6 +182,14 @@ export function createApp(dependencies: AppDependencies): Express {
    */
   const rosterImportService = createRosterImportService({ db, clock });
   const clubService = createClubService({ clock, clubRepository });
+  // Handed the same retention figures the sweep below is, so the privacy statement and the thing
+  // that carries it out cannot come to say different things (ADR 0007).
+  const legalService = createLegalService({
+    retention: config.retention,
+    clock,
+    clubService,
+    processorRepository,
+  });
   const retentionService = createRetentionService({
     terms: config.retention,
     clock,
@@ -255,6 +267,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
+  const legalController = createLegalController({ legalService });
   const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
   const categoryController = createCategoryController({ categoryService });
@@ -318,6 +331,7 @@ export function createApp(dependencies: AppDependencies): Express {
       retentionController,
       rosterImportController,
       clubController,
+      legalController,
       searchController,
       catalogController,
       categoryController,

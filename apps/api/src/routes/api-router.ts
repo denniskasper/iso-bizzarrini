@@ -4,6 +4,7 @@ import type { BulkPasteController } from '../controllers/bulk-paste-controller.j
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
+import type { LegalController } from '../controllers/legal-controller.js';
 import type { ContributionController } from '../controllers/contribution-controller.js';
 import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
 import type { RetentionController } from '../controllers/retention-controller.js';
@@ -49,6 +50,7 @@ export function createApiRouter(dependencies: {
   retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
+  legalController: LegalController;
   searchController: SearchController;
   catalogController: CatalogController;
   categoryController: CategoryController;
@@ -70,6 +72,7 @@ export function createApiRouter(dependencies: {
     retentionController,
     rosterImportController,
     clubController,
+    legalController,
     searchController,
     catalogController,
     categoryController,
@@ -106,10 +109,12 @@ export function createApiRouter(dependencies: {
   router.post('/password-setups/inspect', sessionController.inspectPasswordSetup);
   router.post('/password-setups', sessionController.setPassword);
 
-  // How long the archive keeps what it knows about a person — the figures the privacy statement
-  // quotes (ADR 0007). Open, because a privacy statement nobody can read until they have handed
-  // over their address is not one; it says nothing about anybody.
-  router.get('/privacy', retentionController.readTerms);
+  // **The platform's own legal pages** (issue #9): who is behind it, and what it keeps about a
+  // person, for how long (ADR 0007) and in whose hands. Open, because neither is addressed to
+  // members — a legal notice is for whoever lands here, and a privacy statement nobody can read
+  // until they have handed over their address is not one. Neither says anything about anybody.
+  router.get('/legal-notice', legalController.readLegalNotice);
+  router.get('/privacy', legalController.readPrivacy);
 
   // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
   // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still
@@ -138,6 +143,13 @@ export function createApiRouter(dependencies: {
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
+
+  // **Who handles members' data on the association's behalf**, and whether the agreement with
+  // each is signed (issue #9). The names are published in the privacy statement above; this is
+  // the association's own record of them, which says more than the public is owed.
+  router.get('/processors', administratorsOnly, legalController.listProcessors);
+  router.put('/processors/:role', administratorsOnly, legalController.nameProcessor);
+  router.delete('/processors/:role', administratorsOnly, legalController.removeProcessor);
 
   // **Keeping the list of Categories** (issue #8) — an Administrator's, like the roster, and up
   // here with it for the same reason: it is behind the *role*. The rule further down makes every

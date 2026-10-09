@@ -121,11 +121,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       <footer className="border-t border-line bg-surface-raised">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-2 px-gutter py-4">
           <ServiceStatusStrip />
-          {/* On every screen, signed in or not: what is kept about a person is not something
-              they should have to be a member to find out. */}
-          <Link to="/privacy" className={chromeLink}>
-            Privacy
-          </Link>
+          {/* On every screen, signed in or not: who is behind the platform and what it keeps
+              about a person are not things anybody should have to be a member to find out. */}
+          <nav aria-label="Legal" className="-mx-3 flex items-center gap-1">
+            <Link to="/legal-notice" className={chromeLink}>
+              Legal notice
+            </Link>
+            <Link to="/privacy" className={chromeLink}>
+              Privacy
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

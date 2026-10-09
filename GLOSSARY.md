@@ -182,3 +182,20 @@ correspondent rather than a role on the platform, which is why it has an address
 capabilities — it is what "contact the Club office" points at, on the sign-in screen and on
 the Renewal.
 _Avoid_: Club officer (that is close to **Administrator**), support, helpdesk, admin team
+
+**Legal notice**:
+The page that says who the association is and how to reach it — what German law calls an
+*Impressum*. Everything on it is the Club's own record, written by an Administrator.
+_Avoid_: Impressum, imprint, about page
+
+**Privacy statement**:
+The page that says what the platform holds about a person, who else handles it, how long it is
+kept and what cannot be erased. Its sentences describe the software; its facts are read from
+the running system.
+_Avoid_: Datenschutzerklärung, privacy policy, data policy
+
+**Processor**:
+A company that handles members' personal data on the association's behalf — the host, the
+backup store, the e-mail provider. Named in the Privacy statement, one per kind of work, with
+the date its agreement was signed kept as the association's own record.
+_Avoid_: Vendor, supplier, sub-processor, third party

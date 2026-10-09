@@ -23,6 +23,18 @@ const correctClubBody = z.object({
   paymentReference: required('A payment reference format is required').optional(),
   reminderText: required('A reminder text is required').optional(),
   officeEmail: blankToNull().optional(),
+  legalName: blankToNull().optional(),
+  postalAddress: blankToNull().optional(),
+  representedBy: blankToNull().optional(),
+  registerCourt: blankToNull().optional(),
+  registerNumber: blankToNull().optional(),
+  vatId: blankToNull().optional(),
+  phone: blankToNull().optional(),
+  legalNoticeFurther: blankToNull().optional(),
+  dataProtectionContact: blankToNull().optional(),
+  dataProtectionEmail: blankToNull().optional(),
+  supervisoryAuthority: blankToNull().optional(),
+  privacyFurther: blankToNull().optional(),
 });
 
 export interface ClubController {

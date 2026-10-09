@@ -13,6 +13,11 @@ import type {
   CategoryWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  LegalNoticeResponse,
+  NameProcessorRequest,
+  ProcessorResponse,
+  ProcessorRole,
+  ProcessorsResponse,
   ErasureResponse,
   PrivacyResponse,
   RetentionReport,
@@ -189,8 +194,21 @@ export const api = {
   eraseMember: (accountId: string) =>
     request<ErasureResponse>(`/roster/${accountId}`, { method: 'DELETE' }),
   retentionReport: () => request<RetentionReport>('/roster/retention'),
-  /** The figures the privacy statement quotes, from the system that applies them. */
+
+  /**
+   * **The platform's own legal pages** (issue #9). Both are open to anybody, and both carry only
+   * facts: who the association is, who handles members' data for it, and the retention figures
+   * from the system that applies them. The sentences around those facts are the screens'.
+   */
+  legalNotice: () => request<LegalNoticeResponse>('/legal-notice'),
   privacy: () => request<PrivacyResponse>('/privacy'),
+
+  /** The association's own record of its processors, agreements included. An Administrator's. */
+  processors: () => request<ProcessorsResponse>('/processors'),
+  nameProcessor: (role: ProcessorRole, fields: NameProcessorRequest) =>
+    send<ProcessorResponse>('PUT', `/processors/${role}`, fields),
+  removeProcessor: (role: ProcessorRole) =>
+    request<void>(`/processors/${role}`, { method: 'DELETE' }),
 
   /**
    * **The Club's annual membership list, loaded instead of typed** (ticket 16).

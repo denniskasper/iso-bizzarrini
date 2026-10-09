@@ -99,6 +99,13 @@
       "when": 1791550604530,
       "tag": "0013_payment_records_outlive_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791558642286,
+      "tag": "0014_legal_notice_and_processors",
+      "breakpoints": true
     }
   ]
 }

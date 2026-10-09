@@ -2,6 +2,7 @@ import type {
   Currency,
   EquivalentKind,
   MembershipGrant,
+  ProcessorRole,
   Role,
   SourceCondition,
   TokenPurpose,
@@ -801,6 +802,35 @@ export const club = pgTable(
      * "contact the Club office" is advice nobody can act on without an address.
      */
     officeEmail: text('office_email'),
+    /**
+     * **Who the association is, for the legal notice** (issue #9): its registered name, where it
+     * can be served, who may speak for it and where it is registered. Public once written, and
+     * all of it nullable, because an association nobody has described yet has no legal notice —
+     * and a placeholder on a legal page is worse than a gap, since it looks finished.
+     *
+     * Here and not in configuration for two reasons. The board changes at an annual meeting and
+     * that must not be a deployment; and these are precisely the names this repository is never
+     * to contain.
+     */
+    legalName: text('legal_name'),
+    /** As many lines as an address has, kept as they were typed. */
+    postalAddress: text('postal_address'),
+    representedBy: text('represented_by'),
+    registerCourt: text('register_court'),
+    registerNumber: text('register_number'),
+    vatId: text('vat_id'),
+    phone: text('phone'),
+    /** Anything else the association has to state on its legal notice, in its own words. */
+    legalNoticeFurther: text('legal_notice_further'),
+    /**
+     * Who answers for data protection on the association's side, and the authority a member may
+     * complain to — both named in the privacy statement.
+     */
+    dataProtectionContact: text('data_protection_contact'),
+    dataProtectionEmail: text('data_protection_email'),
+    supervisoryAuthority: text('supervisory_authority'),
+    /** Anything else the association has to state in its privacy statement, in its own words. */
+    privacyFurther: text('privacy_further'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (table) => [
@@ -808,6 +838,42 @@ export const club = pgTable(
     check('club_fee_is_an_amount', sql`${table.fee} >= 0`),
     check('club_currency_is_tradeable', sql`${table.currency} in (${oneOf(CURRENCIES)})`),
   ],
+);
+
+/**
+ * What somebody else does with members' data on the association's behalf. Five kinds, because
+ * those are the five the privacy statement has to account for; `error-tracking` is among them so
+ * that "nobody" is an answer the statement gives on purpose (ADR 0011) rather than by omission.
+ */
+export const PROCESSOR_ROLES = [
+  'hosting',
+  'storage',
+  'email',
+  'payment',
+  'error-tracking',
+] as const satisfies readonly ProcessorRole[];
+
+/**
+ * **A processor**: a company that handles members' personal data for the association (issue #9).
+ *
+ * One row per role, so naming the host twice is correcting it rather than adding a second. The
+ * privacy statement names them from here, which is what lets the association change its e-mail
+ * provider without a deployment — and keeps the providers' names out of this repository.
+ *
+ * `agreementSignedOn` is the association's own record and is never published: a processor with
+ * none is one whose agreement is still outstanding, and none may be at go-live.
+ */
+export const processors = pgTable(
+  'processors',
+  {
+    role: text('role').primaryKey().$type<ProcessorRole>(),
+    name: text('name').notNull(),
+    /** Where the data is handled — a country is enough. */
+    location: text('location').notNull(),
+    agreementSignedOn: date('agreement_signed_on', { mode: 'string' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [check('processor_role_is_known', sql`${table.role} in (${oneOf(PROCESSOR_ROLES)})`)],
 );
 
 /**
@@ -1078,6 +1144,8 @@ export type MembershipRow = typeof memberships.$inferSelect;
 export type NewMembershipRow = typeof memberships.$inferInsert;
 export type ClubRow = typeof club.$inferSelect;
 export type NewClubRow = typeof club.$inferInsert;
+export type ProcessorRow = typeof processors.$inferSelect;
+export type NewProcessorRow = typeof processors.$inferInsert;
 export type AccountTokenRow = typeof accountTokens.$inferSelect;
 export type NewAccountTokenRow = typeof accountTokens.$inferInsert;
 export type SignInFailureRow = typeof signInFailures.$inferSelect;
