@@ -111,3 +111,31 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-preview:
+    name: Deploy the preview
+    # Only what is on main, and only once every seam has passed: the preview is what people are
+    # shown, so it never runs anything CI has not seen green.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, api-tests, e2e-tests, image]
+    runs-on: ubuntu-latest
+    steps:
+      # Dokploy does the build and the restart; this only tells it to start. Where it lives and
+      # the key that lets us ask are repository secrets, never written here (AGENTS.md, Security).
+      - name: Ask Dokploy to deploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+        run: |
+          for name in DOKPLOY_URL DOKPLOY_API_KEY DOKPLOY_COMPOSE_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The repository secret $name is not set, so the preview was not deployed."
+              exit 1
+            fi
+          done
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            --request POST "${DOKPLOY_URL%/}/api/compose.deploy" \
+            --header "x-api-key: $DOKPLOY_API_KEY" \
+            --header 'content-type: application/json' \
+            --data "{\"composeId\":\"$DOKPLOY_COMPOSE_ID\"}"
