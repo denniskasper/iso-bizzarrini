@@ -59,10 +59,12 @@ None of these is code, and none can be closed from this repository. Each is the 
       ten for payment records by the association's accountant ([ADR 0007](../adr/0007-retention-and-pseudonymised-bylines.md)).
 - [ ] **Members have been told** their data is going into the platform, in the words in
       [member-information.md](member-information.md), before the first roster is imported.
-- [ ] **How long the server's log is kept is decided, configured and published.** The log holds
-      the address each request came from. Nothing in this repository rotates it, and the
-      privacy statement says what is logged but not for how long; once decided, the period goes
-      in *Further privacy information*.
+- [ ] **The server's log is kept for thirty days, and the server has been set up to do that.**
+      The period is decided; the procedure and the check are in
+      [log-retention.md](../operations/log-retention.md). The application cannot enforce it,
+      so this is ticked against the real server. The privacy statement says what is logged and
+      not for how long: write *"The server's log is kept for 30 days."* into *Further privacy
+      information* once the server really does.
 - [ ] **The measures that live outside this repository are in place and tested** — see the
       last section of [the measures](technical-and-organisational-measures.md). A restore is
       performed, not assumed.

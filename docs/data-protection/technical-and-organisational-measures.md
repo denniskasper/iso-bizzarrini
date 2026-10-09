@@ -91,7 +91,8 @@ From [ADR 0009](../adr/0009-deployment.md). Tick each against the real server.
       shared login.
 - [ ] **Updates.** The operating system and the container images are kept patched by
       `<OPERATORS>`.
-- [ ] **Log retention** is configured — see [README](README.md).
+- [ ] **Log retention** is thirty days and has been checked on the server —
+      [log-retention.md](../operations/log-retention.md).
 - [ ] **E-mail** is sent through `<EMAIL_PROVIDER>` with SPF, DKIM and DMARC, never from the
       server itself.
 
