@@ -63,10 +63,6 @@ None of these is code, and none can be closed from this repository. Each is the 
       the address each request came from. Nothing in this repository rotates it, and the
       privacy statement says what is logged but not for how long; once decided, the period goes
       in *Further privacy information*.
-- [ ] **The log is known not to carry member data when something fails.** An unhandled error is
-      written to the log whole, and a failed database query carries its parameters. Either the
-      application is changed to strip them, or the log is treated as holding personal data —
-      access restricted, retention short.
 - [ ] **The measures that live outside this repository are in place and tested** — see the
       last section of [the measures](technical-and-organisational-measures.md). A restore is
       performed, not assumed.

@@ -49,8 +49,8 @@ with a login on the machine, not a role on the platform, and not necessarily an 
 - The roster import reads a name, an e-mail address and a paid-through date, and ignores every
   other column of the file it is given.
 - Request logs have the cookie, any authorisation header and fields named `email` or `password`
-  removed. An unhandled error is logged whole, which can include the parameters of a failed
-  database query — a known gap, listed in [README](README.md).
+  removed. A logged error keeps what the fault was and where, and drops the values a failed
+  query was run with — covered by a test against a query that really fails.
 - No analytics, no advertising, no third-party fonts or scripts; one cookie.
 - No error-tracking service receives anything ([ADR 0011](../adr/0011-no-error-tracking-vendor.md)).
 

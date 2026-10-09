@@ -86,7 +86,7 @@ Art. 30(1) GDPR, drafted for Ricambi. **A draft for the association to adopt** �
 | --- | --- |
 | Purpose | Keeping the system running and finding faults. There is no error-tracking service ([ADR 0011](../adr/0011-no-error-tracking-vendor.md)). |
 | Legal basis | Art. 6(1)(f) — the interest is operating and securing the service |
-| Data | For each request: the IP address it came from, the address requested, the request's headers (user-agent, referer and the like) without the cookie or any authorisation header, the status and the time. Fields named `email` or `password` are removed before a line is written. **An unhandled error is logged whole**, and a failed database query carries its parameters — which can be a name, an e-mail address or a password hash. That is rare and is a known gap, not a design: see [README](README.md). |
+| Data | For each request: the IP address it came from, the address requested, the request's headers (user-agent, referer and the like) without the cookie or any authorisation header, the status and the time. Fields named `email` or `password` are removed before a line is written. A logged error is reduced to the kind of fault, where it was raised, the statement that failed and the constraint that refused it; the values a failed query was run with, and the row the database quotes back, are dropped. A driver's own message may still quote a single malformed value. |
 | Who sees it | Whoever operates the server for `<CLUB>` |
 | Erasure | **Open.** Nothing in this repository rotates the log. A period is to be decided, configured on the server, and published — see [README](README.md). |
 

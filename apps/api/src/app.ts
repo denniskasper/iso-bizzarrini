@@ -29,7 +29,7 @@ import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { BreachedPasswordCheck } from './platform/breached-passwords.js';
 import type { Clock } from './platform/clock.js';
 import type { EmailSender } from './platform/email.js';
-import { createLogger, type Logger } from './platform/logger.js';
+import { createLogger, describeError, type Logger } from './platform/logger.js';
 import type { PaymentProvider } from './platform/payments.js';
 import { createAccountRepository } from './repositories/account-repository.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
@@ -307,7 +307,9 @@ export function createApp(dependencies: AppDependencies): Express {
       },
     }),
   );
-  app.use(pinoHttp({ logger }));
+  // The request logger keeps serializers of its own, so it is handed the same account of an
+  // error the rest of the log uses rather than left to write one out whole.
+  app.use(pinoHttp({ logger, serializers: { err: describeError } }));
 
   // Members-only, in every environment: nothing here is for a search engine, and the
   // non-production system least of all. The markup says the same thing; this covers what a

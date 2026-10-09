@@ -137,8 +137,9 @@ function Statement({ privacy }: { privacy: PrivacyResponse }) {
           <strong className="font-semibold">The server’s log.</strong> Each request to Ricambi is
           written to a log on the server with the address it came from, the page asked for and what
           your browser sent about itself. Your cookie and your password are never written to it.
-          When something fails, what failed is written there too, and that can include the details
-          of the request that failed. The log is used to keep the system running and to find faults.
+          When something fails, the fault is written there too: which operation failed and which
+          rule refused it, without the values it was working with. The log is used to keep the
+          system running and to find faults.
         </p>
         <p>
           All of this is held to carry out your membership of the Club; the payment records are also
