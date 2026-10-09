@@ -96,13 +96,19 @@ Every push to `main` that passes CI redeploys the preview: the last job in
 builds and restarts the stack as it does when you press the button. Nothing else deploys it —
 leave Dokploy's own "Autodeploy" off, or a push would go out before CI has seen it.
 
-The job needs three repository secrets, set once:
+The job needs five repository secrets, set once:
 
 ```sh
 gh secret set DOKPLOY_URL          # https://<your-dokploy-host>, the panel's own address
 gh secret set DOKPLOY_API_KEY      # Dokploy → Settings → Profile → API/CLI → generate
 gh secret set DOKPLOY_COMPOSE_ID   # the id at the end of the Compose service's URL in Dokploy
+gh secret set TS_OAUTH_CLIENT_ID   # Tailscale → Settings → OAuth clients, scope "Auth Keys", tag:ci
+gh secret set TS_OAUTH_SECRET      # shown once, when that client is created
 ```
+
+The last two are there because the panel is reachable only over Tailscale. The runner joins the
+tailnet as `tag:ci` for the length of the job, so the tailnet's policy has to define that tag and
+let it reach the panel — and nothing else.
 
 A redeployment keeps the volumes, so the roster, anything recorded through the Editor screens
 and every uploaded scan survive it. The job only starts the deployment; whether it came up is in

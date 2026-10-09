@@ -120,6 +120,13 @@ jobs:
     needs: [check, api-tests, e2e-tests, image]
     runs-on: ubuntu-latest
     steps:
+      # The Dokploy panel is not on the public internet, so the runner joins the tailnet it is on
+      # for the length of this job, as an ephemeral node that removes itself afterwards.
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
       # Dokploy does the build and the restart; this only tells it to start. Where it lives and
       # the key that lets us ask are repository secrets, never written here (AGENTS.md, Security).
       - name: Ask Dokploy to deploy
@@ -134,6 +141,12 @@ jobs:
               exit 1
             fi
           done
+          # A secret is masked only where it appears whole, and curl names the host alone when it
+          # cannot reach it.
+          host="${DOKPLOY_URL#*://}"
+          host="${host%%/*}"
+          echo "::add-mask::$host"
+          echo "::add-mask::${host%%:*}"
           curl --fail-with-body --silent --show-error --max-time 60 \
             --request POST "${DOKPLOY_URL%/}/api/compose.deploy" \
             --header "x-api-key: $DOKPLOY_API_KEY" \
