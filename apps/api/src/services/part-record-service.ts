@@ -14,7 +14,8 @@ import type {
 import type { PartRepository } from '../repositories/part-repository.js';
 import type { PhotographRepository } from '../repositories/photograph-repository.js';
 import { toPartInFull } from './catalog-view.js';
-import { ISO_DATE, readAmount } from './money.js';
+import { ISO_DATE } from './days.js';
+import { readAmount } from './money.js';
 
 /**
  * What fits a Part, what can be bought instead of it, and where it has been available.

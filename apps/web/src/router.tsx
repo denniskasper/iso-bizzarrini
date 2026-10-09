@@ -11,8 +11,11 @@ import { CatalogPage } from '@/routes/catalog-page';
 import { CategoriesPage } from '@/routes/categories-page';
 import { CategoryPage } from '@/routes/category-page';
 import { ClubPage } from '@/routes/club-page';
+import { LegalNoticePage } from '@/routes/legal-notice-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
+import { PrivacyPage } from '@/routes/privacy-page';
+import { ReviewPage } from '@/routes/review-page';
 import { RosterImportPage } from '@/routes/roster-import-page';
 import { RosterPage } from '@/routes/roster-page';
 import { SearchPage } from '@/routes/search-page';
@@ -27,13 +30,22 @@ import { TavolaPage } from '@/routes/tavola-page';
  * screen: the archive is members-only, the API refuses all of it, and a screen that discovered
  * that for itself would be one of several slightly different ways of saying so.
  *
- * **Four routes stand outside it**, and all four for the same reason: asking to be let in cannot
+ * **Six routes stand outside it.** Four for the same reason: asking to be let in cannot
  * require already being in. Signing in and choosing a password from a link are the two ways in;
  * the roster and the Club are outside it because they are behind a *role* rather than behind a
  * Membership, and an Administrator whose own Membership has run out must still be able to reach
- * the screen that records their payment.
+ * the screen that records their payment. The other two are the platform's own legal pages
+ * (issue #9): the privacy statement, which is addressed to people who are not members yet and
+ * people who no longer are, and the legal notice, which is addressed to anybody at all.
  */
-const OUTSIDE_THE_GATE = ['/sign-in', '/set-password', '/roster', '/club'];
+const OUTSIDE_THE_GATE = [
+  '/sign-in',
+  '/set-password',
+  '/roster',
+  '/club',
+  '/privacy',
+  '/legal-notice',
+];
 
 function RootLayout() {
   const atTheGate = useRouterState({
@@ -122,6 +134,20 @@ const clubRoute = createRoute({
   component: ClubPage,
 });
 
+/** What is kept about a person and for how long (ADR 0007). Open to anybody. */
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/privacy',
+  component: PrivacyPage,
+});
+
+/** Who is behind the platform (issue #9). Open to anybody. */
+const legalNoticeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/legal-notice',
+  component: LegalNoticePage,
+});
+
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/search',
@@ -174,6 +200,16 @@ const categoryRoute = createRoute({
   component: CategoryPage,
 });
 
+/**
+ * What members have sent that an Editor has yet to decide (issue #6). Inside the gate, because
+ * it is the archive's: the role that makes it an Editor's is checked where the queue is read.
+ */
+const reviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/review',
+  component: ReviewPage,
+});
+
 const tavolaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/tavole/$tavolaId',
@@ -203,10 +239,13 @@ export const router = createRouter({
     rosterRoute,
     rosterImportRoute,
     clubRoute,
+    privacyRoute,
+    legalNoticeRoute,
     searchRoute,
     modelRoute,
     categoriesRoute,
     categoryRoute,
+    reviewRoute,
     tavolaRoute,
   ]),
   defaultPreload: 'intent',

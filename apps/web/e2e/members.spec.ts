@@ -230,7 +230,7 @@ test.describe('the Club', () => {
 
     await page.getByLabel('Fee').fill('52.50');
     await page.getByLabel('IBAN').fill('DE11 1111 1111 1111 1111 11');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
 
     await expect(page.getByText('Saved.')).toBeVisible();
 

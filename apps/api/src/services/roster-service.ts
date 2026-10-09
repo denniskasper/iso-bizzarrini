@@ -18,7 +18,8 @@ import type { Logger } from '../platform/logger.js';
 import type { AccountRepository } from '../repositories/account-repository.js';
 import { membershipIsLive, normaliseEmail } from './account-service.js';
 import type { AccountService } from './account-service.js';
-import { ISO_DATE, readAmount } from './money.js';
+import { readDay } from './days.js';
+import { readAmount } from './money.js';
 
 /**
  * The roster: who the Club has, where each of them stands, and the two things an Administrator
@@ -256,13 +257,4 @@ function toRosterEntry(
     invitationExpiresAt: invitation?.expiresAt.toISOString() ?? null,
     addedAt: account.addedAt.toISOString(),
   };
-}
-
-/** A day the archive can read, or a refusal naming what was being asked for. */
-function readDay(value: string, what: string): string {
-  const day = value.trim();
-  if (!ISO_DATE.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00Z`))) {
-    throw new ValidationError(`That is not ${what} the archive can read.`);
-  }
-  return day;
 }

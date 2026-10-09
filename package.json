@@ -26,7 +26,8 @@
     "test": "pnpm test:api && pnpm test:e2e",
     "test:api": "pnpm --filter @ricambi/api test",
     "test:e2e": "pnpm --filter @ricambi/web test:e2e",
-    "roster:invite-administrator": "pnpm --filter @ricambi/api roster:invite-administrator"
+    "roster:invite-administrator": "pnpm --filter @ricambi/api roster:invite-administrator",
+    "roster:retention-sweep": "pnpm --filter @ricambi/api roster:retention-sweep"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -383,7 +383,20 @@ export function createPartService(dependencies: {
       // The write carries its own condition, so this is one statement and not a count acted on
       // afterwards: a Listing recorded by another Editor between the two would otherwise be
       // destroyed by the very rule that exists to protect it.
-      if (await partRepository.removePart(partId)) {
+      let removed: boolean;
+      try {
+        removed = await partRepository.removePart(partId);
+      } catch (error) {
+        if (violates(error, 'contributions_part_id_parts_id_fk')) {
+          // The one thing hung off a Part that does not go with it, because it is not the
+          // archive's: a member wrote it, and it is decided before what it is about is removed.
+          throw new ConflictError(
+            'Members have written Contributions about this Part. It stays while they do.',
+          );
+        }
+        throw error;
+      }
+      if (removed) {
         return;
       }
 

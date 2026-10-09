@@ -7,6 +7,7 @@ import type {
   RosterStanding,
 } from '@ricambi/contracts';
 import { api } from '@/lib/api';
+import { LEGAL_QUERY_KEY, usePrivacy } from '@/lib/legal';
 
 /** The roster, and the four things an Administrator does to it. */
 export const ROSTER_QUERY_KEY = ['roster'] as const;
@@ -55,6 +56,45 @@ export function useRecordPayment() {
 }
 
 /**
+ * Who the next retention sweep would delete (ADR 0007). Keyed under the roster, so anything
+ * that changes the roster — a payment recorded for somebody on this list, above all — re-reads
+ * it without being told to.
+ */
+export function useRetentionReport() {
+  return useQuery({
+    queryKey: [...ROSTER_QUERY_KEY, 'retention'],
+    queryFn: api.retentionReport,
+  });
+}
+
+/**
+ * Erasing one person on request (story 131). **What it answers with is kept**, unlike every
+ * other mutation here: it is the only account there will ever be of what stayed behind.
+ */
+export function useEraseMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (accountId: string) => api.eraseMember(accountId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ROSTER_QUERY_KEY }),
+  });
+}
+
+/**
+ * How long things are kept, from the system that applies the rule — so no screen ever has a
+ * retention figure typed into it.
+ */
+export function useRetentionTerms() {
+  const privacy = usePrivacy();
+  return { ...privacy, data: privacy.data?.retention };
+}
+
+/** `3` reads "3 years" and `1` reads "1 year", wherever a retention period is put in words. */
+export function years(count: number): string {
+  return count === 1 ? '1 year' : `${count} years`;
+}
+
+/**
  * Loading the Club's list — the preview, which is a question, and the import, which is an answer.
  *
  * The preview is a **mutation** rather than a query, and that is not a slip. It writes nothing,
@@ -90,7 +130,12 @@ export function useCorrectClub() {
 
   return useMutation({
     mutationFn: api.correctClub,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CLUB_QUERY_KEY }),
+    // The legal notice and the privacy statement are read out of this record too.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: CLUB_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: LEGAL_QUERY_KEY }),
+      ]),
   });
 }
 

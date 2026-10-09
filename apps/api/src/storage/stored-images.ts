@@ -14,7 +14,7 @@ import type { FileStore } from './file-store.js';
  * than the other, or stops recording the measurement ADR 0013 waits on. `image-ingest.ts` is the
  * same argument about the encoder; this is the argument about the disk.
  *
- * It is also, with those two, the whole of what ticket 19 reuses: a Contribution's photographs
+ * It is also, with those two, the whole of what Contributions reuse (issue #5): a Contribution's photographs
  * are a different owner and a different visibility rule, and none of that is here.
  */
 

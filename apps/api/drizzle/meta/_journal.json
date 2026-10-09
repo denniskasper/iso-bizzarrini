@@ -85,6 +85,27 @@
       "when": 1791406238915,
       "tag": "0011_optional_category_and_the_standing_list",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791543946810,
+      "tag": "0012_contributions",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791550604530,
+      "tag": "0013_payment_records_outlive_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791558642286,
+      "tag": "0014_legal_notice_and_processors",
+      "breakpoints": true
     }
   ]
 }

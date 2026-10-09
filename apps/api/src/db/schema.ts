@@ -2,6 +2,7 @@ import type {
   Currency,
   EquivalentKind,
   MembershipGrant,
+  ProcessorRole,
   Role,
   SourceCondition,
   TokenPurpose,
@@ -709,9 +710,19 @@ export const memberships = pgTable(
   'memberships',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    accountId: uuid('account_id')
-      .notNull()
-      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /**
+     * Whose term this is. **Null once the Account is gone and the row is a payment record** — the
+     * money has to be accounted for longer than the person has to be remembered (ADR 0007), so
+     * erasing somebody lets go of the reference and keeps the row. A term nobody paid for is not
+     * a payment record, and is deleted with the Account instead.
+     */
+    accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    /**
+     * Who paid, written **only at the moment their Account is erased**. Until then the name is
+     * the Account's and is read from there; afterwards this is the one place it survives, because
+     * a payment the Club cannot attribute is not a record an auditor can use.
+     */
+    payerName: text('payer_name'),
     /** The last day this term covers. A date, because membership runs in days and not instants. */
     paidThrough: date('paid_through', { mode: 'string' }).notNull(),
     /** How the Club came to grant this term — see `MEMBERSHIP_GRANTS`. */
@@ -735,6 +746,11 @@ export const memberships = pgTable(
   },
   (table) => [
     index('memberships_account_id_paid_through_index').on(table.accountId, table.paidThrough),
+    // A row is somebody's term or it is a payment record that says who paid. Never neither.
+    check(
+      'memberships_without_an_account_name_their_payer',
+      sql`${table.accountId} is not null or ${table.payerName} is not null`,
+    ),
     check(
       'memberships_granted_by_is_known',
       sql`${table.grantedBy} in (${oneOf(MEMBERSHIP_GRANTS)})`,
@@ -786,6 +802,35 @@ export const club = pgTable(
      * "contact the Club office" is advice nobody can act on without an address.
      */
     officeEmail: text('office_email'),
+    /**
+     * **Who the association is, for the legal notice** (issue #9): its registered name, where it
+     * can be served, who may speak for it and where it is registered. Public once written, and
+     * all of it nullable, because an association nobody has described yet has no legal notice —
+     * and a placeholder on a legal page is worse than a gap, since it looks finished.
+     *
+     * Here and not in configuration for two reasons. The board changes at an annual meeting and
+     * that must not be a deployment; and these are precisely the names this repository is never
+     * to contain.
+     */
+    legalName: text('legal_name'),
+    /** As many lines as an address has, kept as they were typed. */
+    postalAddress: text('postal_address'),
+    representedBy: text('represented_by'),
+    registerCourt: text('register_court'),
+    registerNumber: text('register_number'),
+    vatId: text('vat_id'),
+    phone: text('phone'),
+    /** Anything else the association has to state on its legal notice, in its own words. */
+    legalNoticeFurther: text('legal_notice_further'),
+    /**
+     * Who answers for data protection on the association's side, and the authority a member may
+     * complain to — both named in the privacy statement.
+     */
+    dataProtectionContact: text('data_protection_contact'),
+    dataProtectionEmail: text('data_protection_email'),
+    supervisoryAuthority: text('supervisory_authority'),
+    /** Anything else the association has to state in its privacy statement, in its own words. */
+    privacyFurther: text('privacy_further'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (table) => [
@@ -793,6 +838,42 @@ export const club = pgTable(
     check('club_fee_is_an_amount', sql`${table.fee} >= 0`),
     check('club_currency_is_tradeable', sql`${table.currency} in (${oneOf(CURRENCIES)})`),
   ],
+);
+
+/**
+ * What somebody else does with members' data on the association's behalf. Five kinds, because
+ * those are the five the privacy statement has to account for; `error-tracking` is among them so
+ * that "nobody" is an answer the statement gives on purpose (ADR 0011) rather than by omission.
+ */
+export const PROCESSOR_ROLES = [
+  'hosting',
+  'storage',
+  'email',
+  'payment',
+  'error-tracking',
+] as const satisfies readonly ProcessorRole[];
+
+/**
+ * **A processor**: a company that handles members' personal data for the association (issue #9).
+ *
+ * One row per role, so naming the host twice is correcting it rather than adding a second. The
+ * privacy statement names them from here, which is what lets the association change its e-mail
+ * provider without a deployment — and keeps the providers' names out of this repository.
+ *
+ * `agreementSignedOn` is the association's own record and is never published: a processor with
+ * none is one whose agreement is still outstanding, and none may be at go-live.
+ */
+export const processors = pgTable(
+  'processors',
+  {
+    role: text('role').primaryKey().$type<ProcessorRole>(),
+    name: text('name').notNull(),
+    /** Where the data is handled — a country is enough. */
+    location: text('location').notNull(),
+    agreementSignedOn: date('agreement_signed_on', { mode: 'string' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [check('processor_role_is_known', sql`${table.role} in (${oneOf(PROCESSOR_ROLES)})`)],
 );
 
 /**
@@ -838,6 +919,112 @@ export const signInFailures = pgTable('sign_in_failures', {
   /** Set once the count crosses the threshold. Null means nothing is being refused. */
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
 });
+
+/**
+ * Where a Contribution stands. `waiting` is how every one of them begins; the other two are an
+ * Editor's decision about it, which is issue #6. A discarded one is kept as a row rather than
+ * deleted, so that what was decided about a member's words is a fact rather than an absence.
+ */
+export const CONTRIBUTION_STATES = ['waiting', 'published', 'discarded'] as const;
+
+export type StoredContributionState = (typeof CONTRIBUTION_STATES)[number];
+
+/**
+ * A Contribution — what a Member knows about a Part or a Position, in their words.
+ *
+ * **Two nullable targets and a check that exactly one is set**, rather than a `target_kind` and
+ * an untyped id: each is a real foreign key, so a Contribution can never point at something the
+ * archive does not hold.
+ *
+ * Both targets **restrict**. Everything else hung off a Part or a Position goes when it does,
+ * because everything else is the archive's own record of it. This is a member's, written on the
+ * understanding that it would be read by somebody — so a Part or a number cannot be removed out
+ * from under what members have said about it, and the Editor who tries is told why.
+ *
+ * The author is the opposite, and it is ADR 0007 in one column: deleting an Account **sets it
+ * null**. The knowledge stays; the identification does not.
+ */
+export const contributions = pgTable(
+  'contributions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id').references(() => parts.id, { onDelete: 'restrict' }),
+    positionId: uuid('position_id').references(() => positions.id, { onDelete: 'restrict' }),
+    authorId: uuid('author_id').references(() => accounts.id, { onDelete: 'set null' }),
+    /** As the member wrote it. Never parsed, never tidied. */
+    body: text('body').notNull(),
+    /** Written because the Part's record is wrong (story 90). Only ever true of a Part. */
+    correction: boolean('correction').notNull().default(false),
+    state: text('state').notNull().$type<StoredContributionState>().default('waiting'),
+    /** From the injected clock, never the system's idea of now. */
+    writtenAt: timestamp('written_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      'contributions_target_is_a_part_or_a_position',
+      sql`num_nonnulls(${table.partId}, ${table.positionId}) = 1`,
+    ),
+    check(
+      'contributions_correction_is_about_a_part',
+      sql`not ${table.correction} or ${table.partId} is not null`,
+    ),
+    check(
+      'contributions_state_is_one_of_three',
+      sql`${table.state} in (${oneOf(CONTRIBUTION_STATES)})`,
+    ),
+    index('contributions_part_id_index').on(table.partId),
+    index('contributions_position_id_index').on(table.positionId),
+    index('contributions_author_id_index').on(table.authorId),
+  ],
+);
+
+/**
+ * A photograph a member attached to a Contribution.
+ *
+ * **A table of its own rather than rows in `photographs`**, because the two answer to different
+ * rules: a Part's photographs are the record and every member may see them, and these are one
+ * member's until an Editor has looked. The shape is the same one (`stored-images.ts`) and so is
+ * where the files live — under the photograph's own id, so that the day an Editor moves one onto
+ * the Part (story 119) nothing on disk has to be renamed.
+ */
+export const contributionPhotographs = pgTable(
+  'contribution_photographs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contributionId: uuid('contribution_id')
+      .notNull()
+      .references(() => contributions.id, { onDelete: 'cascade' }),
+
+    /** The order they were attached in, from `0`. Ties break on `id`, so the list is total. */
+    sequence: integer('sequence').notNull(),
+
+    sourceFormat: text('source_format').notNull(),
+    sourceByteSize: integer('source_byte_size').notNull(),
+    sourceWidth: integer('source_width').notNull(),
+    sourceHeight: integer('source_height').notNull(),
+
+    displayFormat: text('display_format').notNull(),
+    displayByteSize: integer('display_byte_size').notNull(),
+    displayWidth: integer('display_width').notNull(),
+    displayHeight: integer('display_height').notNull(),
+
+    previewByteSize: integer('preview_byte_size').notNull(),
+
+    /** Keys in the private file store. Not paths, not URLs — nothing here is reachable. */
+    originalKey: text('original_key').notNull(),
+    displayKey: text('display_key').notNull(),
+    previewKey: text('preview_key').notNull(),
+
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('contribution_photographs_contribution_id_sequence_index').on(
+      table.contributionId,
+      table.sequence,
+    ),
+    check('contribution_photographs_sequence_is_a_place', sql`${table.sequence} >= 0`),
+  ],
+);
 
 export const accountsRelations = relations(accounts, ({ many }) => ({
   memberships: many(memberships),
@@ -957,6 +1144,12 @@ export type MembershipRow = typeof memberships.$inferSelect;
 export type NewMembershipRow = typeof memberships.$inferInsert;
 export type ClubRow = typeof club.$inferSelect;
 export type NewClubRow = typeof club.$inferInsert;
+export type ProcessorRow = typeof processors.$inferSelect;
+export type NewProcessorRow = typeof processors.$inferInsert;
 export type AccountTokenRow = typeof accountTokens.$inferSelect;
 export type NewAccountTokenRow = typeof accountTokens.$inferInsert;
 export type SignInFailureRow = typeof signInFailures.$inferSelect;
+export type ContributionRow = typeof contributions.$inferSelect;
+export type NewContributionRow = typeof contributions.$inferInsert;
+export type ContributionPhotographRow = typeof contributionPhotographs.$inferSelect;
+export type NewContributionPhotographRow = typeof contributionPhotographs.$inferInsert;

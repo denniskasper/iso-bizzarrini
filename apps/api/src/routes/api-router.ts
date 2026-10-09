@@ -4,6 +4,10 @@ import type { BulkPasteController } from '../controllers/bulk-paste-controller.j
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
+import type { LegalController } from '../controllers/legal-controller.js';
+import type { ContributionController } from '../controllers/contribution-controller.js';
+import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
+import type { RetentionController } from '../controllers/retention-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
@@ -43,8 +47,10 @@ export function createApiRouter(dependencies: {
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
+  retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
+  legalController: LegalController;
   searchController: SearchController;
   catalogController: CatalogController;
   categoryController: CategoryController;
@@ -54,6 +60,8 @@ export function createApiRouter(dependencies: {
   partRecordController: PartRecordController;
   bulkPasteController: BulkPasteController;
   photographController: PhotographController;
+  contributionController: ContributionController;
+  contributionReviewController: ContributionReviewController;
   scanController: ScanController;
 }): Router {
   const {
@@ -61,8 +69,10 @@ export function createApiRouter(dependencies: {
     statusController,
     sessionController,
     rosterController,
+    retentionController,
     rosterImportController,
     clubController,
+    legalController,
     searchController,
     catalogController,
     categoryController,
@@ -72,6 +82,8 @@ export function createApiRouter(dependencies: {
     partRecordController,
     bulkPasteController,
     photographController,
+    contributionController,
+    contributionReviewController,
     scanController,
   } = dependencies;
 
@@ -97,6 +109,13 @@ export function createApiRouter(dependencies: {
   router.post('/password-setups/inspect', sessionController.inspectPasswordSetup);
   router.post('/password-setups', sessionController.setPassword);
 
+  // **The platform's own legal pages** (issue #9): who is behind it, and what it keeps about a
+  // person, for how long (ADR 0007) and in whose hands. Open, because neither is addressed to
+  // members — a legal notice is for whoever lands here, and a privacy statement nobody can read
+  // until they have handed over their address is not one. Neither says anything about anybody.
+  router.get('/legal-notice', legalController.readLegalNotice);
+  router.get('/privacy', legalController.readPrivacy);
+
   // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
   // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still
   // record the payment that un-lapses somebody.
@@ -107,6 +126,11 @@ export function createApiRouter(dependencies: {
   router.post('/roster/:accountId/invitation', administratorsOnly, rosterController.invite);
   // Money that arrived by bank transfer. A new term, never an edit of an old one.
   router.post('/roster/:accountId/payments', administratorsOnly, rosterController.recordPayment);
+  // Deleting one person's personal data on request (story 131, ADR 0007). What they published
+  // stays; what the Club was paid stays; the person does not.
+  router.delete('/roster/:accountId', administratorsOnly, retentionController.erase);
+  // The dry run: who the next retention sweep would delete, while they can still be asked.
+  router.get('/roster/retention', administratorsOnly, retentionController.report);
 
   // **The Club's annual membership list, loaded instead of typed** (ticket 16). Above
   // `/roster/:accountId` in the file and below it on the wire either way — `import` is not a uuid,
@@ -119,6 +143,13 @@ export function createApiRouter(dependencies: {
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
+
+  // **Who handles members' data on the association's behalf**, and whether the agreement with
+  // each is signed (issue #9). The names are published in the privacy statement above; this is
+  // the association's own record of them, which says more than the public is owed.
+  router.get('/processors', administratorsOnly, legalController.listProcessors);
+  router.put('/processors/:role', administratorsOnly, legalController.nameProcessor);
+  router.delete('/processors/:role', administratorsOnly, legalController.removeProcessor);
 
   // **Keeping the list of Categories** (issue #8) — an Administrator's, like the roster, and up
   // here with it for the same reason: it is behind the *role*. The rule further down makes every
@@ -139,6 +170,24 @@ export function createApiRouter(dependencies: {
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);
+
+  /**
+   * **What a member offers** (issue #5) — above the rule below, and the only writes that are.
+   *
+   * A Contribution is not a change to the archive: it is something said *to* it, which nobody
+   * else is shown until an Editor has looked. So a live Membership is what it takes to send one,
+   * exactly as it is what it takes to read, and the Editor's hand the rule below insists on is
+   * still the only one that touches the record.
+   */
+  router.post('/parts/:partId/contributions', contributionController.writeAboutPart);
+  router.post('/positions/:positionId/contributions', contributionController.writeAboutPosition);
+  // A photograph with one, sent on its own once the words have arrived. The body is the
+  // picture, exactly as it is for a Part's, and nothing here trusts what it says it is.
+  router.post(
+    '/contributions/:contributionId/photographs',
+    express.raw({ type: () => true, limit: dependencies.maxPhotographBytes }),
+    contributionController.attachPhotograph,
+  );
 
   /**
    * **Reading the archive is what a Membership buys; changing it is an Editor's job.**
@@ -218,6 +267,39 @@ export function createApiRouter(dependencies: {
   // other appearances, and a member reads one. Recording a Part goes through the Tavola, because
   // a Listing is a Part's appearance on a *drawing* — the Position is optional.
   router.get('/positions/:positionId/listings', partController.listAtPosition);
+  // **What members have said about the number and the Parts at it**, read beside the Listings
+  // and one request like them. The answer depends on who asks: a Contribution still waiting to
+  // be checked is returned to the member who wrote it and to nobody else.
+  router.get('/positions/:positionId/contributions', contributionController.readAtPosition);
+
+  /**
+   * **What an Editor does with what members sent** (issue #6): read what is waiting, decide it,
+   * and carry a member's gap or a member's picture across into the record.
+   *
+   * The two reads say `editorsOnly` out loud, and they are the only `GET`s in the archive that
+   * do. The rule above lets every member read, because everything else under it reads the same
+   * for all of them — and this is the one thing in the archive members were promised nobody
+   * would be shown unchecked. The three writes are an Editor's by that rule already.
+   *
+   * Correcting the Part while reviewing has no address here on purpose. It is `PATCH
+   * /parts/:partId` and its neighbours below, the tools the archive already has: there is no
+   * diff to apply, and the Editor's hand is the audit trail.
+   */
+  router.get('/contributions/waiting', editorsOnly, contributionReviewController.listWaiting);
+  router.get(
+    '/contributions/waiting/count',
+    editorsOnly,
+    contributionReviewController.countWaiting,
+  );
+  router.put('/contributions/:contributionId/decision', contributionReviewController.decide);
+  // A Part and Listing at the empty number a Contribution is about, which is then that Part's.
+  router.post('/contributions/:contributionId/part', contributionReviewController.recordPart);
+  // Moved, not copied: the picture is the Part's from then on, at the address a Part's are at.
+  router.post(
+    '/contribution-photographs/:photographId/promotion',
+    contributionReviewController.promotePhotograph,
+  );
+
   // The sheet's own text, read whole: the list beside the drawing a member works *from* rather
   // than *to* (story 46), and the only thing that knows which numbers have nothing at them yet.
   router.get('/tavole/:tavolaId/listings', partController.listOnTavola);
@@ -306,6 +388,9 @@ export function createApiRouter(dependencies: {
 
   router.get('/scans/:scanId/:variant', scanController.readImage);
   router.get('/photographs/:photographId/:variant', photographController.readImage);
+  // A member's own picture, until an Editor has looked: served to its author and to the Editor
+  // checking it, and to the rest of the Club once the Contribution it came with is published.
+  router.get('/contribution-photographs/:photographId/:variant', contributionController.readImage);
 
   return router;
 }

@@ -1,11 +1,26 @@
 import type {
   ApiErrorBody,
+  ContributionResponse,
+  ContributionsResponse,
+  ContributionTarget,
+  NewContributionRequest,
+  RecordPartFromContributionRequest,
+  WaitingContributionsResponse,
+  WaitingCountResponse,
   CategoriesResponse,
   CategoryNameRequest,
   CategoryResponse,
   CategoryWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  LegalNoticeResponse,
+  NameProcessorRequest,
+  ProcessorResponse,
+  ProcessorRole,
+  ProcessorsResponse,
+  ErasureResponse,
+  PrivacyResponse,
+  RetentionReport,
   CorrectClubRequest,
   CorrectMemberRequest,
   InspectPasswordSetupRequest,
@@ -170,6 +185,30 @@ export const api = {
     send<RosterEntryResponse>('POST', `/roster/${accountId}/invitation`, {}),
   recordPayment: (accountId: string, payment: RecordPaymentRequest) =>
     send<RosterEntryResponse>('POST', `/roster/${accountId}/payments`, payment),
+
+  /**
+   * **Letting go of people** (ADR 0007): one at a time on request, and by rule once they have
+   * been lapsed long enough. `retentionReport` is the dry run — who the next daily sweep would
+   * delete — and writes nothing; there is deliberately no call here that runs the sweep.
+   */
+  eraseMember: (accountId: string) =>
+    request<ErasureResponse>(`/roster/${accountId}`, { method: 'DELETE' }),
+  retentionReport: () => request<RetentionReport>('/roster/retention'),
+
+  /**
+   * **The platform's own legal pages** (issue #9). Both are open to anybody, and both carry only
+   * facts: who the association is, who handles members' data for it, and the retention figures
+   * from the system that applies them. The sentences around those facts are the screens'.
+   */
+  legalNotice: () => request<LegalNoticeResponse>('/legal-notice'),
+  privacy: () => request<PrivacyResponse>('/privacy'),
+
+  /** The association's own record of its processors, agreements included. An Administrator's. */
+  processors: () => request<ProcessorsResponse>('/processors'),
+  nameProcessor: (role: ProcessorRole, fields: NameProcessorRequest) =>
+    send<ProcessorResponse>('PUT', `/processors/${role}`, fields),
+  removeProcessor: (role: ProcessorRole) =>
+    request<void>(`/processors/${role}`, { method: 'DELETE' }),
 
   /**
    * **The Club's annual membership list, loaded instead of typed** (ticket 16).
@@ -388,7 +427,7 @@ export const api = {
 
   /**
    * **What the Part looks like** — the check no part number can give a member (story 77), and
-   * the file-upload path member Contributions reuse at ticket 19.
+   * the file-upload path member Contributions reuse (issue #5).
    *
    * All three answer with the whole Part, like the nine above, and for a sharper reason than
    * symmetry: the *order* is what a member reads first, so a browser handed back the one
@@ -409,6 +448,54 @@ export const api = {
     request<PartRecordResponse>(`/photographs/${photographId}`, { method: 'DELETE' }),
 
   /**
+   * **What members have said** about a number and the Parts at it, and the way to say something.
+   *
+   * The reading depends on who is asking: what is published, and what this member has sent that
+   * is still waiting to be checked. A photograph goes up on its own, after the words it belongs
+   * to have arrived — on the same upload path a Part's own photographs use.
+   */
+  positionContributions: (positionId: string) =>
+    request<ContributionsResponse>(`/positions/${positionId}/contributions`),
+  sendContribution: (target: ContributionTarget, written: NewContributionRequest) =>
+    send<ContributionResponse>(
+      'POST',
+      target.kind === 'part'
+        ? `/parts/${target.partId}/contributions`
+        : `/positions/${target.positionId}/contributions`,
+      written,
+    ),
+  attachContributionPhotograph: (contributionId: string, file: File) =>
+    request<ContributionResponse>(`/contributions/${contributionId}/photographs`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+
+  /**
+   * **What an Editor does with what members sent** (issue #6): everything nobody has decided,
+   * oldest first and each beside the record it is about, and the three things that can be done
+   * to one besides correcting the Part with the tools above.
+   *
+   * Every write answers with the queue re-read, so deciding one is also learning which is next.
+   * The count is its own small call because the chrome asks it on every screen.
+   */
+  waitingContributions: () => request<WaitingContributionsResponse>('/contributions/waiting'),
+  waitingCount: () => request<WaitingCountResponse>('/contributions/waiting/count'),
+  decideContribution: (contributionId: string, decision: 'publish' | 'discard') =>
+    send<WaitingContributionsResponse>('PUT', `/contributions/${contributionId}/decision`, {
+      decision,
+    }),
+  recordPartFromContribution: (contributionId: string, part: RecordPartFromContributionRequest) =>
+    send<WaitingContributionsResponse>('POST', `/contributions/${contributionId}/part`, part),
+  /** Moved, not copied: the picture is the Part's from then on. */
+  promoteContributionPhotograph: (photographId: string) =>
+    send<WaitingContributionsResponse>(
+      'POST',
+      `/contribution-photographs/${photographId}/promotion`,
+      {},
+    ),
+
+  /**
    * The scan is the request body rather than a form field: there is nothing else on this
    * request to name, so the bytes go up as they are instead of being field-parsed on the way.
    */
@@ -422,6 +509,11 @@ export const api = {
 
 export type {
   CatalogModel,
+  Contribution,
+  ContributionSubject,
+  ContributionTarget,
+  RecordPartFromContributionRequest,
+  WaitingContribution,
   CategoryListing,
   CategoryOnModel,
   CatalogProvenance,

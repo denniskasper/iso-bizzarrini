@@ -35,6 +35,19 @@ const UNWRITTEN: ClubRecord = {
   reminderText:
     'Your Club membership runs out shortly. Renewing keeps your access to the parts archive.',
   officeEmail: null,
+  // Nobody has said who the association is, so nothing here pretends to know (issue #9).
+  legalName: null,
+  postalAddress: null,
+  representedBy: null,
+  registerCourt: null,
+  registerNumber: null,
+  vatId: null,
+  phone: null,
+  legalNoticeFurther: null,
+  dataProtectionContact: null,
+  dataProtectionEmail: null,
+  supervisoryAuthority: null,
+  privacyFurther: null,
 };
 
 export interface ClubService {
@@ -102,6 +115,18 @@ export function createClubService(dependencies: {
             paymentReference: merged.paymentReference,
             reminderText: merged.reminderText,
             officeEmail: blankToNull(merged.officeEmail),
+            legalName: blankToNull(merged.legalName),
+            postalAddress: blankToNull(merged.postalAddress),
+            representedBy: blankToNull(merged.representedBy),
+            registerCourt: blankToNull(merged.registerCourt),
+            registerNumber: blankToNull(merged.registerNumber),
+            vatId: blankToNull(merged.vatId),
+            phone: blankToNull(merged.phone),
+            legalNoticeFurther: blankToNull(merged.legalNoticeFurther),
+            dataProtectionContact: blankToNull(merged.dataProtectionContact),
+            dataProtectionEmail: blankToNull(merged.dataProtectionEmail),
+            supervisoryAuthority: blankToNull(merged.supervisoryAuthority),
+            privacyFurther: blankToNull(merged.privacyFurther),
             updatedAt: clock.now(),
           }),
         );
@@ -173,6 +198,18 @@ function toClubRecord(row: ClubRow): ClubRecord {
     paymentReference: row.paymentReference,
     reminderText: row.reminderText,
     officeEmail: row.officeEmail,
+    legalName: row.legalName,
+    postalAddress: row.postalAddress,
+    representedBy: row.representedBy,
+    registerCourt: row.registerCourt,
+    registerNumber: row.registerNumber,
+    vatId: row.vatId,
+    phone: row.phone,
+    legalNoticeFurther: row.legalNoticeFurther,
+    dataProtectionContact: row.dataProtectionContact,
+    dataProtectionEmail: row.dataProtectionEmail,
+    supervisoryAuthority: row.supervisoryAuthority,
+    privacyFurther: row.privacyFurther,
   };
 }
 

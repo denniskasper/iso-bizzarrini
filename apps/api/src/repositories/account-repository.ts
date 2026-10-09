@@ -1,5 +1,5 @@
 import type { TokenPurpose } from '@ricambi/contracts';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
   accounts,
@@ -128,9 +128,11 @@ export function createAccountRepository(db: DbSession): AccountRepository {
           furthest: sql<string>`max(${memberships.paidThrough})`,
         })
         .from(memberships)
+        .where(isNotNull(memberships.accountId))
         .groupBy(memberships.accountId);
 
-      return new Map(rows.map((row) => [row.accountId, row.furthest]));
+      // A payment record whose Account is gone (ADR 0007) is nobody's Paid-through.
+      return new Map(rows.flatMap((row) => (row.accountId ? [[row.accountId, row.furthest]] : [])));
     },
 
     listMemberships(accountId) {

@@ -96,6 +96,38 @@ describe('loading the roster from a spreadsheet', () => {
 
       expect(refusal.body.error.message).toMatch(/Paid through/);
     });
+
+    /**
+     * **Data minimisation** (issue #9). The Club's own list knows where its members live and when
+     * they were born; the access check needs a name, an address to write to and a date. A column
+     * the archive has no use for is not read, not echoed back in the preview and not kept — so a
+     * secretary who exports the whole sheet has not handed the platform the whole sheet.
+     */
+    it('takes nothing from the columns it has no use for', async () => {
+      const plan = await importing(
+        sheet(
+          ['Name', 'Street', 'Telephone', 'E-mail', 'Born', 'Paid through', 'Notes'],
+          [
+            'Giulia Rossi',
+            'Via Inventata 7',
+            '0123 456789',
+            'giulia@club.example',
+            '1961-04-02',
+            '2027-12-31',
+            'pays late',
+          ],
+        ),
+      );
+
+      expect(plan.tally).toMatchObject({ newMembers: 1, refused: 0 });
+
+      const everythingToldBack = JSON.stringify([plan, await read()]);
+      for (const surplus of ['Via Inventata 7', '0123 456789', '1961-04-02', 'pays late']) {
+        expect(everythingToldBack).not.toContain(surplus);
+      }
+      // Not even the names of the columns it passed over.
+      expect(plan.columns).toEqual({ name: 'Name', email: 'E-mail', paidThrough: 'Paid through' });
+    });
   });
 
   /**

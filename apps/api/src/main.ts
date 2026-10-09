@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { seedPracticeArchiveIfEmpty } from './catalog/practice-archive.js';
 import { assertSeedable } from './composition/environment-safety.js';
+import { scheduleRetentionSweep } from './composition/retention-sweep.js';
 import {
   createBreachedPasswordCheck,
   createEmailSender,
@@ -75,6 +76,20 @@ const app = createApp({
   logger,
 });
 
+/**
+ * **The retention rule is applied by the system, not by somebody remembering** (story 133).
+ * Once now and then daily: Accounts lapsed beyond the retention period are deleted, and what
+ * they published stays (ADR 0007). After `createApp`, so the environment guard has already had
+ * its say; `roster:retention-sweep --dry-run` rehearses the same thing from the command line.
+ */
+const stopRetentionSweep = scheduleRetentionSweep({
+  db: database.db,
+  clock: systemClock,
+  logger,
+  fileStore,
+  retention: config.retention,
+});
+
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, environment: config.environmentName }, 'Ricambi API listening');
 });
@@ -91,6 +106,7 @@ applyKeepAlivePolicy(server);
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.once(signal, () => {
     logger.info({ signal }, 'Shutting down');
+    stopRetentionSweep();
     server.close(() => {
       void database.close().then(() => process.exit(0));
     });

@@ -148,6 +148,27 @@ _Avoid_: Moderator, curator, maintainer
 An Account that may also maintain the roster, record payments, and appoint Editors.
 _Avoid_: Admin, superuser, operator, club officer
 
+**Former member**:
+What a published Contribution says where its author's name stood, once their Account is gone.
+A byline, not a person: nothing on the platform can say which former member.
+_Avoid_: Deleted user, anonymous, unknown
+
+**Erasure**:
+An Administrator deleting one person's Account and personal data because they asked. What
+they published stays, under "former member"; what nobody had published goes with them.
+_Avoid_: Deactivation, removal, account closure
+
+**Retention period**:
+How long a lapsed Account is kept before it is deleted automatically, counted from its
+Paid-through. Set by the association, not by the platform.
+_Avoid_: Expiry, grace period, archive period
+
+**Payment record**:
+A Membership term the Club was paid money for. Kept for the statutory accounting period with
+the payer's name, whether or not their Account still exists — the one thing an Erasure does
+not erase.
+_Avoid_: Invoice, receipt, transaction
+
 **Renewal**:
 What a member is told in order to buy a new Membership term: the amount, where to send it,
 the words to write on the transfer and who to ask. Instructions to a person, not a record of
@@ -161,3 +182,20 @@ correspondent rather than a role on the platform, which is why it has an address
 capabilities — it is what "contact the Club office" points at, on the sign-in screen and on
 the Renewal.
 _Avoid_: Club officer (that is close to **Administrator**), support, helpdesk, admin team
+
+**Legal notice**:
+The page that says who the association is and how to reach it — what German law calls an
+*Impressum*. Everything on it is the Club's own record, written by an Administrator.
+_Avoid_: Impressum, imprint, about page
+
+**Privacy statement**:
+The page that says what the platform holds about a person, who else handles it, how long it is
+kept and what cannot be erased. Its sentences describe the software; its facts are read from
+the running system.
+_Avoid_: Datenschutzerklärung, privacy policy, data policy
+
+**Processor**:
+A company that handles members' personal data on the association's behalf — the host, the
+backup store, the e-mail provider. Named in the Privacy statement, one per kind of work, with
+the date its agreement was signed kept as the association's own record.
+_Avoid_: Vendor, supplier, sub-processor, third party

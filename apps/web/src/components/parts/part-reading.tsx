@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { MemberContributions } from '@/components/contributions/member-contributions';
 import { CopyLink } from '@/components/copy-link';
 import { PartPhotographs } from '@/components/parts/part-photographs';
 import { Refusal } from '@/components/ui/field';
-import type { CatalogModel, PartInFull, PartListing, Position } from '@/lib/api';
+import type { CatalogModel, Contribution, PartInFull, PartListing, Position } from '@/lib/api';
+import { usePositionContributions } from '@/lib/contributions';
 import {
   EQUIVALENT_KIND_LABELS,
   SOURCE_CONDITION_LABELS,
@@ -92,6 +94,12 @@ function Reading({
 }) {
   const { data, isPending, isError, error } = usePositionListings(position.id);
 
+  // Read beside the Listings rather than with them: what members have said is this member's
+  // answer and nobody else's, and a Part reads the same for everybody. If it cannot be read the
+  // panel still says what sits at the number, which is what it is for.
+  const fromMembers = usePositionContributions(position.id);
+  const contributions = fromMembers.data?.contributions ?? [];
+
   const listings = data?.listings ?? [];
   const drawn = listings.filter((listing) => listing.drawn);
   const undrawn = listings.filter((listing) => !listing.drawn);
@@ -146,7 +154,7 @@ function Reading({
       {!isPending && !isError && listings.length === 0 && (
         <p className="mt-8 max-w-measure text-pretty text-muted">
           Nothing is recorded at this position yet. The number is on the sheet; what sits at it has
-          not been written down.
+          not been written down. If you know what it is, say so — that is how a gap gets filled.
         </p>
       )}
 
@@ -168,6 +176,7 @@ function Reading({
               : null
           }
           listings={drawn}
+          contributions={contributions}
         />
       )}
 
@@ -177,6 +186,34 @@ function Reading({
           title="Also needed"
           note="Not drawn on this sheet. They share this position and are fitted as well."
           listings={undrawn}
+          contributions={contributions}
+        />
+      )}
+
+      {/*
+       * **About the number itself, last** — and the only thing here at all when nothing is
+       * recorded at it. The archive shows members which circles are empty; this is what stops
+       * that being a gap pointed at with no way to fill it (story 84).
+       */}
+      {/* Said, because the alternative is a member who cannot see what they sent and sends it
+          again (story 87). */}
+      {fromMembers.isError && (
+        <p className="mt-6 max-w-measure text-sm text-pretty text-muted" role="status">
+          What members have written here could not be read just now. Anything you have sent is safe;
+          it will show when the archive answers.
+        </p>
+      )}
+
+      {!isPending && !isError && (
+        <MemberContributions
+          target={{ kind: 'position', positionId: position.id }}
+          contributions={contributions.filter(
+            (contribution) =>
+              contribution.target.kind === 'position' &&
+              contribution.target.positionId === position.id,
+          )}
+          about={`position ${position.number}`}
+          thing="this position"
         />
       )}
     </section>
@@ -187,11 +224,14 @@ function Group({
   title,
   note,
   listings,
+  contributions,
   className,
 }: {
   title: string | null;
   note: string | null;
   listings: PartListing[];
+  /** Everything said at this number. Each Part picks out its own. */
+  contributions: Contribution[];
   className: string;
 }) {
   return (
@@ -206,7 +246,14 @@ function Group({
             data-drawn={listing.drawn}
             data-testid="listed-part"
           >
-            <ListedPart listing={listing} />
+            <ListedPart
+              listing={listing}
+              contributions={contributions.filter(
+                (contribution) =>
+                  contribution.target.kind === 'part' &&
+                  contribution.target.partId === listing.part.id,
+              )}
+            />
           </li>
         ))}
       </ul>
@@ -214,7 +261,13 @@ function Group({
   );
 }
 
-function ListedPart({ listing }: { listing: PartListing }) {
+function ListedPart({
+  listing,
+  contributions,
+}: {
+  listing: PartListing;
+  contributions: Contribution[];
+}) {
   const { part } = listing;
   // A Part always has one of the two names. The Italian is what the catalog printed, so it stays
   // underneath rather than being translated away — but it is not repeated as its own heading.
@@ -296,6 +349,19 @@ function ListedPart({ listing }: { listing: PartListing }) {
       <Sources part={part} />
 
       <Elsewhere listing={listing} />
+
+      {/*
+       * **What members know that the record does not say yet** (story 91), and the two things a
+       * member can do about a Part: add to it, or say it is wrong. Last, because it is the one
+       * block here that is not the archive speaking.
+       */}
+      <MemberContributions
+        target={{ kind: 'part', partId: part.id }}
+        contributions={contributions}
+        about={heading ?? 'this part'}
+        thing="this part"
+        canReportWrong
+      />
     </>
   );
 }

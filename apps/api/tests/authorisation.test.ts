@@ -47,6 +47,11 @@ const OPEN = new Set([
   'POST /api/password-resets',
   'POST /api/password-setups',
   'POST /api/password-setups/inspect',
+  // What the privacy statement quotes. A statement that could only be read after signing in
+  // would be one nobody reads before handing over their address.
+  'GET /api/privacy',
+  // Who is behind the platform (issue #9). Addressed to whoever lands here, member or not.
+  'GET /api/legal-notice',
 ]);
 
 /** An Administrator's, and behind the role rather than behind a Membership. */
@@ -56,6 +61,9 @@ const ADMINISTRATORS_ONLY = new Set([
   'PATCH /api/roster/:accountId',
   'POST /api/roster/:accountId/invitation',
   'POST /api/roster/:accountId/payments',
+  // Erasing one person, and the dry run of the retention sweep (issue #7, ADR 0007).
+  'DELETE /api/roster/:accountId',
+  'GET /api/roster/retention',
   // The Club's membership list, loaded instead of typed (ticket 16). Behind the role like the
   // rest of the roster: a lapsed Administrator loading the file that un-lapses the Club is
   // exactly who this must not stop.
@@ -63,6 +71,11 @@ const ADMINISTRATORS_ONLY = new Set([
   'POST /api/roster/import/preview',
   'GET /api/club',
   'PATCH /api/club',
+  // Who handles members' data for the association, and whether each agreement is signed
+  // (issue #9). The names are published in the privacy statement; this record says more.
+  'GET /api/processors',
+  'PUT /api/processors/:role',
+  'DELETE /api/processors/:role',
   // The list of Categories is kept by an Administrator (issue #8). An Editor chooses from it,
   // and is refused here like anybody else who is not one.
   'POST /api/categories',
@@ -71,6 +84,31 @@ const ADMINISTRATORS_ONLY = new Set([
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */
 const ANY_MEMBER = new Set(['GET /api/renewal']);
+
+/**
+ * **The writes a Member may make, and there are exactly these** (issue #5). A Contribution is
+ * something said *to* the archive rather than a change to it — nobody else is shown it until an
+ * Editor has looked — so it takes what reading takes: a live Membership.
+ *
+ * Named one by one, and deliberately not as a pattern. The rule below is that every write is an
+ * Editor's, and the way a write ends up outside it has to be that somebody added it to this list
+ * on purpose.
+ */
+const A_MEMBERS_TO_WRITE = new Set([
+  'POST /api/parts/:partId/contributions',
+  'POST /api/positions/:positionId/contributions',
+  'POST /api/contributions/:contributionId/photographs',
+]);
+
+/**
+ * **The only reads in the archive that are not every member's** (issue #6): what members have
+ * sent and nobody has checked. The rule is that a Membership buys reading, so a read outside it
+ * is named here on purpose, exactly as a Member's writes are named above.
+ */
+const AN_EDITORS_TO_READ = new Set([
+  'GET /api/contributions/waiting',
+  'GET /api/contributions/waiting/count',
+]);
 
 describe('who may reach what', () => {
   let app: TestApp;
@@ -98,7 +136,13 @@ describe('who may reach what', () => {
   it('finds the whole surface, so what follows is asking about all of it', () => {
     expect(surface.length).toBeGreaterThan(40);
 
-    for (const known of [...OPEN, ...ADMINISTRATORS_ONLY, ...ANY_MEMBER]) {
+    for (const known of [
+      ...OPEN,
+      ...ADMINISTRATORS_ONLY,
+      ...ANY_MEMBER,
+      ...A_MEMBERS_TO_WRITE,
+      ...AN_EDITORS_TO_READ,
+    ]) {
       expect(surface.map(named), `${known} is not a route this application has`).toContain(known);
     }
   });
@@ -132,6 +176,9 @@ describe('who may reach what', () => {
         if (address.method === 'get' || OPEN.has(name) || ADMINISTRATORS_ONLY.has(name)) {
           continue;
         }
+        if (A_MEMBERS_TO_WRITE.has(name)) {
+          continue;
+        }
 
         const response = await member[address.method](fill(address.path));
         expect(response.status, `${name} let a Member write`).toBe(403);
@@ -145,6 +192,33 @@ describe('who may reach what', () => {
         const response = await member[address!.method](fill(address!.path));
 
         expect(response.status, `${name} let a Member in`).toBe(403);
+        expect(response.body.error?.code).toBe('forbidden');
+      }
+    });
+
+    /**
+     * **And is let through to offer what they know.** Nothing is sent that could be written, so
+     * what comes back is whatever the handler makes of an empty request about nothing — and the
+     * only thing asserted is that it was the handler that answered and not the gate.
+     */
+    it('is not refused the writes that are a Member’s to make', async () => {
+      for (const name of A_MEMBERS_TO_WRITE) {
+        const address = surface.find((route) => named(route) === name);
+        const response = await member[address!.method](fill(address!.path));
+
+        expect([401, 403], `${name} refused a Member: ${response.status}`).not.toContain(
+          response.status,
+        );
+      }
+    });
+
+    /** What is waiting to be checked is the one thing they were promised nobody would read. */
+    it('is refused what members have sent that nobody has checked', async () => {
+      for (const name of AN_EDITORS_TO_READ) {
+        const address = surface.find((route) => named(route) === name);
+        const response = await member[address!.method](fill(address!.path));
+
+        expect(response.status, `${name} let a Member read the queue`).toBe(403);
         expect(response.body.error?.code).toBe('forbidden');
       }
     });

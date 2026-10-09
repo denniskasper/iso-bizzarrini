@@ -83,6 +83,55 @@ export function PartPhotographs({
   );
 }
 
+/**
+ * Photographs that came with something a member wrote — **all the same size, because nobody has
+ * chosen between them.** A Part's own are led by the one an Editor judged clearest; these are in
+ * the order they were attached and that order means nothing more than that.
+ *
+ * Opened larger exactly as a Part's are, by the same layer.
+ */
+export function PhotographStrip({
+  photographs,
+  of,
+}: {
+  photographs: Photograph[];
+  /** What these are photographs of, as a caption says it: "what Clara Conti wrote". */
+  of: string;
+}) {
+  const [expandedAt, setExpandedAt] = useState<number | null>(null);
+
+  if (photographs.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <ul className="mt-3 flex flex-wrap gap-2" data-testid="contribution-photographs">
+        {photographs.map((photograph, index) => (
+          <li key={photograph.id}>
+            <Thumbnail
+              photograph={photograph}
+              label={caption(of, index + 1, photographs.length)}
+              className="size-20"
+              onOpen={() => setExpandedAt(index)}
+            />
+          </li>
+        ))}
+      </ul>
+
+      {expandedAt !== null && expandedAt < photographs.length && (
+        <Expanded
+          photographs={photographs}
+          at={expandedAt}
+          partName={of}
+          onMove={setExpandedAt}
+          onClose={() => setExpandedAt(null)}
+        />
+      )}
+    </>
+  );
+}
+
 /** What a photograph is announced as. There is no caption field, so the Part's name is the fact. */
 function caption(partName: string, at: number, total: number): string {
   return total === 1 ? `Photograph of ${partName}` : `Photograph ${at} of ${total} of ${partName}`;

@@ -964,6 +964,149 @@ export interface PartRecordResponse {
 }
 
 /**
+ * Where a Contribution was written — **a Part or a Position, and the second matters as much as
+ * the first.** The archive deliberately shows members which circles have nothing recorded at
+ * them; if the only thing that could be written about were a Part that does not exist yet, it
+ * would be pointing at a gap and offering no way to fill it (story 84).
+ */
+export type ContributionTarget =
+  { kind: 'part'; partId: string } | { kind: 'position'; positionId: string };
+
+/**
+ * Where a Contribution stands, **as far as anybody reading the archive is ever told.**
+ *
+ * `waiting` is only ever said to the member who wrote it. A Contribution an Editor has discarded
+ * is not published and is not here at all.
+ */
+export type ContributionState = 'waiting' | 'published';
+
+/**
+ * Something a Member offers about a Part or a Position — what they know, in their words, with
+ * photographs if they have them (GLOSSARY.md).
+ *
+ * **It is prose and pictures and nothing else.** There is no field in it that names a field of
+ * the Part, and that is deliberate: a correction reaches the record through an Editor's hands,
+ * who reads this and edits the Part. `correction` says only that the member wrote it *because
+ * the record is wrong* (story 90), so that an Editor reads it as something to act on rather than
+ * something to publish beside the mistake.
+ */
+export interface Contribution {
+  id: string;
+  target: ContributionTarget;
+  /** As the member wrote it, line breaks and all. */
+  text: string;
+  /** The member is reporting that the Part's record is wrong. Never true of a Position. */
+  correction: boolean;
+  /**
+   * Who wrote it, which is what lets another member judge it and follow up (story 89).
+   *
+   * `null` where the Account behind it is gone: the knowledge stays and the identification does
+   * not (ADR 0007). A screen says "a former member" and nothing more.
+   */
+  authorName: string | null;
+  /** ISO instant, from the archive's clock. */
+  writtenAt: string;
+  state: ContributionState;
+  /** Whether the person asking is the person who wrote it. */
+  mine: boolean;
+  /** In the order they were attached. Addressed and served like every other image (ADR 0006). */
+  photographs: Photograph[];
+}
+
+/**
+ * `POST /api/parts/:partId/contributions` and `POST /api/positions/:positionId/contributions`.
+ *
+ * Photographs are not here. Each is sent on its own afterwards, to the Contribution this
+ * answers with — so the words have arrived before the first picture starts up a garage's
+ * reception, and a photograph that fails takes nothing with it.
+ */
+export interface NewContributionRequest {
+  text: string;
+  /** Only meaningful against a Part. Left out, it is an ordinary Contribution. */
+  correction?: boolean;
+}
+
+/** What writing one, or attaching a photograph to one, answers with: the whole of it, re-read. */
+export interface ContributionResponse {
+  contribution: Contribution;
+}
+
+/**
+ * `GET /api/positions/:positionId/contributions` — **everything members have said about what a
+ * member is looking at**: the number itself, and every Part listed at it.
+ *
+ * One request for a click, like the Listings it is read beside. A Part's Contributions are the
+ * Part's (ADR 0001), so the same ones answer at every number that Part sits at, on every sheet.
+ *
+ * **What is here depends on who asked.** Everybody is given what has been published; the member
+ * who wrote something still waiting is given that as well, and nobody else is. Oldest first.
+ */
+export interface ContributionsResponse {
+  contributions: Contribution[];
+}
+
+/**
+ * What a waiting Contribution is **about, as the archive has it now** — which is what an Editor
+ * judges it against (story 116).
+ *
+ * For a Part that is the whole record and every sheet a correction to it would reach, exactly
+ * as `PartResponse` carries them. For a Position it is where the number is and whatever already
+ * sits at it — usually nothing, which is why the member wrote.
+ */
+export type ContributionSubject =
+  | { kind: 'part'; part: PartInFull; listedOn: ListedOn[] }
+  | {
+      kind: 'position';
+      position: { id: string; number: string };
+      tavola: { id: string; number: string; nameEn: string; model: CatalogModel };
+      listings: PartListing[];
+    };
+
+/** One Contribution an Editor has yet to decide, beside the record it is about. */
+export interface WaitingContribution {
+  contribution: Contribution;
+  subject: ContributionSubject;
+}
+
+/**
+ * `GET /api/contributions/waiting` — **everything members have sent that nobody has decided,
+ * oldest first**, so that nobody's is forgotten (story 115). An Editor's, and nobody else's.
+ *
+ * Every write an Editor makes while reviewing answers with this too, re-read: deciding one takes
+ * it out, and recording a Part from one changes what it is about.
+ */
+export interface WaitingContributionsResponse {
+  contributions: WaitingContribution[];
+}
+
+/**
+ * `GET /api/contributions/waiting/count` — how many, and nothing else. What the chrome asks on
+ * every screen, so that the queue is noticed without being opened.
+ */
+export interface WaitingCountResponse {
+  waiting: number;
+}
+
+/**
+ * `PUT /api/contributions/:contributionId/decision` — **published or discarded, and decided
+ * once.** There is nothing between the two and no way back from either: an Editor who wants a
+ * correction in the archive edits the Part, and that edit is the record of it.
+ */
+export interface DecideContributionRequest {
+  decision: 'publish' | 'discard';
+}
+
+/**
+ * `POST /api/contributions/:contributionId/part` — **a gap filled by the member who knew**
+ * (story 120). Records a Part and its Listing at the Position the Contribution is about, and
+ * the Contribution becomes that Part's.
+ *
+ * `NewListingRequest` without the Position, which is not the Editor's to choose here: it names
+ * an existing Part or describes a new one, under the same merge-or-correct rule.
+ */
+export type RecordPartFromContributionRequest = Omit<NewListingRequest, 'positionId'>;
+
+/**
  * `PATCH /api/parts/:partId/photographs` — **the whole order, every time.**
  *
  * Not "move this one up". An order is a statement about the list rather than about one member of
@@ -1282,6 +1425,152 @@ export interface RecordPaymentRequest {
 }
 
 /**
+ * How long the archive keeps what it knows about a person (ADR 0007). **Read from the running
+ * system and never written into a screen**, so that the privacy statement and the sweep that
+ * carries it out cannot come to say different things.
+ */
+export interface RetentionTerms {
+  /** Years an Account is kept after its last Membership ran out, before it is deleted. */
+  accountYears: number;
+  /**
+   * Full calendar years a payment record is kept after the year the money arrived — the
+   * statutory accounting period, which an erasure does not shorten.
+   */
+  paymentRecordYears: number;
+}
+
+/**
+ * `GET /api/legal-notice` — **who is behind the platform**, open to anybody.
+ *
+ * The public part of the Club's record and nothing beside it: `ClubRecord` also carries the bank
+ * details and the reminder text, which are an Administrator's. Every field is null until the
+ * association has written it — an invented address on a legal page would look finished.
+ */
+export interface LegalNotice {
+  /** The association's registered name, with its legal form. */
+  name: string | null;
+  postalAddress: string | null;
+  representedBy: string | null;
+  registerCourt: string | null;
+  registerNumber: string | null;
+  vatId: string | null;
+  /** The Club office's address — the same one the renewal screen points at. */
+  email: string | null;
+  phone: string | null;
+  further: string | null;
+}
+
+export interface LegalNoticeResponse {
+  legalNotice: LegalNotice;
+}
+
+/**
+ * What a processor does for the association. Five, because those are the five the privacy
+ * statement has to account for — `error-tracking` among them so that "nobody" is something the
+ * statement says on purpose (ADR 0011).
+ */
+export type ProcessorRole = 'hosting' | 'storage' | 'email' | 'payment' | 'error-tracking';
+
+/** A company that handles members' data on the association's behalf, as the public is told. */
+export interface Processor {
+  role: ProcessorRole;
+  name: string;
+  /** Where the data is handled — a country is enough. */
+  location: string;
+}
+
+/**
+ * The same processor as the association keeps it — `GET /api/processors`, an Administrator's.
+ *
+ * What is added is the one thing that is nobody else's business and is the association's to
+ * track to completion: whether the processor agreement has been signed.
+ */
+export interface ProcessorRecord extends Processor {
+  /** ISO date. Null while the agreement is outstanding, which none may be at go-live. */
+  agreementSignedOn: string | null;
+}
+
+export interface ProcessorsResponse {
+  processors: ProcessorRecord[];
+}
+
+export interface ProcessorResponse {
+  processor: ProcessorRecord;
+}
+
+/** `PUT /api/processors/:role` — naming who does this for the association, or correcting it. */
+export interface NameProcessorRequest {
+  name: string;
+  location: string;
+  agreementSignedOn?: string | null;
+}
+
+/**
+ * `GET /api/privacy` — everything in the privacy statement that is a fact about the association
+ * or the running system rather than a sentence about what the software does. Open to anybody,
+ * like the statement.
+ */
+export interface PrivacyResponse {
+  retention: RetentionTerms;
+  /** The association, which is the controller. Null fields are ones nobody has written yet. */
+  controller: {
+    name: string | null;
+    postalAddress: string | null;
+    email: string | null;
+  };
+  dataProtectionContact: {
+    name: string | null;
+    email: string | null;
+  };
+  supervisoryAuthority: string | null;
+  /** In a fixed order — hosting, storage, e-mail, payment, error tracking. Only those named. */
+  processors: Processor[];
+  further: string | null;
+}
+
+/**
+ * `DELETE /api/roster/:accountId` — what erasing one person did, **in counts and never in
+ * names**: by the time this is read there is nobody left to name.
+ */
+export interface Erasure {
+  /** Published Contributions, which stay and now read "a former member". */
+  contributionsKept: number;
+  /** Contributions nobody had published — waiting or discarded — which went with the person. */
+  contributionsRemoved: number;
+  /** Payments the Club received, kept for the statutory accounting period. */
+  paymentRecordsKept: number;
+}
+
+export interface ErasureResponse {
+  erased: Erasure;
+}
+
+/** Somebody whose Account has been lapsed for longer than the retention period. */
+export interface RetentionCandidate {
+  id: string;
+  name: string;
+  email: string;
+  /** ISO date. Null where no term was ever recorded, and the count ran from being added. */
+  paidThrough: string | null;
+  /** ISO date — the last day the Account was to be kept. Always before `asOf`. */
+  keptUntil: string;
+}
+
+/**
+ * `GET /api/roster/retention` — **the dry run**: exactly what the next retention sweep would
+ * delete, read the same way the sweep reads it and writing nothing. The sweep itself answers in
+ * this shape too, as the account of what it did.
+ */
+export interface RetentionReport {
+  /** ISO date — the archive's today, which is what every date here was measured against. */
+  asOf: string;
+  retention: RetentionTerms;
+  accounts: RetentionCandidate[];
+  /** Payment records of people already erased, whose statutory period has now run out too. */
+  paymentRecords: number;
+}
+
+/**
  * `POST /api/roster/import/preview` and `POST /api/roster/import` — **the Club's annual
  * membership list, loaded instead of typed** (story 122).
  *
@@ -1423,6 +1712,28 @@ export interface ClubRecord {
    * nobody can act on without an address to act on it at (ticket 15).
    */
   officeEmail: string | null;
+  /**
+   * **Who the association is**, for the legal notice (issue #9): the registered name with its
+   * legal form, where it can be served, who may speak for it, and where it is registered. Public
+   * once written — see `LegalNotice` — and null until somebody has written it.
+   */
+  legalName: string | null;
+  /** As many lines as an address has. */
+  postalAddress: string | null;
+  representedBy: string | null;
+  registerCourt: string | null;
+  registerNumber: string | null;
+  vatId: string | null;
+  phone: string | null;
+  /** Anything else the association has to state on its legal notice, in its own words. */
+  legalNoticeFurther: string | null;
+  /** Who answers for data protection on the association's side. Named in the privacy statement. */
+  dataProtectionContact: string | null;
+  dataProtectionEmail: string | null;
+  /** The authority a member may complain to, as the association would name it. */
+  supervisoryAuthority: string | null;
+  /** Anything else the association has to state in its privacy statement, in its own words. */
+  privacyFurther: string | null;
 }
 
 export interface ClubResponse {

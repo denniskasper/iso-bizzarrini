@@ -9,10 +9,14 @@ import { createBulkPasteController } from './controllers/bulk-paste-controller.j
 import { createCatalogController } from './controllers/catalog-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
+import { createLegalController } from './controllers/legal-controller.js';
+import { createContributionController } from './controllers/contribution-controller.js';
+import { createContributionReviewController } from './controllers/contribution-review-controller.js';
 import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createRetentionController } from './controllers/retention-controller.js';
 import { createRosterController } from './controllers/roster-controller.js';
 import { createRosterImportController } from './controllers/roster-import-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
@@ -25,16 +29,19 @@ import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { BreachedPasswordCheck } from './platform/breached-passwords.js';
 import type { Clock } from './platform/clock.js';
 import type { EmailSender } from './platform/email.js';
-import { createLogger, type Logger } from './platform/logger.js';
+import { createLogger, describeError, type Logger } from './platform/logger.js';
 import type { PaymentProvider } from './platform/payments.js';
 import { createAccountRepository } from './repositories/account-repository.js';
 import { createCategoryRepository } from './repositories/category-repository.js';
 import { createClubRepository } from './repositories/club-repository.js';
+import { createProcessorRepository } from './repositories/processor-repository.js';
+import { createContributionRepository } from './repositories/contribution-repository.js';
 import { createModelRepository } from './repositories/model-repository.js';
 import { createPartRecordRepository } from './repositories/part-record-repository.js';
 import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
+import { createRetentionRepository } from './repositories/retention-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
@@ -45,10 +52,14 @@ import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
 import { createCategoryService } from './services/category-service.js';
 import { createClubService } from './services/club-service.js';
+import { createLegalService } from './services/legal-service.js';
+import { createContributionReviewService } from './services/contribution-review-service.js';
+import { createContributionService } from './services/contribution-service.js';
 import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
@@ -122,6 +133,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const accountRepository = createAccountRepository(db);
   const signInFailureRepository = createSignInFailureRepository(db);
   const clubRepository = createClubRepository(db);
+  const processorRepository = createProcessorRepository(db);
   const modelRepository = createModelRepository(db);
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
@@ -129,7 +141,9 @@ export function createApp(dependencies: AppDependencies): Express {
   const partRepository = createPartRepository(db);
   const partRecordRepository = createPartRecordRepository(db);
   const photographRepository = createPhotographRepository(db);
+  const contributionRepository = createContributionRepository(db);
   const scanRepository = createScanRepository(db);
+  const retentionRepository = createRetentionRepository(db);
 
   const statusService = createStatusService({
     clock,
@@ -168,6 +182,22 @@ export function createApp(dependencies: AppDependencies): Express {
    */
   const rosterImportService = createRosterImportService({ db, clock });
   const clubService = createClubService({ clock, clubRepository });
+  // Handed the same retention figures the sweep below is, so the privacy statement and the thing
+  // that carries it out cannot come to say different things (ADR 0007).
+  const legalService = createLegalService({
+    retention: config.retention,
+    clock,
+    clubService,
+    processorRepository,
+  });
+  const retentionService = createRetentionService({
+    terms: config.retention,
+    clock,
+    accountRepository,
+    retentionRepository,
+    fileStore,
+    logger,
+  });
 
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
   // **The way into the archive that does not start at the car** (ticket 22). Two repositories and
@@ -209,6 +239,20 @@ export function createApp(dependencies: AppDependencies): Express {
     clock,
     logger,
   });
+  const contributionService = createContributionService({
+    contributionRepository,
+    partRepository,
+    positionRepository,
+    fileStore,
+    clock,
+    logger,
+  });
+  const contributionReviewService = createContributionReviewService({
+    contributionRepository,
+    positionRepository,
+    tavolaRepository,
+    partService,
+  });
   const scanService = createScanService({
     tavolaRepository,
     scanRepository,
@@ -220,8 +264,10 @@ export function createApp(dependencies: AppDependencies): Express {
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ gate, accountService });
   const rosterController = createRosterController({ gate, rosterService });
+  const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
+  const legalController = createLegalController({ legalService });
   const searchController = createSearchController({ searchService });
   const catalogController = createCatalogController({ catalogService });
   const categoryController = createCategoryController({ categoryService });
@@ -231,6 +277,11 @@ export function createApp(dependencies: AppDependencies): Express {
   const partRecordController = createPartRecordController({ partRecordService });
   const bulkPasteController = createBulkPasteController({ bulkPasteService });
   const photographController = createPhotographController({ photographService });
+  const contributionController = createContributionController({ gate, contributionService });
+  const contributionReviewController = createContributionReviewController({
+    gate,
+    contributionReviewService,
+  });
   const scanController = createScanController({ scanService });
 
   const app = express();
@@ -245,9 +296,20 @@ export function createApp(dependencies: AppDependencies): Express {
       // The scans are served from this origin only; nothing is embedded anywhere else.
       crossOriginResourcePolicy: { policy: 'same-origin' },
       referrerPolicy: { policy: 'same-origin' },
+      contentSecurityPolicy: {
+        directives: {
+          // Helmet's own `img-src`, and one thing more: a photograph a member has picked and
+          // not yet sent is shown to them from a `blob:` address the browser made for it
+          // (issue #5). That is a picture already on their own phone, addressed by this page
+          // and readable by no other — nothing the archive serves is reachable through it.
+          'img-src': ["'self'", 'data:', 'blob:'],
+        },
+      },
     }),
   );
-  app.use(pinoHttp({ logger }));
+  // The request logger keeps serializers of its own, so it is handed the same account of an
+  // error the rest of the log uses rather than left to write one out whole.
+  app.use(pinoHttp({ logger, serializers: { err: describeError } }));
 
   // Members-only, in every environment: nothing here is for a search engine, and the
   // non-production system least of all. The markup says the same thing; this covers what a
@@ -268,8 +330,10 @@ export function createApp(dependencies: AppDependencies): Express {
       statusController,
       sessionController,
       rosterController,
+      retentionController,
       rosterImportController,
       clubController,
+      legalController,
       searchController,
       catalogController,
       categoryController,
@@ -279,6 +343,8 @@ export function createApp(dependencies: AppDependencies): Express {
       partRecordController,
       bulkPasteController,
       photographController,
+      contributionController,
+      contributionReviewController,
       scanController,
     }),
   );

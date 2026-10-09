@@ -81,6 +81,7 @@ system and in production, and differs only by what it is handed.
 | `pnpm db:generate` | a migration from a change to `schema.ts` (then rename it, and strip `"public".`) |
 | `pnpm scans:measure` | what the archive's own scans say about the tiling question (ADR 0013) |
 | `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
+| `pnpm roster:retention-sweep -- --dry-run` | who the daily retention sweep would delete (ADR 0007) — without the flag, it deletes them |
 
 ### Pasting a catalog page, and getting one back
 
@@ -178,7 +179,7 @@ thing to that rule and different things to an encoder: the drawing is kept lossl
 position numbers are the smallest marks on the sheet and a quality slider eats those first
 ([ADR 0013](docs/adr/0013-one-private-image-not-a-tile-pyramid.md)); a photograph is not, because
 it has no such marks in it and a member is confirming a shape. Both go through `images/`, which
-is also the upload path member Contributions will reuse.
+is also the upload path a member's Contributions use for their photographs.
 
 The gate in front of it is the Club's roster. Every request that reaches a drawing is an Account
 with a live Membership, re-checked on that request; there is no shared credential, and the way

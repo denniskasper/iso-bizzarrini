@@ -68,6 +68,11 @@ export interface Gate {
   identify(cookieHeader: string | undefined): Promise<SignedIn | null>;
   /** Who a handler behind one of the `require` middlewares is serving. */
   whoIsSignedIn(response: Response): SignedIn;
+  /**
+   * Whether this person is an Editor or an Administrator — the question `requireEditor` asks,
+   * for the one handler whose *answer* depends on it rather than whether it answers at all.
+   */
+  mayEdit(who: SignedIn): boolean;
   signIn(response: Response, claim: SessionClaim): void;
   signOut(response: Response): void;
 }
@@ -134,6 +139,8 @@ export function createGate(dependencies: {
         throw new MembershipLapsedError(who.paidThrough);
       }
     }),
+
+    mayEdit: (who) => mayEdit.has(who.account.role),
 
     requireEditor: requiring((who) => {
       if (!mayEdit.has(who.account.role)) {

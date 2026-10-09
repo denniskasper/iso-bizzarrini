@@ -701,6 +701,18 @@
   }
 
   /*
+   * Something a member has sent that **nobody else can see yet**. A broken frame on a sunken
+   * surface: the same step down a panel somebody is still working in takes, and a rule that is
+   * not closed because the thing inside it is not finished being decided. It must not be
+   * mistaken for what is published, which sits on the page with no frame at all.
+   */
+  .contribution-waiting {
+    padding: --spacing(3) --spacing(4);
+    background-color: var(--surface-sunken);
+    border: 1px dashed var(--line-strong);
+  }
+
+  /*
    * A panel an Editor opened deliberately: ruled off from the page, sunk a step below it, and
    * wearing the registration mark. **Not a modal** — the archive is a printed index, and a
    * dialogue over a drawing is exactly the chrome this interface stays out of the way of.
@@ -729,7 +741,8 @@
    * The column measure lives here rather than in feature code, so the header above the list and
    * the rows below it cannot drift apart.
    */
-  .roster-row {
+  .roster-row,
+  .retention-row {
     display: grid;
     grid-template-columns: 1fr;
     align-items: baseline;
@@ -742,6 +755,16 @@
   @media (width >= 48rem) {
     .roster-row {
       grid-template-columns: 1fr 11rem 8rem;
+    }
+
+    /*
+     * Somebody the retention sweep is about to delete (ADR 0007): the roster's own row, with two
+     * dates where it has a standing and a date. Both are numbers to be compared with each other,
+     * so both get the fixed column. A class of its own because it is a different list — nothing
+     * on it can be acted on, and nothing that looks for a member's row should find this one.
+     */
+    .retention-row {
+      grid-template-columns: 1fr 8rem 8rem;
     }
   }
 

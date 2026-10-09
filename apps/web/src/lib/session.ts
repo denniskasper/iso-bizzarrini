@@ -22,6 +22,8 @@ export interface Session {
   account: SignedInAccount | null;
   /** Whether the archive itself is readable — signed in *and* paid up. */
   mayRead: boolean;
+  /** An Editor or an Administrator: whoever may change the archive and decide Contributions. */
+  isEditor: boolean;
   isAdministrator: boolean;
   isPending: boolean;
 }
@@ -39,6 +41,7 @@ export function useSession(): Session {
     signedIn: account !== null,
     account,
     mayRead: account?.membershipIsLive ?? false,
+    isEditor: account?.role === 'editor' || account?.role === 'administrator',
     isAdministrator: account?.role === 'administrator',
     isPending,
   };

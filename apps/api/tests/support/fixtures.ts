@@ -4,6 +4,7 @@ import { categorySlug, numericPrefixOf } from '../../src/catalog/naming.js';
 import type { Db } from '../../src/db/client.js';
 import {
   categories,
+  contributions,
   models,
   tavole,
   type CategoryRow,
@@ -95,6 +96,22 @@ export async function givenTavola(
     throw new Error('The Tavola fixture inserted nothing.');
   }
   return row;
+}
+
+/**
+ * A Contribution an Editor has published. **Arranged rather than driven**, for the tests that
+ * are about what a member is shown *once* something has been checked and only need somewhere to
+ * start from. Publishing itself is proved over HTTP in `contribution-review.test.ts`.
+ */
+export async function givenPublished(db: Db, contributionId: string): Promise<void> {
+  const published = await db
+    .update(contributions)
+    .set({ state: 'published' })
+    .where(eq(contributions.id, contributionId))
+    .returning();
+  if (published.length !== 1) {
+    throw new Error('The published-Contribution fixture found nothing to publish.');
+  }
 }
 
 export interface ImageFixture {

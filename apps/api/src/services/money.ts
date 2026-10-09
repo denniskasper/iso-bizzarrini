@@ -11,9 +11,6 @@
 /** Nothing else is an amount: not a range, not "about", not a thousands separator nobody agrees on. */
 const AMOUNT = /^(\d{1,9})(?:[.,](\d{1,2}))?$/;
 
-/** What the archive stores dates as, and the only thing a date field may send. */
-export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 /** The minor units in `45`, `45.00` or `45,50`, or null where that is not an amount at all. */
 export function readAmount(typed: string): number | null {
   const parsed = AMOUNT.exec(typed.trim());
