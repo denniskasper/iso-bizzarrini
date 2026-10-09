@@ -47,6 +47,9 @@ const OPEN = new Set([
   'POST /api/password-resets',
   'POST /api/password-setups',
   'POST /api/password-setups/inspect',
+  // What the privacy statement quotes. A statement that could only be read after signing in
+  // would be one nobody reads before handing over their address.
+  'GET /api/privacy',
 ]);
 
 /** An Administrator's, and behind the role rather than behind a Membership. */
@@ -56,6 +59,9 @@ const ADMINISTRATORS_ONLY = new Set([
   'PATCH /api/roster/:accountId',
   'POST /api/roster/:accountId/invitation',
   'POST /api/roster/:accountId/payments',
+  // Erasing one person, and the dry run of the retention sweep (issue #7, ADR 0007).
+  'DELETE /api/roster/:accountId',
+  'GET /api/roster/retention',
   // The Club's membership list, loaded instead of typed (ticket 16). Behind the role like the
   // rest of the roster: a lapsed Administrator loading the file that un-lapses the Club is
   // exactly who this must not stop.

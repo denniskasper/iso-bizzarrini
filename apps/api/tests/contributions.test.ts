@@ -1,11 +1,9 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Contribution } from '@ricambi/contracts';
-import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { accounts } from '../src/db/schema.js';
 import {
   givenModel,
   givenPhotographImage,
@@ -279,13 +277,13 @@ describe('Contributions', () => {
     });
 
     /**
-     * **The knowledge stays; the identification does not** (ADR 0007). Deleting an Account is
-     * issue #7's to do. What is proved here is only that when it happens, what the member said
-     * is still in the archive and no longer says who said it.
+     * **The knowledge stays; the identification does not** (ADR 0007). Everything else about
+     * erasing somebody is `retention.test.ts`'s; what is proved here is the half that is about
+     * who is shown a Contribution — it is still in the archive and no longer says who said it.
      */
     it('outlives the Account that wrote it, with nobody’s name on it', async () => {
       await givenPublished(app.db, contributionId);
-      await app.db.delete(accounts).where(eq(accounts.id, clara.entry.id));
+      await administrator.delete(`/api/roster/${clara.entry.id}`).expect(200);
 
       expect(await readAs(dario.agent)).toMatchObject([
         { id: contributionId, authorName: null, mine: false, state: 'published' },

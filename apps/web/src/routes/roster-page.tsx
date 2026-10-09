@@ -3,9 +3,11 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AddMember } from '@/components/roster/add-member';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
+import { erasureReads } from '@/components/roster/erase-member';
 import { MemberRow } from '@/components/roster/member-row';
+import { RetentionDue } from '@/components/roster/retention-due';
 import { Button } from '@/components/ui/button';
-import { tallyOf, useRoster, useToday } from '@/lib/roster';
+import { tallyOf, useRetentionTerms, useRoster, useToday } from '@/lib/roster';
 
 /**
  * The roster — the Club's membership, and the screen that answers **"I paid, why can't I get
@@ -30,6 +32,9 @@ export function RosterPage() {
 
 function Roster() {
   const [adding, setAdding] = useState(false);
+  /** What the last erasure left behind. Said once, above the list the row has just left. */
+  const [erased, setErased] = useState<string | null>(null);
+  const retention = useRetentionTerms();
   const roster = useRoster();
   const today = useToday();
 
@@ -79,13 +84,28 @@ function Roster() {
         </div>
       )}
 
+      {erased !== null && (
+        <p role="status" className="mt-10 max-w-measure text-pretty text-text">
+          {erased}
+        </p>
+      )}
+
       {members.length > 0 && (
         <ul className="mt-12 border-b border-line">
           {members.map((member) => (
-            <MemberRow key={member.id} member={member} today={today} />
+            <MemberRow
+              key={member.id}
+              member={member}
+              today={today}
+              onErased={(gone, left) =>
+                setErased(erasureReads(gone.name, left, retention.data?.paymentRecordYears))
+              }
+            />
           ))}
         </ul>
       )}
+
+      <RetentionDue />
     </div>
   );
 }

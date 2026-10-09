@@ -1425,6 +1425,68 @@ export interface RecordPaymentRequest {
 }
 
 /**
+ * How long the archive keeps what it knows about a person (ADR 0007). **Read from the running
+ * system and never written into a screen**, so that the privacy statement and the sweep that
+ * carries it out cannot come to say different things.
+ */
+export interface RetentionTerms {
+  /** Years an Account is kept after its last Membership ran out, before it is deleted. */
+  accountYears: number;
+  /**
+   * Full calendar years a payment record is kept after the year the money arrived — the
+   * statutory accounting period, which an erasure does not shorten.
+   */
+  paymentRecordYears: number;
+}
+
+/** `GET /api/privacy` — the figures the privacy statement quotes. Open to anybody, like it. */
+export interface PrivacyResponse {
+  retention: RetentionTerms;
+}
+
+/**
+ * `DELETE /api/roster/:accountId` — what erasing one person did, **in counts and never in
+ * names**: by the time this is read there is nobody left to name.
+ */
+export interface Erasure {
+  /** Published Contributions, which stay and now read "a former member". */
+  contributionsKept: number;
+  /** Contributions nobody had published — waiting or discarded — which went with the person. */
+  contributionsRemoved: number;
+  /** Payments the Club received, kept for the statutory accounting period. */
+  paymentRecordsKept: number;
+}
+
+export interface ErasureResponse {
+  erased: Erasure;
+}
+
+/** Somebody whose Account has been lapsed for longer than the retention period. */
+export interface RetentionCandidate {
+  id: string;
+  name: string;
+  email: string;
+  /** ISO date. Null where no term was ever recorded, and the count ran from being added. */
+  paidThrough: string | null;
+  /** ISO date — the last day the Account was to be kept. Always before `asOf`. */
+  keptUntil: string;
+}
+
+/**
+ * `GET /api/roster/retention` — **the dry run**: exactly what the next retention sweep would
+ * delete, read the same way the sweep reads it and writing nothing. The sweep itself answers in
+ * this shape too, as the account of what it did.
+ */
+export interface RetentionReport {
+  /** ISO date — the archive's today, which is what every date here was measured against. */
+  asOf: string;
+  retention: RetentionTerms;
+  accounts: RetentionCandidate[];
+  /** Payment records of people already erased, whose statutory period has now run out too. */
+  paymentRecords: number;
+}
+
+/**
  * `POST /api/roster/import/preview` and `POST /api/roster/import` — **the Club's annual
  * membership list, loaded instead of typed** (story 122).
  *

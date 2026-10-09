@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import type { EnvironmentMode } from '@ricambi/contracts';
+import type { EnvironmentMode, RetentionTerms } from '@ricambi/contracts';
 import { z } from 'zod';
 
 /**
@@ -76,6 +76,20 @@ const environmentSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+
+  /**
+   * How many years an Account is kept after its last Membership ran out, before the retention
+   * sweep deletes it (ADR 0007). Three is the proposal; **the association confirms the figure**,
+   * and changing it is this variable rather than a deployment.
+   */
+  RETENTION_YEARS: z.coerce.number().int().min(1).max(50).default(3),
+
+  /**
+   * How many full calendar years a payment record outlives the year the money arrived — the
+   * statutory accounting period, which no erasure shortens. Ten is a cautious default and not
+   * advice: the figure is whatever the association's accountant says it is.
+   */
+  PAYMENT_RECORD_RETENTION_YEARS: z.coerce.number().int().min(1).max(50).default(10),
 
   /**
    * Signs the session cookie. Unset means one is generated at startup, so sessions simply do
@@ -190,6 +204,8 @@ export interface AppConfig {
     maxScanBytes: number;
     maxPhotographBytes: number;
   };
+  /** What the retention sweep applies and the privacy statement quotes (ADR 0007). */
+  retention: RetentionTerms;
   migrateOnStart: boolean;
   seedPracticeArchive: boolean;
 }
@@ -240,6 +256,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       storagePath: resolve(env.FILE_STORAGE_PATH),
       maxScanBytes: env.MAX_SCAN_BYTES,
       maxPhotographBytes: env.MAX_PHOTOGRAPH_BYTES,
+    },
+    retention: {
+      accountYears: env.RETENTION_YEARS,
+      paymentRecordYears: env.PAYMENT_RECORD_RETENTION_YEARS,
     },
     migrateOnStart: env.MIGRATE_ON_START,
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,

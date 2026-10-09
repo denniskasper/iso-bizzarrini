@@ -15,6 +15,7 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createRetentionController } from './controllers/retention-controller.js';
 import { createRosterController } from './controllers/roster-controller.js';
 import { createRosterImportController } from './controllers/roster-import-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
@@ -38,6 +39,7 @@ import { createPartRecordRepository } from './repositories/part-record-repositor
 import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
+import { createRetentionRepository } from './repositories/retention-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
@@ -54,6 +56,7 @@ import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
@@ -136,6 +139,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const photographRepository = createPhotographRepository(db);
   const contributionRepository = createContributionRepository(db);
   const scanRepository = createScanRepository(db);
+  const retentionRepository = createRetentionRepository(db);
 
   const statusService = createStatusService({
     clock,
@@ -174,6 +178,14 @@ export function createApp(dependencies: AppDependencies): Express {
    */
   const rosterImportService = createRosterImportService({ db, clock });
   const clubService = createClubService({ clock, clubRepository });
+  const retentionService = createRetentionService({
+    terms: config.retention,
+    clock,
+    accountRepository,
+    retentionRepository,
+    fileStore,
+    logger,
+  });
 
   const catalogService = createCatalogService({ modelRepository, tavolaRepository });
   // **The way into the archive that does not start at the car** (ticket 22). Two repositories and
@@ -240,6 +252,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ gate, accountService });
   const rosterController = createRosterController({ gate, rosterService });
+  const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
   const searchController = createSearchController({ searchService });
@@ -302,6 +315,7 @@ export function createApp(dependencies: AppDependencies): Express {
       statusController,
       sessionController,
       rosterController,
+      retentionController,
       rosterImportController,
       clubController,
       searchController,

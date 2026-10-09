@@ -14,3 +14,24 @@ editorial job on that specific text.
 
 Payment records are retained for the statutory accounting period regardless, and the privacy
 statement must say so rather than promise an erasure the association cannot perform.
+
+## As built (issue #7)
+
+Three things the paragraphs above left open, decided when the rule was implemented.
+
+**Only published Contributions survive.** One still waiting, or one an Editor discarded, was
+never part of the archive; it is deleted with its author, photographs included.
+
+**A payment record keeps the payer's name.** A Membership term that records money outlives the
+Account: its link to the Account goes and the name is copied onto the row at that moment, since
+an unattributed payment is no use as an accounting record. Terms that record no money — opening
+entries, lines of the annual list — are deleted with the Account. Payment records of people
+already gone are themselves deleted once a configurable number of full calendar years has
+passed since the year the money arrived (`PAYMENT_RECORD_RETENTION_YEARS`, default ten — to be
+confirmed by the association's accountant, like the three years above).
+
+**The sweep is the application's own.** It runs at start-up and daily inside the one container
+(ADR 0009), on the injected clock, rather than as a cron job somebody has to remember to
+install. `roster:retention-sweep --dry-run` and the foot of the roster screen both show who it
+would delete next. Backups are outside it: a copy made before a deletion holds what was
+deleted until it is rotated out, and the privacy statement says so.

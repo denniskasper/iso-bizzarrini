@@ -1,10 +1,12 @@
-import type { RosterEntry } from '@ricambi/contracts';
+import type { Erasure, RosterEntry } from '@ricambi/contracts';
 import { useState } from 'react';
+import { EraseMember } from '@/components/roster/erase-member';
 import { RecordPayment } from '@/components/roster/record-payment';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
 import { standingReads, useCorrectMember, useInviteAgain } from '@/lib/roster';
+import { useSession } from '@/lib/session';
 
 /**
  * One person, and what an Administrator can do about them.
@@ -14,8 +16,19 @@ import { standingReads, useCorrectMember, useInviteAgain } from '@/lib/roster';
  * archive is a printed index, and a box floating over a list is chrome that has stopped getting
  * out of the way.
  */
-export function MemberRow({ member, today }: { member: RosterEntry; today: string }) {
+export function MemberRow({
+  member,
+  today,
+  onErased,
+}: {
+  member: RosterEntry;
+  today: string;
+  /** This row is about to disappear; what it left behind is the roster's to say. */
+  onErased: (member: RosterEntry, erased: Erasure) => void;
+}) {
   const [recording, setRecording] = useState(false);
+  const [erasing, setErasing] = useState(false);
+  const { account } = useSession();
   const inviteAgain = useInviteAgain();
   const correct = useCorrectMember();
 
@@ -45,7 +58,7 @@ export function MemberRow({ member, today }: { member: RosterEntry; today: strin
       <div className="flex flex-wrap items-center gap-1 pb-4">
         {/* Gone while its own panel is open, rather than turned into a second Cancel beside the
             one the panel already has. Two ways out of one form is one more than there is. */}
-        {!recording && (
+        {!recording && !erasing && (
           <Button variant="ghost" onClick={() => setRecording(true)}>
             Record a payment
           </Button>
@@ -85,6 +98,17 @@ export function MemberRow({ member, today }: { member: RosterEntry; today: strin
 
         {member.role !== 'member' && <span className="tag ml-1">{member.role}</span>}
 
+        {/*
+          Last in the row and pushed to its far end, away from the three things an Administrator
+          does every week. Not offered on the row of whoever is signed in: the archive refuses
+          it, and a button that can only ever be refused is not worth the slip it invites.
+        */}
+        {!erasing && !recording && member.id !== account?.id && (
+          <Button variant="ghost" className="sm:ml-auto" onClick={() => setErasing(true)}>
+            Erase…
+          </Button>
+        )}
+
         {inviteAgain.isSuccess && !inviteAgain.isPending && (
           <span className="ml-1 text-xs text-faint">A fresh link is on its way.</span>
         )}
@@ -98,6 +122,14 @@ export function MemberRow({ member, today }: { member: RosterEntry; today: strin
 
       {recording && (
         <RecordPayment member={member} today={today} onDone={() => setRecording(false)} />
+      )}
+
+      {erasing && (
+        <EraseMember
+          member={member}
+          onErased={(erased) => onErased(member, erased)}
+          onCancel={() => setErasing(false)}
+        />
       )}
     </li>
   );

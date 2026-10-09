@@ -13,6 +13,9 @@ import type {
   CategoryWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  ErasureResponse,
+  PrivacyResponse,
+  RetentionReport,
   CorrectClubRequest,
   CorrectMemberRequest,
   InspectPasswordSetupRequest,
@@ -177,6 +180,17 @@ export const api = {
     send<RosterEntryResponse>('POST', `/roster/${accountId}/invitation`, {}),
   recordPayment: (accountId: string, payment: RecordPaymentRequest) =>
     send<RosterEntryResponse>('POST', `/roster/${accountId}/payments`, payment),
+
+  /**
+   * **Letting go of people** (ADR 0007): one at a time on request, and by rule once they have
+   * been lapsed long enough. `retentionReport` is the dry run — who the next daily sweep would
+   * delete — and writes nothing; there is deliberately no call here that runs the sweep.
+   */
+  eraseMember: (accountId: string) =>
+    request<ErasureResponse>(`/roster/${accountId}`, { method: 'DELETE' }),
+  retentionReport: () => request<RetentionReport>('/roster/retention'),
+  /** The figures the privacy statement quotes, from the system that applies them. */
+  privacy: () => request<PrivacyResponse>('/privacy'),
 
   /**
    * **The Club's annual membership list, loaded instead of typed** (ticket 16).

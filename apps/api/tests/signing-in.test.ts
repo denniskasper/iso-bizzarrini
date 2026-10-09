@@ -278,7 +278,7 @@ describe('signing in', () => {
     it('stops honouring a session whose Account has been deleted', async () => {
       const member = await givenAMember(app, administrator);
 
-      await app.db.execute(`delete from accounts where email = '${member.email}'`);
+      await administrator.delete(`/api/roster/${member.entry.id}`).expect(200);
 
       await member.agent.get('/api/models').expect(401);
     });

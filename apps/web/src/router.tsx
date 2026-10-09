@@ -13,6 +13,7 @@ import { CategoryPage } from '@/routes/category-page';
 import { ClubPage } from '@/routes/club-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
+import { PrivacyPage } from '@/routes/privacy-page';
 import { ReviewPage } from '@/routes/review-page';
 import { RosterImportPage } from '@/routes/roster-import-page';
 import { RosterPage } from '@/routes/roster-page';
@@ -28,13 +29,14 @@ import { TavolaPage } from '@/routes/tavola-page';
  * screen: the archive is members-only, the API refuses all of it, and a screen that discovered
  * that for itself would be one of several slightly different ways of saying so.
  *
- * **Four routes stand outside it**, and all four for the same reason: asking to be let in cannot
+ * **Five routes stand outside it.** Four for the same reason: asking to be let in cannot
  * require already being in. Signing in and choosing a password from a link are the two ways in;
  * the roster and the Club are outside it because they are behind a *role* rather than behind a
  * Membership, and an Administrator whose own Membership has run out must still be able to reach
- * the screen that records their payment.
+ * the screen that records their payment. The fifth is the privacy statement, which is addressed
+ * to people who are not members yet and people who no longer are.
  */
-const OUTSIDE_THE_GATE = ['/sign-in', '/set-password', '/roster', '/club'];
+const OUTSIDE_THE_GATE = ['/sign-in', '/set-password', '/roster', '/club', '/privacy'];
 
 function RootLayout() {
   const atTheGate = useRouterState({
@@ -121,6 +123,13 @@ const clubRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/club',
   component: ClubPage,
+});
+
+/** What is kept about a person and for how long (ADR 0007). Open to anybody. */
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/privacy',
+  component: PrivacyPage,
 });
 
 const searchRoute = createRoute({
@@ -214,6 +223,7 @@ export const router = createRouter({
     rosterRoute,
     rosterImportRoute,
     clubRoute,
+    privacyRoute,
     searchRoute,
     modelRoute,
     categoriesRoute,

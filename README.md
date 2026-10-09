@@ -81,6 +81,7 @@ system and in production, and differs only by what it is handed.
 | `pnpm db:generate` | a migration from a change to `schema.ts` (then rename it, and strip `"public".`) |
 | `pnpm scans:measure` | what the archive's own scans say about the tiling question (ADR 0013) |
 | `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
+| `pnpm roster:retention-sweep -- --dry-run` | who the daily retention sweep would delete (ADR 0007) — without the flag, it deletes them |
 
 ### Pasting a catalog page, and getting one back
 

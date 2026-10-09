@@ -16,7 +16,8 @@
     "archive:load": "tsx scripts/load-archive.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "roster:invite-administrator": "tsx src/cli/invite-administrator.ts"
+    "roster:invite-administrator": "tsx src/cli/invite-administrator.ts",
+    "roster:retention-sweep": "tsx src/cli/retention-sweep.ts"
   },
   "dependencies": {
     "@ricambi/contracts": "workspace:*",

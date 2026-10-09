@@ -709,9 +709,19 @@ export const memberships = pgTable(
   'memberships',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    accountId: uuid('account_id')
-      .notNull()
-      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /**
+     * Whose term this is. **Null once the Account is gone and the row is a payment record** — the
+     * money has to be accounted for longer than the person has to be remembered (ADR 0007), so
+     * erasing somebody lets go of the reference and keeps the row. A term nobody paid for is not
+     * a payment record, and is deleted with the Account instead.
+     */
+    accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    /**
+     * Who paid, written **only at the moment their Account is erased**. Until then the name is
+     * the Account's and is read from there; afterwards this is the one place it survives, because
+     * a payment the Club cannot attribute is not a record an auditor can use.
+     */
+    payerName: text('payer_name'),
     /** The last day this term covers. A date, because membership runs in days and not instants. */
     paidThrough: date('paid_through', { mode: 'string' }).notNull(),
     /** How the Club came to grant this term — see `MEMBERSHIP_GRANTS`. */
@@ -735,6 +745,11 @@ export const memberships = pgTable(
   },
   (table) => [
     index('memberships_account_id_paid_through_index').on(table.accountId, table.paidThrough),
+    // A row is somebody's term or it is a payment record that says who paid. Never neither.
+    check(
+      'memberships_without_an_account_name_their_payer',
+      sql`${table.accountId} is not null or ${table.payerName} is not null`,
+    ),
     check(
       'memberships_granted_by_is_known',
       sql`${table.grantedBy} in (${oneOf(MEMBERSHIP_GRANTS)})`,

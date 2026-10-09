@@ -148,6 +148,27 @@ _Avoid_: Moderator, curator, maintainer
 An Account that may also maintain the roster, record payments, and appoint Editors.
 _Avoid_: Admin, superuser, operator, club officer
 
+**Former member**:
+What a published Contribution says where its author's name stood, once their Account is gone.
+A byline, not a person: nothing on the platform can say which former member.
+_Avoid_: Deleted user, anonymous, unknown
+
+**Erasure**:
+An Administrator deleting one person's Account and personal data because they asked. What
+they published stays, under "former member"; what nobody had published goes with them.
+_Avoid_: Deactivation, removal, account closure
+
+**Retention period**:
+How long a lapsed Account is kept before it is deleted automatically, counted from its
+Paid-through. Set by the association, not by the platform.
+_Avoid_: Expiry, grace period, archive period
+
+**Payment record**:
+A Membership term the Club was paid money for. Kept for the statutory accounting period with
+the payer's name, whether or not their Account still exists — the one thing an Erasure does
+not erase.
+_Avoid_: Invoice, receipt, transaction
+
 **Renewal**:
 What a member is told in order to buy a new Membership term: the amount, where to send it,
 the words to write on the transfer and who to ask. Instructions to a person, not a record of

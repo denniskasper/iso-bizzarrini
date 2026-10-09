@@ -741,7 +741,8 @@
    * The column measure lives here rather than in feature code, so the header above the list and
    * the rows below it cannot drift apart.
    */
-  .roster-row {
+  .roster-row,
+  .retention-row {
     display: grid;
     grid-template-columns: 1fr;
     align-items: baseline;
@@ -754,6 +755,16 @@
   @media (width >= 48rem) {
     .roster-row {
       grid-template-columns: 1fr 11rem 8rem;
+    }
+
+    /*
+     * Somebody the retention sweep is about to delete (ADR 0007): the roster's own row, with two
+     * dates where it has a standing and a date. Both are numbers to be compared with each other,
+     * so both get the fixed column. A class of its own because it is a different list — nothing
+     * on it can be acted on, and nothing that looks for a member's row should find this one.
+     */
+    .retention-row {
+      grid-template-columns: 1fr 8rem 8rem;
     }
   }
 

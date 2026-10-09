@@ -6,6 +6,7 @@ import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
 import type { ContributionController } from '../controllers/contribution-controller.js';
 import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
+import type { RetentionController } from '../controllers/retention-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
@@ -45,6 +46,7 @@ export function createApiRouter(dependencies: {
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
+  retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
   searchController: SearchController;
@@ -65,6 +67,7 @@ export function createApiRouter(dependencies: {
     statusController,
     sessionController,
     rosterController,
+    retentionController,
     rosterImportController,
     clubController,
     searchController,
@@ -103,6 +106,11 @@ export function createApiRouter(dependencies: {
   router.post('/password-setups/inspect', sessionController.inspectPasswordSetup);
   router.post('/password-setups', sessionController.setPassword);
 
+  // How long the archive keeps what it knows about a person — the figures the privacy statement
+  // quotes (ADR 0007). Open, because a privacy statement nobody can read until they have handed
+  // over their address is not one; it says nothing about anybody.
+  router.get('/privacy', retentionController.readTerms);
+
   // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
   // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still
   // record the payment that un-lapses somebody.
@@ -113,6 +121,11 @@ export function createApiRouter(dependencies: {
   router.post('/roster/:accountId/invitation', administratorsOnly, rosterController.invite);
   // Money that arrived by bank transfer. A new term, never an edit of an old one.
   router.post('/roster/:accountId/payments', administratorsOnly, rosterController.recordPayment);
+  // Deleting one person's personal data on request (story 131, ADR 0007). What they published
+  // stays; what the Club was paid stays; the person does not.
+  router.delete('/roster/:accountId', administratorsOnly, retentionController.erase);
+  // The dry run: who the next retention sweep would delete, while they can still be asked.
+  router.get('/roster/retention', administratorsOnly, retentionController.report);
 
   // **The Club's annual membership list, loaded instead of typed** (ticket 16). Above
   // `/roster/:accountId` in the file and below it on the wire either way — `import` is not a uuid,

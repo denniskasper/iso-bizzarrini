@@ -119,8 +119,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       <footer className="border-t border-line bg-surface-raised">
-        <div className="mx-auto w-full max-w-6xl px-gutter py-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-2 px-gutter py-4">
           <ServiceStatusStrip />
+          {/* On every screen, signed in or not: what is kept about a person is not something
+              they should have to be a member to find out. */}
+          <Link to="/privacy" className={chromeLink}>
+            Privacy
+          </Link>
         </div>
       </footer>
     </div>
