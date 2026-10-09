@@ -15,9 +15,10 @@ limitation to work around — it is the point:
 
 - Everything is stamped with the DEMO band, the warm chrome and `DEMO` in the browser tab, so
   no screenshot of it can be mistaken for the Club's archive.
-- The payment provider and the renewal reminders are refused outright, and its e-mail is written
-  to the log rather than sent. It cannot reach a real person or a real mandate, and it will not
-  start if it is handed something that could.
+- It has no payment provider, so nobody is offered a way to pay online; the renewal reminders
+  are refused outright, and its e-mail is written to the log rather than sent. It cannot reach a
+  real person or a real mandate, and it will not start if it is handed something that could —
+  a live payment key included.
 - Setting `ENVIRONMENT_MODE=production` on this stack **will not start**: it writes its e-mail to
   the log, and production refuses that outright — an invitation nobody receives, with its
   single-use secret left in a log file (ADR 0012). It seeds itself an invented catalog too, which
@@ -25,8 +26,9 @@ limitation to work around — it is the point:
   configuration flag.
 
 **Nothing real goes into it.** It writes itself an invented catalog: three cars the factory
-really made, four Tavole and three drawings generated in SVG. There is no import path from
-anywhere, because there is no importer.
+really made, four Tavole and three drawings generated in SVG. The Club's own material is never
+loaded here: the archive loader ([`archive-migration.md`](archive-migration.md)) is run by hand
+against the Club's deployment, and nothing in this stack calls it.
 
 ## Before you start
 
