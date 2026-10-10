@@ -36,6 +36,12 @@ export function yearsOn(day: string, years: number): string {
   return new Date(Date.UTC(year + years, month - 1, date)).toISOString().slice(0, 10);
 }
 
+/** The day a number of days from another — backwards for a negative number. */
+export function daysOn(day: string, days: number): string {
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10);
+}
+
 /**
  * A clock tests (and seeded non-production data) can move about. Advancing it is how expiry,
  * reminder windows and retention are driven.

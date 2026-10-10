@@ -4,6 +4,7 @@ import { pinoHttp } from 'pino-http';
 import { createGate } from './access/gate.js';
 import { createPasswordHasher, type PasswordHasher } from './access/passwords.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
+import { createReminders } from './composition/reminder-run.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
@@ -16,6 +17,7 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createReminderController } from './controllers/reminder-controller.js';
 import { createRetentionController } from './controllers/retention-controller.js';
 import { createRosterController } from './controllers/roster-controller.js';
 import { createRosterImportController } from './controllers/roster-import-controller.js';
@@ -289,6 +291,10 @@ export function createApp(dependencies: AppDependencies): Express {
     paymentProvider,
     subscriptionService,
   });
+  const reminderController = createReminderController({
+    // Built the way the nightly run builds it, so the preview and the run are one reading.
+    reminderService: createReminders({ db, clock, logger, emailSender, paymentProvider, config }),
+  });
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
@@ -370,6 +376,7 @@ export function createApp(dependencies: AppDependencies): Express {
       sessionController,
       rosterController,
       subscriptionController,
+      reminderController,
       retentionController,
       rosterImportController,
       clubController,

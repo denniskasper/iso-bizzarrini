@@ -1695,7 +1695,7 @@ export interface RosterImportPlan {
  *
  * Everything about the association that has to change without a developer (story 130): what
  * membership costs, where the money goes, how a member should label their transfer, and what a
- * renewal reminder will say when ticket 17 sends one.
+ * renewal reminder says, whether reminders are on, and where the treasurer's digest goes.
  */
 export interface ClubRecord {
   /** As typed and as read — `45.00`. Rendered rather than the minor units it is stored in. */
@@ -1716,6 +1716,14 @@ export interface ClubRecord {
    * nobody can act on without an address to act on it at (ticket 15).
    */
   officeEmail: string | null;
+  /**
+   * Whether an Administrator has switched renewal reminders on (issue #3). Off until somebody
+   * decides otherwise; the environment has to allow sending as well, and `ReminderPlan` says
+   * whether it does.
+   */
+  remindersOn: boolean;
+  /** Where the treasurer's digest of Memberships about to run out and just lapsed goes. Null sends none. */
+  treasurerEmail: string | null;
   /**
    * **Who the association is**, for the legal notice (issue #9): the registered name with its
    * legal form, where it can be served, who may speak for it, and where it is registered. Public
@@ -1745,6 +1753,97 @@ export interface ClubResponse {
 }
 
 export type CorrectClubRequest = Partial<ClubRecord>;
+
+/** Somebody a renewal reminder is, or will be, written to. */
+export interface ReminderRecipient {
+  accountId: string;
+  name: string;
+  email: string;
+  /** ISO date. The term the reminder is about runs to this day. */
+  paidThrough: string;
+  /** ISO date — the first day the reminder may go out: thirty days before the Paid-through. */
+  sendsOn: string;
+  /** What the treasurer should expect to read on the transfer. */
+  reference: string;
+}
+
+/**
+ * Why somebody whose Membership is about to run out gets no reminder. `short-term` is a term
+ * shorter than the reminder window — a backfilled Membership must not receive a demand;
+ * `renews-itself` is a member whose Subscription will collect the fee without being asked.
+ */
+export type ReminderSkipReason = 'short-term' | 'renews-itself';
+
+export interface ReminderSkipped {
+  accountId: string;
+  name: string;
+  paidThrough: string;
+  why: ReminderSkipReason;
+}
+
+/** One line of what the treasurer is told: who, to when, and what their transfer should say. */
+export interface TreasurerEntry {
+  name: string;
+  paidThrough: string;
+  reference: string;
+  /** Their Subscription will collect the fee by itself, so no transfer is to be expected. */
+  renewsItself: boolean;
+}
+
+export interface Letter {
+  subject: string;
+  text: string;
+}
+
+/**
+ * `GET /api/reminders` — **exactly who would be written to, before anything is switched on**
+ * (issue #3). The same reading the nightly run does, writing nothing and sending nothing.
+ */
+export interface ReminderPlan {
+  /** ISO date — the archive's today, which every date here was measured against. */
+  asOf: string;
+  /** How many days before a Paid-through the reminder goes out. */
+  windowDays: number;
+  /**
+   * The three things that all have to be true before a single letter leaves. A screen shows
+   * which of them is not, rather than a switch that appears to do nothing.
+   */
+  sending: {
+    /**
+     * `REMINDERS_ENABLED`, which only a production environment may set — and an e-mail
+     * transport that delivers, since a letter that reaches nobody must not count as sent.
+     */
+    environmentAllows: boolean;
+    /** The Administrator's own switch, on the Club's record. */
+    switchedOn: boolean;
+    /** The Club has said what it charges and where to send it, so a reminder can be acted on. */
+    canBePaid: boolean;
+  };
+  /** Would be written to by a run today. */
+  due: ReminderRecipient[];
+  /** Would become due within the coming window, in the order they would. */
+  upcoming: ReminderRecipient[];
+  skipped: ReminderSkipped[];
+  /** The letter as the first of them would receive it. Null where there is nobody to write to. */
+  letter: Letter | null;
+  digest: {
+    treasurerEmail: string | null;
+    /** Paid-through within the coming window, soonest first. */
+    runningOut: TreasurerEntry[];
+    /** Ran out within the last window, most recent first. */
+    lapsed: TreasurerEntry[];
+    /** ISO date the digest last went out. Null where it never has. */
+    lastSentOn: string | null;
+    /** The digest as it would be sent today. Null where there is nobody to list. */
+    letter: Letter | null;
+  };
+}
+
+/** `POST /api/reminders/run` — what running the job on demand sent. */
+export interface ReminderRun {
+  reminders: number;
+  digest: boolean;
+}
 
 /**
  * `GET /api/renewal` — **everything a member needs in order to pay, in the words to use.**

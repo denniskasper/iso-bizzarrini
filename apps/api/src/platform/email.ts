@@ -28,7 +28,7 @@ export interface EmailSender {
 
 /** Captures everything sent, for tests and for a non-production mailbox nobody can reach. */
 export class InMemoryEmailSender implements EmailSender {
-  readonly reachesRealPeople = false;
+  readonly reachesRealPeople: boolean = false;
   readonly #sent: OutboundEmail[] = [];
 
   async send(email: OutboundEmail): Promise<void> {

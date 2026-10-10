@@ -87,6 +87,10 @@ Taking the fee through the platform is off unless an environment is given Stripe
 set that up, and what must be in place before a real member pays, is in
 [`docs/operations/payments.md`](docs/operations/payments.md).
 
+Renewal reminders are off twice over — by environment and by an Administrator's own switch — and
+the Reminders screen shows who would be written to before either is on. Turning them on, and what
+to read first, is in [`docs/operations/reminders.md`](docs/operations/reminders.md).
+
 ### Pasting a catalog page, and getting one back
 
 Open a drawing and scroll past its numbers to **A whole page at once**. Paste the rows straight

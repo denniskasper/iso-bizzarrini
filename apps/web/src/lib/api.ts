@@ -13,6 +13,8 @@ import type {
   CategoryWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  ReminderPlan,
+  ReminderRun,
   MembershipStandingResponse,
   SetAutoRenewalRequest,
   StartSubscriptionResponse,
@@ -242,6 +244,14 @@ export const api = {
     send<MembershipStandingResponse>('PUT', '/subscription/auto-renewal', {
       renews,
     } satisfies SetAutoRenewalRequest),
+
+  /**
+   * **Renewal reminders** (issue #3). `reminderPlan` is the preview — exactly who would be
+   * written to and what the treasurer would be told — and sends nothing. `runReminders` runs
+   * the nightly job now, and is refused with the reason while sending is not on.
+   */
+  reminderPlan: () => request<ReminderPlan>('/reminders'),
+  runReminders: () => send<ReminderRun>('POST', '/reminders/run', {}),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

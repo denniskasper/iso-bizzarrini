@@ -105,7 +105,10 @@ function Statement({ privacy }: { privacy: PrivacyResponse }) {
           the date your Membership is paid through, as the Club gave them. That is all Ricambi takes
           from the Club’s membership list: it is what deciding whether you may read the archive
           needs, and nothing else on the list is read or kept. The Club’s Administrators can see the
-          roster; other members cannot.
+          roster; other members cannot. Where the Club has switched reminders on, Ricambi writes to
+          that address about a month before your Membership runs out — one reminder for each
+          membership year, and no more. The Club’s treasurer is sent a list of the members whose
+          Membership is about to run out or just has.
         </p>
         <p>
           <strong className="font-semibold">Signing in.</strong> Your password, stored so that

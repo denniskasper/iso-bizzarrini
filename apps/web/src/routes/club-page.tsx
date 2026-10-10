@@ -288,7 +288,7 @@ function ClubForm({ club }: { club: ClubRecord }) {
 
 /** The fields that differ, and only those: the correction is a patch, and this is what is in it. */
 function changedIn(draft: ClubRecord, saved: ClubRecord): CorrectClubRequest {
-  const changed: Partial<Record<keyof ClubRecord, string | null>> = {};
+  const changed: Partial<Record<keyof ClubRecord, string | boolean | null>> = {};
   for (const key of Object.keys(draft) as (keyof ClubRecord)[]) {
     // An empty box and a field nobody has written are the same thing, and neither is a change.
     if ((saved[key] ?? '') !== (draft[key] ?? '')) {

@@ -182,6 +182,17 @@ anything — nothing is written when one is read. It describes the bank transfer
 Club receives and an Administrator records; paying through the platform is a **Subscription**.
 _Avoid_: Renewal date (that is the **Paid-through**), invoice, checkout
 
+**Reminder**:
+The one e-mail a member is sent before a Membership term ends, carrying the **Renewal**. One
+per term, and only where an Administrator has switched reminders on.
+_Avoid_: Notification, dunning, renewal notice, nag
+
+**Treasurer's digest**:
+The weekly list, sent to the treasurer, of members whose Membership is about to run out or
+just has, each with the payment reference to expect. The same lists are on the Reminders
+screen.
+_Avoid_: Report, statement, overdue list
+
 **Club office**:
 Whoever answers for the association when something is wrong that money will not fix. A
 correspondent rather than a role on the platform, which is why it has an address and no

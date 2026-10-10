@@ -200,7 +200,7 @@ export interface AppConfig {
     | { provider: 'none' }
     | { provider: 'stripe'; stripe: { secretKey: string; webhookSecret: string } };
   /**
-   * Read by the environment guard now, and by the reminder run at ticket 17 — which, if it does
+   * Read by the environment guard, and by the reminder run (issue #3) — which, if it ever does
    * not go through `createApp`, owes `assertSafeForEnvironment` a call of its own (ADR 0012).
    */
   remindersEnabled: boolean;
