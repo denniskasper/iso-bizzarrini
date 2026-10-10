@@ -1,7 +1,12 @@
 name: CI
 
+# One run per change. A branch is checked by its pull request and `main` by the push that
+# lands on it — with both triggers unfiltered, pushing to a branch that has a pull request open
+# ran every job twice for the same commit. A branch with no pull request yet can still be run
+# by hand.
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
