@@ -7,6 +7,7 @@ import type { ClubController } from '../controllers/club-controller.js';
 import type { LegalController } from '../controllers/legal-controller.js';
 import type { ContributionController } from '../controllers/contribution-controller.js';
 import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
+import type { ReminderController } from '../controllers/reminder-controller.js';
 import type { RetentionController } from '../controllers/retention-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
@@ -52,6 +53,7 @@ export function createApiRouter(dependencies: {
   sessionController: SessionController;
   rosterController: RosterController;
   subscriptionController: SubscriptionController;
+  reminderController: ReminderController;
   retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
@@ -75,6 +77,7 @@ export function createApiRouter(dependencies: {
     sessionController,
     rosterController,
     subscriptionController,
+    reminderController,
     retentionController,
     rosterImportController,
     clubController,
@@ -146,6 +149,11 @@ export function createApiRouter(dependencies: {
   // does: nothing about this may be one wrong boolean away from writing a hundred rows.
   router.post('/roster/import/preview', administratorsOnly, rosterImportController.preview);
   router.post('/roster/import', administratorsOnly, rosterImportController.apply);
+
+  // **Renewal reminders** (issue #3): who would be written to, read before anything is switched
+  // on, and the job run by hand. An Administrator's, like the roster both of them read.
+  router.get('/reminders', administratorsOnly, reminderController.plan);
+  router.post('/reminders/run', administratorsOnly, reminderController.run);
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);

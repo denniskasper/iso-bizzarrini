@@ -53,10 +53,10 @@ Art. 30(1) GDPR, drafted for Ricambi. **A draft for the association to adopt** â
 
 | | |
 | --- | --- |
-| Purpose | Invitations and password-reset links. Renewal reminders are planned and not yet sent. |
+| Purpose | Invitations and password-reset links. Where an Administrator has switched them on: one renewal reminder per membership term, thirty days before it ends, and a weekly digest to the treasurer naming members whose term is about to end or has just ended. |
 | Legal basis | Art. 6(1)(b) |
-| Data | E-mail address, name, the link |
-| Recipients | `<EMAIL_PROVIDER>` |
+| Data | E-mail address, name, the link. A reminder also carries the member's Paid-through date and payment reference; the digest carries those for each member it lists. That a term has had its reminder is recorded on the term. |
+| Recipients | `<EMAIL_PROVIDER>`; for the digest, the treasurer's own mailbox, at the address set on the Reminders screen |
 | Erasure | Nothing sent is kept by Ricambi. What `<EMAIL_PROVIDER>` retains, and for how long, is in its agreement. |
 
 ### 4. Contributions and their photographs

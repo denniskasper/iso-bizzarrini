@@ -59,6 +59,12 @@ export interface TestAppOptions {
    * the capture either way.
    */
   emailSender?: EmailSender;
+  /**
+   * The capture itself, where a test needs one that **says it delivers**. A system only sends
+   * reminders through a sender that can reach somebody, so the suite about reminders hands in a
+   * mailbox that claims to — and still, being a list in memory, reaches nobody.
+   */
+  emails?: InMemoryEmailSender;
   paymentProvider?: PaymentProvider;
 }
 
@@ -113,7 +119,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
 
   const clock = new MutableClock(options.now ?? DEFAULT_TEST_NOW);
   const logger = createLogger(config);
-  const emails = new InMemoryEmailSender();
+  const emails = options.emails ?? new InMemoryEmailSender();
   const emailSender = options.emailSender ?? emails;
   const paymentProvider = options.paymentProvider ?? new UnconfiguredPaymentProvider();
   const breached = new KnownBreachedPasswords();

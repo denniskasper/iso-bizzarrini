@@ -69,6 +69,9 @@ function Roster() {
         {!adding && (
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild variant="outline" size="lg">
+              <Link to="/reminders">Reminders</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
               <Link to="/roster/import">Load a spreadsheet</Link>
             </Button>
             <Button variant="primary" size="lg" onClick={() => setAdding(true)}>

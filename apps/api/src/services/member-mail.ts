@@ -60,7 +60,7 @@ export function passwordResetEmail(reset: PasswordLink): OutboundEmail {
 }
 
 /** `3 September 2026`. Read by a person, so not the ISO form the archive stores. */
-function asDay(instant: Date): string {
+export function asDay(instant: Date): string {
   return instant.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',

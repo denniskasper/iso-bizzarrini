@@ -694,6 +694,18 @@
    * deliberately visible before either is read: evidence and interpretation are what a member is
    * weighing when they decide what to buy, and nobody may "improve" the left-hand one.
    */
+  /*
+   * A letter, as it will arrive: plain text in the mono face, wrapped where a mail client
+   * would wrap it and never scrolled sideways on a phone.
+   */
+  .letter {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
   .transcription {
     padding: --spacing(3) --spacing(4);
     background-color: var(--surface-sunken);
@@ -742,7 +754,8 @@
    * the rows below it cannot drift apart.
    */
   .roster-row,
-  .retention-row {
+  .retention-row,
+  .reminder-row {
     display: grid;
     grid-template-columns: 1fr;
     align-items: baseline;
@@ -765,6 +778,15 @@
      */
     .retention-row {
       grid-template-columns: 1fr 8rem 8rem;
+    }
+
+    /*
+     * Somebody a renewal reminder is about (issue #3): who, and the one date that matters in
+     * the list they are on. The reference sits under the name in the mono face, because it is
+     * what the treasurer will be looking for on a statement.
+     */
+    .reminder-row {
+      grid-template-columns: 1fr 9rem;
     }
   }
 

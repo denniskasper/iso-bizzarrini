@@ -12,6 +12,7 @@ import { LEGAL_QUERY_KEY, usePrivacy } from '@/lib/legal';
 /** The roster, and the four things an Administrator does to it. */
 export const ROSTER_QUERY_KEY = ['roster'] as const;
 export const CLUB_QUERY_KEY = ['club'] as const;
+export const REMINDERS_QUERY_KEY = ['reminders'] as const;
 
 export function useRoster() {
   return useQuery({ queryKey: ROSTER_QUERY_KEY, queryFn: api.roster });
@@ -89,6 +90,21 @@ export function useRetentionTerms() {
   return { ...privacy, data: privacy.data?.retention };
 }
 
+/** Who a renewal reminder would be written to, and what the treasurer would be told. */
+export function useReminderPlan() {
+  return useQuery({ queryKey: REMINDERS_QUERY_KEY, queryFn: api.reminderPlan });
+}
+
+/** Running the nightly job now. Whoever it wrote to is no longer due, so the plan is re-read. */
+export function useRunReminders() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.runReminders,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: REMINDERS_QUERY_KEY }),
+  });
+}
+
 /** `3` reads "3 years" and `1` reads "1 year", wherever a retention period is put in words. */
 export function years(count: number): string {
   return count === 1 ? '1 year' : `${count} years`;
@@ -135,6 +151,8 @@ export function useCorrectClub() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: CLUB_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: LEGAL_QUERY_KEY }),
+        // The reminder's wording, its switch and the treasurer's address are on this record.
+        queryClient.invalidateQueries({ queryKey: REMINDERS_QUERY_KEY }),
       ]),
   });
 }

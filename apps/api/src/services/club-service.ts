@@ -35,6 +35,8 @@ const UNWRITTEN: ClubRecord = {
   reminderText:
     'Your Club membership runs out shortly. Renewing keeps your access to the parts archive.',
   officeEmail: null,
+  remindersOn: false,
+  treasurerEmail: null,
   // Nobody has said who the association is, so nothing here pretends to know (issue #9).
   legalName: null,
   postalAddress: null,
@@ -115,6 +117,8 @@ export function createClubService(dependencies: {
             paymentReference: merged.paymentReference,
             reminderText: merged.reminderText,
             officeEmail: blankToNull(merged.officeEmail),
+            remindersOn: merged.remindersOn,
+            treasurerEmail: blankToNull(merged.treasurerEmail),
             legalName: blankToNull(merged.legalName),
             postalAddress: blankToNull(merged.postalAddress),
             representedBy: blankToNull(merged.representedBy),
@@ -139,22 +143,32 @@ export function createClubService(dependencies: {
     },
 
     async renewalFor(member) {
-      const club = await read();
-
-      return {
-        fee: club.fee,
-        currency: club.currency,
-        bankAccountHolder: club.bankAccountHolder,
-        bankName: club.bankName,
-        iban: club.iban,
-        bic: club.bic,
-        reference: renderReference(club.paymentReference, {
-          name: member.name,
-          year: yearBeingPaidFor(member.paidThrough, today(clock)),
-        }),
-        officeEmail: club.officeEmail,
-      };
+      return renewalOf(await read(), member, today(clock));
     },
+  };
+}
+
+/**
+ * One member's instructions, from a Club record already in hand. Apart from `renewalFor` so
+ * that something writing to a hundred members — the reminder run — reads the Club once.
+ */
+export function renewalOf(
+  club: ClubRecord,
+  member: { name: string; paidThrough: string | null },
+  today: string,
+): Renewal {
+  return {
+    fee: club.fee,
+    currency: club.currency,
+    bankAccountHolder: club.bankAccountHolder,
+    bankName: club.bankName,
+    iban: club.iban,
+    bic: club.bic,
+    reference: renderReference(club.paymentReference, {
+      name: member.name,
+      year: yearBeingPaidFor(member.paidThrough, today),
+    }),
+    officeEmail: club.officeEmail,
   };
 }
 
@@ -198,6 +212,8 @@ function toClubRecord(row: ClubRow): ClubRecord {
     paymentReference: row.paymentReference,
     reminderText: row.reminderText,
     officeEmail: row.officeEmail,
+    remindersOn: row.remindersOn,
+    treasurerEmail: row.treasurerEmail,
     legalName: row.legalName,
     postalAddress: row.postalAddress,
     representedBy: row.representedBy,

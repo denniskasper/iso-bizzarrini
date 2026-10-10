@@ -750,6 +750,12 @@ export const memberships = pgTable(
      * tells us about it, and under whatever event id.
      */
     providerPaymentId: text('provider_payment_id').unique(),
+    /**
+     * When the renewal reminder for **this term** went out (issue #3). On the term and not on
+     * the person, which is the whole of the once-only rule: a re-run, a retry or a restore finds
+     * it set and sends nothing, and a renewal is a new row with nothing set on it yet.
+     */
+    reminderSentAt: timestamp('reminder_sent_at', { withTimezone: true }),
   },
   (table) => [
     index('memberships_account_id_paid_through_index').on(table.accountId, table.paidThrough),
@@ -801,7 +807,7 @@ export const club = pgTable(
      * nothing here parses what a member actually typed.
      */
     paymentReference: text('payment_reference').notNull(),
-    /** What a renewal reminder says. Sent by ticket 17; editable here from now. */
+    /** The opening sentence of a renewal reminder (issue #3), in the Club's own words. */
     reminderText: text('reminder_text').notNull(),
     /**
      * Where a member writes when something is wrong that a transfer will not fix. The one field
@@ -809,6 +815,17 @@ export const club = pgTable(
      * "contact the Club office" is advice nobody can act on without an address.
      */
     officeEmail: text('office_email'),
+    /**
+     * Whether an Administrator has switched renewal reminders on (issue #3). **Off until
+     * somebody decides otherwise**, because the first roster a Club loads carries dates nobody
+     * has checked, and a reminder is a demand for money sent in the Club's interest. The
+     * environment has to allow it as well — see `REMINDERS_ENABLED`.
+     */
+    remindersOn: boolean('reminders_on').notNull().default(false),
+    /** Where the treasurer's digest of Memberships about to run out and just lapsed is sent. */
+    treasurerEmail: text('treasurer_email'),
+    /** When that digest last went out, so that "weekly" survives a restart. */
+    treasurerDigestSentAt: timestamp('treasurer_digest_sent_at', { withTimezone: true }),
     /**
      * **Who the association is, for the legal notice** (issue #9): its registered name, where it
      * can be served, who may speak for it and where it is registered. Public once written, and

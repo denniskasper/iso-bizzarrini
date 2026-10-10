@@ -72,6 +72,9 @@ const ADMINISTRATORS_ONLY = new Set([
   // exactly who this must not stop.
   'POST /api/roster/import',
   'POST /api/roster/import/preview',
+  // Who a renewal reminder would be written to, and running the job by hand (issue #3).
+  'GET /api/reminders',
+  'POST /api/reminders/run',
   'GET /api/club',
   'PATCH /api/club',
   // Who handles members' data for the association, and whether each agreement is signed

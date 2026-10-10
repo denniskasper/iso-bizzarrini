@@ -23,6 +23,8 @@ const correctClubBody = z.object({
   paymentReference: required('A payment reference format is required').optional(),
   reminderText: required('A reminder text is required').optional(),
   officeEmail: blankToNull().optional(),
+  remindersOn: z.boolean().optional(),
+  treasurerEmail: blankToNull().optional(),
   legalName: blankToNull().optional(),
   postalAddress: blankToNull().optional(),
   representedBy: blankToNull().optional(),

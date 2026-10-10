@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { seedPracticeArchiveIfEmpty } from './catalog/practice-archive.js';
 import { assertSeedable } from './composition/environment-safety.js';
+import { scheduleReminders } from './composition/reminder-run.js';
 import { scheduleRetentionSweep } from './composition/retention-sweep.js';
 import {
   createBreachedPasswordCheck,
@@ -66,12 +67,13 @@ if (config.seedPracticeArchive) {
 }
 
 const paymentProvider = createPaymentProvider(config, systemClock);
+const emailSender = createEmailSender(config, logger);
 
 const app = createApp({
   config,
   clock: systemClock,
   db: database.db,
-  emailSender: createEmailSender(config, logger),
+  emailSender,
   paymentProvider,
   breachedPasswords: createBreachedPasswordCheck(config, logger),
   fileStore,
@@ -93,6 +95,21 @@ const stopRetentionSweep = scheduleRetentionSweep({
   paymentProvider,
 });
 
+/**
+ * **Renewal reminders, nightly** (issue #3). Scheduled in every environment and sending in
+ * almost none: nothing leaves unless this environment allows it, an Administrator has switched
+ * it on and the Club has said where the money goes. `createApp` has already refused to start a
+ * practice system that claims it may send them.
+ */
+const stopReminders = scheduleReminders({
+  db: database.db,
+  clock: systemClock,
+  logger,
+  emailSender,
+  paymentProvider,
+  config,
+});
+
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, environment: config.environmentName }, 'Ricambi API listening');
 });
@@ -110,6 +127,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.once(signal, () => {
     logger.info({ signal }, 'Shutting down');
     stopRetentionSweep();
+    stopReminders();
     server.close(() => {
       void database.close().then(() => process.exit(0));
     });

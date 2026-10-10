@@ -16,6 +16,7 @@ import { MembershipPage } from '@/routes/membership-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
 import { PrivacyPage } from '@/routes/privacy-page';
+import { RemindersPage } from '@/routes/reminders-page';
 import { ReviewPage } from '@/routes/review-page';
 import { RosterImportPage } from '@/routes/roster-import-page';
 import { RosterPage } from '@/routes/roster-page';
@@ -47,6 +48,7 @@ const OUTSIDE_THE_GATE = [
   '/privacy',
   '/legal-notice',
   '/membership',
+  '/reminders',
 ];
 
 function RootLayout() {
@@ -128,6 +130,16 @@ const rosterImportRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/roster/import',
   component: RosterImportPage,
+});
+
+/**
+ * Who a renewal reminder would be written to (issue #3). An Administrator's, and outside the
+ * gate with the roster it reads: behind a role, not behind a Membership.
+ */
+const remindersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reminders',
+  component: RemindersPage,
 });
 
 const clubRoute = createRoute({
@@ -254,6 +266,7 @@ export const router = createRouter({
     rosterRoute,
     rosterImportRoute,
     clubRoute,
+    remindersRoute,
     privacyRoute,
     membershipRoute,
     legalNoticeRoute,
