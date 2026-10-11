@@ -4,10 +4,21 @@ name: CI
 # lands on it — with both triggers unfiltered, pushing to a branch that has a pull request open
 # ran every job twice for the same commit. A branch with no pull request yet can still be run
 # by hand.
+#
+# A change that touches nothing but prose runs nothing. No job reads it: Prettier ignores
+# Markdown and `docs/` (`.prettierignore`), no test opens either, and neither is copied into the
+# image, so a preview deployed from it would be the one already running. A change that touches
+# prose *and* anything else runs everything, as before.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
