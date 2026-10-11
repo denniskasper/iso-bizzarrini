@@ -185,7 +185,7 @@ export function createGate(dependencies: {
 
 /**
  * `secure` follows the connection rather than a configuration flag: the deployment terminates
- * TLS at Caddy and `trust proxy` is set, so `request.secure` is the truth, and a laptop on
+ * TLS at Traefik and `trust proxy` is set, so `request.secure` is the truth, and a laptop on
  * plain http still gets a working cookie without anyone having to remember a switch.
  *
  * `sameSite: 'lax'` because a shared deep link into the archive is a plain navigation and must

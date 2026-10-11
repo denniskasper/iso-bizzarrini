@@ -9,8 +9,8 @@ import {
 } from '../src/http/keep-alive.js';
 
 /**
- * **The reproduction for ticket 26.** A client that pools connections — Caddy in front of the
- * real deployment, Playwright's `apiRequestContext` in the browser suite — hands a request to a
+ * **The reproduction for ticket 26.** A client that pools connections — Traefik in front of
+ * every deployment, Playwright's `apiRequestContext` in the browser suite — hands a request to a
  * socket it has been holding idle. If the server has already decided to close that socket, the
  * request goes into a connection on its way out and the client sees `socket hang up`.
  *
@@ -102,7 +102,7 @@ describe('keep-alive, so a pooling client never writes into a closing socket', (
    * connection that is merely idle. Both servers below run with `headersTimeout` far *below*
    * their keep-alive window, which is the arrangement the old advice calls a bug.
    *
-   * A second rather than two minutes, so the suite is not waiting. **Both servers sweep every
+   * A second rather than ninety seconds, so the suite is not waiting. **Both servers sweep every
    * 100 ms**, because Node enforces this bound on a sweep that is otherwise 30 seconds apart —
    * and an idle test that let the default stand would be waiting 2 seconds for a sweep that
    * could not fire, so it would pass whatever the semantics were and pin nothing at all.

@@ -56,7 +56,7 @@ pointed somewhere it should not be.
 | `ENVIRONMENT_MODE` | `production` — set deliberately, once | anything else, including unset |
 | `ENVIRONMENT_NAME` | e.g. `production` | e.g. `demo` |
 | `DATABASE_URL` | the archive | **its own database**, never a copy of the archive's |
-| `EMAIL_TRANSPORT` | the real transport (ticket 14) | `none`, `memory` or `log` — never one that can reach an inbox |
+| `EMAIL_TRANSPORT` | `smtp` (issue #16) | `none`, `memory` or `log` — never one that can reach an inbox |
 | `PAYMENT_PROVIDER` | live keys (ticket 18) | test-mode keys |
 | `REMINDERS_ENABLED` | `true` once an Administrator has previewed the recipients | must be `false` |
 
@@ -96,19 +96,13 @@ or database change touching it.** Record the date and who ran it.
 Steps 1, 2, 3, 6, 7 and 8 are enforced by the code and the tests as well; they are listed
 because a check that only covers what is not already enforced is a check nobody trusts.
 
-## What is still owed
+## Deployed beside production
 
-**Deploying it alongside production is ticket 14's**, which carries the first deployment, the
-Ricambi hostname and the sign-in gate both systems will sit behind. Until then the archive runs
-on a laptop and there is no production to sit alongside. What this ticket delivers is the
-system, complete and runnable, and the guarantee that standing it up beside production is a
-second set of environment variables rather than a second set of decisions.
+It runs on the Club's host as a second Dokploy service, from `docker/preview/compose.yml`
+unchanged, with its own database, volume and secrets. How, and how its generated roster is
+written, is [`club-deployment.md`](club-deployment.md). Both systems sit behind the same sign-in
+gate with their own accounts; no real member's address is loaded into this one.
 
-Two things to settle when that happens:
-
-- **The sign-in gate.** Both systems are behind the same gate, with their own accounts. The
-  practice system's roster is generated; no real member's address is loaded into it.
-- **Seeding a deployed instance.** The seeder is deliberately not in the runtime image. Run it
-  from a checkout or a build container against the practice database — never from the image
-  serving members — with `ENVIRONMENT_MODE=non-production` set in that shell, which it will
-  insist on.
+The seeder is deliberately not in the runtime image. It is run from the image's build stage
+against the practice database — never from the image serving members — with
+`ENVIRONMENT_MODE=non-production` set, which it insists on.

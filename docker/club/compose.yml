@@ -1,0 +1,98 @@
+# The Club's deployment: the members' archive, and Ricambi's only production system.
+#
+# **Everything a member has ever recorded lives in the two volumes below.** The drawings, the
+# Marks placed on them and the roster exist nowhere else — which is why this stack is backed up
+# nightly to a different provider, and why a restore has been performed rather than assumed
+# (ADR 0009, `docs/operations/club-deployment.md`).
+#
+# It is deployed on Dokploy, which supplies Traefik, the certificate and the hostname; nothing
+# here binds a public port or knows a domain name. Every value below comes from the environment
+# and none is committed: there are no defaults for anything secret or anything that names a
+# host, so a missing one fails loudly rather than deploying something guessable.
+#
+# The non-production system that runs beside it is `docker/preview/compose.yml`, unchanged — the
+# same image, with its own database, its own volume and its own invented data.
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # The archive. Set here, in writing, once (ADR 0012) — and the reason this stack refuses a
+      # transport that writes letters to the log, a `PUBLIC_URL` on localhost and a seeded catalog.
+      ENVIRONMENT_MODE: production
+      ENVIRONMENT_NAME: ${ENVIRONMENT_NAME:-production}
+      PORT: 3000
+      DATABASE_URL: postgres://ricambi:${POSTGRES_PASSWORD:?required}@postgres:5432/ricambi
+      LOG_LEVEL: info
+
+      # Fixed, so a deployment does not sign every member out.
+      SESSION_SECRET: ${SESSION_SECRET:?required, at least 32 characters}
+      # The address members type, and the one every invitation and reset link points at.
+      PUBLIC_URL: ${PUBLIC_URL:?the https address members reach the archive at}
+
+      # Letters are delivered (issue #16). The application refuses to start naming whichever of
+      # these is missing; they are required here as well so Dokploy says so before it builds.
+      EMAIL_TRANSPORT: smtp
+      SMTP_HOST: ${SMTP_HOST:?required}
+      SMTP_PORT: ${SMTP_PORT:?required, usually 465 or 587}
+      SMTP_SECURE: ${SMTP_SECURE:?required, true for TLS from the start, false for STARTTLS}
+      SMTP_USER: ${SMTP_USER:?required}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?required}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:?required, on the domain SPF, DKIM and DMARC are set on}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Ricambi}
+
+      # Online payment is the Club's to switch on (`docs/operations/payments.md`). Until it does,
+      # nobody is offered a way to pay and the treasurer records payments on the roster.
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-none}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+
+      # Off until an Administrator has read who would be written to (`docs/operations/reminders.md`).
+      REMINDERS_ENABLED: ${REMINDERS_ENABLED:-false}
+      RENEWAL_GRACE_DAYS: ${RENEWAL_GRACE_DAYS:-14}
+      # The association confirms both figures; the defaults are the application's own.
+      RETENTION_YEARS: ${RETENTION_YEARS:-3}
+      PAYMENT_RECORD_RETENTION_YEARS: ${PAYMENT_RECORD_RETENTION_YEARS:-10}
+
+      # The scans and photographs, on the volume below. Never inside the image.
+      FILE_STORAGE_PATH: /app/data
+
+      # Applies the schema before listening. The archive is migrated, never seeded: its catalog
+      # arrives through the Editor screens and the archive loader (`archive-migration.md`).
+      MIGRATE_ON_START: 'true'
+      SEED_PRACTICE_ARCHIVE: 'false'
+    volumes:
+      - files:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Dokploy attaches the domain and the certificate to this service, and Traefik reaches it
+    # on the internal network. Nothing is published to the host.
+    expose:
+      - '3000'
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ricambi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ricambi
+    volumes:
+      # The parent directory, not `…/data`: from Postgres 18 the image keeps its cluster in a
+      # versioned directory beneath this one (see `docker/preview/compose.yml`).
+      - database:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ricambi -d ricambi']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  # Its own, never shared with the non-production system. Both are in the nightly backup.
+  files:
+  database:
