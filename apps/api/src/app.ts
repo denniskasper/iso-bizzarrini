@@ -177,6 +177,7 @@ export function createApp(dependencies: AppDependencies): Express {
     breachedPasswords: dependencies.breachedPasswords,
     emailSender,
     publicUrl: config.publicUrl,
+    renewalGraceDays: config.renewalGraceDays,
   });
   const gate = createGate({ config, clock, accounts: accountService });
 
@@ -185,6 +186,7 @@ export function createApp(dependencies: AppDependencies): Express {
     accountRepository,
     accountService,
     logger,
+    renewalGraceDays: config.renewalGraceDays,
   });
   /**
    * **Handed the database itself rather than repositories**, like bulk paste and for the same
@@ -193,7 +195,11 @@ export function createApp(dependencies: AppDependencies): Express {
    * was shown is what is carried out. The session decides the repositories, so the repositories
    * cannot be decided here.
    */
-  const rosterImportService = createRosterImportService({ db, clock });
+  const rosterImportService = createRosterImportService({
+    db,
+    clock,
+    renewalGraceDays: config.renewalGraceDays,
+  });
   const clubService = createClubService({ clock, clubRepository });
   // Handed the same retention figures the sweep below is, so the privacy statement and the thing
   // that carries it out cannot come to say different things (ADR 0007).
@@ -208,6 +214,8 @@ export function createApp(dependencies: AppDependencies): Express {
     clock,
     paymentProvider,
     clubService,
+    accounts: accountService,
+    renewalGraceDays: config.renewalGraceDays,
     logger,
     publicUrl: config.publicUrl,
   });

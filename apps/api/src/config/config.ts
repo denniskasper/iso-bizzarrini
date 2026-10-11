@@ -98,6 +98,14 @@ const environmentSchema = z.object({
   RETENTION_YEARS: z.coerce.number().int().min(1).max(50).default(3),
 
   /**
+   * How many days past the Paid-through a member whose Subscription renews itself may go on
+   * reading, while the bank confirms the renewal payment (issue #17). A SEPA debit takes days,
+   * and without this a renewing member would meet the renewal screen for those days every year.
+   * Grace changes who may read, never what was paid for: the Paid-through does not move.
+   */
+  RENEWAL_GRACE_DAYS: z.coerce.number().int().min(0).max(60).default(14),
+
+  /**
    * How many full calendar years a payment record outlives the year the money arrived — the
    * statutory accounting period, which no erasure shortens. Ten is a cautious default and not
    * advice: the figure is whatever the association's accountant says it is.
@@ -219,6 +227,8 @@ export interface AppConfig {
   };
   /** What the retention sweep applies and the privacy statement quotes (ADR 0007). */
   retention: RetentionTerms;
+  /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+  renewalGraceDays: number;
   migrateOnStart: boolean;
   seedPracticeArchive: boolean;
 }
@@ -272,6 +282,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       accountYears: env.RETENTION_YEARS,
       paymentRecordYears: env.PAYMENT_RECORD_RETENTION_YEARS,
     },
+    renewalGraceDays: env.RENEWAL_GRACE_DAYS,
     migrateOnStart: env.MIGRATE_ON_START,
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,
   };

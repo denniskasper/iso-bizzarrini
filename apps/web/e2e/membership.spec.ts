@@ -18,6 +18,7 @@ import { landed, PRACTICE, signInAs } from './support/gate.js';
  */
 const STANDING: MembershipStanding = {
   paidThrough: '2027-01-20',
+  graceUntil: null,
   canPayOnline: true,
   fee: '45.00',
   currency: 'EUR',
@@ -42,7 +43,12 @@ async function givenMembership(page: Page, standing: MembershipStanding) {
     }
     if (request.method() === 'PUT') {
       const { renews } = request.postDataJSON() as { renews: boolean };
-      current = { ...current, subscription: { renews, renewsOn: renews ? '2027-01-20' : null } };
+      current = {
+        ...current,
+        // Cancelling ends grace: a renewal nobody is collecting is not being confirmed.
+        graceUntil: renews ? current.graceUntil : null,
+        subscription: { renews, renewsOn: renews ? '2027-01-20' : null },
+      };
     }
     await route.fulfill({ json: { membership: current } });
   });
@@ -139,6 +145,35 @@ test.describe('where the Club takes payment through the platform', () => {
 
     await page.getByRole('button', { name: 'Turn auto-renewal back on' }).click();
     await expect(page.getByRole('button', { name: 'Cancel auto-renewal' })).toBeVisible();
+  });
+
+  /**
+   * Past the date, while the bank confirms the renewal (issue #17): the date has not moved, the
+   * sentence says until when access holds, and the line under the button says what cancelling
+   * now would end.
+   */
+  test('tells a member in grace that their renewal is being collected', async ({ page }) => {
+    await givenMembership(page, {
+      ...STANDING,
+      paidThrough: '2026-01-10',
+      graceUntil: '2026-01-24',
+      subscription: { renews: true, renewsOn: '2026-01-10' },
+    });
+    await signInAs(page, PRACTICE.member);
+    await landed(page);
+    await page.goto('/membership');
+
+    await expect(page.getByTestId('paid-through')).toHaveText('2026-01-10');
+    await expect(
+      page.getByText(
+        'Your renewal payment is being collected. Until the bank confirms it, your access holds to 2026-01-24.',
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Cancelling now stops the payment being collected, and your access ends with it.',
+      ),
+    ).toBeVisible();
   });
 
   /** The person the archive is refusing is the person who most needs the button. */

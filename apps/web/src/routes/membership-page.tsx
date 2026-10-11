@@ -22,7 +22,8 @@ import { useRenewal, useSession } from '@/lib/session';
  * **Cancelling is one press and has no "are you sure".** The rule is that stopping must be as
  * easy as starting, and a confirmation is a second press. What makes one press safe is that it
  * takes nothing away: access runs to the date already paid for, and the same control turns
- * renewal back on.
+ * renewal back on. The exception is grace (issue #17) — past the date, while the renewal is being
+ * collected — and there the line under the control says what cancelling will end.
  *
  * Outside the archive's gate, like the renewal it sits beside: the member who most needs this
  * page is the one whose Membership has run out.
@@ -95,7 +96,9 @@ function Standing({ membership, justPaid }: { membership: MembershipStanding; ju
         </p>
       </section>
 
-      {subscription !== null && <AutoRenewal renews={subscription.renews} />}
+      {subscription !== null && (
+        <AutoRenewal renews={subscription.renews} inGrace={membership.graceUntil !== null} />
+      )}
 
       {offerToPay && (
         <div className="mt-12 border-t border-line pt-10">
@@ -115,8 +118,18 @@ function Standing({ membership, justPaid }: { membership: MembershipStanding; ju
  * the sentence is still a number to be compared, so it is set like every other one.
  */
 function WhatHappensThen({ membership }: { membership: MembershipStanding }) {
-  const { paidThrough, subscription } = membership;
+  const { paidThrough, graceUntil, subscription } = membership;
 
+  // Past the date above and still reading (issue #17). The date has not moved because nothing
+  // has been confirmed yet, and the sentence says so rather than letting it read as a lapse.
+  if (graceUntil !== null) {
+    return (
+      <>
+        Your renewal payment is being collected. Until the bank confirms it, your access holds to{' '}
+        <span className="tabular">{graceUntil}</span>.
+      </>
+    );
+  }
   if (subscription?.renews) {
     return subscription.renewsOn === null ? (
       <>It renews by itself: the fee is collected each year until you cancel.</>
@@ -145,7 +158,7 @@ function WhatHappensThen({ membership }: { membership: MembershipStanding }) {
 }
 
 /** The one control that changes what happens on the date above. One press, either way. */
-function AutoRenewal({ renews }: { renews: boolean }) {
+function AutoRenewal({ renews, inGrace }: { renews: boolean; inGrace: boolean }) {
   const setAutoRenewal = useSetAutoRenewal();
 
   return (
@@ -163,9 +176,13 @@ function AutoRenewal({ renews }: { renews: boolean }) {
       >
         {renews ? 'Cancel auto-renewal' : 'Turn auto-renewal back on'}
       </Button>
+      {/* The one time cancelling takes something away: grace is for a renewal being collected,
+          and a renewal that has been cancelled is not being collected. Said before the press. */}
       {renews && (
         <p className="mt-4 text-sm text-pretty text-faint">
-          Cancelling stops the next collection. You keep everything you have already paid for.
+          {inGrace
+            ? 'Cancelling now stops the payment being collected, and your access ends with it.'
+            : 'Cancelling stops the next collection. You keep everything you have already paid for.'}
         </p>
       )}
     </div>

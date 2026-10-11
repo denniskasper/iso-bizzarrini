@@ -32,8 +32,10 @@ export interface SignedIn {
    * the first Administrator on an empty roster now is `composition/first-administrator.ts`.
    */
   account: { id: string; name: string; email: string; role: Role };
-  /** Whether at least one Membership's Paid-through has not passed. */
+  /** Whether they may read: a Paid-through that has not passed, or grace past it (issue #17). */
   membershipIsLive: boolean;
+  /** ISO date — the last day of grace, while they are reading on it. Null otherwise. */
+  graceUntil: string | null;
   /** ISO date — the furthest term's last day. Null where no term was ever recorded. */
   paidThrough: string | null;
 }

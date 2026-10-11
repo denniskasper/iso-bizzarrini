@@ -1317,10 +1317,18 @@ export interface SignedInAccount {
   name: string;
   email: string;
   role: Role;
-  /** Whether at least one Membership's Paid-through has not passed. */
+  /**
+   * Whether they may read the archive: a Paid-through that has not passed, or grace past it
+   * while a Subscription that renews itself is collecting (issue #17).
+   */
   membershipIsLive: boolean;
   /** ISO date — the last day the furthest term covers. Null where no term was ever recorded. */
   paidThrough: string | null;
+  /**
+   * ISO date — the last day of grace, **only while they are reading on it**: the Paid-through
+   * has passed and the renewal payment is being confirmed. Null otherwise, paid up included.
+   */
+  graceUntil: string | null;
 }
 
 /**
@@ -1377,6 +1385,11 @@ export interface RosterEntry {
   standing: RosterStanding;
   /** ISO date — the last day the furthest term covers. Null where none was ever recorded. */
   paidThrough: string | null;
+  /**
+   * ISO date — the last day of grace, while they are reading on it rather than paid up
+   * (issue #17). Their standing is then not `lapsed`. Null otherwise.
+   */
+  graceUntil: string | null;
   /** ISO instant. Null until the member has redeemed an invitation and chosen a password. */
   activatedAt: string | null;
   /** When the outstanding invitation was sent, and when it stops working. Null once redeemed. */
@@ -1925,6 +1938,11 @@ export interface Subscription {
 export interface MembershipStanding {
   /** ISO date — the last day the furthest term covers. Null where none was ever recorded. */
   paidThrough: string | null;
+  /**
+   * ISO date — until when access holds while the renewal payment is being collected, past the
+   * Paid-through. Null unless the member is reading on grace today.
+   */
+  graceUntil: string | null;
   /**
    * Whether paying through the platform is on offer here at all. False where no provider is
    * configured or the Club has not said what it charges — a bank transfer is then the only way.

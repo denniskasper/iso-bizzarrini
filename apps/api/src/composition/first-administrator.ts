@@ -48,12 +48,15 @@ export async function inviteAdministrator(
     breachedPasswords: BreachedPasswordCheck;
     /** Where a browser reaches this system, so the link in the invitation lands on it. */
     publicUrl: string;
+    /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+    renewalGraceDays: number;
     /** The real scrypt unless a caller can afford a cheaper one, which only a test can. */
     passwordHasher?: PasswordHasher;
   },
   person: AdministratorToInvite,
 ): Promise<InvitedAdministrator> {
-  const { db, clock, logger, emailSender, breachedPasswords, publicUrl } = dependencies;
+  const { db, clock, logger, emailSender, breachedPasswords, publicUrl, renewalGraceDays } =
+    dependencies;
 
   const accountRepository = createAccountRepository(db);
   const accountService = createAccountService({
@@ -64,8 +67,15 @@ export async function inviteAdministrator(
     breachedPasswords,
     emailSender,
     publicUrl,
+    renewalGraceDays,
   });
-  const rosterService = createRosterService({ clock, accountRepository, accountService, logger });
+  const rosterService = createRosterService({
+    clock,
+    accountRepository,
+    accountService,
+    logger,
+    renewalGraceDays,
+  });
 
   const email = person.email.trim().toLowerCase();
   const existing = await accountRepository.findByEmail(email);

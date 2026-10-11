@@ -52,11 +52,13 @@ export interface SubscriptionRepository {
 
   /**
    * Holds one Account for the rest of the transaction and answers with its furthest
-   * Paid-through, or `undefined` where there is no such Account. Two payments for one person
-   * confirmed at the same moment are then counted one after the other, each from where the
-   * last one left the date.
+   * Paid-through, and whether a live Subscription of theirs renews itself — or `undefined` where
+   * there is no such Account. Two payments for one person confirmed at the same moment are then
+   * counted one after the other, each from where the last one left the date.
    */
-  holdAccount(accountId: string): Promise<{ paidThrough: string | null } | undefined>;
+  holdAccount(
+    accountId: string,
+  ): Promise<{ paidThrough: string | null; renewsItself: boolean } | undefined>;
   /** Grants the term a payment bought. `false` where that payment had already bought one. */
   grantPaidTerm(term: NewMembershipRow & { providerPaymentId: string }): Promise<boolean>;
   /** Every payment the Club has received from this person, newest first. */
@@ -127,11 +129,24 @@ export function createSubscriptionRepository(db: DbSession): SubscriptionReposit
         return undefined;
       }
 
-      const [term] = await db
-        .select({ furthest: sql<string | null>`max(${memberships.paidThrough})` })
-        .from(memberships)
-        .where(eq(memberships.accountId, accountId));
-      return { paidThrough: term?.furthest ?? null };
+      const [[term], [renewing]] = await Promise.all([
+        db
+          .select({ furthest: sql<string | null>`max(${memberships.paidThrough})` })
+          .from(memberships)
+          .where(eq(memberships.accountId, accountId)),
+        db
+          .select({ id: subscriptions.id })
+          .from(subscriptions)
+          .where(
+            and(
+              eq(subscriptions.accountId, accountId),
+              isNull(subscriptions.endedAt),
+              eq(subscriptions.renews, true),
+            ),
+          )
+          .limit(1),
+      ]);
+      return { paidThrough: term?.furthest ?? null, renewsItself: renewing !== undefined };
     },
 
     async grantPaidTerm(term) {

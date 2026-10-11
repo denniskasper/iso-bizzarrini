@@ -34,7 +34,9 @@ export function RecordPayment({
   const [currency, setCurrency] = useState<Currency | null>(null);
   const [receivedOn, setReceivedOn] = useState(today);
   const [reference, setReference] = useState('');
-  const [paidThrough, setPaidThrough] = useState(aYearOn(member.paidThrough, today));
+  const [paidThrough, setPaidThrough] = useState(
+    aYearOn(member.paidThrough, today, member.graceUntil !== null),
+  );
 
   /**
    * The Club's fee, unless the Club has not said what it charges yet — in which case the field

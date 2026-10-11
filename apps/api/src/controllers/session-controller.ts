@@ -124,6 +124,7 @@ function sessionOf(who: SignedIn): SessionResponse {
     ...who.account,
     membershipIsLive: who.membershipIsLive,
     paidThrough: who.paidThrough,
+    graceUntil: who.graceUntil,
   };
   return { signedIn: true, account };
 }
