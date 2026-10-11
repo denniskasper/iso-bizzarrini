@@ -1,0 +1,55 @@
+name: Release
+
+# A Release is cut on purpose (ADR 0016, `docs/operations/releases.md`). Every push to `main`
+# keeps one standing release pull request up to date — the next Version, computed from the
+# commits since the last Release, and the changelog entries that go with it. Merging that pull
+# request is the act: it writes the Version into the root `package.json`, updates `CHANGELOG.md`,
+# tags `vX.Y.Z`, creates the GitHub release, and moves `release` to it.
+#
+# The release pull request is opened with this workflow's own token, so CI does not run on it.
+# It touches only the Version and the changelog, and merging it runs CI on `main` before the
+# preview deploys.
+on:
+  push:
+    branches: [main]
+
+# One at a time, and never cancelled halfway: a Release that tagged but did not move `release`
+# is worse than one that waited its turn.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+# The repository's default token is read-only. This one writes the Version, the tag and the
+# `release` branch, opens and labels the release pull request, and creates the GitHub release.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release:
+    name: Keep the release pull request, or cut the Release
+    runs-on: ubuntu-latest
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # **The archive runs only Releases.** Dokploy follows the head of a branch and cannot be
+      # pointed at a tag, so the Club's stack follows `release`, and this is the only thing that
+      # moves it — to the commit the new tag names, and never anywhere else. Going back is a
+      # person moving it to an older tag (`docs/operations/club-deployment.md`).
+      - if: steps.release.outputs.release_created == 'true'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Move release to the new Release
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          git push --force origin "refs/tags/$TAG^{commit}:refs/heads/release"
+          echo "release now stands on $TAG ($(git rev-parse --short=7 "$TAG^{commit}"))." >> "$GITHUB_STEP_SUMMARY"

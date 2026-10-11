@@ -18,6 +18,11 @@ services:
     build:
       context: ../..
       dockerfile: Dockerfile
+      # The checkout's `.git`, as a context of its own, so the image knows the commit it was built
+      # from and shows it in the footer (ADR 0016). Never part of the main context: the
+      # Dockerfile reads one file from it and copies nothing.
+      additional_contexts:
+        git: ../../.git
     restart: unless-stopped
     environment:
       NODE_ENV: production

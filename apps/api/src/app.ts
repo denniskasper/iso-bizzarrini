@@ -33,6 +33,7 @@ import { createTavolaController } from './controllers/tavola-controller.js';
 import type { Db } from './db/client.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { BreachedPasswordCheck } from './platform/breached-passwords.js';
+import { readBuild, type Build } from './platform/build.js';
 import type { Clock } from './platform/clock.js';
 import type { EmailSender } from './platform/email.js';
 import { createLogger, describeError, type Logger } from './platform/logger.js';
@@ -107,6 +108,11 @@ export interface AppDependencies {
    */
   fileStore?: FileStore;
   /**
+   * Which Ricambi this is. Defaults to what the repository root says — handed in only so a test
+   * can say it was built from a commit.
+   */
+  build?: Build;
+  /**
    * Where an error reporter would attach: after the routes, before our own error handler —
    * the only place it can see a failure and still let us answer with clean JSON.
    *
@@ -160,6 +166,7 @@ export function createApp(dependencies: AppDependencies): Express {
 
   const statusService = createStatusService({
     clock,
+    build: dependencies.build ?? readBuild(),
     environmentName: config.environmentName,
     environmentMode: config.environmentMode,
     systemRepository,

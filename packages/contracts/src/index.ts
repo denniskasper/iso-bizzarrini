@@ -33,6 +33,16 @@ export type EnvironmentMode = 'production' | 'non-production';
 /** `GET /api/status` */
 export interface ServiceStatus {
   status: 'ok' | 'degraded';
+  /**
+   * Ricambi's Version (ADR 0016): the Release this build descends from, as the root
+   * `package.json` writes it. Work merged since that Release still carries it.
+   */
+  version: string;
+  /**
+   * The full commit the image was built from, or `null` when the build was told none — under
+   * `pnpm dev`, under test, and wherever the image was built without one. Never guessed.
+   */
+  commit: string | null;
   /** Which deployment this is — free text, an operations name rather than a rule. */
   environment: string;
   /** Whether it is the real archive. Assume `non-production` when nothing says otherwise. */

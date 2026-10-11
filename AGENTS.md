@@ -16,6 +16,11 @@ Guidelines for AI agents working in this repository.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) with a short subject line.
 - Format: `<type>(<optional scope>): <description>`
 - Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+- **The type and a `!` decide the Version** (ADR 0016, `docs/operations/releases.md`): `fix`
+  moves the last part, `feat` the middle, a `!` the first. `docs`, `ci`, `chore`, `test` and
+  `refactor` move nothing. Pick the type for what somebody outside the repository can notice.
+- **A `feat` or `fix` subject is published** in `CHANGELOG.md` and on the GitHub release, so the
+  Security rules above apply to it twice over.
 
 Examples:
 
