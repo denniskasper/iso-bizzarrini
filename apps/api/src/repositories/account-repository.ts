@@ -5,6 +5,7 @@ import {
   accounts,
   accountTokens,
   memberships,
+  subscriptions,
   type AccountRow,
   type AccountTokenRow,
   type MembershipRow,
@@ -38,6 +39,13 @@ export interface AccountRepository {
   paidThrough(accountId: string): Promise<string | null>;
   /** The same question for the whole roster at once, so one screen is one query rather than N. */
   paidThroughForEveryone(): Promise<Map<string, string>>;
+  /**
+   * Whether a live Subscription of theirs will collect again by itself — the one thing that
+   * earns grace past the Paid-through (issue #17).
+   */
+  renewsItself(accountId: string): Promise<boolean>;
+  /** Everyone of whom that is true, for the whole roster at once. */
+  renewingForEveryone(): Promise<Set<string>>;
   listMemberships(accountId: string): Promise<MembershipRow[]>;
   grantMembership(membership: NewMembershipRow): Promise<MembershipRow>;
 
@@ -53,6 +61,9 @@ export interface AccountRepository {
   findOutstandingToken(accountId: string, purpose: TokenPurpose): Promise<AccountTokenRow | null>;
   outstandingInvitations(now: Date): Promise<Map<string, AccountTokenRow>>;
 }
+
+/** A Subscription that has not ended and whose auto-renewal is on. */
+const renewing = and(isNull(subscriptions.endedAt), eq(subscriptions.renews, true));
 
 export function createAccountRepository(db: DbSession): AccountRepository {
   async function readBack(id: string): Promise<AccountRow> {
@@ -133,6 +144,23 @@ export function createAccountRepository(db: DbSession): AccountRepository {
 
       // A payment record whose Account is gone (ADR 0007) is nobody's Paid-through.
       return new Map(rows.flatMap((row) => (row.accountId ? [[row.accountId, row.furthest]] : [])));
+    },
+
+    async renewsItself(accountId) {
+      const [row] = await db
+        .select({ id: subscriptions.id })
+        .from(subscriptions)
+        .where(and(eq(subscriptions.accountId, accountId), renewing))
+        .limit(1);
+      return row !== undefined;
+    },
+
+    async renewingForEveryone() {
+      const rows = await db
+        .selectDistinct({ accountId: subscriptions.accountId })
+        .from(subscriptions)
+        .where(renewing);
+      return new Set(rows.map((row) => row.accountId));
     },
 
     listMemberships(accountId) {

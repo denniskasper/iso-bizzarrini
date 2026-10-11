@@ -40,6 +40,7 @@ describe('the first Administrator', () => {
         emailSender: app.emails,
         breachedPasswords: app.breached,
         publicUrl: app.config.publicUrl,
+        renewalGraceDays: app.config.renewalGraceDays,
         passwordHasher: createPasswordHasher(TEST_PASSWORD_COST),
       },
       person,

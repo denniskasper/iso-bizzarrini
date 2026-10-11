@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import type { EnvironmentMode, RetentionTerms } from '@ricambi/contracts';
 import { z } from 'zod';
+import type { SmtpSettings } from '../platform/smtp-email.js';
 
 /**
  * Configuration is read from the environment and validated once, at the composition root.
@@ -40,9 +41,28 @@ const environmentSchema = z.object({
 
   /**
    * `memory` captures mail for a test to read, `log` writes it whole to the log so a developer
-   * can click the link in an invitation, and `none` refuses to send at all.
+   * can click the link in an invitation, and `none` refuses to send at all. `smtp` delivers, and
+   * needs every `SMTP_` variable below and `EMAIL_FROM_ADDRESS` (issue #16).
    */
-  EMAIL_TRANSPORT: z.enum(['none', 'memory', 'log']).default('none'),
+  EMAIL_TRANSPORT: z.enum(['none', 'memory', 'log', 'smtp']).default('none'),
+
+  SMTP_HOST: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  SMTP_PORT: z.preprocess(blankAsUnset, z.coerce.number().int().positive().max(65535).optional()),
+  /**
+   * `true` for a connection that is TLS from the first byte (usually port 465); `false` for one
+   * that upgrades with STARTTLS (usually 587). There is no plaintext option: a server that will
+   * not upgrade is refused.
+   */
+  SMTP_SECURE: z.preprocess(blankAsUnset, z.enum(['true', 'false']).optional()),
+  SMTP_USER: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  SMTP_PASSWORD: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  /** The address letters are sent from. Its domain is the one SPF, DKIM and DMARC are set on. */
+  EMAIL_FROM_ADDRESS: z.preprocess(
+    blankAsUnset,
+    z.email('EMAIL_FROM_ADDRESS must be an e-mail address').optional(),
+  ),
+  /** The name letters are sent in. The platform's, not the Club's (issue #3). */
+  EMAIL_FROM_NAME: z.preprocess(blankAsUnset, z.string().min(1).default('Ricambi')),
 
   /**
    * Where a browser reaches this system, so that the link in an invitation lands on the right
@@ -96,6 +116,14 @@ const environmentSchema = z.object({
    * and changing it is this variable rather than a deployment.
    */
   RETENTION_YEARS: z.coerce.number().int().min(1).max(50).default(3),
+
+  /**
+   * How many days past the Paid-through a member whose Subscription renews itself may go on
+   * reading, while the bank confirms the renewal payment (issue #17). A SEPA debit takes days,
+   * and without this a renewing member would meet the renewal screen for those days every year.
+   * Grace changes who may read, never what was paid for: the Paid-through does not move.
+   */
+  RENEWAL_GRACE_DAYS: z.coerce.number().int().min(0).max(60).default(14),
 
   /**
    * How many full calendar years a payment record outlives the year the money arrived — the
@@ -190,9 +218,7 @@ export interface AppConfig {
   /** Where a browser reaches this system. Only ever used to build a link for an e-mail. */
   publicUrl: string;
   logLevel: Environment['LOG_LEVEL'];
-  email: {
-    transport: Environment['EMAIL_TRANSPORT'];
-  };
+  email: { transport: 'none' | 'memory' | 'log' } | { transport: 'smtp'; smtp: SmtpSettings };
   passwords: {
     breachCheck: Environment['BREACHED_PASSWORD_CHECK'];
   };
@@ -219,6 +245,8 @@ export interface AppConfig {
   };
   /** What the retention sweep applies and the privacy statement quotes (ADR 0007). */
   retention: RetentionTerms;
+  /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+  renewalGraceDays: number;
   migrateOnStart: boolean;
   seedPracticeArchive: boolean;
 }
@@ -252,9 +280,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     webDistPath: env.WEB_DIST_PATH,
     publicUrl: env.PUBLIC_URL,
     logLevel: env.LOG_LEVEL,
-    email: {
-      transport: env.EMAIL_TRANSPORT,
-    },
+    email: emailFrom(env),
     passwords: {
       breachCheck: env.BREACHED_PASSWORD_CHECK,
     },
@@ -272,8 +298,56 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       accountYears: env.RETENTION_YEARS,
       paymentRecordYears: env.PAYMENT_RECORD_RETENTION_YEARS,
     },
+    renewalGraceDays: env.RENEWAL_GRACE_DAYS,
     migrateOnStart: env.MIGRATE_ON_START,
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,
+  };
+}
+
+/**
+ * A transport and everything it needs, or a refusal to start naming what is missing — the same
+ * rule as the payment provider's below, for the same reason.
+ */
+function emailFrom(env: Environment): AppConfig['email'] {
+  if (env.EMAIL_TRANSPORT !== 'smtp') {
+    return { transport: env.EMAIL_TRANSPORT };
+  }
+
+  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM_ADDRESS } = env;
+  if (
+    SMTP_HOST === undefined ||
+    SMTP_PORT === undefined ||
+    SMTP_SECURE === undefined ||
+    SMTP_USER === undefined ||
+    SMTP_PASSWORD === undefined ||
+    EMAIL_FROM_ADDRESS === undefined
+  ) {
+    const missing = Object.entries({
+      SMTP_HOST,
+      SMTP_PORT,
+      SMTP_SECURE,
+      SMTP_USER,
+      SMTP_PASSWORD,
+      EMAIL_FROM_ADDRESS,
+    })
+      .filter(([, value]) => value === undefined)
+      .map(([name]) => name);
+    throw new ConfigurationError(
+      'Invalid environment configuration:\n' +
+        `  EMAIL_TRANSPORT=smtp needs ${missing.join(', ')}.`,
+    );
+  }
+
+  return {
+    transport: 'smtp',
+    smtp: {
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE === 'true',
+      user: SMTP_USER,
+      password: SMTP_PASSWORD,
+      from: { address: EMAIL_FROM_ADDRESS, name: env.EMAIL_FROM_NAME },
+    },
   };
 }
 

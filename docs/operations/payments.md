@@ -86,10 +86,20 @@ member will see as a few working days.
 ## One thing to expect at each renewal
 
 Stripe collects the next fee a year after the first payment. A SEPA debit then takes a few
-working days to confirm, and the Paid-through does not move until it does. A member whose term
-ends on the day of collection can therefore be shown the renewal screen for those few days. It
-tells them a payment is on its way. If the association would rather that never happen, the
-remedy is a policy decision — a few days' grace on a renewing Membership — and is not built.
+working days to confirm, and the Paid-through does not move until it does. So that a renewing
+member is not shown the renewal screen for those days, **a member whose subscription is live and
+renews by itself keeps reading for 14 days past their Paid-through** (`RENEWAL_GRACE_DAYS`).
+Their Membership page tells them the renewal payment is being collected and until when their
+access holds. On the roster they are not lapsed, and a second date beside the Paid-through,
+"grace until", shows they are in grace and not paid up.
+
+Grace changes who may read, not what was paid for. The Paid-through still moves only on a
+confirmed payment. A payment confirmed in grace extends the term from the Paid-through, so the
+member's year does not start late. If grace runs out without a confirmed payment, the member
+lapses, and nothing is clawed back. Nobody else gets grace: a member with no subscription, one
+that has ended, or one with auto-renewal off lapses on the Paid-through. Cancelling auto-renewal
+during grace ends access at once, and the Membership page says so beside the button. The
+retention sweep and the renewal reminders still count from the Paid-through.
 
 ## If something looks wrong
 

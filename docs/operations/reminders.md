@@ -31,7 +31,7 @@ Nothing is sent unless all three hold. The Reminders screen says which does not.
 
 | | Where | Who |
 | --- | --- | --- |
-| The environment allows it | `REMINDERS_ENABLED=true`, which only a production environment may set, **and** an `EMAIL_TRANSPORT` that delivers to real inboxes | Whoever operates the server |
+| The environment allows it | `REMINDERS_ENABLED=true`, which only a production environment may set, **and** `EMAIL_TRANSPORT=smtp`, the transport that delivers to real inboxes | Whoever operates the server |
 | Reminders are switched on | The Reminders screen | An Administrator |
 | The Club can be paid | A fee and an IBAN on the Club's screen | An Administrator |
 
@@ -72,8 +72,5 @@ If a letter cannot be sent, that member is not marked as reminded and the next r
 
 ## Not built
 
-- There is no `EMAIL_TRANSPORT` yet that delivers to a real inbox; choosing one is part of the
-  Club's deployment (issue #2). Until there is, no system can send a reminder, and none is
-  marked as sent.
 - There is one reminder, at thirty days. The further e-mail on the day a Membership runs out,
   which the specification recommends, is the board's decision and is not built.

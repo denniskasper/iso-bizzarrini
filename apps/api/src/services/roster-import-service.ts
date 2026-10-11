@@ -17,7 +17,7 @@ import {
   ROSTER_HEADER,
   rosterColumnsOf,
 } from '../sheets/roster-table.js';
-import { normaliseEmail } from './account-service.js';
+import { accessOf, normaliseEmail } from './account-service.js';
 import { standingOf } from './roster-service.js';
 
 /**
@@ -78,8 +78,10 @@ interface Planned {
 export function createRosterImportService(dependencies: {
   db: Db;
   clock: Clock;
+  /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+  renewalGraceDays: number;
 }): RosterImportService {
-  const { db, clock } = dependencies;
+  const { db, clock, renewalGraceDays } = dependencies;
 
   /**
    * **The whole reading, in one place** — the file against the roster as it now stands.
@@ -121,9 +123,10 @@ export function createRosterImportService(dependencies: {
 
     // Read once for the whole file rather than once a row: a club roster is a few hundred people,
     // and a round trip each to find out whether the roster already has them is a minute of waiting.
-    const [everyone, paidThroughs] = await Promise.all([
+    const [everyone, paidThroughs, renewing] = await Promise.all([
       accountRepository.listAll(),
       accountRepository.paidThroughForEveryone(),
+      accountRepository.renewingForEveryone(),
     ]);
     const onTheRoster = new Map(everyone.map((account) => [account.email, account]));
 
@@ -210,7 +213,14 @@ export function createRosterImportService(dependencies: {
       const onRoster = {
         name: account.name,
         paidThrough: held,
-        standing: standingOf(account, held, now),
+        standing: standingOf(
+          account,
+          accessOf(
+            { paidThrough: held, renewsItself: renewing.has(account.id) },
+            now,
+            renewalGraceDays,
+          ),
+        ),
       };
 
       /**

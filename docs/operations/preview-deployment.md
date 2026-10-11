@@ -2,7 +2,9 @@
 
 How to put Ricambi on a host somebody can be shown, before the Club has any infrastructure of
 its own. This is a **developer's preview**, not the deployment ADR 0009 describes: one box, one
-volume, no offsite backup, and nothing on it anybody would mind losing.
+volume, no offsite backup, and nothing on it anybody would mind losing. The Club's own
+deployment is [`club-deployment.md`](club-deployment.md); the non-production system that runs
+beside it is this same stack, deployed again.
 
 Everything here assumes the host runs [Dokploy](https://dokploy.com), which supplies Docker,
 Traefik, automatic TLS and the domain routing. The stack itself is
@@ -18,7 +20,7 @@ limitation to work around — it is the point:
 - It has no payment provider, so nobody is offered a way to pay online; the renewal reminders
   are refused outright, and its e-mail is written to the log rather than sent. It cannot reach a
   real person or a real mandate, and it will not start if it is handed something that could —
-  a live payment key included.
+  a live payment key included, and `EMAIL_TRANSPORT=smtp`, the transport that delivers.
 - Setting `ENVIRONMENT_MODE=production` on this stack **will not start**: it writes its e-mail to
   the log, and production refuses that outright — an invitation nobody receives, with its
   single-use secret left in a log file (ADR 0012). It seeds itself an invented catalog too, which
@@ -50,8 +52,8 @@ into Dokploy's environment editor, which keeps them on the server.
 
 1. **In Dokploy, create a Compose service** in whichever project you keep your own work under.
 2. Point it at this repository and set the compose path to `docker/preview/compose.yml`.
-   Dokploy builds the image from the repository's `Dockerfile` — the same image the club's
-   deployment will use later, since nothing environment-specific is compiled in.
+   Dokploy builds the image from the repository's `Dockerfile` — the same image the Club's
+   deployment uses, since nothing environment-specific is compiled in.
 3. **Environment** — paste these, with your own values:
 
    ```

@@ -168,6 +168,9 @@ export function useCorrectClub() {
  * recording their payment fixes only one of them. So the sentence says both.
  */
 export function standingReads(member: RosterEntry): string {
+  if (member.standing !== 'lapsed' && member.graceUntil !== null) {
+    return 'Renewal payment not yet confirmed. Reads on grace until the bank confirms it.';
+  }
   switch (member.standing) {
     case 'lapsed':
       return member.activatedAt === null
@@ -217,9 +220,12 @@ export function useToday(): string {
  * two differ is the one that matters: a term running to 29 February has no anniversary, and
  * `2028-02-29` incremented as text is `2029-02-29`, which is not a day at all — the field would
  * simply refuse to show it. `Date.UTC` rolls it to the 1st of March, which is a day.
+ *
+ * Somebody reading on grace has not run out (issue #17), so their year runs on from the
+ * Paid-through — the answer the archive gives a payment the provider confirms in grace.
  */
-export function aYearOn(paidThrough: string | null, today: string): string {
-  const from = paidThrough !== null && paidThrough > today ? paidThrough : today;
+export function aYearOn(paidThrough: string | null, today: string, inGrace = false): string {
+  const from = paidThrough !== null && (inGrace || paidThrough > today) ? paidThrough : today;
   const [year, month, day] = from.split('-').map(Number) as [number, number, number];
 
   return new Date(Date.UTC(year + 1, month - 1, day)).toISOString().slice(0, 10);

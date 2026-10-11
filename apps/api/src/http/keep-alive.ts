@@ -3,17 +3,21 @@ import type { Server } from 'node:http';
 /**
  * How long a client in front of this API will hold an idle connection before dropping it.
  *
- * **Caddy is the one that matters** — it reverse-proxies the real deployment (ADR 0009) and
- * pools its upstream connections, with `keepalive 2m` as the transport default. Playwright's
- * `apiRequestContext` pools in the same way, which is why the browser suite is where this was
- * first seen rather than where it lives.
+ * **Traefik is the one that matters** — Dokploy runs it in front of both the preview and the
+ * Club's deployment (ADR 0009), and it pools its upstream connections. How long it keeps one
+ * idle is `serversTransport.forwardingTimeouts.idleConnTimeout`, which Traefik documents as
+ * defaulting to `90s` ("Maximum amount of time an idle (keep-alive) connection will remain idle
+ * before closing itself", doc.traefik.io → Routing Configuration → HTTP → Load Balancing →
+ * ServersTransport). Dokploy's generated Traefik configuration sets no servers transport, so the
+ * default is what runs. Playwright's `apiRequestContext` pools in the same way, which is why the
+ * browser suite is where this was first seen rather than where it lives.
  */
-export const POOLING_CLIENT_IDLE_WINDOW_MS = 120_000;
+export const POOLING_CLIENT_IDLE_WINDOW_MS = 90_000;
 
 /**
  * **The server must never be the side that closes an idle connection first.**
  *
- * Node's default is five seconds. A pool holds a connection for two minutes, so the pool is
+ * Node's default is five seconds. A pool holds a connection for ninety seconds, so the pool is
  * still handing requests to a socket this server decided to close long ago — and a request
  * written into a socket that is already carrying a FIN is lost, not retried. The client sees
  * `socket hang up`. It is a race, so it is intermittent: in the browser suite it landed on a
@@ -21,7 +25,7 @@ export const POOLING_CLIENT_IDLE_WINDOW_MS = 120_000;
  * a member's request failing for no reason anybody can reproduce.
  *
  * Five seconds above the pool's window, so this server always outlives it. Both clocks restart
- * on every request and Caddy's starts marginally later, so the ordering holds with room over.
+ * on every request and Traefik's starts marginally later, so the ordering holds with room over.
  * Node also advertises the number as `Keep-Alive: timeout=`, which pools that read it honour.
  */
 export const KEEP_ALIVE_TIMEOUT_MS = POOLING_CLIENT_IDLE_WINDOW_MS + 5_000;

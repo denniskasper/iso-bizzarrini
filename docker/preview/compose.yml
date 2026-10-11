@@ -10,9 +10,11 @@
 # the procedure. Every value below comes from the environment — there are no defaults for
 # anything secret, so a missing one fails loudly rather than deploying something guessable.
 #
-# The club's real deployment (ADR 0009) is its own VPS with its own Caddy and its own backups.
-# This is a developer's preview host and deliberately simpler: one volume, no offsite backup,
-# nothing on it that anybody would mind losing.
+# The Club's real deployment is `docker/club/compose.yml` (ADR 0009), with its own database, its
+# own volume and offsite backups. This file is also the non-production system that runs beside
+# it: nothing needs to differ, so the same file is deployed again as a second Dokploy service
+# (`docs/operations/club-deployment.md`). Either way it is deliberately simpler: no offsite
+# backup, nothing on it that anybody would mind losing.
 
 services:
   app:

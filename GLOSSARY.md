@@ -133,8 +133,15 @@ One Account's standing in the Club, ending on a date. An Account may hold more t
 _Avoid_: Plan, registration, subscription (a **Subscription** is how one may be paid for, not the thing itself)
 
 **Paid-through**:
-The date a Membership runs to. Reading the archive requires one that has not passed.
+The date a Membership runs to. Reading the archive requires one that has not passed, or **Grace**
+past it.
 _Avoid_: Expiry, renewal date, valid until, last payment date
+
+**Grace**:
+The days past a Paid-through that a member whose Subscription renews itself may go on reading
+while the bank confirms the renewal payment. Changes who may read, never what was paid for: the
+Paid-through does not move, and a Retention period is still counted from it.
+_Avoid_: Grace period (that is often mistaken for the **Retention period**), extension, overdue
 
 **Member**:
 An Account that may read the archive and offer Contributions.

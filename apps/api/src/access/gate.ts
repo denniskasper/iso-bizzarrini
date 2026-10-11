@@ -32,8 +32,10 @@ export interface SignedIn {
    * the first Administrator on an empty roster now is `composition/first-administrator.ts`.
    */
   account: { id: string; name: string; email: string; role: Role };
-  /** Whether at least one Membership's Paid-through has not passed. */
+  /** Whether they may read: a Paid-through that has not passed, or grace past it (issue #17). */
   membershipIsLive: boolean;
+  /** ISO date — the last day of grace, while they are reading on it. Null otherwise. */
+  graceUntil: string | null;
   /** ISO date — the furthest term's last day. Null where no term was ever recorded. */
   paidThrough: string | null;
 }
@@ -183,7 +185,7 @@ export function createGate(dependencies: {
 
 /**
  * `secure` follows the connection rather than a configuration flag: the deployment terminates
- * TLS at Caddy and `trust proxy` is set, so `request.secure` is the truth, and a laptop on
+ * TLS at Traefik and `trust proxy` is set, so `request.secure` is the truth, and a laptop on
  * plain http still gets a working cookie without anyone having to remember a switch.
  *
  * `sameSite: 'lax'` because a shared deep link into the archive is a plain navigation and must

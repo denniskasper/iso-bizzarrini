@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { SESSION_QUERY_KEY } from '@/lib/session';
 
 /** A member's own Membership: how far it runs, whether it renews itself, what they have paid. */
 export const MEMBERSHIP_QUERY_KEY = ['membership'] as const;
@@ -30,6 +31,10 @@ export function useSetAutoRenewal() {
 
   return useMutation({
     mutationFn: api.setAutoRenewal,
-    onSuccess: (standing) => queryClient.setQueryData(MEMBERSHIP_QUERY_KEY, standing),
+    onSuccess: (standing) => {
+      queryClient.setQueryData(MEMBERSHIP_QUERY_KEY, standing);
+      // Cancelling while on grace ends access there and then, and the session says so.
+      void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+    },
   });
 }

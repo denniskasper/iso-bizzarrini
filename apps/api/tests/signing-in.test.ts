@@ -275,6 +275,37 @@ describe('signing in', () => {
       await member.agent.get('/api/models').expect(401);
     });
 
+    /**
+     * The Club's own site is a sibling of Ricambi's host on the same domain, behind the same
+     * Traefik (ADR 0009). A `Domain` attribute is what would hand it the session, so the cookie
+     * carries none and a browser keeps it to the host that set it — whatever host that was.
+     */
+    it('scopes the session cookie to the host that set it, so a sibling site never receives it', async () => {
+      const { email } = await givenAMember(app, administrator);
+
+      const signedIn = await app
+        .request()
+        .post('/api/session')
+        .set('Host', 'ricambi.club.example')
+        .set('X-Forwarded-Proto', 'https')
+        .send({ email, password: A_GOOD_PASSWORD })
+        .expect(201);
+      const signedOut = await app
+        .request()
+        .delete('/api/session')
+        .set('Host', 'ricambi.club.example')
+        .set('X-Forwarded-Proto', 'https')
+        .expect(200);
+
+      for (const response of [signedIn, signedOut]) {
+        const cookies = [response.headers['set-cookie'] ?? []].flat();
+        expect(cookies).toHaveLength(1);
+        expect(cookies[0]).not.toMatch(/;\s*domain=/i);
+        expect(cookies[0]).toMatch(/;\s*secure/i);
+        expect(cookies[0]).toMatch(/;\s*httponly/i);
+      }
+    });
+
     it('stops honouring a session whose Account has been deleted', async () => {
       const member = await givenAMember(app, administrator);
 

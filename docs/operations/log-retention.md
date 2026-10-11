@@ -32,7 +32,7 @@ actually decided.
 
    Then `sudo systemctl restart docker`. The driver is fixed when a container is created, so
    **recreate** the containers — `docker compose up -d --force-recreate` — rather than
-   restarting them. This covers the application, Postgres and Caddy alike.
+   restarting them. This covers the application, Postgres and Traefik alike.
 
 2. **Tell the journal to keep thirty days.** Create
    `/etc/systemd/journald.conf.d/retention.conf`:
@@ -60,20 +60,14 @@ actually decided.
    sudo find /var/lib/docker/containers -name '*-json.log*'
    ```
 
-4. **If Caddy is asked to keep an access log of its own**, give it the same limit. Caddy logs
-   no requests unless a `log` directive says to; if the Caddyfile has one that writes to a
-   file, that file is outside the journal and needs its own rule:
-
-   ```
-   log {
-       output file /var/log/caddy/access.log {
-           roll_keep_for 720h
-       }
-   }
-   ```
-
-   Writing to standard output instead needs nothing: it lands in the journal with everything
-   else.
+4. **If Traefik keeps an access log of its own**, give it the same limit. Look for an
+   `accessLog` section in Traefik's static configuration — on a Dokploy host,
+   `/etc/dokploy/traefik/traefik.yml`, which Dokploy can add to itself when its request view is
+   switched on. Without a `filePath` the access log goes to standard output and lands in the
+   journal with everything else; that needs nothing more. With one, the file is outside the
+   journal and Traefik's documentation says plainly that it "does not rotate the access log
+   file", so give it a `logrotate` entry that keeps no more than thirty days and sends Traefik a
+   `USR1` after each rotation, or remove the `filePath`.
 
 5. **Keep the journal out of the backups.** The offsite backup is the database and the stored
    images. A log copied into a backup is a log kept for as long as the backup is.

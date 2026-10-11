@@ -78,6 +78,13 @@ try {
   for (const account of report.accounts) {
     console.log(`  ${account.name} <${account.email}> — kept until ${account.keptUntil}, ${would}`);
   }
+  if (report.keptAdministrator) {
+    const kept = report.keptAdministrator;
+    console.log(
+      `  ${kept.name} <${kept.email}> — kept until ${kept.keptUntil}, kept anyway: the last ` +
+        'Administrator, and deleting them would leave nobody who can open the roster',
+    );
+  }
   console.log(
     `${report.accounts.length} Account(s) ${would}; ` +
       `${report.paymentRecords} payment record(s) past the statutory period ${would}.`,

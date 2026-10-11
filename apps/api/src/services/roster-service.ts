@@ -16,7 +16,7 @@ import {
 import { today, type Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import type { AccountRepository } from '../repositories/account-repository.js';
-import { membershipIsLive, normaliseEmail } from './account-service.js';
+import { accessOf, normaliseEmail, type MembershipAccess } from './account-service.js';
 import type { AccountService } from './account-service.js';
 import { readDay } from './days.js';
 import { readAmount } from './money.js';
@@ -49,23 +49,35 @@ export function createRosterService(dependencies: {
   accountRepository: AccountRepository;
   accountService: AccountService;
   logger: Logger;
+  /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+  renewalGraceDays: number;
 }): RosterService {
-  const { clock, accountRepository, accountService, logger } = dependencies;
+  const { clock, accountRepository, accountService, logger, renewalGraceDays } = dependencies;
 
   return {
     async list() {
-      // Three queries for the whole roster rather than three per person: a hundred members is
+      // Four queries for the whole roster rather than four per person: a hundred members is
       // small, and a screen that grows a query per row is a screen that stops working quietly.
-      const [rows, paidThrough, invitations] = await Promise.all([
+      const [rows, paidThrough, renewing, invitations] = await Promise.all([
         accountRepository.listAll(),
         accountRepository.paidThroughForEveryone(),
+        accountRepository.renewingForEveryone(),
         accountRepository.outstandingInvitations(clock.now()),
       ]);
 
       const now = today(clock);
-      return rows.map((row) =>
-        toRosterEntry(row, paidThrough.get(row.id) ?? null, invitations.get(row.id) ?? null, now),
-      );
+      return rows.map((row) => {
+        const term = {
+          paidThrough: paidThrough.get(row.id) ?? null,
+          renewsItself: renewing.has(row.id),
+        };
+        return toRosterEntry(
+          row,
+          term.paidThrough,
+          accessOf(term, now, renewalGraceDays),
+          invitations.get(row.id) ?? null,
+        );
+      });
     },
 
     /**
@@ -211,12 +223,14 @@ export function createRosterService(dependencies: {
 
   async function read(accountId: string): Promise<RosterEntry> {
     const account = await find(accountId);
-    const [paidThrough, invitation] = await Promise.all([
+    const [paidThrough, renewsItself, invitation] = await Promise.all([
       accountRepository.paidThrough(account.id),
+      accountRepository.renewsItself(account.id),
       accountRepository.findOutstandingToken(account.id, 'invitation'),
     ]);
+    const access = accessOf({ paidThrough, renewsItself }, today(clock), renewalGraceDays);
 
-    return toRosterEntry(account, paidThrough, invitation, today(clock));
+    return toRosterEntry(account, paidThrough, access, invitation);
   }
 }
 
@@ -227,13 +241,12 @@ export function createRosterService(dependencies: {
  * never chose a password *and* whose term has run out cannot get in for both reasons, and the one
  * an Administrator has to fix first is the money. `activatedAt` and `invitationSentAt` are on the
  * row beside it, so a screen never has to infer what it was not told.
+ *
+ * A member reading on grace is not lapsed (issue #17); `graceUntil` beside the standing is how
+ * the screen tells them apart from somebody paid up.
  */
-export function standingOf(
-  account: AccountRow,
-  paidThrough: string | null,
-  today: string,
-): RosterStanding {
-  if (!membershipIsLive(paidThrough, today)) {
+export function standingOf(account: AccountRow, access: MembershipAccess): RosterStanding {
+  if (!access.membershipIsLive) {
     return 'lapsed';
   }
   return account.passwordSetAt === null ? 'invited' : 'active';
@@ -242,16 +255,17 @@ export function standingOf(
 function toRosterEntry(
   account: AccountRow,
   paidThrough: string | null,
+  access: MembershipAccess,
   invitation: AccountTokenRow | null,
-  today: string,
 ): RosterEntry {
   return {
     id: account.id,
     name: account.name,
     email: account.email,
     role: account.role,
-    standing: standingOf(account, paidThrough, today),
+    standing: standingOf(account, access),
     paidThrough,
+    graceUntil: access.graceUntil,
     activatedAt: account.passwordSetAt?.toISOString() ?? null,
     invitationSentAt: invitation?.issuedAt.toISOString() ?? null,
     invitationExpiresAt: invitation?.expiresAt.toISOString() ?? null,

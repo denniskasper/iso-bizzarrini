@@ -83,6 +83,7 @@ try {
       emailSender,
       breachedPasswords: createBreachedPasswordCheck(config, logger),
       publicUrl: config.publicUrl,
+      renewalGraceDays: config.renewalGraceDays,
     },
     {
       name: values.name,

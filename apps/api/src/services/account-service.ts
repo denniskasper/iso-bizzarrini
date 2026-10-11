@@ -9,7 +9,7 @@ import {
 } from '../access/tokens.js';
 import { NotSignedInError, TooManyAttemptsError, ValidationError } from '../http/errors.js';
 import type { BreachedPasswordCheck } from '../platform/breached-passwords.js';
-import { today, type Clock } from '../platform/clock.js';
+import { daysOn, today, type Clock } from '../platform/clock.js';
 import type { EmailSender } from '../platform/email.js';
 import type { AccountRepository } from '../repositories/account-repository.js';
 import type { SignInFailureRepository } from '../repositories/sign-in-failure-repository.js';
@@ -103,6 +103,8 @@ export function createAccountService(dependencies: {
   emailSender: EmailSender;
   /** Where a browser reaches this system, so a link in an e-mail lands on the right host. */
   publicUrl: string;
+  /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+  renewalGraceDays: number;
 }): AccountService {
   const {
     clock,
@@ -143,7 +145,10 @@ export function createAccountService(dependencies: {
         return null;
       }
 
-      const paidThrough = await accountRepository.paidThrough(account.id);
+      const [paidThrough, renewsItself] = await Promise.all([
+        accountRepository.paidThrough(account.id),
+        accountRepository.renewsItself(account.id),
+      ]);
 
       return {
         account: {
@@ -152,7 +157,7 @@ export function createAccountService(dependencies: {
           email: account.email,
           role: account.role,
         },
-        membershipIsLive: membershipIsLive(paidThrough, today(clock)),
+        ...accessOf({ paidThrough, renewsItself }, today(clock), dependencies.renewalGraceDays),
         paidThrough,
       };
     },
@@ -315,12 +320,45 @@ export function createAccountService(dependencies: {
   return service;
 }
 
+/** What decides whether somebody may read: the term they hold, and whether it renews itself. */
+export interface MembershipTerm {
+  /** ISO date — the furthest term's last day. Null where no term was ever recorded. */
+  paidThrough: string | null;
+  /** Whether a live Subscription of theirs has auto-renewal on. */
+  renewsItself: boolean;
+}
+
+export interface MembershipAccess {
+  /** Whether they may read the archive today. */
+  membershipIsLive: boolean;
+  /**
+   * ISO date — the last day of grace, **only while they are reading on it**: past the
+   * Paid-through, inside the grace days, with a Subscription that renews itself. Null otherwise.
+   */
+  graceUntil: string | null;
+}
+
 /**
- * **The rule the whole gate turns on**, in one place: at least one Membership whose Paid-through
- * has not passed. `paidThrough` is the last day the term covers, so the day itself still reads.
+ * **The rule the whole gate turns on**, in one place: a Paid-through that has not passed — or,
+ * for a member whose Subscription renews itself, one that passed no more than the grace days
+ * ago (issue #17). `paidThrough` is the last day the term covers, so the day itself still reads,
+ * and so does the last day of grace.
+ *
+ * Grace changes who may read and nothing else. The Paid-through does not move, and the retention
+ * sweep and the reminders go on reckoning from it.
  */
-export function membershipIsLive(paidThrough: string | null, today: string): boolean {
-  return paidThrough !== null && paidThrough >= today;
+export function accessOf(term: MembershipTerm, today: string, graceDays: number): MembershipAccess {
+  const { paidThrough, renewsItself } = term;
+  if (paidThrough === null) {
+    return { membershipIsLive: false, graceUntil: null };
+  }
+  if (paidThrough >= today) {
+    return { membershipIsLive: true, graceUntil: null };
+  }
+
+  const lastDayOfGrace = daysOn(paidThrough, graceDays);
+  const inGrace = renewsItself && lastDayOfGrace >= today;
+  return { membershipIsLive: inGrace, graceUntil: inGrace ? lastDayOfGrace : null };
 }
 
 /**

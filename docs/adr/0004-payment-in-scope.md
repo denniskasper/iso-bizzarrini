@@ -37,6 +37,17 @@ it.
 
 **Not built, deliberately.** The receipt is Stripe's hosted invoice — fetched each time a
 member asks, since its links expire — until the association's auditors have said what they
-need, and there is no year-end export. There is no grace period
-around a renewal whose debit is still being confirmed; see `docs/operations/payments.md`.
+need, and there is no year-end export.
+
+## As built (issue #17)
+
+**Grace while a renewal is being confirmed.** A member whose subscription is live and has
+auto-renewal on may read for `RENEWAL_GRACE_DAYS` (14 by default) past their Paid-through, so
+that a SEPA debit still being confirmed does not lock them out each year. The rule above still
+holds: the Paid-through moves only on a confirmed payment, and grace changes who may read, not
+what was paid for. A payment confirmed on a day the member was reading on grace runs its year
+from the Paid-through. A payment that arrives after grace has run out runs from the day the money
+arrived, as before. The session, the gate, the roster and the Membership page decide this with
+one rule (`accessOf` in `account-service.ts`). The retention sweep and the reminders still count
+from the Paid-through. See `docs/operations/payments.md`.
 

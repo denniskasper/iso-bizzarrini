@@ -52,6 +52,14 @@ export function MemberRow({
               other number in this archive. */}
           <p className="tabular text-sm text-text">{member.paidThrough ?? '—'}</p>
           <p className="tag mt-1">paid through</p>
+          {/* Reading on grace while a renewal is confirmed (issue #17): past the date above, and
+              not lapsed. The same pair as the date it follows, so the two read as a pair. */}
+          {member.graceUntil !== null && (
+            <>
+              <p className="tabular mt-3 text-sm text-text">{member.graceUntil}</p>
+              <p className="tag mt-1">grace until</p>
+            </>
+          )}
         </div>
       </div>
 

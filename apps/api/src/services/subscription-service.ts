@@ -12,6 +12,7 @@ import {
   type WebhookDelivery,
 } from '../platform/payments.js';
 import { createSubscriptionRepository } from '../repositories/subscription-repository.js';
+import { accessOf, type AccountService } from './account-service.js';
 import type { ClubService } from './club-service.js';
 import { readAmount, writeAmount } from './money.js';
 
@@ -83,11 +84,16 @@ export function createSubscriptionService(dependencies: {
   clock: Clock;
   paymentProvider: PaymentProvider;
   clubService: ClubService;
+  /** Who somebody is now, for the answer to a change that may have ended their grace. */
+  accounts: Pick<AccountService, 'describe'>;
+  /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
+  renewalGraceDays: number;
   logger: Logger;
   /** Where a browser reaches this system, so the provider can send the member back to it. */
   publicUrl: string;
 }): SubscriptionService {
-  const { db, clock, paymentProvider, clubService, logger, publicUrl } = dependencies;
+  const { db, clock, paymentProvider, clubService, accounts, renewalGraceDays, logger, publicUrl } =
+    dependencies;
   const subscriptions = createSubscriptionRepository(db);
 
   /**
@@ -117,6 +123,7 @@ export function createSubscriptionService(dependencies: {
 
     return {
       paidThrough: who.paidThrough,
+      graceUntil: who.graceUntil,
       canPayOnline,
       fee: writeAmount(fee),
       currency,
@@ -213,9 +220,14 @@ export function createSubscriptionService(dependencies: {
            * **A year on from wherever the Membership runs to — or from the day the money
            * arrived, where it had already run out.** The same answer the roster offers an
            * Administrator recording a transfer, so the two ways of paying buy the same thing.
+           *
+           * A member reading on grace that day has not run out (issue #17): the days they read
+           * while the bank confirmed the payment were the start of the year it pays for, not
+           * extra days on top of it.
            */
           const runsFrom =
-            account.paidThrough !== null && account.paidThrough > event.paidOn
+            account.paidThrough !== null &&
+            accessOf(account, event.paidOn, renewalGraceDays).membershipIsLive
               ? account.paidThrough
               : event.paidOn;
 
@@ -310,7 +322,8 @@ export function createSubscriptionService(dependencies: {
         await subscriptions.update(subscription.providerSubscriptionId, { renews }, clock.now());
       }
 
-      return standingOf(who);
+      // Read again rather than answered from the request: turning auto-renewal off ends grace.
+      return standingOf((await accounts.describe(who.account.id)) ?? who);
     },
 
     async receiptUrlFor(who, paymentId) {

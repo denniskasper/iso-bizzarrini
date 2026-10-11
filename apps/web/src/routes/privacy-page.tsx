@@ -198,7 +198,9 @@ function Statement({ privacy }: { privacy: PrivacyResponse }) {
         </p>
         <p>
           After {years(accountYears)} it is deleted automatically. Nobody decides this case by case;
-          the system applies the rule once a day.
+          the system applies the rule once a day. The one exception is the Club’s last
+          Administrator, who is kept so that somebody can still open the roster, until another
+          Administrator with a paid-up Membership takes over.
         </p>
       </Section>
 

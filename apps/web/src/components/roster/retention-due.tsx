@@ -1,3 +1,4 @@
+import type { RetentionCandidate } from '@ricambi/contracts';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { useRetentionReport, years } from '@/lib/roster';
@@ -21,7 +22,7 @@ export function RetentionDue() {
     return null;
   }
 
-  const { accounts, paymentRecords, retention } = report.data;
+  const { accounts, keptAdministrator, paymentRecords, retention } = report.data;
 
   return (
     <section className="mt-20" aria-labelledby="retention-heading">
@@ -47,22 +48,24 @@ export function RetentionDue() {
       {accounts.length > 0 && (
         <ul className="mt-8 border-b border-line" data-testid="retention-due">
           {accounts.map((account) => (
-            <li key={account.id} className="retention-row">
-              <div className="min-w-0">
-                <p className="font-medium text-text">{account.name}</p>
-                <p className="tabular truncate text-sm text-muted">{account.email}</p>
-              </div>
-              <div>
-                <p className="tabular text-sm text-text">{account.paidThrough ?? '—'}</p>
-                <p className="tag mt-1">paid through</p>
-              </div>
-              <div>
-                <p className="tabular text-sm text-text">{account.keptUntil}</p>
-                <p className="tag mt-1">kept until</p>
-              </div>
-            </li>
+            <RetentionRow key={account.id} account={account} />
           ))}
         </ul>
+      )}
+
+      {/* Issue #18: apart from the list above, so that the one person the sweep will not delete
+          is never read as one of the people it will. */}
+      {keptAdministrator && (
+        <div className="mt-10" data-testid="retention-kept">
+          <p className="max-w-measure text-pretty text-muted">
+            Kept although past the period: the Club’s last Administrator. Deleting them would leave
+            nobody who can open the roster. Once another Administrator with a paid-up Membership is
+            on the roster, the next sweep deletes this Account too.
+          </p>
+          <ul className="mt-6 border-b border-line">
+            <RetentionRow account={keptAdministrator} />
+          </ul>
+        </div>
       )}
 
       {paymentRecords > 0 && (
@@ -75,5 +78,24 @@ export function RetentionDue() {
         </p>
       )}
     </section>
+  );
+}
+
+function RetentionRow({ account }: { account: RetentionCandidate }) {
+  return (
+    <li className="retention-row">
+      <div className="min-w-0">
+        <p className="font-medium text-text">{account.name}</p>
+        <p className="tabular truncate text-sm text-muted">{account.email}</p>
+      </div>
+      <div>
+        <p className="tabular text-sm text-text">{account.paidThrough ?? '—'}</p>
+        <p className="tag mt-1">paid through</p>
+      </div>
+      <div>
+        <p className="tabular text-sm text-text">{account.keptUntil}</p>
+        <p className="tag mt-1">kept until</p>
+      </div>
+    </li>
   );
 }
