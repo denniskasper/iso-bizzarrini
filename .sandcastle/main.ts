@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import { run, claudeCode } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
 
@@ -11,6 +12,13 @@ await run({
 
   // Sandbox provider — runs the agent inside an isolated container.
   sandbox: docker({
+    // The development Postgres from docker-compose.yml, so the agent can run the API test
+    // suite against a real database as the suite requires. `pnpm sandcastle` starts it first.
+    // Compose names the network after the directory the repository is checked out in.
+    network: process.env.SANDCASTLE_NETWORK ?? `${basename(process.cwd()).toLowerCase()}_default`,
+    env: {
+      TEST_DATABASE_URL: 'postgres://ricambi:ricambi@postgres:5432/ricambi_test',
+    },
     // The host's pnpm store, shared with the sandbox, so installing links packages that are
     // already on this machine instead of downloading all of them again on every run.
     mounts: [
@@ -33,7 +41,7 @@ await run({
   // Maximum number of iterations (agent invocations) to run in a session.
   // Each iteration works on a single issue. Increase this to process more issues
   // per run, or set it to 1 for a single-shot mode.
-  maxIterations: 3,
+  maxIterations: 4,
 
   // Branch strategy — the agent's commits land on a branch of their own and are never merged
   // into whatever is checked out. Everything in this repository reaches `main` through a pull

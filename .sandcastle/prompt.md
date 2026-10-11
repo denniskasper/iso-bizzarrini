@@ -29,9 +29,9 @@ Pick the highest-priority open issue that is not blocked by another open issue.
 
 1. **Explore** — read the issue carefully. Pull in the parent PRD if referenced. Read the relevant source files and tests before writing any code.
 2. **Plan** — decide what to change and why. Keep the change as small as possible.
-3. **Execute** — use RGR (Red → Green → Repeat → Refactor): write a failing test first, then write the implementation to pass it.
-4. **Verify** — run `pnpm typecheck`, `pnpm lint` and `pnpm format:check` before committing. Fix any failures before proceeding. The test suites need a Postgres this sandbox does not have: say in the commit message that they were not run.
-5. **Commit** — make a single git commit, in the Conventional Commits form `AGENTS.md` requires, with the issue number as the scope: `feat(12): …`, `fix(12): …`. In the body say what was done and why, any decision you made that the issue did not make for you, and that the test suites were not run. Never put a client's or person's name, a hostname or a credential in it.
+3. **Execute** — use RGR (Red → Green → Repeat → Refactor): write a failing test first, then write the implementation to pass it. Tests go at the seams this repository already uses (`apps/api/tests`, over real HTTP against a real database, with the clock and the external edges injected). A change to the schema needs a migration: `pnpm db:generate --name <what_it_does>`, then strip `"public".` from the generated SQL, as the README says.
+4. **Verify** — run `pnpm typecheck`, `pnpm lint`, `pnpm format:check` and `pnpm test:api` before committing, and fix any failure before proceeding. `pnpm test:api` runs against a real Postgres that this sandbox can reach. The browser suite (`pnpm test:e2e`) cannot run here: write or update its specs where the issue needs them, and say in the commit message that they were not run.
+5. **Commit** — make a single git commit, in the Conventional Commits form `AGENTS.md` requires, with the issue number as the scope: `feat(12): …`, `fix(12): …`. In the body say what was done and why, any decision you made that the issue did not make for you, and which checks were and were not run. Never put a client's or person's name, a hostname or a credential in it.
 6. **Report** — comment on the issue with `gh issue comment <ID>`: what you did, what you decided, and what is left. **Do not close the issue and do not push.** Your commit stays on the `sandcastle/work` branch for a person to review and open a pull request from.
 
 ## Rules

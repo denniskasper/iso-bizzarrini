@@ -28,7 +28,7 @@
     "test:e2e": "pnpm --filter @ricambi/web test:e2e",
     "roster:invite-administrator": "pnpm --filter @ricambi/api roster:invite-administrator",
     "roster:retention-sweep": "pnpm --filter @ricambi/api roster:retention-sweep",
-    "sandcastle": "tsx .sandcastle/main.ts"
+    "sandcastle": "pnpm db:up && tsx .sandcastle/main.ts"
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "^0.12.0",
