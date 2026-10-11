@@ -27,9 +27,11 @@
     "test:api": "pnpm --filter @ricambi/api test",
     "test:e2e": "pnpm --filter @ricambi/web test:e2e",
     "roster:invite-administrator": "pnpm --filter @ricambi/api roster:invite-administrator",
-    "roster:retention-sweep": "pnpm --filter @ricambi/api roster:retention-sweep"
+    "roster:retention-sweep": "pnpm --filter @ricambi/api roster:retention-sweep",
+    "sandcastle": "tsx .sandcastle/main.ts"
   },
   "devDependencies": {
+    "@ai-hero/sandcastle": "^0.12.0",
     "@eslint/js": "^9.39.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
@@ -37,6 +39,7 @@
     "globals": "^16.5.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "tsx": "^4.23.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.2"
   }
