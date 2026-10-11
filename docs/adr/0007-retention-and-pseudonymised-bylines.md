@@ -35,3 +35,14 @@ confirmed by the association's accountant, like the three years above).
 install. `roster:retention-sweep --dry-run` and the foot of the roster screen both show who it
 would delete next. Backups are outside it: a copy made before a deletion holds what was
 deleted until it is rotated out, and the privacy statement says so.
+
+## As built (issue #18)
+
+**The sweep never deletes the last Administrator.** The roster is behind the role and not
+behind a Membership, so a lapsed Administrator can still be the person running the Club.
+Administrators are swept like anyone else, except where every Administrator on the roster is
+past the period: then the one whose Membership ran out most recently is kept, and the rest are
+deleted. The dry run — `GET /api/roster/retention`, the foot of the roster screen and
+`roster:retention-sweep --dry-run` — names the one kept and why, apart from those it would
+delete. Erasure on request is unchanged: an Administrator cannot erase the Account they are
+signed in with, and can erase any other.

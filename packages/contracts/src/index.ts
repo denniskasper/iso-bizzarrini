@@ -1570,6 +1570,13 @@ export interface RetentionReport {
   asOf: string;
   retention: RetentionTerms;
   accounts: RetentionCandidate[];
+  /**
+   * **The last Administrator, kept although past the period** (issue #18). An Administrator can
+   * go on running the Club while lapsed, so deleting every one of them would leave a roster
+   * nobody can open. Where all of them are due, the one whose Membership ran out most recently
+   * is kept and named here, and is not in `accounts`. Null where nobody had to be kept.
+   */
+  keptAdministrator: RetentionCandidate | null;
   /** Payment records of people already erased, whose statutory period has now run out too. */
   paymentRecords: number;
 }

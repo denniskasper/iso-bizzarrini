@@ -3,6 +3,7 @@ import type {
   RetentionCandidate,
   RetentionReport,
   RetentionTerms,
+  Role,
 } from '@ricambi/contracts';
 import { ConflictError, NotFoundError } from '../http/errors.js';
 import { today, yearsOn, type Clock } from '../platform/clock.js';
@@ -111,22 +112,35 @@ export function createRetentionService(dependencies: {
       ),
     ]);
 
-    const accounts: RetentionCandidate[] = [];
+    const due: (RetentionCandidate & { role: Role })[] = [];
     for (const account of everyone) {
       const furthest = paidThrough.get(account.id) ?? null;
       const keptUntil = keptUntilFor(account.addedAt, furthest);
       if (keptUntil < asOf) {
-        accounts.push({
+        due.push({
           id: account.id,
           name: account.name,
           email: account.email,
           paidThrough: furthest,
           keptUntil,
+          role: account.role,
         });
       }
     }
 
-    return { asOf, retention: terms, accounts, paymentRecords };
+    const keptAdministrator = lastAdministratorAmong(
+      due,
+      everyone.filter((account) => account.role === 'administrator').length,
+    );
+    const accounts = due.filter((account) => account.id !== keptAdministrator?.id).map(withoutRole);
+
+    return {
+      asOf,
+      retention: terms,
+      accounts,
+      keptAdministrator: keptAdministrator ? withoutRole(keptAdministrator) : null,
+      paymentRecords,
+    };
   }
 
   /**
@@ -194,6 +208,37 @@ export function createRetentionService(dependencies: {
       return erased;
     },
   };
+}
+
+/**
+ * **The sweep never deletes the last Administrator** (issue #18). The roster is behind the role
+ * and not behind a Membership, so a lapsed Administrator can still be the person running the
+ * Club; deleting every one of them would lock the Club out of its own roster. Where all of them
+ * are due, the one whose Membership ran out most recently is kept — the likeliest to be the one
+ * still doing the work — and every other is swept as anybody else would be.
+ */
+function lastAdministratorAmong<Due extends RetentionCandidate & { role: Role }>(
+  due: Due[],
+  administrators: number,
+): Due | null {
+  const dueAdministrators = due.filter((account) => account.role === 'administrator');
+  if (administrators === 0 || dueAdministrators.length < administrators) {
+    return null;
+  }
+
+  // `keptUntil` rather than `paidThrough`, so that one who never had a term is ordered by the
+  // day they were added, as the period was counted. The id settles a tie, so that the dry run
+  // and the sweep it rehearses keep the same person.
+  return dueAdministrators.reduce((latest, account) =>
+    account.keptUntil > latest.keptUntil ||
+    (account.keptUntil === latest.keptUntil && account.id > latest.id)
+      ? account
+      : latest,
+  );
+}
+
+function withoutRole({ role: _role, ...account }: RetentionCandidate & { role: Role }) {
+  return account;
 }
 
 /**

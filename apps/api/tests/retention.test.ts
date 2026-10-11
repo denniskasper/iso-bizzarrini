@@ -468,6 +468,91 @@ describe('The retention sweep', () => {
     expect((await sweep()).accounts).toMatchObject([{ keptUntil: '2031-12-31' }]);
   });
 
+  /**
+   * **The sweep cannot lock the Club out of its own roster** (issue #18). An Administrator keeps
+   * working while lapsed, because the roster is behind the role and not behind a Membership — so
+   * the only Administrator can be past the period and still be the person running the Club.
+   */
+  describe('and the Administrators', () => {
+    it('never deletes the last one, and says who it kept and why', async () => {
+      await on('2064-01-01');
+
+      // The Administrator is past the period too, and still the one reading the roster.
+      const report = await sweep();
+
+      expect(report.keptAdministrator).toMatchObject({
+        id: administrator.entry.id,
+        paidThrough: '2060-12-31',
+        keptUntil: '2063-12-31',
+      });
+      expect(report.accounts.map((account) => account.id).sort()).toEqual(
+        [editor.entry.id, clara.entry.id].sort(),
+      );
+      expect(await onTheRoster(administrator)).toBe(true);
+      expect(await onTheRoster(editor)).toBe(false);
+
+      // And the next sweep, finding them still past it, keeps them still.
+      expect(await sweep()).toMatchObject({
+        accounts: [],
+        keptAdministrator: { id: administrator.entry.id },
+      });
+    });
+
+    it('keeps the one whose Membership ran out most recently, and deletes the rest', async () => {
+      const treasurer = await givenAMember(app, administrator.agent, {
+        name: 'A Treasurer',
+        role: 'administrator',
+        paidThrough: '2061-12-31',
+      });
+      const secretary = await givenAMember(app, administrator.agent, {
+        name: 'A Secretary',
+        role: 'administrator',
+        paidThrough: '2059-12-31',
+      });
+
+      await on('2066-01-01');
+      const report = await sweep();
+
+      expect(report.keptAdministrator).toMatchObject({ id: treasurer.entry.id });
+      expect(report.accounts.map((account) => account.id)).toEqual(
+        expect.arrayContaining([administrator.entry.id, secretary.entry.id]),
+      );
+
+      const kept = await app.memberAgent(treasurer);
+      const left = await kept.get('/api/roster').expect(200);
+      expect(left.body.members.map((entry: RosterEntry) => entry.id)).toEqual([treasurer.entry.id]);
+    });
+
+    it('sweeps an Administrator who is not the last one exactly as before', async () => {
+      const treasurer = await givenAMember(app, administrator.agent, {
+        name: 'A Treasurer',
+        role: 'administrator',
+        paidThrough: '2026-12-31',
+      });
+
+      await on('2030-01-01');
+      const report = await sweep();
+
+      expect(report.keptAdministrator).toBeNull();
+      expect(report.accounts.map((account) => account.id).sort()).toEqual(
+        [treasurer.entry.id, clara.entry.id].sort(),
+      );
+      expect(await onTheRoster(treasurer)).toBe(false);
+    });
+
+    it('is what the dry run says too, on the roster and in the sweep', async () => {
+      await on('2064-01-01');
+
+      const rehearsed = await sweep({ dryRun: true });
+      const read = await administrator.agent.get('/api/roster/retention').expect(200);
+
+      expect(read.body).toEqual(rehearsed);
+      expect(rehearsed.keptAdministrator).toMatchObject({ id: administrator.entry.id });
+      expect(rehearsed.accounts.map((account) => account.id)).not.toContain(administrator.entry.id);
+      expect(await sweep()).toEqual(rehearsed);
+    });
+  });
+
   describe('as a dry run', () => {
     /**
      * **Before it deletes them.** The same reading the sweep does, answering with the same
