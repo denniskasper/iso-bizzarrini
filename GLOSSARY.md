@@ -216,3 +216,17 @@ A company that handles members' personal data on the association's behalf — th
 backup store, the e-mail provider. Named in the Privacy statement, one per kind of work, with
 the date its agreement was signed kept as the association's own record.
 _Avoid_: Vendor, supplier, sub-processor, third party
+
+## The platform itself
+
+**Version**:
+The number that says which Ricambi somebody is looking at, in three parts read by who has to
+notice: the last moves when something wrong was put right, the middle when somebody can do
+what they could not before, the first when somebody has to act or relearn. There is one, for
+the whole platform.
+_Avoid_: Build, revision, release number
+
+**Release**:
+The deliberate act that gives Ricambi a new Version, and the thing it produces. Work that has
+been merged but not yet released still carries the Version of the Release it descends from.
+_Avoid_: Deploy, rollout, update
