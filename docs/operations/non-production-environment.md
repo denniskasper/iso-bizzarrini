@@ -88,7 +88,7 @@ or database change touching it.** Record the date and who ran it.
 5. Every row in every table is accounted for by `scripts/seed.ts` or was created by hand in this
    environment. **No table contains a row that originated in production.** Today that is the
    `models` table; from ticket 14 it is the roster, and this step becomes the important one.
-6. `EMAIL_TRANSPORT` is `none`, `memory` or `log`; nothing captured or logged has ever been delivered.
+6. `EMAIL_TRANSPORT` is `none`, `memory` or `log`, never `smtp`; nothing captured or logged has ever been delivered.
 7. `PAYMENT_PROVIDER` holds no live key.
 8. `REMINDERS_ENABLED` is unset or `false`. (The application would not have started otherwise —
    confirm it anyway, because that is what a check is for.)

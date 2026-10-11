@@ -13,6 +13,7 @@ import {
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { UnconfiguredPaymentProvider, type PaymentProvider } from '../platform/payments.js';
+import { SmtpEmailSender } from '../platform/smtp-email.js';
 import { StripePaymentProvider } from '../platform/stripe-payments.js';
 
 /**
@@ -27,6 +28,8 @@ export function createEmailSender(config: AppConfig, logger: Logger): EmailSende
       return new LoggedEmailSender(logger);
     case 'none':
       return new UnconfiguredEmailSender();
+    case 'smtp':
+      return new SmtpEmailSender(config.email.smtp);
   }
 }
 

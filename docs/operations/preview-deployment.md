@@ -18,7 +18,7 @@ limitation to work around — it is the point:
 - It has no payment provider, so nobody is offered a way to pay online; the renewal reminders
   are refused outright, and its e-mail is written to the log rather than sent. It cannot reach a
   real person or a real mandate, and it will not start if it is handed something that could —
-  a live payment key included.
+  a live payment key included, and `EMAIL_TRANSPORT=smtp`, the transport that delivers.
 - Setting `ENVIRONMENT_MODE=production` on this stack **will not start**: it writes its e-mail to
   the log, and production refuses that outright — an invitation nobody receives, with its
   single-use secret left in a log file (ADR 0012). It seeds itself an invented catalog too, which
