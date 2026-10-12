@@ -6,12 +6,16 @@ its proposed Marks, the table in Italian and English, and every place the readin
 
   build.py        writes .tmp/catalogue-reading/index.html (open it in a browser)
 """
+import base64
 import difflib
+import io
 import json
 import re
 import shutil
 import subprocess
 from pathlib import Path
+
+from PIL import Image
 
 HERE = Path(__file__).parent
 OUT = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()) / ".tmp/catalogue-reading"
@@ -207,6 +211,18 @@ def main():
     page = (HERE / "viewer.html").read_text().replace("/*DATA*/", script)
     (OUT / "index.html").write_text(page)
     print(f"\nopen {OUT / 'index.html'}")
+
+    # The same page as one file that can be handed to one person, pictures inside it. It holds
+    # the Club's scans, so it is sent to somebody, never put anywhere a stranger could open it.
+    def inline(match):
+        picture = Image.open(OUT / match.group(1))
+        packed = io.BytesIO()
+        picture.save(packed, "WEBP", lossless=True)
+        return '"data:image/webp;base64,' + base64.b64encode(packed.getvalue()).decode() + '"'
+
+    alone = re.sub(r'"(t\d+-(?:drawing|table-\d)\.png)"', inline, page)
+    (OUT / "catalogue-reading-trial.html").write_text(alone)
+    print(f"one file to send: {OUT / 'catalogue-reading-trial.html'} ({len(alone) / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":
