@@ -81,7 +81,8 @@ COPY --from=build --chown=node:node /runtime/package.json ./package.json
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist
 # The generated SQL travels with the image so a deployment can migrate itself.
 COPY --from=build --chown=node:node /app/apps/api/drizzle ./drizzle
-COPY --from=build --chown=node:node /app/apps/web/dist ./web
+# Beside `apps`, not inside the server's directory: `WEB_DIST_PATH` below names it in full.
+COPY --from=build --chown=node:node /app/apps/web/dist /app/web
 
 # The app is served from the same origin as the API, so it ships inside this image.
 ENV WEB_DIST_PATH=/app/web
