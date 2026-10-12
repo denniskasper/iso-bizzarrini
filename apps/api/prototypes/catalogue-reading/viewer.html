@@ -1,0 +1,303 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. build.py fills in the data and writes this to .tmp/catalogue-reading/. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalogue reading trial</title>
+<style>
+  /* Ricambi's tokens (apps/web/src/styles/tokens.css, dark), copied because this file stands alone. */
+  :root {
+    --surface: oklch(0.205 0.012 264);
+    --surface-raised: oklch(0.272 0.012 264);
+    --surface-sunken: oklch(0.168 0.011 264);
+    --line: oklch(0.345 0.012 264);
+    --line-strong: oklch(0.47 0.013 264);
+    --paper: oklch(1 0 0);
+    --ink: oklch(0.279 0.015 257);
+    --text: oklch(0.97 0.002 264);
+    --text-muted: oklch(0.72 0.009 264);
+    --mark: oklch(0.55 0.1 243);
+    --accent: oklch(0.795 0.06 87);
+    --accent-contrast: oklch(0.2 0.012 264);
+    --accent-ink: oklch(0.865 0.045 243);
+    --alarm: oklch(0.76 0.13 25);
+    --font-sans: 'Open Sans Variable', 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Barlow Condensed', 'Arial Narrow', 'Open Sans', ui-sans-serif, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid; grid-template-rows: auto 1fr;
+    background: var(--surface); color: var(--text);
+    font: 0.875rem/1.375rem var(--font-sans);
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  .top { display: flex; align-items: stretch; gap: 1.5rem; padding: 0 1.5rem; border-bottom: 1px solid var(--line); }
+  .top h1 { margin: 0; align-self: center; font: 600 1rem var(--font-sans); color: var(--text-muted); }
+  .tabs { display: flex; gap: 0.25rem; }
+  .tab {
+    display: flex; align-items: baseline; gap: 0.6rem; padding: 0.7rem 1rem 0.6rem;
+    background: none; border: 0; border-bottom: 3px solid transparent; color: var(--text-muted);
+  }
+  .tab b { font: 600 2rem/1 var(--font-display); letter-spacing: 0.03em; color: var(--text); }
+  .tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text); }
+
+  .work { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(24rem, 1fr); min-height: 0; }
+  @media (max-width: 60rem) { .work { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; } }
+
+  .stage { position: relative; overflow: hidden; background: var(--surface-sunken); touch-action: none; cursor: grab; }
+  .stage.dragging { cursor: grabbing; }
+  .sheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: var(--paper); }
+  .sheet img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+  .mark {
+    position: absolute; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    transform: translate(-50%, -50%) scale(calc(1 / var(--k)));
+    background: color-mix(in oklch, var(--mark) 12%, transparent);
+    border: 2px solid var(--mark);
+  }
+  .mark.unlisted { border-style: dashed; border-color: oklch(0.5 0.17 27); background: none; }
+  .mark.lit, .mark:hover, .mark:focus-visible {
+    background: color-mix(in oklch, var(--accent) 45%, transparent); border-color: oklch(0.5 0.07 87);
+    outline: none; box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 35%, transparent);
+  }
+  .stage.bare .mark { display: none; }
+  .tools { position: absolute; left: 1rem; bottom: 1rem; display: flex; gap: 0.5rem; }
+  .tools button, .sheets button {
+    min-height: 2.75rem; min-width: 2.75rem; padding: 0 0.9rem; border-radius: 4px;
+    background: var(--surface-raised); border: 1px solid var(--line-strong);
+  }
+  .tools button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+
+  .card {
+    position: fixed; z-index: 5; width: 20rem; padding: 0.9rem 1rem; pointer-events: none;
+    background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: 0 12px 32px oklch(0 0 0 / 0.45);
+  }
+  .card[hidden] { display: none; }
+  .card h2 { margin: 0 0 0.4rem; font: 600 1.75rem/1 var(--font-display); letter-spacing: 0.03em; }
+  .card h2 span { font: 0.875rem var(--font-sans); letter-spacing: 0; color: var(--text-muted); }
+  .card ul { list-style: none; margin: 0; padding: 0; }
+  .card li + li { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--line); }
+  .card .en { font-weight: 600; }
+  .card .it, .it { color: var(--text-muted); font-size: 0.75rem; line-height: 1.125rem; }
+  .card .facts { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.15rem; }
+  .card p { margin: 0.6rem 0 0; color: var(--text-muted); }
+  .number { font-family: var(--font-mono); white-space: nowrap; }
+
+  .panel { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; border-left: 1px solid var(--line); }
+  .head { padding: 1.25rem 1.5rem 1rem; }
+  .head h2 { margin: 0; font: 600 2.25rem/2.5rem var(--font-display); letter-spacing: 0.02em; }
+  .head .it { font-size: 0.875rem; }
+  .sheets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.9rem; }
+  .sheets button { min-height: 2.25rem; padding: 0 0.7rem; font-size: 0.75rem; }
+
+  .report { margin: 0; padding: 1rem 1.5rem; display: grid; grid-template-columns: 1fr auto; gap: 0.3rem 1.5rem;
+    background: var(--surface-sunken); border-block: 1px solid var(--line); }
+  .report dt { color: var(--text-muted); }
+  .report dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .report .wide { grid-column: 1 / -1; text-align: left; color: var(--alarm); font-size: 0.75rem; margin-top: -0.2rem; }
+  .report label { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; min-height: 2rem; }
+
+  .rows { overflow: auto; min-height: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--surface); text-align: left; font-weight: 600;
+    color: var(--text-muted); padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line-strong); }
+  td { padding: 0.5rem 0.6rem; vertical-align: top; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { padding-left: 1.5rem; }
+  td.pos { font: 600 1.25rem/1.375rem var(--font-display); letter-spacing: 0.03em; white-space: nowrap; }
+  td.pos.inherited { color: var(--text-muted); font-weight: 400; }
+  td.qty { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.lit td { background: color-mix(in oklch, var(--accent) 16%, transparent); }
+  tr.doubt td:first-child { box-shadow: inset 4px 0 0 var(--alarm); }
+  .doubts { margin: 0.25rem 0 0; padding: 0; list-style: none; color: var(--alarm); font-size: 0.75rem; line-height: 1.125rem; }
+  .range { color: var(--text-muted); font-size: 0.75rem; }
+  .only-doubts tr:not(.doubt) { display: none; }
+  tbody tr { cursor: pointer; }
+
+  dialog { padding: 0; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); max-width: 96vw; max-height: 94vh; }
+  dialog::backdrop { background: oklch(0.1 0.01 264 / 0.7); }
+  dialog img { display: block; max-width: 96vw; max-height: 94vh; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Catalogue reading trial</h1>
+  <div class="tabs" role="tablist" aria-label="Tavola"></div>
+</header>
+<main class="work">
+  <section class="stage" aria-label="Drawing">
+    <div class="sheet"><img alt=""></div>
+    <div class="tools">
+      <button data-zoom="1.4" aria-label="Zoom in">+</button>
+      <button data-zoom="0.714" aria-label="Zoom out">−</button>
+      <button data-fit>Fit</button>
+      <button data-marks aria-pressed="true">Marks</button>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="head"></div>
+    <dl class="report"></dl>
+    <div class="rows">
+      <table>
+        <thead><tr><th>Pos</th><th>Catalog Number</th><th>Qty</th><th>Name</th><th>Note</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<div class="card" hidden></div>
+<dialog><img alt=""></dialog>
+<script>
+/*DATA*/
+const $ = (s) => document.querySelector(s);
+const stage = $('.stage'), sheet = $('.sheet'), card = $('.card'), body = $('tbody');
+let tavola, view = { k: 1, x: 0, y: 0 };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function apply() {
+  sheet.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
+  sheet.style.setProperty('--k', view.k);
+}
+function fit() {
+  const k = Math.min(stage.clientWidth / tavola.width, stage.clientHeight / tavola.height) * 0.96;
+  view = { k, x: (stage.clientWidth - tavola.width * k) / 2, y: (stage.clientHeight - tavola.height * k) / 2 };
+  apply();
+}
+function zoomAt(factor, px, py) {
+  const k = Math.min(4, Math.max(0.15, view.k * factor));
+  view.x = px - (px - view.x) * (k / view.k);
+  view.y = py - (py - view.y) * (k / view.k);
+  view.k = k; apply();
+}
+
+// A dash in the Pos column means "belongs to the Position above". On the catalogue's sheets
+// those rows are the screws and washers; on the technical office's they are the other hand of a pair.
+const undrawn = (row) => row.inherits && tavola.layout === 'catalogue';
+const rowsAt = (number) => tavola.rows.filter((row) => row.positions.includes(number));
+
+function cardFor(number) {
+  const rows = rowsAt(number), drawn = rows.filter((r) => !undrawn(r)), extra = rows.length - drawn.length;
+  let html = `<h2>${esc(number)} <span>Position</span></h2>`;
+  if (!rows.length) return html + '<p>Nothing recorded here.</p>';
+  html += '<ul>' + drawn.map((r) => `<li>
+      <div class="en">${esc(r.nameEn)}</div><div class="it">${esc(r.nameIt)}</div>
+      <div class="facts"><span class="number">${esc((r.numbers || []).map((n) => n.number).join(' / ') || 'No Catalog Number')}</span>
+      <span>${r.quantity ? esc(r.quantity) + ' per car' : ''}</span></div></li>`).join('') + '</ul>';
+  if (extra) html += `<p>+ ${extra} ${extra === 1 ? 'fastener' : 'fasteners'}</p>`;
+  return html + '<p>Machine translation</p>';
+}
+function showCard(number, x, y) {
+  card.innerHTML = cardFor(number); card.hidden = false;
+  const w = card.offsetWidth, h = card.offsetHeight;
+  card.style.left = Math.min(innerWidth - w - 12, x + 18) + 'px';
+  card.style.top = Math.max(12, Math.min(innerHeight - h - 12, y + 18)) + 'px';
+}
+function light(numbers) {
+  document.querySelectorAll('.lit').forEach((el) => el.classList.remove('lit'));
+  numbers.forEach((n) => document.querySelectorAll(`[data-n~="${CSS.escape(n)}"]`).forEach((el) => el.classList.add('lit')));
+}
+
+function show(id) {
+  tavola = TAVOLE.find((t) => t.id === id);
+  document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t.dataset.id === id));
+  sheet.style.width = tavola.width + 'px'; sheet.style.height = tavola.height + 'px';
+  sheet.querySelector('img').src = tavola.drawing;
+  sheet.querySelectorAll('.mark').forEach((m) => m.remove());
+  const listed = new Set(tavola.rows.flatMap((r) => r.positions));
+  for (const mark of tavola.marks) {
+    const el = document.createElement('button');
+    el.className = 'mark' + (listed.has(mark.number) ? '' : ' unlisted');
+    el.dataset.n = mark.number; el.setAttribute('aria-label', 'Position ' + mark.number);
+    el.style.left = mark.x * 100 + '%'; el.style.top = mark.y * 100 + '%';
+    sheet.append(el);
+  }
+  const r = tavola.report;
+  $('.head').innerHTML = `<h2>${esc(tavola.titleEn)}</h2><div class="it">${esc(tavola.titleIt)}</div>
+    <div class="it">Sezione ${esc(tavola.sezione)}, Gruppo ${esc(tavola.gruppo)}${tavola.sottogruppo ? ', Sottogruppo ' + esc(tavola.sottogruppo) : ''}</div>
+    <div class="sheets">${tavola.sheetImages.map((src, i) =>
+      `<button data-sheet="${src}">Table sheet ${i + 1}${tavola.sheets?.[i]?.foglio ? ', foglio ' + esc(tavola.sheets[i].foglio) : ''}</button>`).join('')}</div>`;
+  const [ok, total] = r.agreement.numbers;
+  $('.report').innerHTML = `
+    <dt>Positions in the table</dt><dd>${r.positionsListed}</dd>
+    <dt>Marks proposed on the drawing</dt><dd>${r.marks}</dd>
+    <dt>Positions in the table with no Mark</dt><dd>${r.listedNotMarked.length}</dd>
+    ${r.listedNotMarked.length ? `<dd class="wide">${r.listedNotMarked.join(', ')}</dd>` : ''}
+    <dt>Marks whose number is in no table row</dt><dd>${r.markedNotListed.length}</dd>
+    ${r.markedNotListed.length ? `<dd class="wide">${r.markedNotListed.join(', ')}</dd>` : ''}
+    <dt>Catalog Numbers both readers agree on</dt><dd>${ok} of ${total}</dd>
+    <dt>Rows in doubt</dt><dd>${r.rowsInDoubt} of ${tavola.rows.length}</dd>
+    <label><input type="checkbox" id="only"> Show only rows in doubt</label>`;
+  body.innerHTML = tavola.rows.map((row, i) => `<tr data-i="${i}" data-n="${row.positions.join(' ')}" class="${row.doubts.length ? 'doubt' : ''}">
+      <td class="pos ${row.inherits ? 'inherited' : ''}">${esc(row.positions.join('–') || '')}</td>
+      <td>${(row.numbers || []).map((n) => `<div class="number">${esc(n.number)}</div>${n.range ? `<div class="range">${esc(n.range)}</div>` : ''}`).join('')}
+          ${row.disegnoOrigine ? `<div class="range">D.O. <span class="number">${esc(row.disegnoOrigine)}</span></div>` : ''}</td>
+      <td class="qty">${esc(row.quantity)}</td>
+      <td><div>${esc(row.nameEn)}</div><div class="it">${esc(row.nameIt)}</div>
+          ${row.doubts.length ? `<ul class="doubts">${row.doubts.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}</td>
+      <td><div>${esc(row.noteEn || row.note)}</div>${row.noteEn && row.noteEn !== row.note ? `<div class="it">${esc(row.note)}</div>` : ''}</td>
+    </tr>`).join('');
+  $('.rows').scrollTop = 0; $('table').classList.remove('only-doubts');
+  fit();
+}
+
+$('.tabs').innerHTML = TAVOLE.map((t) =>
+  `<button class="tab" role="tab" data-id="${t.id}"><b>${esc(t.tavola || t.id.slice(1))}</b>${esc(t.titleEn)}</button>`).join('');
+$('.tabs').addEventListener('click', (e) => { const t = e.target.closest('.tab'); if (t) show(t.dataset.id); });
+
+sheet.addEventListener('pointerover', (e) => {
+  const m = e.target.closest('.mark'); if (!m) return;
+  light([m.dataset.n]); showCard(m.dataset.n, e.clientX, e.clientY);
+});
+sheet.addEventListener('pointerout', (e) => { if (e.target.closest('.mark')) { card.hidden = true; light([]); } });
+sheet.addEventListener('focusin', (e) => {
+  const m = e.target.closest('.mark'); if (!m) return;
+  const box = m.getBoundingClientRect(); light([m.dataset.n]); showCard(m.dataset.n, box.right, box.top);
+});
+sheet.addEventListener('focusout', () => { card.hidden = true; });
+sheet.addEventListener('click', (e) => {
+  const m = e.target.closest('.mark'); if (!m) return;
+  const row = body.querySelector(`tr[data-n~="${CSS.escape(m.dataset.n)}"]`);
+  if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+});
+body.addEventListener('pointerover', (e) => { const tr = e.target.closest('tr'); if (tr) light(tr.dataset.n.split(' ').filter(Boolean)); });
+body.addEventListener('click', (e) => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const mark = tavola.marks.find((m) => tr.dataset.n.split(' ').includes(m.number)); if (!mark) return;
+  view.k = Math.max(view.k, 1);
+  view.x = stage.clientWidth / 2 - mark.x * tavola.width * view.k;
+  view.y = stage.clientHeight / 2 - mark.y * tavola.height * view.k;
+  apply(); light(tr.dataset.n.split(' ').filter(Boolean));
+});
+document.addEventListener('change', (e) => { if (e.target.id === 'only') $('table').classList.toggle('only-doubts', e.target.checked); });
+
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault(); const box = stage.getBoundingClientRect();
+  zoomAt(e.deltaY < 0 ? 1.15 : 0.87, e.clientX - box.left, e.clientY - box.top);
+}, { passive: false });
+let drag = null;
+stage.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.tools, .mark')) return;
+  drag = { x: e.clientX - view.x, y: e.clientY - view.y }; stage.setPointerCapture(e.pointerId); stage.classList.add('dragging');
+});
+stage.addEventListener('pointermove', (e) => { if (drag) { view.x = e.clientX - drag.x; view.y = e.clientY - drag.y; apply(); } });
+stage.addEventListener('pointerup', () => { drag = null; stage.classList.remove('dragging'); });
+$('.tools').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.zoom) zoomAt(+b.dataset.zoom, stage.clientWidth / 2, stage.clientHeight / 2);
+  if ('fit' in b.dataset) fit();
+  if ('marks' in b.dataset) { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); stage.classList.toggle('bare', !on); }
+});
+$('.head').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sheet]'); if (!b) return;
+  $('dialog img').src = b.dataset.sheet; $('dialog').showModal();
+});
+$('dialog').addEventListener('click', () => $('dialog').close());
+addEventListener('resize', fit);
+show(TAVOLE[0].id);
+</script>
+</body>
+</html>
