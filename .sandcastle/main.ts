@@ -1,10 +1,23 @@
 import { basename } from 'node:path';
 import { run, claudeCode } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
+import { baseForRun } from './branch-check.ts';
 
 // Simple loop: an agent that picks `ready-for-agent` issues one by one and leaves its work on
 // the `sandcastle/work` branch for a person to review.
 // Run this with: pnpm sandcastle
+
+const BRANCH = 'sandcastle/work';
+
+// Before anything is started: a branch whose pull request has been merged is refused rather than
+// reused, and a new one is cut from `main` as the remote has it. See `branch-check.ts`.
+let baseBranch: string;
+try {
+  baseBranch = baseForRun(BRANCH);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
 
 await run({
   // A name for this run, shown as a prefix in log output.
@@ -47,7 +60,7 @@ await run({
   // into whatever is checked out. Everything in this repository reaches `main` through a pull
   // request with CI behind it, and the sandbox cannot run the test suites; so what a run
   // produces is a branch to open a pull request from, not a change to `main`.
-  branchStrategy: { type: 'branch', branch: 'sandcastle/work' },
+  branchStrategy: { type: 'branch', branch: BRANCH, baseBranch },
 
   // Lifecycle hooks — commands grouped by where they run (host or sandbox).
   hooks: {
