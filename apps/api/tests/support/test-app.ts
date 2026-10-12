@@ -9,6 +9,7 @@ import { createPasswordHasher } from '../../src/access/passwords.js';
 import { loadConfig, type AppConfig } from '../../src/config/config.js';
 import type { Db } from '../../src/db/client.js';
 import type { BreachedPasswordCheck } from '../../src/platform/breached-passwords.js';
+import type { Build } from '../../src/platform/build.js';
 import { MutableClock } from '../../src/platform/clock.js';
 import { InMemoryEmailSender, type EmailSender } from '../../src/platform/email.js';
 import { createLogger, type Logger } from '../../src/platform/logger.js';
@@ -66,6 +67,8 @@ export interface TestAppOptions {
    */
   emails?: InMemoryEmailSender;
   paymentProvider?: PaymentProvider;
+  /** What the server says it was built as. Defaults to what this checkout says it is. */
+  build?: Build;
 }
 
 /**
@@ -137,6 +140,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       breachedPasswords: breached,
       passwordHasher: createPasswordHasher(TEST_PASSWORD_COST),
       logger,
+      build: options.build,
     });
   } catch (error) {
     // The application refuses to start in an unsafe environment. Leave nothing behind it.

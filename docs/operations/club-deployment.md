@@ -19,6 +19,7 @@ them on the server.
 | | The Club's deployment | The non-production system beside it |
 | --- | --- | --- |
 | Compose file | `docker/club/compose.yml` | `docker/preview/compose.yml` |
+| Branch | `release`: the latest Release, and never `main` ([`releases.md`](releases.md)) | `main` |
 | `ENVIRONMENT_MODE` | `production`, fixed in the file | `non-production`, fixed in the file |
 | E-mail | `smtp`, delivered to real inboxes | `log`, never sent ([ADR 0012](../adr/0012-non-production-is-the-default.md)) |
 | Catalog | Nothing seeded. Recorded through the Editor screens, or loaded once ([`archive-migration.md`](archive-migration.md)) | Invented, written at the first boot |
@@ -49,9 +50,12 @@ processor agreement with the hosting provider is signed.**
 
 1. **In Dokploy, create a Compose service** in a project of the Club's own, not alongside your
    own work.
-2. Point it at this repository, on `main`, and set the compose path to
-   `docker/club/compose.yml`. **Leave "Autodeploy" off.** The preview is what deploys on every
-   push; the archive is deployed by a person, once the preview has shown the change working.
+2. Point it at this repository, **on the `release` branch**, and set the compose path to
+   `docker/club/compose.yml`. **Never `main`**: the archive runs a Release and nothing else, and
+   `release` only ever stands on the latest one ([`releases.md`](releases.md)). The branch exists
+   from the first Release on. **Leave "Autodeploy" off.** The preview is what deploys on every
+   push; the archive is deployed by a person, once a Release has been cut and the preview has
+   shown it working.
 3. **Environment** — paste these, with the Club's values:
 
    ```
@@ -89,10 +93,29 @@ processor agreement with the hosting provider is signed.**
    a browser keeps it to the host that set it, and the Club's site never receives it.
 5. Deploy. The first boot applies the migrations; watch the logs for `Schema is up to date`.
 
+The Compose file hands the build the checkout's `.git` as a second context, as the preview's
+does, so the footer says which commit is running as well as which Version.
+
 **If it does not start, it says why.** A production system refuses to start with
 `EMAIL_TRANSPORT=log`, with a `PUBLIC_URL` on `localhost`, with any of the `SMTP_` variables
 missing (it names each one), and with a seeded catalog. Anything marked required in the Compose
 file fails the deployment before that, naming the variable.
+
+## Deploying a Release, and going back
+
+The Club's stack follows `release`, and only the release workflow moves it, to the tag of each
+new Release ([`releases.md`](releases.md)). So deploying a new Version is: cut the Release, check
+the preview, press Deploy here, and check the footer reads the new Version.
+
+**Going back** is moving `release` to an older tag and deploying:
+
+```sh
+git fetch --tags origin
+git push --force origin 'v1.2.4^{commit}:refs/heads/release'
+```
+
+Then press Deploy, and check the footer reads `1.2.4`. Going back does not undo a migration:
+read what changed between the two Releases before going back over one, and take a backup first.
 
 ## The first Administrator
 
@@ -119,7 +142,9 @@ Run through all of this, and record the date and who did it. Nothing here is opt
 **The system**
 
 - [ ] `https://<RICAMBI_HOST>/api/status` reports `"mode":"production"`, the environment name
-      you expect, and `"database":"reachable"`.
+      you expect, `"database":"reachable"`, and the `version` of the latest Release.
+- [ ] The footer's first entry reads that Version and the commit its tag names, as in
+      `0.4.0 · a86c067`.
 - [ ] There is no DEMO band anywhere, and the browser tab does not start with `DEMO`.
 - [ ] Signed out, the home page shows **"The archive is members-only."** and nothing else.
 - [ ] Open a drawing, **sign out and reload it**: the page refuses rather than showing the

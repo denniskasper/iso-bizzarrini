@@ -120,7 +120,11 @@ Dokploy's deployment log, and `/api/status` answers once it has.
 
 ## Checking it before anybody sees it
 
-- `https://<host>/api/status` reports `"mode":"non-production"` and `"database":"reachable"`.
+- `https://<host>/api/status` reports `"mode":"non-production"` and `"database":"reachable"`,
+  and the Version and commit just deployed: `version` is the latest Release's, and `commit` is
+  the head of `main` that CI deployed.
+- The footer's first entry reads the same, as in `0.4.0 · a86c067`. If it reads the Version
+  alone, the build was not handed the checkout's `.git` ([`releases.md`](releases.md)).
 - The home page shows the DEMO band and **"The archive is members-only."** — signed out, that
   is all anybody gets.
 - Signed in: three cars, and a Grifo with two drawings and one Tavola reading "Not scanned yet".

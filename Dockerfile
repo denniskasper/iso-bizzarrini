@@ -27,6 +27,36 @@ RUN pnpm --filter @ricambi/web build \
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
   pnpm --filter @ricambi/api deploy --prod --legacy /runtime
 
+# ---- The commit -------------------------------------------------------------
+# The image is told which commit it was built from; it does not find out (ADR 0016). Either as
+# the build argument `COMMIT`, or from a checkout's `.git` handed in as a second build context
+# named `git` (`docker/preview/compose.yml`). `.git` never enters the main context.
+#
+# This stage is that name's default, and has no `HEAD` in it: a context named `git` replaces it
+# outright, and every build that hands in neither — CI's, anybody's by hand — writes an empty
+# file and gets an image that shows the Version alone.
+FROM base AS git
+
+FROM base AS commit
+ARG COMMIT=
+# A clone one commit deep names its branch in `HEAD` and keeps that branch's commit loose or in
+# `packed-refs`; a detached checkout writes the commit into `HEAD` itself. Whatever this reads is
+# checked again by the server, which shows no commit rather than something that is not one.
+RUN --mount=type=bind,from=git,target=/git \
+  commit="$COMMIT"; \
+  if [ -z "$commit" ] && [ -f /git/HEAD ]; then \
+    head="$(cat /git/HEAD)"; \
+    case "$head" in \
+      "ref: "*) \
+        ref="${head#ref: }"; \
+        if [ -f "/git/$ref" ]; then commit="$(cat "/git/$ref")"; \
+        elif [ -f /git/packed-refs ]; then commit="$(grep " $ref\$" /git/packed-refs | cut -d ' ' -f 1)"; \
+        fi ;; \
+      *) commit="$head" ;; \
+    esac; \
+  fi; \
+  printf '%s\n' "$commit" > /commit
+
 # ---- Runtime ----------------------------------------------------------------
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -40,12 +70,19 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 
+# The repository's layout, kept: the server lives in `apps/api` and finds the root `package.json`,
+# the one place the Version is written, where it would in a checkout. The commit sits beside it.
+WORKDIR /app/apps/api
+COPY --from=build --chown=node:node /app/package.json /app/package.json
+COPY --from=commit --chown=node:node /commit /app/commit
+
 COPY --from=build --chown=node:node /runtime/node_modules ./node_modules
 COPY --from=build --chown=node:node /runtime/package.json ./package.json
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist
 # The generated SQL travels with the image so a deployment can migrate itself.
 COPY --from=build --chown=node:node /app/apps/api/drizzle ./drizzle
-COPY --from=build --chown=node:node /app/apps/web/dist ./web
+# Beside `apps`, not inside the server's directory: `WEB_DIST_PATH` below names it in full.
+COPY --from=build --chown=node:node /app/apps/web/dist /app/web
 
 # The app is served from the same origin as the API, so it ships inside this image.
 ENV WEB_DIST_PATH=/app/web

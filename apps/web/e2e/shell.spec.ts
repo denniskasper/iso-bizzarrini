@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { signIn } from './support/gate.js';
 
@@ -68,6 +69,32 @@ test.describe('the application shell', () => {
       expect(box, `"${name}" is laid out`).not.toBeNull();
       expect(box!.height, `"${name}" is tall enough`).toBeGreaterThanOrEqual(44);
       expect(box!.width, `"${name}" is wide enough`).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('says in the footer which Version is running, signed in or not, on any width', async ({
+    page,
+  }) => {
+    // The one place the Version is written (ADR 0016). This build was told no commit, so the
+    // footer reads the Version alone.
+    const { version } = JSON.parse(
+      await readFile(new URL('../../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+
+    for (const signedIn of [false, true]) {
+      if (signedIn) {
+        await signIn(page);
+      }
+      await page.goto('/');
+
+      const status = page.getByTestId('service-status');
+      await expect(status.locator('dt').first()).toHaveText('Version');
+      await expect(status.locator('dd').first()).toHaveText(version);
+      // Plain text: nothing to follow, and it pushes nothing off a phone's footer.
+      await expect(status.getByRole('link')).toHaveCount(0);
+      const privacy = page.getByRole('link', { name: 'Privacy' });
+      await privacy.scrollIntoViewIfNeeded();
+      await expect(privacy).toBeInViewport({ ratio: 1 });
     }
   });
 });
