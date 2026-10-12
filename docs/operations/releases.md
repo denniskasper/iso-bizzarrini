@@ -51,6 +51,19 @@ The configuration is [`release-please-config.json`](../../release-please-config.
 from `0.1.0`, declared where `main` stood when this was decided. The history before that was not
 written under this rule and is not in the changelog; git has all of it.
 
+### A pull request's title is plain words
+
+The commits decide the Version; a pull request's title must not get a say. GitHub writes the
+title into the body of the merge commit, and release-please reads a line there that begins with a
+type as one more change. A pull request titled `feat: …` therefore lists its feature twice in the
+changelog, and one titled `fix: …` moves the last part even if every commit in it is `docs`.
+
+GitHub has no merge-commit setting that keeps the standard subject and leaves the body empty, so
+the title is checked instead: the `Pull request title` workflow fails a pull request whose title
+begins with a commit type. Rename it — "Members can renew by card" — and the check runs again by
+itself. The release pull request, which release-please titles `chore(main): release …`, is
+exempt; `chore` moves nothing.
+
 ### Why the release pull request shows no checks
 
 The workflow opens it with its own token, and GitHub runs no workflows for what that token does.

@@ -1,0 +1,33 @@
+name: Pull request title
+
+# A pull request's title is prose, not a commit subject. GitHub writes the title into the body of
+# the merge commit, and release-please reads a line there that begins with a type as a change of
+# its own — so `feat: …` as a title lists the feature twice in the changelog, and a title can move
+# the Version on its own whatever the commits beneath it say (ADR 0016: the commits decide).
+# GitHub offers no merge-commit setting that leaves the title out, so the title is checked
+# instead.
+#
+# Not filtered by path: a change that is only prose has a title too.
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+permissions: {}
+
+jobs:
+  title:
+    name: Title is not a commit subject
+    # The release pull request is titled `chore(main): release …` by release-please itself, and
+    # `chore` moves nothing.
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse a title that begins with a commit type
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|docs|ci|chore|test|refactor|perf|build|style|revert'
+          if printf '%s' "$TITLE" | grep -qiE "^[[:space:]]*($types)(\([^)]*\))?!?:"; then
+            echo "::error::This title begins with a commit type. Say what the change is in plain words instead — for example \"Members can renew by card\" rather than \"feat: members can renew by card\". The commits keep their types and decide the Version; a typed title is read as one more commit. See docs/operations/releases.md."
+            exit 1
+          fi
