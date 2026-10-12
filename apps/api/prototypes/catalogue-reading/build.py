@@ -88,6 +88,7 @@ def merge_table(tavola):
     for row_a, row_b in pair_rows(a["rows"], b["rows"]):
         row = dict(row_a or row_b)
         doubts = []
+        labels = {"numbers": "Catalog Number", "quantity": "Quantity", "position": "Position", "nameIt": "Italian name"}
         if row_a is None or row_b is None:
             doubts.append("Only one of the two readers saw this row")
         else:
@@ -97,25 +98,30 @@ def merge_table(tavola):
                 "position": (squash(row_a.get("position")), squash(row_b.get("position"))),
                 "nameIt": (letters(row_a.get("nameIt")), letters(row_b.get("nameIt"))),
             }
-            labels = {"numbers": "Catalog Number", "quantity": "Quantity", "position": "Position", "nameIt": "Italian name"}
             for field, (left, right) in checks.items():
                 if not left and not right:
                     continue
                 compared[field][1] += 1
                 if left == right:
                     compared[field][0] += 1
-                else:
+                elif field != "nameIt":
                     shown = lambda v: ", ".join(v) if isinstance(v, list) else v
                     other = row_b.get("nameIt") if field == "nameIt" else shown(right)
                     doubts.append(f"{labels[field]}: the other reader has “{other or 'nothing'}”")
-        for field in (row_a or {}).get("unsure") or []:
-            doubts.append(f"Reader was unsure of {field}")
+        # A doubt is a disagreement between the two readings about what a part is ordered by.
+        # A reader's own hesitation, where the second reading came out the same, is worth a
+        # glance and no more; counted as doubts, those bury the few rows that need a person.
+        named = {"numbers": "the Catalog Number", "quantity": "the quantity", "position": "the Position"}
+        hesitations = [f"One reader hesitated over {named[f]}; the second read the same"
+                       for f in (row_a or {}).get("unsure") or []
+                       if f in named and row_b is not None and not any(d.startswith(labels[f]) for d in doubts)] if row_a and row_b else []
         for number in numbers_of(row):
-            if not re.fullmatch(r"\d{5,6}(/[A-Z0-9]+)?", number):
+            if not re.fullmatch(r"\d{5,6}(/[A-Z0-9]+)*", number):
                 doubts.append(f"“{number}” is not shaped like a Catalog Number")
         row["positions"], row["inherits"] = positions_of(row.get("position"), previous)
         previous = row["positions"]
         row["doubts"] = list(dict.fromkeys(doubts))
+        row["hesitations"] = hesitations
         row.pop("unsure", None)
         rows.append(row)
     header = {k: a.get(k, "") for k in ("layout", "titleIt", "titleEn", "sezione", "gruppo", "sottogruppo", "tavola", "sheets")}

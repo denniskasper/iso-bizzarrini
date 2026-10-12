@@ -37,6 +37,8 @@
   :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
   .top { display: flex; align-items: stretch; gap: 1.5rem; padding: 0 1.5rem; border-bottom: 1px solid var(--line); }
+  .top h1, .tab { white-space: nowrap; }
+  .top { overflow-x: auto; }
   .top h1 { margin: 0; align-self: center; font: 600 1rem var(--font-sans); color: var(--text-muted); }
   .tabs { display: flex; gap: 0.25rem; }
   .tab {
@@ -46,7 +48,7 @@
   .tab b { font: 600 2rem/1 var(--font-display); letter-spacing: 0.03em; color: var(--text); }
   .tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text); }
 
-  .bill { margin: 0 0 0 auto; align-self: center; max-width: 34rem; text-align: right; color: var(--text-muted); font-size: 0.75rem; line-height: 1.125rem; }
+  .bill { margin: 0 0 0 auto; align-self: center; min-width: 16rem; max-width: 28rem; text-align: right; color: var(--text-muted); font-size: 0.75rem; line-height: 1.125rem; }
   .bill b { color: var(--accent); font-weight: 600; }
   .work { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(24rem, 1fr); min-height: 0; }
   @media (max-width: 60rem) { .work { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; } }
@@ -93,7 +95,7 @@
   .card p { margin: 0.6rem 0 0; color: var(--text-muted); }
   .number { font-family: var(--font-mono); white-space: nowrap; }
 
-  .panel { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; border-left: 1px solid var(--line); }
+  .panel { display: grid; grid-template-rows: auto auto auto 1fr; min-height: 0; border-left: 1px solid var(--line); }
   .head { padding: 1.25rem 1.5rem 1rem; }
   .head h2 { margin: 0; font: 600 2.25rem/2.5rem var(--font-display); letter-spacing: 0.02em; }
   .head .it { font-size: 0.875rem; }
@@ -119,13 +121,34 @@
   tr.lit td { background: color-mix(in oklch, var(--accent) 16%, transparent); }
   tr.doubt td:first-child { box-shadow: inset 4px 0 0 var(--alarm); }
   .doubts { margin: 0.25rem 0 0; padding: 0; list-style: none; color: var(--alarm); font-size: 0.75rem; line-height: 1.125rem; }
+  .doubts.quiet { color: var(--text-muted); }
   .range { color: var(--text-muted); font-size: 0.75rem; }
   .only-doubts tr:not(.doubt) { display: none; }
   tbody tr { cursor: pointer; }
 
+  .find { display: block; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--line); }
+  .find input {
+    width: 100%; min-height: 2.75rem; padding: 0 0.9rem; border-radius: 4px; font: inherit; color: var(--text);
+    background: var(--surface-sunken); border: 1px solid var(--line-strong);
+  }
+  .find input::placeholder { color: var(--text-muted); }
+  .none { padding: 1.5rem; color: var(--text-muted); }
+  tr[hidden] { display: none; }
+  .stage.finding .mark:not(.found) { opacity: 0.18; }
+  .mark.found { background: color-mix(in oklch, var(--accent) 45%, transparent); border-color: oklch(0.5 0.07 87); }
+  .help { margin-left: 1rem; align-self: center; min-height: 2.25rem; padding: 0 0.9rem; border-radius: 4px;
+    background: none; border: 1px solid var(--line-strong); white-space: nowrap; }
+  dialog.guide { background: var(--surface-raised); color: var(--text); width: min(34rem, 92vw); padding: 1.75rem 2rem; }
+  .guide h2 { margin: 0 0 0.25rem; font: 600 2.25rem/2.5rem var(--font-display); letter-spacing: 0.02em; }
+  .guide p { margin: 0.5rem 0 0; color: var(--text-muted); }
+  .guide ol { margin: 1.25rem 0; padding-left: 1.4rem; }
+  .guide li { margin-top: 0.6rem; padding-left: 0.3rem; }
+  .guide li b { font-weight: 600; }
+  .guide button { min-height: 2.75rem; padding: 0 1.4rem; border-radius: 4px; border: 0; font-weight: 600;
+    background: var(--accent); color: var(--accent-contrast); }
   dialog { padding: 0; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); max-width: 96vw; max-height: 94vh; }
   dialog::backdrop { background: oklch(0.1 0.01 264 / 0.7); }
-  dialog img { display: block; max-width: 96vw; max-height: 94vh; }
+  dialog.sheet-view img { display: block; max-width: 96vw; max-height: 94vh; }
 </style>
 </head>
 <body>
@@ -133,6 +156,7 @@
   <h1>Catalogue reading trial</h1>
   <div class="tabs" role="tablist" aria-label="Tavola"></div>
   <p class="bill" hidden></p>
+  <button class="help">What to try</button>
 </header>
 <main class="work">
   <section class="stage" aria-label="Drawing">
@@ -147,16 +171,33 @@
   <section class="panel">
     <div class="head"></div>
     <dl class="report"></dl>
+    <label class="find"><input type="search" placeholder="Find a part: washer, rosetta, 202216" aria-label="Find a part in this table"></label>
     <div class="rows">
       <table>
         <thead><tr><th>Pos</th><th>Catalog Number</th><th>Qty</th><th>Name</th><th>Note</th></tr></thead>
         <tbody></tbody>
       </table>
+      <p class="none" hidden></p>
     </div>
   </section>
 </main>
 <div class="card" hidden></div>
-<dialog><img alt=""></dialog>
+<dialog class="sheet-view"><img alt=""></dialog>
+<dialog class="guide">
+  <h2>What to try</h2>
+  <p>Three drawings from the factory parts catalogue. The circles, the table and the English names
+    were all read from the scanned pages by machine. Nobody typed or placed anything.</p>
+  <ol>
+    <li><b>Switch drawings</b> at the top: 51, 52 and 84.</li>
+    <li><b>Rest the mouse on a circle</b> to see the part at that position.</li>
+    <li><b>Scroll to zoom, drag to move.</b> Try 84, the door: it is the densest sheet.</li>
+    <li><b>Click a row</b> in the table and the drawing jumps to that part.</li>
+    <li><b>Find a part</b> by typing in English, Italian or a catalogue number.</li>
+    <li><b>Open a table sheet</b> above the table to compare with the original scan.</li>
+    <li><b>Show only rows in doubt</b> to see where the two machine readings disagreed.</li>
+  </ol>
+  <form method="dialog"><button>Start</button></form>
+</dialog>
 <script>
 /*DATA*/
 const $ = (s) => document.querySelector(s);
@@ -245,10 +286,12 @@ function show(id) {
           ${row.disegnoOrigine ? `<div class="range">D.O. <span class="number">${esc(row.disegnoOrigine)}</span></div>` : ''}</td>
       <td class="qty">${esc(row.quantity)}</td>
       <td><div>${esc(row.nameEn)}</div><div class="it">${esc(row.nameIt)}</div>
-          ${row.doubts.length ? `<ul class="doubts">${row.doubts.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}</td>
+          ${row.doubts.length ? `<ul class="doubts">${row.doubts.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+          ${row.hesitations.length ? `<ul class="doubts quiet">${row.hesitations.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}</td>
       <td><div>${esc(row.noteEn || row.note)}</div>${row.noteEn && row.noteEn !== row.note ? `<div class="it">${esc(row.note)}</div>` : ''}</td>
     </tr>`).join('');
   $('.rows').scrollTop = 0; $('table').classList.remove('only-doubts');
+  find.value = ''; search();
   fit();
 }
 
@@ -301,9 +344,31 @@ $('.tools').addEventListener('click', (e) => {
 });
 $('.head').addEventListener('click', (e) => {
   const b = e.target.closest('[data-sheet]'); if (!b) return;
-  $('dialog img').src = b.dataset.sheet; $('dialog').showModal();
+  $('.sheet-view img').src = b.dataset.sheet; $('.sheet-view').showModal();
 });
-$('dialog').addEventListener('click', () => $('dialog').close());
+$('.sheet-view').addEventListener('click', () => $('.sheet-view').close());
+
+const find = $('.find input');
+function search() {
+  const words = find.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const found = new Set();
+  let shown = 0;
+  body.querySelectorAll('tr').forEach((tr) => {
+    const row = tavola.rows[tr.dataset.i];
+    const text = [row.nameEn, row.nameIt, row.note, row.noteEn, row.disegnoOrigine, row.positions.join(' '),
+      ...(row.numbers || []).map((n) => n.number + ' ' + n.number.replace(/\s/g, ''))].join(' ').toLowerCase();
+    const match = words.every((w) => text.includes(w));
+    tr.hidden = !match;
+    if (match) { shown++; if (words.length) row.positions.forEach((p) => found.add(p)); }
+  });
+  stage.classList.toggle('finding', words.length > 0);
+  sheet.querySelectorAll('.mark').forEach((m) => m.classList.toggle('found', found.has(m.dataset.n)));
+  $('.none').hidden = shown > 0;
+  $('.none').textContent = `No part on this drawing matches “${find.value.trim()}”. Try the Italian name or part of the number.`;
+}
+find.addEventListener('input', search);
+
+$('.help').addEventListener('click', () => $('.guide').showModal());
 addEventListener('resize', fit);
 if (USAGE) {
   const c = USAGE.catalogue;
@@ -313,6 +378,10 @@ if (USAGE) {
     <b>$${c.cost.toFixed(0)} to $${c.costWithZooming.toFixed(0)}</b>, once, at ${USAGE.model} list prices.`;
 }
 show(TAVOLE[0].id);
+// Once per browser; the button brings it back.
+let seen = false;
+try { seen = localStorage.getItem('catalogue-reading-guide') === 'seen'; localStorage.setItem('catalogue-reading-guide', 'seen'); } catch {}
+if (!seen) $('.guide').showModal();
 </script>
 </body>
 </html>
