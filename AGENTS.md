@@ -21,6 +21,9 @@ Guidelines for AI agents working in this repository.
   `refactor` move nothing. Pick the type for what somebody outside the repository can notice.
 - **A `feat` or `fix` subject is published** in `CHANGELOG.md` and on the GitHub release, so the
   Security rules above apply to it twice over.
+- **A pull request's title is not a commit subject**, and does not begin with a type: write
+  "Members can renew by card", not "feat: members can renew by card". The title ends up in the
+  merge commit, where a typed one is counted as one more change. CI refuses it.
 
 Examples:
 
