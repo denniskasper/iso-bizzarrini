@@ -202,7 +202,9 @@ def main():
         print(f"   two readers agree — {agree}")
         print(f"   listed, no mark: {report['listedNotMarked']}")
         print(f"   marked, not listed: {report['markedNotListed']}")
-    page = (HERE / "viewer.html").read_text().replace("/*DATA*/", "const TAVOLE = " + json.dumps(data) + ";")
+    usage = OUT / "usage.json"
+    script = "const TAVOLE = " + json.dumps(data) + ";\nconst USAGE = " + (usage.read_text() if usage.exists() else "null") + ";"
+    page = (HERE / "viewer.html").read_text().replace("/*DATA*/", script)
     (OUT / "index.html").write_text(page)
     print(f"\nopen {OUT / 'index.html'}")
 

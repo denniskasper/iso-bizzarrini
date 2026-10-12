@@ -46,6 +46,8 @@
   .tab b { font: 600 2rem/1 var(--font-display); letter-spacing: 0.03em; color: var(--text); }
   .tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text); }
 
+  .bill { margin: 0 0 0 auto; align-self: center; max-width: 34rem; text-align: right; color: var(--text-muted); font-size: 0.75rem; line-height: 1.125rem; }
+  .bill b { color: var(--accent); font-weight: 600; }
   .work { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(24rem, 1fr); min-height: 0; }
   @media (max-width: 60rem) { .work { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; } }
 
@@ -127,6 +129,7 @@
 <header class="top">
   <h1>Catalogue reading trial</h1>
   <div class="tabs" role="tablist" aria-label="Tavola"></div>
+  <p class="bill" hidden></p>
 </header>
 <main class="work">
   <section class="stage" aria-label="Drawing">
@@ -230,6 +233,8 @@ function show(id) {
     ${r.markedNotListed.length ? `<dd class="wide">${r.markedNotListed.join(', ')}</dd>` : ''}
     <dt>Catalog Numbers both readers agree on</dt><dd>${ok} of ${total}</dd>
     <dt>Rows in doubt</dt><dd>${r.rowsInDoubt} of ${tavola.rows.length}</dd>
+    ${USAGE ? `<dt>Requests to ${USAGE.model} for this Tavola</dt><dd>${USAGE.tavole[tavola.id].calls}</dd>
+    <dt>Estimated cost of reading it</dt><dd>$${USAGE.tavole[tavola.id].cost.toFixed(2)}</dd>` : ''}
     <label><input type="checkbox" id="only"> Show only rows in doubt</label>`;
   body.innerHTML = tavola.rows.map((row, i) => `<tr data-i="${i}" data-n="${row.positions.join(' ')}" class="${row.doubts.length ? 'doubt' : ''}">
       <td class="pos ${row.inherits ? 'inherited' : ''}">${esc(row.positions.join('–') || '')}</td>
@@ -297,6 +302,13 @@ $('.head').addEventListener('click', (e) => {
 });
 $('dialog').addEventListener('click', () => $('dialog').close());
 addEventListener('resize', fit);
+if (USAGE) {
+  const c = USAGE.catalogue;
+  $('.bill').hidden = false;
+  $('.bill').innerHTML = `Simulated run: the trial's readings are replayed and no request is sent.
+    Reading the whole catalogue (${c.tavole} Tavole) is estimated at
+    <b>$${c.cost.toFixed(0)} to $${c.costWithZooming.toFixed(0)}</b>, once, at ${USAGE.model} list prices.`;
+}
 show(TAVOLE[0].id);
 </script>
 </body>
