@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { identitySchema } from './claude-requests.js';
 
 /**
  * **What the read command writes, and what `archive:load` reads back** — one description, so the
@@ -6,7 +7,9 @@ import { z } from 'zod';
  *
  * ```
  * reading.json              the Model, the Reading method, the Tavole in it
+ * pages.json                what every page was found to be, so a resumed run need not ask again
  * cost.json                 what the run cost, per Tavola, sheet and Reading, beside its estimate
+ * cost-2.json …             the same, for each run resumed in the directory
  * set-aside.csv             every page that is not in a Tavola, and why
  * set-aside/page-12.png     …and the page itself, for a person to look at
  * tavola-84/
@@ -19,12 +22,18 @@ import { z } from 'zod';
  * The directory is the Club's material and stays out of the repository (ADR 0016, `AGENTS.md`).
  */
 export const READING_FILE = 'reading.json';
+export const PAGES_FILE = 'pages.json';
 export const COST_FILE = 'cost.json';
 export const TAVOLA_FILE = 'tavola.json';
 export const LISTINGS_FILE = 'listings.csv';
 export const SCAN_FILE = 'scan.png';
 export const SET_ASIDE_FILE = 'set-aside.csv';
 export const SET_ASIDE_DIRECTORY = 'set-aside';
+
+/** The first run's cost record is `cost.json`; each resumed run writes one of its own. */
+export function costFile(run: number): string {
+  return run === 1 ? COST_FILE : `cost-${run}.json`;
+}
 
 export function tableSheetFile(sheet: number): string {
   return `table-${sheet}.png`;
@@ -45,6 +54,18 @@ export const readingManifestSchema = z.object({
 });
 
 export type ReadingManifest = z.infer<typeof readingManifestSchema>;
+
+/** What each page was found to be, in the order they were asked. */
+export const pagesManifestSchema = z.object({
+  pages: z.array(
+    z.object({
+      page: z.number().int(),
+      identity: identitySchema,
+    }),
+  ),
+});
+
+export type PagesManifest = z.infer<typeof pagesManifestSchema>;
 
 export const tavolaManifestSchema = z.object({
   number: z.string().trim().min(1),

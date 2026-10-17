@@ -3,14 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import type { PageSource } from '../../src/reading/read-catalog.js';
-import type {
-  ReadRow,
-  ReadingMethod,
-  RequestEstimate,
-  SheetEstimate,
-  SheetIdentity,
-  TableReading,
-  Tokens,
+import {
+  UsageLimitReached,
+  type ReadRow,
+  type ReadingMethod,
+  type RequestEstimate,
+  type SheetEstimate,
+  type SheetIdentity,
+  type TableReading,
+  type Tokens,
 } from '../../src/reading/reading-method.js';
 
 /**
@@ -49,16 +50,31 @@ export const ESTIMATE_PER_REQUEST: RequestEstimate = {
   outputAtMost: 4000,
 };
 
+export interface FakeMethodOptions {
+  /** As though it read on a subscription: priced, but not charged. */
+  charged?: boolean;
+  /** How many requests it answers before the plan's usage limit is reached. */
+  usageLimitAfter?: number;
+}
+
 export function fakeReadingMethod(
   pages: InventedPage[],
+  options: FakeMethodOptions = {},
 ): ReadingMethod & { calls: string[]; estimated: number[] } {
   const calls: string[] = [];
   const estimated: number[] = [];
   const pageOf = (page: number): InventedPage => pages[page - 1] ?? {};
+  const call = (what: string) => {
+    if (options.usageLimitAfter !== undefined && calls.length >= options.usageLimitAfter) {
+      throw new UsageLimitReached('The subscription’s usage limit was reached: resets at 5pm.');
+    }
+    calls.push(what);
+  };
 
   return {
-    name: 'a fake Reading method',
+    name: options.charged === false ? 'a fake subscription' : 'a fake Reading method',
     model: 'claude-opus-5-5',
+    charged: options.charged ?? true,
     calls,
     estimated,
     async estimate(sheet) {
@@ -70,7 +86,7 @@ export function fakeReadingMethod(
       };
     },
     async identify(sheet) {
-      calls.push(`identify ${sheet.page}`);
+      call(`identify ${sheet.page}`);
       const identity: SheetIdentity = {
         kind: 'other',
         tavola: null,
@@ -85,7 +101,7 @@ export function fakeReadingMethod(
       return { value: identity, tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL };
     },
     async readTable(sheet, reading) {
-      calls.push(`read ${sheet.page} ${reading}`);
+      call(`read ${sheet.page} ${reading}`);
       const [first, second] = pageOf(sheet.page).readings ?? [aTable([])];
       return {
         value: reading === 2 && second ? second : first,

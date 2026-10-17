@@ -15,6 +15,12 @@ export interface ReadingMethod {
   /** The model it sends to, which is what the price list is looked up by. */
   readonly model: string;
   /**
+   * Whether what it reads is billed per use. A subscription login is not: its runs are priced at
+   * the same list prices, and the spending limit is held the same way, but they are reported as
+   * what the run *would have cost*, not charged.
+   */
+  readonly charged: boolean;
+  /**
    * What this sheet would take to read, worked out **before anything is sent** to be read. The
    * input is counted for the requests exactly as they would go; the answer cannot be counted
    * before it is written, so the method says what it expects one to take and the most it can.
@@ -27,6 +33,18 @@ export interface ReadingMethod {
    * its own that knows nothing of the other — which is the whole of what a disagreement is worth.
    */
   readTable(sheet: SheetImage, reading: 1 | 2): Promise<Answer<TableReading>>;
+}
+
+/**
+ * **The plan the method reads on will read no more for now.** Thrown by `identify` or `readTable`
+ * when a subscription's usage limit is reached. The read command stops cleanly, as it does at its
+ * spending limit, and a later run with `--resume` picks up what was not read.
+ */
+export class UsageLimitReached extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UsageLimitReached';
+  }
 }
 
 /** One page of the catalog as an image, and where in the PDF it was. */

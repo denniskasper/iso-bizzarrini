@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -18,26 +18,31 @@ import {
 import { interpretTable, type ComparedSheet, type ReadListing } from './interpret.js';
 import { PRICE_LIST, priceOf } from './price-list.js';
 import {
-  COST_FILE,
   LISTING_COLUMNS,
   LISTINGS_FILE,
+  PAGES_FILE,
   READING_FILE,
   SCAN_FILE,
   SET_ASIDE_COLUMNS,
   SET_ASIDE_DIRECTORY,
   SET_ASIDE_FILE,
   TAVOLA_FILE,
+  costFile,
+  pagesManifestSchema,
+  readingManifestSchema,
   tableSheetFile,
   tavolaDirectory,
+  type PagesManifest,
   type ReadingManifest,
   type TavolaManifest,
 } from './read-directory.js';
-import type {
-  ReadingMethod,
-  SheetEstimate,
-  SheetIdentity,
-  SheetImage,
-  Tokens,
+import {
+  UsageLimitReached,
+  type ReadingMethod,
+  type SheetEstimate,
+  type SheetIdentity,
+  type SheetImage,
+  type Tokens,
 } from './reading-method.js';
 
 /**
@@ -56,8 +61,11 @@ import type {
 export interface ReadCatalogOptions {
   pdf: string;
   out: string;
-  /** The car the catalog is for. A Tavola's number means something only within its Model. */
-  model: { brand: string; name: string };
+  /**
+   * The car the catalog is for. A Tavola's number means something only within its Model. A
+   * resumed run takes it from the directory, and refuses one that differs.
+   */
+  model?: { brand: string; name: string };
   method: ReadingMethod;
   pages: PageSource;
   /**
@@ -65,6 +73,11 @@ export interface ReadCatalogOptions {
    * a run without one does not start.
    */
   limit: number | undefined;
+  /**
+   * Carry on in a directory an earlier run stopped in: pages already asked about are not asked
+   * again, and Tavole already finished are not read again.
+   */
+  resume?: boolean;
   /** Where each line of the running report goes. */
   print: (line: string) => void;
   /** The repository the output must stay out of. Found from this file when not given. */
@@ -78,8 +91,13 @@ export interface ReadCatalogResult {
   tavole: { number: string; directory: string; listings: number; inDoubt: number }[];
   setAside: { page: number; reason: string }[];
   tokens: Tokens;
-  /** Tavole the run stopped before finishing, because the next sheet could have passed the limit. */
+  /**
+   * Tavole the run stopped before finishing, because the next sheet could have passed the limit or
+   * the subscription's usage limit was reached.
+   */
   notRead: string[];
+  /** Tavole an earlier run in the same directory finished, which this one left alone. */
+  readBefore: string[];
   cost: CostRecord;
 }
 
@@ -97,7 +115,14 @@ interface IdentifiedSheet extends SheetImage {
 export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCatalogResult> {
   const { method, print, limit } = options;
   const out = resolve(options.out);
-  await assertWritableOutside(out, options.repositoryRoot ?? repositoryRootOf());
+  assertOutside(out, options.repositoryRoot ?? repositoryRootOf());
+  const previous = options.resume
+    ? await previousReading(out, options.pdf, options.model)
+    : await assertEmpty(out).then(() => null);
+  const model = previous?.manifest.model ?? options.model;
+  if (!model) {
+    throw new ReadCatalogError('Say which car the catalog is for, with --brand and --model.');
+  }
 
   if (limit === undefined || !Number.isFinite(limit) || limit <= 0) {
     throw new ReadCatalogError(
@@ -113,22 +138,46 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     );
   }
   const spending = new Spending(limit, price);
+  const run = previous ? previous.run + 1 : 1;
+  const costFileName = costFile(run);
 
-  // Before anything is sent to be read: every page, counted, and the whole run estimated.
+  print(
+    `Reading with ${method.name}: ` +
+      (method.charged
+        ? 'billed per use.'
+        : 'not charged. Its cost is what it would have been at list prices.'),
+  );
+
+  // What earlier runs in this directory already found and finished, which is not asked again.
+  const known = new Map(
+    (previous?.pages.pages ?? []).map(({ page, identity }) => [page, identity]),
+  );
+  const finishedBefore = new Set(previous?.manifest.tavole ?? []);
+  const readBefore = (number: string) => finishedBefore.has(tavolaDirectory(number));
+  const stillToRead = (identity: SheetIdentity) => {
+    const number = identity.tavola?.trim();
+    return identity.kind === 'table' && !!number && !readBefore(number);
+  };
+
+  // Before anything is sent to be read: every page still to be asked about, counted, and the whole
+  // run estimated.
   const pages: SheetImage[] = [];
   for await (const page of options.pages(options.pdf)) {
     pages.push(page);
   }
   const estimates = new Map<number, SheetEstimate>();
+  let estimate = 0;
   for (const page of pages) {
-    estimates.set(page.page, await method.estimate(page));
+    const identity = known.get(page.page);
+    if (identity && !stillToRead(identity)) {
+      continue;
+    }
+    const sheet = await method.estimate(page);
+    estimates.set(page.page, sheet);
+    estimate += identity ? 2 * spending.expected(sheet.reading) : spending.estimateOf(sheet);
   }
-  const estimate = [...estimates.values()].reduce(
-    (sum, sheet) => sum + spending.estimateOf(sheet),
-    0,
-  );
   print(
-    `Estimated at ${dollars(estimate)} for ${pages.length} ${pages.length === 1 ? 'page' : 'pages'}, ` +
+    `Estimated at ${dollars(estimate)} for ${estimates.size} ${estimates.size === 1 ? 'page' : 'pages'}, ` +
       `at ${method.model} list prices checked on ${PRICE_LIST.checkedOn}. ` +
       'Every page is counted as a Table sheet read twice; a drawing costs less.',
   );
@@ -146,34 +195,67 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     tokens.output += used.output;
     return spending.spend(used);
   };
-  let stoppedAtLimit = false;
-  const stop = (atMost: number) => {
-    stoppedAtLimit = true;
+  let stopped: CostRecord['stopped'] = null;
+  const stopAtLimit = (atMost: number) => {
+    stopped = 'spending-limit';
     print(
       `Stopped: the next sheet could cost up to ${dollars(atMost)}, which would pass the limit ` +
         `of ${dollars(limit)} with ${dollars(spending.spent)} spent.`,
     );
   };
+  const stopAtUsageLimit = (error: UsageLimitReached) => {
+    stopped = 'usage-limit';
+    print(`Stopped: ${error.message}`);
+  };
   const soFar = (cost: number) => `${dollars(cost)}, ${dollars(spending.spent)} so far.`;
+
+  await mkdir(out, { recursive: true });
+  const manifest: ReadingManifest = previous?.manifest ?? {
+    model,
+    readingMethod: method.name,
+    readFrom: basename(options.pdf),
+    tavole: [],
+  };
+  await writeJson(join(out, READING_FILE), manifest);
+  const asked: PagesManifest = { pages: [...(previous?.pages.pages ?? [])] };
 
   const setAside: (ReadCatalogResult['setAside'][number] & { image: Buffer })[] = [];
   const setAsideCosts: CostRecord['setAside'] = [];
   const byTavola = new Map<string, IdentifiedSheet[]>();
   const sheetCosts = new Map<number, SheetCost>();
   const notIdentified: number[] = [];
+  const nothing: Spent = { tokens: { input: 0, output: 0 }, cost: 0 };
 
   for (const page of pages) {
-    const atMost = spending.atMost((estimates.get(page.page) as SheetEstimate).identify);
-    if (stoppedAtLimit || spending.wouldPass(atMost)) {
-      if (!stoppedAtLimit) {
-        stop(atMost);
-      }
-      notIdentified.push(page.page);
-      continue;
-    }
+    let identity = known.get(page.page);
+    let identification = nothing;
 
-    const { value: identity, tokens: used } = await method.identify(page);
-    const identification = spend(used);
+    if (!identity) {
+      const atMost = spending.atMost((estimates.get(page.page) as SheetEstimate).identify);
+      if (stopped === null && spending.wouldPass(atMost)) {
+        stopAtLimit(atMost);
+      }
+      if (stopped !== null) {
+        notIdentified.push(page.page);
+        continue;
+      }
+
+      let answer;
+      try {
+        answer = await method.identify(page);
+      } catch (error) {
+        if (!(error instanceof UsageLimitReached)) {
+          throw error;
+        }
+        stopAtUsageLimit(error);
+        notIdentified.push(page.page);
+        continue;
+      }
+      identity = answer.value;
+      identification = spend(answer.tokens);
+      asked.pages.push({ page: page.page, identity });
+      await writeJson(join(out, PAGES_FILE), asked);
+    }
 
     const number = identity.tavola?.trim();
     if (identity.kind === 'other' || !number) {
@@ -182,15 +264,19 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
           ? 'It is neither a drawing nor a Table sheet.'
           : 'Its Tavola number could not be read.';
       setAside.push({ ...page, reason });
-      setAsideCosts.push({ page: page.page, cost: identification.cost, identification });
-      print(`Page ${page.page}: set aside. ${soFar(identification.cost)}`);
+      if (identification !== nothing) {
+        setAsideCosts.push({ page: page.page, cost: identification.cost, identification });
+        print(`Page ${page.page}: set aside. ${soFar(identification.cost)}`);
+      }
       continue;
     }
 
-    print(
-      `Page ${page.page}: ${identity.kind === 'drawing' ? 'drawing' : 'Table sheet'} of ` +
-        `Tavola ${number}. ${soFar(identification.cost)}`,
-    );
+    if (identification !== nothing) {
+      print(
+        `Page ${page.page}: ${identity.kind === 'drawing' ? 'drawing' : 'Table sheet'} of ` +
+          `Tavola ${number}. ${soFar(identification.cost)}`,
+      );
+    }
     sheetCosts.set(page.page, {
       page: page.page,
       kind: identity.kind,
@@ -204,36 +290,36 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     byTavola.set(number, sheets);
   }
 
-  await mkdir(out, { recursive: true });
-  const manifest: ReadingManifest = {
-    model: options.model,
-    readingMethod: method.name,
-    readFrom: basename(options.pdf),
-    tavole: [],
-  };
   const finished = new Set<string>();
   const costRecord = (): CostRecord => ({
     readingMethod: method.name,
+    charged: method.charged,
+    run,
     model: method.model,
     priceList: priceListEntry(price),
     limit,
     estimate: rounded(estimate),
     total: rounded(spending.spent),
-    stoppedAtLimit,
-    tavole: [...byTavola].map(([number, sheets]) => {
-      const costs = sheets.map((sheet) => sheetCosts.get(sheet.page) as SheetCost);
-      return {
-        number,
-        finished: finished.has(number),
-        cost: rounded(costs.reduce((sum, sheet) => sum + sheet.cost, 0)),
-        sheets: costs.map((sheet) => ({
-          ...sheet,
-          cost: rounded(sheet.cost),
-          identification: roundedSpent(sheet.identification),
-          readings: sheet.readings.map((reading) => ({ ...reading, cost: rounded(reading.cost) })),
-        })),
-      };
-    }),
+    stopped,
+    tavole: [...byTavola]
+      .filter(([number]) => !readBefore(number))
+      .map(([number, sheets]) => {
+        const costs = sheets.map((sheet) => sheetCosts.get(sheet.page) as SheetCost);
+        return {
+          number,
+          finished: finished.has(number),
+          cost: rounded(costs.reduce((sum, sheet) => sum + sheet.cost, 0)),
+          sheets: costs.map((sheet) => ({
+            ...sheet,
+            cost: rounded(sheet.cost),
+            identification: roundedSpent(sheet.identification),
+            readings: sheet.readings.map((reading) => ({
+              ...reading,
+              cost: rounded(reading.cost),
+            })),
+          })),
+        };
+      }),
     setAside: setAsideCosts.map((sheet) => ({
       ...sheet,
       cost: rounded(sheet.cost),
@@ -246,16 +332,26 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     setAside: [],
     tokens,
     notRead: [],
+    readBefore: [],
     cost: costRecord(),
   };
 
   for (const [number, sheets] of byTavola) {
-    if (stoppedAtLimit) {
+    const [drawing, ...otherDrawings] = sheets.filter((sheet) => sheet.identity.kind === 'drawing');
+    const secondDrawings = otherDrawings.map((extra) => ({
+      ...extra,
+      reason: `A second drawing for Tavola ${number}; the one on page ${drawing?.page} is its Scan.`,
+    }));
+    if (readBefore(number)) {
+      result.readBefore.push(number);
+      setAside.push(...secondDrawings);
+      continue;
+    }
+    if (stopped !== null) {
       result.notRead.push(number);
       continue;
     }
 
-    const [drawing, ...otherDrawings] = sheets.filter((sheet) => sheet.identity.kind === 'drawing');
     const tables = inFactoryOrder(sheets.filter((sheet) => sheet.identity.kind === 'table'));
 
     print(
@@ -268,36 +364,42 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     for (const [index, sheet] of tables.entries()) {
       const atMost = 2 * spending.atMost((estimates.get(sheet.page) as SheetEstimate).reading);
       if (spending.wouldPass(atMost)) {
-        stop(atMost);
+        stopAtLimit(atMost);
         break;
       }
 
       const sheetCost = sheetCosts.get(sheet.page) as SheetCost;
-      const first = await method.readTable(sheet, 1);
-      sheetCost.readings.push({ reading: 1, ...spend(first.tokens) });
-      const second = await method.readTable(sheet, 2);
-      sheetCost.readings.push({ reading: 2, ...spend(second.tokens) });
-      const readingsCost = sheetCost.readings.reduce((sum, reading) => sum + reading.cost, 0);
-      sheetCost.cost = sheetCost.identification.cost + readingsCost;
+      let first, second;
+      try {
+        first = await method.readTable(sheet, 1);
+        sheetCost.readings.push({ reading: 1, ...spend(first.tokens) });
+        second = await method.readTable(sheet, 2);
+        sheetCost.readings.push({ reading: 2, ...spend(second.tokens) });
+      } catch (error) {
+        if (!(error instanceof UsageLimitReached)) {
+          throw error;
+        }
+        stopAtUsageLimit(error);
+        break;
+      } finally {
+        const readingsCost = sheetCost.readings.reduce((sum, reading) => sum + reading.cost, 0);
+        sheetCost.cost = sheetCost.identification.cost + readingsCost;
+      }
 
       const rows = compareReadings(first.value.rows, second.value.rows);
       compared.push({ layout: first.value.layout, ranges: first.value.ranges, rows });
       print(
         `  Table sheet ${index + 1}, page ${sheet.page}: ${rows.length} rows, ` +
-          `${rows.filter((row) => row.doubts.length > 0).length} in doubt. ${soFar(readingsCost)}`,
+          `${rows.filter((row) => row.doubts.length > 0).length} in doubt. ` +
+          soFar(sheetCost.cost - sheetCost.identification.cost),
       );
     }
-    if (stoppedAtLimit) {
+    if (stopped !== null) {
       result.notRead.push(number);
       continue;
     }
 
-    for (const extra of otherDrawings) {
-      setAside.push({
-        ...extra,
-        reason: `A second drawing for Tavola ${number}; the one on page ${drawing?.page} is its Scan.`,
-      });
-    }
+    setAside.push(...secondDrawings);
 
     const listings = interpretTable(compared);
     const directory = tavolaDirectory(number);
@@ -309,7 +411,8 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
       0,
     );
     print(
-      `  ${listings.length} Listings, ${inDoubt} in doubt. Tavola ${number} cost ${dollars(tavolaCost)}.`,
+      `  ${listings.length} Listings, ${inDoubt} in doubt. Tavola ${number} ` +
+        `${method.charged ? 'cost' : 'would have cost'} ${dollars(tavolaCost)}.`,
     );
     result.tavole.push({ number, directory, listings: listings.length, inDoubt });
     finished.add(number);
@@ -317,7 +420,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     // After every Tavola, so a run that stops part-way leaves a directory that loads what it read.
     manifest.tavole.push(directory);
     await writeJson(join(out, READING_FILE), manifest);
-    await writeJson(join(out, COST_FILE), costRecord());
+    await writeJson(join(out, costFileName), costRecord());
   }
 
   await writeJson(join(out, READING_FILE), manifest);
@@ -327,8 +430,11 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
   }
   result.setAside = setAside.map(({ page, reason }) => ({ page, reason }));
   result.cost = costRecord();
-  await writeJson(join(out, COST_FILE), result.cost);
+  await writeJson(join(out, costFileName), result.cost);
 
+  if (result.readBefore.length > 0) {
+    print(`Read before, and not again: Tavola ${result.readBefore.join(', ')}.`);
+  }
   if (result.notRead.length > 0) {
     print(`Not read: Tavola ${result.notRead.join(', ')}.`);
   }
@@ -340,11 +446,17 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
       `${tokens.output.toLocaleString('en-GB')} out.`,
   );
   print(
-    `Cost ${dollars(spending.spent)}, estimated at ${dollars(estimate)}, within a limit of ` +
-      `${dollars(limit)}. Recorded in ${COST_FILE}.`,
+    (method.charged
+      ? `Cost ${dollars(spending.spent)}`
+      : `Would have cost ${dollars(spending.spent)} at list prices, and was not charged`) +
+      `, estimated at ${dollars(estimate)}, within a limit of ${dollars(limit)}. ` +
+      `Recorded in ${costFileName}.`,
   );
   print(`Written to ${out}. Correct ${LISTINGS_FILE} where it needs it, then load it:`);
   print(`  pnpm archive:load -- --source ${out}`);
+  if (stopped !== null) {
+    print('To read the rest, run the same command again with --resume and a limit for the rest.');
+  }
 
   return result;
 }
@@ -451,12 +563,8 @@ function pagesNamed(sheets: { page: number }[]): string {
   return `${sheets.length === 1 ? 'page' : 'pages'} ${sheets.map((sheet) => sheet.page).join(', ')}`;
 }
 
-/**
- * **The Club's scans never land in the repository** (`AGENTS.md`, ADR 0016), and a directory
- * already holding something is not one to read into: two runs in one place are one directory
- * nobody can say the provenance of.
- */
-async function assertWritableOutside(out: string, repositoryRoot: string): Promise<void> {
+/** **The Club's scans never land in the repository** (`AGENTS.md`, ADR 0016). */
+function assertOutside(out: string, repositoryRoot: string): void {
   const inside = relative(repositoryRoot, out);
   if (
     inside === '' ||
@@ -467,9 +575,59 @@ async function assertWritableOutside(out: string, repositoryRoot: string): Promi
         'it: give a directory somewhere else, such as ../catalog-reading.',
     );
   }
+}
+
+/**
+ * A directory already holding something is not one to start reading into: two catalogs in one
+ * place are one directory nobody can say the provenance of. Carrying on is `--resume`.
+ */
+async function assertEmpty(out: string): Promise<void> {
   if (existsSync(out) && (await readdir(out)).length > 0) {
-    throw new ReadCatalogError(`${out} already holds something. Give an empty or new directory.`);
+    throw new ReadCatalogError(
+      `${out} already holds something. Give an empty or new directory, or carry on reading ` +
+        'into it with --resume.',
+    );
   }
+}
+
+/** What an earlier run in this directory left: the same catalog, for the same car. */
+async function previousReading(
+  out: string,
+  pdf: string,
+  model: ReadCatalogOptions['model'],
+): Promise<{ manifest: ReadingManifest; pages: PagesManifest; run: number }> {
+  const readJson = async (file: string) => {
+    try {
+      return JSON.parse(await readFile(join(out, file), 'utf8')) as unknown;
+    } catch {
+      throw new ReadCatalogError(
+        `${out} holds no reading to carry on with: its ${file} is missing or unreadable.`,
+      );
+    }
+  };
+  const manifest = readingManifestSchema.parse(await readJson(READING_FILE));
+  const pages = existsSync(join(out, PAGES_FILE))
+    ? pagesManifestSchema.parse(await readJson(PAGES_FILE))
+    : { pages: [] };
+
+  if (manifest.readFrom !== basename(pdf)) {
+    throw new ReadCatalogError(
+      `${out} was read from ${manifest.readFrom}, not ${basename(pdf)}. Carry on with the same PDF.`,
+    );
+  }
+  if (model && (model.brand !== manifest.model.brand || model.name !== manifest.model.name)) {
+    throw new ReadCatalogError(
+      `${out} is the catalog of the ${manifest.model.brand} ${manifest.model.name}, not the ` +
+        `${model.brand} ${model.name}.`,
+    );
+  }
+
+  const files = await readdir(out);
+  let run = 1;
+  while (files.includes(costFile(run + 1))) {
+    run += 1;
+  }
+  return { manifest, pages, run };
 }
 
 /** The directory holding `pnpm-workspace.yaml`, found by walking up from this file. */

@@ -2,7 +2,8 @@ import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CLAUDE_MODEL, createClaudeApiReadingMethod } from '../src/reading/claude-api-method.js';
+import { createClaudeApiReadingMethod } from '../src/reading/claude-api-method.js';
+import { CLAUDE_MODEL } from '../src/reading/claude-requests.js';
 
 /**
  * **The request the API-key Reading method builds** (issue #31), checked against a stand-in for

@@ -63,15 +63,28 @@ export interface SheetCost {
 /** What `cost.json` holds: what the Club is shown. Dollars throughout. */
 export interface CostRecord {
   readingMethod: string;
+  /**
+   * Whether the run was billed. One read on a subscription was not: its figures are what it would
+   * have cost at the price list, and its limit was held to those same figures.
+   */
+  charged: boolean;
+  /** 1 for the run that started the directory, then one more for each run resumed in it. */
+  run: number;
   model: string;
   priceList: ModelPrice & { currency: string; checkedOn: string; source: string };
   limit: number;
   estimate: number;
   total: number;
-  /** Whether the run stopped at the limit before it had read everything. */
-  stoppedAtLimit: boolean;
+  /**
+   * Why the run stopped before it had read everything: the next sheet could have passed the
+   * spending limit, or the subscription's usage limit was reached. `null` where it did not stop.
+   */
+  stopped: 'spending-limit' | 'usage-limit' | null;
   tavole: { number: string; finished: boolean; cost: number; sheets: SheetCost[] }[];
-  /** Pages that went into no Tavola. They were asked what they are, and that cost something. */
+  /**
+   * Pages this run asked about that went into no Tavola. They were asked what they are, and that
+   * cost something.
+   */
   setAside: { page: number; cost: number; identification: Spent }[];
   /** Pages never asked what they are, because the run stopped first. They cost nothing. */
   notIdentified: number[];

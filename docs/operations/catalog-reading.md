@@ -11,8 +11,17 @@ reasons are in [ADR 0016](../adr/0016-the-catalog-is-read-by-machine-and-publish
   inside it.
 - Poppler's `pdftoppm` on the machine that runs it (`poppler-utils` on Debian and Ubuntu,
   `poppler` in Homebrew).
-- An Anthropic API key in `ANTHROPIC_API_KEY`. It is billed per use. It is read from the
-  environment, and it is never written to the output or printed.
+- Something to read with, either:
+  - **a subscription login**: Claude Code (`claude`) installed and signed in with a plan
+    (`claude auth login`). It is not charged, and it draws on the plan's usage limits. This is
+    where reading starts (ADR 0016).
+  - **an API key** in `ANTHROPIC_API_KEY`. It is billed per use. It is read from the environment,
+    and it is never written to the output or printed.
+
+  Where only one is there, the command uses it. Where both are, it refuses to start until it is
+  told which, with `--with subscription` or `--with api-key`. A key that happens to be set never
+  pays for a run meant for the subscription: it is taken out of Claude Code's environment, and a
+  run Claude Code still reports reading with a key is refused.
 - A spending limit in dollars, given with `--limit`. There is no default.
 
 ## Reading
@@ -23,13 +32,35 @@ pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \
 ```
 
 `--pages` leaves out the front matter and the technical data, so they are never sent to the
-model. The command prints each Tavola as it reads it, the Table sheets it found and how many rows
-are in doubt. It ends with the tokens it used and what they cost.
+model. The command first says what it is reading with, and whether that is charged. It prints
+each Tavola as it reads it, the Table sheets it found and how many rows are in doubt. It ends with
+the tokens it used and what they cost.
+
+## When it stops part-way
+
+A run stops cleanly at its spending limit, and on a subscription also when the plan's usage limit
+is reached. The Tavole it finished are written and load as usual, and the rest are printed as not
+read. Carry on later with the same command, `--resume` and a limit for what is left:
+
+```sh
+pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading --pages 5-120 \
+  --limit 10 --resume
+```
+
+It does not ask again about a page it has already placed (`pages.json` keeps what each page was
+found to be), and it does not read a finished Tavola again. A Tavola it stopped in the middle of is
+read again whole. The car comes from the directory, and a different PDF or car is refused. Each
+Tavola records the Reading method that read it, so a run carried on with the other credential
+leaves an honest record.
 
 ## What it costs
 
-- **It estimates the whole run before it sends anything to be read.** Each page's requests are
-  counted with the provider's free token-counting endpoint, exactly as they would be sent. An
+- **It estimates the whole run before it sends anything to be read.** With an API key, each
+  page's requests are counted with the provider's free token-counting endpoint, exactly as they
+  would be sent. A subscription login cannot use that endpoint, so its input is worked out from
+  above instead: every image at its full size, the text at three characters a token, and Claude
+  Code's own framing, all twice over, since Claude Code asks the model a second time after the
+  structured answer. An
   answer cannot be counted before it is written, so each is allowed what it is expected to take
   (1,000 tokens to say what a page is, 8,000 to read a Table sheet). Which pages are drawings is
   only known once they have been asked, so every page is estimated as a Table sheet read twice,
@@ -38,11 +69,16 @@ are in doubt. It ends with the tokens it used and what they cost.
 - **It never passes the limit.** Before each sheet it allows for the most that sheet could cost,
   which is every answer at its ceiling, and stops if that would pass the limit. So give the limit
   some room above the estimate. The Tavole it finished are written and load as usual. The rest are
-  printed as not read. Read their pages again into a new directory with `--pages`.
+  printed as not read. Carry on with `--resume`.
 - **It prints a running total** after every sheet, and the cost of each Tavola as it finishes.
 - **It writes `cost.json`**: the cost of every Tavola, sheet and Reading, the total beside the
   estimate and the limit, the model, and the price list it used with the date that was checked.
-  That is what the Club is shown.
+  That is what the Club is shown. A run carried on with `--resume` writes `cost-2.json`,
+  `cost-3.json` and so on, each saying what that run spent.
+- **On a subscription it is not charged**, and it says so before it starts, beside each Tavola and
+  at the end. Its figures are what the same run would have cost at the price list, and the limit
+  is held to those same figures, so a run behaves alike whichever credential pays. `cost.json`
+  says `"charged": false`.
 
 The cost is the token counts each response reports, multiplied by the price list in
 `apps/api/src/reading/price-list.ts`. Nothing asks the provider's billing, so nothing needs an
@@ -67,7 +103,9 @@ What it decides, and where it decides it:
 ```
 catalog-reading/
   reading.json          the Model, the Reading method, the Tavole
+  pages.json            what each page was found to be, for --resume
   cost.json             what the run cost, per Tavola, sheet and Reading, beside its estimate
+  cost-2.json …         the same, for each run carried on with --resume
   set-aside.csv         pages not in any Tavola, and why
   tavola-84/
     tavola.json         number, Italian title, the factory's header, the sheets
