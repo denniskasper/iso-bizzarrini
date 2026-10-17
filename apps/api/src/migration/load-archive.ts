@@ -182,7 +182,7 @@ export async function loadArchive(options: ArchiveLoadOptions): Promise<ArchiveL
  * through leave the archive as it was rather than half migrated. The dry run's rollback comes
  * back as an exception by design, and it is the only one swallowed here.
  */
-async function inOneTransaction(
+export async function inOneTransaction(
   db: Db,
   rollback: boolean,
   work: (session: DbSession) => Promise<void>,

@@ -130,6 +130,12 @@ export const tavole = pgTable(
     publishedBy: uuid('published_by').references((): AnyPgColumn => accounts.id, {
       onDelete: 'set null',
     }),
+    /**
+     * What read it off the factory's sheets (ADR 0016) — `null` for a Tavola a person recorded.
+     * An Editor may see it, to know which Tavole to read again if a method proves bad; a Member
+     * never does.
+     */
+    readingMethod: text('reading_method'),
   },
   (table) => [
     check('tavole_state_is_one_of_two', sql`${table.state} in (${oneOf(TAVOLA_STATES)})`),
@@ -187,6 +193,37 @@ export const scans = pgTable('scans', {
   /** From the injected clock, never the system's idea of now. */
   ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull(),
 });
+
+/**
+ * A Table sheet is the picture of one of a Tavola's table fogli, kept as the evidence its
+ * Listings were read from (ADR 0016). As private as the Scan, and stored the same way: the file
+ * is in the private store under a key, never at a path anything serves.
+ *
+ * `sheet` is its place among the Tavola's Table sheets, counting from 1, in the order the
+ * factory printed them.
+ */
+export const tableSheets = pgTable(
+  'table_sheets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tavolaId: uuid('tavola_id')
+      .notNull()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    sheet: integer('sheet').notNull(),
+    format: text('format').notNull(),
+    byteSize: integer('byte_size').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    /** A key in the private file store. */
+    originalKey: text('original_key').notNull(),
+    /** From the injected clock, never the system's idea of now. */
+    ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('table_sheets_tavola_id_sheet_unique').on(table.tavolaId, table.sheet),
+    check('table_sheets_count_from_one', sql`${table.sheet} > 0`),
+  ],
+);
 
 /**
  * A Position is a number printed on a Tavola, and it **exists in its own right**: no column
@@ -1147,6 +1184,7 @@ export const tavoleRelations = relations(tavole, ({ one, many }) => ({
   model: one(models, { fields: [tavole.modelId], references: [models.id] }),
   category: one(categories, { fields: [tavole.categoryId], references: [categories.id] }),
   scan: one(scans, { fields: [tavole.id], references: [scans.tavolaId] }),
+  tableSheets: many(tableSheets),
   publisher: one(accounts, { fields: [tavole.publishedBy], references: [accounts.id] }),
   positions: many(positions),
   listings: many(listings),
@@ -1206,6 +1244,10 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
   tavole: many(tavole),
 }));
 
+export const tableSheetsRelations = relations(tableSheets, ({ one }) => ({
+  tavola: one(tavole, { fields: [tableSheets.tavolaId], references: [tavole.id] }),
+}));
+
 export const scansRelations = relations(scans, ({ one }) => ({
   tavola: one(tavole, { fields: [scans.tavolaId], references: [tavole.id] }),
 }));
@@ -1217,6 +1259,7 @@ export type NewCategoryRow = typeof categories.$inferInsert;
 export type TavolaRow = typeof tavole.$inferSelect;
 export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
+export type TableSheetRow = typeof tableSheets.$inferSelect;
 export type NewScanRow = typeof scans.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;

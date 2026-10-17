@@ -11,6 +11,10 @@
  * in the spreadsheet rather than something to work around here, and a second run adds what was
  * missing without touching what already landed.
  *
+ * **A directory the read command wrote** (`pnpm catalog:read`, ADR 0016) is loaded the same way
+ * and is told apart by its `reading.json`: its Tavole arrive Unchecked, an Unchecked one already
+ * there is replaced whole, and a Published one is refused.
+ *
  * The material itself lives outside this repository — the archive is the Club's, and
  * `AGENTS.md` keeps its contents out of version control. What is versioned is this loader and
  * the plan that says what the columns mean. The procedure is in
@@ -26,6 +30,8 @@ import { loadEnvFile } from '../src/config/env-file.js';
 import { createDatabase } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { loadArchive } from '../src/migration/load-archive.js';
+import { isReadingDirectory, loadReading } from '../src/migration/load-reading.js';
+import { renderReadingReport } from '../src/migration/reading-report.js';
 import { renderReport } from '../src/migration/report.js';
 import { systemClock } from '../src/platform/clock.js';
 import { createLogger } from '../src/platform/logger.js';
@@ -80,31 +86,52 @@ try {
     await runMigrations(database.db);
   }
 
-  const report = await loadArchive({
+  const dependencies = {
     db: database.db,
     fileStore: createFileStore(config.files.storagePath),
     clock: systemClock,
     logger: createLogger({ ...config, logLevel: 'warn' }),
     source,
     dryRun,
-  });
-
+  };
   const path = resolve(values.report);
-  await writeFile(path, `${renderReport(report)}\n`, 'utf8');
+  let refused: number;
 
-  console.log(
-    `\n${dryRun ? 'Dry run against' : 'Loaded'} ${source} into "${config.environmentName}".\n\n` +
-      `  ${report.rowsLoaded} of ${report.rowsRead} catalog rows\n` +
-      `  ${report.parts.created} Parts, ${report.listings.created} Listings, ` +
-      `${report.positions.created} Positions on ${report.tavole.created} Tavole\n` +
-      `  ${report.fitments.created} Fitments, ${report.equivalents.created} Equivalents, ` +
-      `${report.sources.created} Sources\n` +
-      `  ${report.subAssemblies.created} Sub-assemblies, ` +
-      `${report.relatedPositions.created} Related Positions\n` +
-      `  ${report.scans.ingested} scans ingested, ${report.scans.alreadyIngested} already there\n\n` +
-      `  ${report.rejected.length} rows refused, ${report.warnings.length} loaded with something missing\n\n` +
-      `The report is at ${path}.\n`,
-  );
+  if (await isReadingDirectory(source)) {
+    const report = await loadReading(dependencies);
+    await writeFile(path, `${renderReadingReport(report)}\n`, 'utf8');
+    refused = report.rejected.length;
+
+    console.log(
+      `\n${dryRun ? 'Dry run against' : 'Loaded'} the reading ${source} into "${config.environmentName}".\n\n` +
+        report.tavole
+          .map(
+            (tavola) =>
+              `  Tavola ${tavola.number}: ${tavola.outcome}, ${tavola.listings} Listings\n`,
+          )
+          .join('') +
+        `\n  ${refused} refused, ${report.warnings.length} loaded with something missing\n\n` +
+        `The report is at ${path}.\n`,
+    );
+  } else {
+    const report = await loadArchive(dependencies);
+    await writeFile(path, `${renderReport(report)}\n`, 'utf8');
+    refused = report.rejected.length;
+
+    console.log(
+      `\n${dryRun ? 'Dry run against' : 'Loaded'} ${source} into "${config.environmentName}".\n\n` +
+        `  ${report.rowsLoaded} of ${report.rowsRead} catalog rows\n` +
+        `  ${report.parts.created} Parts, ${report.listings.created} Listings, ` +
+        `${report.positions.created} Positions on ${report.tavole.created} Tavole\n` +
+        `  ${report.fitments.created} Fitments, ${report.equivalents.created} Equivalents, ` +
+        `${report.sources.created} Sources\n` +
+        `  ${report.subAssemblies.created} Sub-assemblies, ` +
+        `${report.relatedPositions.created} Related Positions\n` +
+        `  ${report.scans.ingested} scans ingested, ${report.scans.alreadyIngested} already there\n\n` +
+        `  ${refused} rows refused, ${report.warnings.length} loaded with something missing\n\n` +
+        `The report is at ${path}.\n`,
+    );
+  }
 
   if (dryRun) {
     console.log('Nothing was written. Drop --dry-run to load it.\n');
@@ -113,7 +140,7 @@ try {
   // A refused row is work left to do on the spreadsheet, so this does not exit cleanly with
   // rows still on the floor — the rest of the archive is loaded either way, and running again
   // after the sheet is corrected is safe.
-  if (report.rejected.length > 0) {
+  if (refused > 0) {
     process.exitCode = 1;
   }
 } finally {
