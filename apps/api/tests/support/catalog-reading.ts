@@ -6,6 +6,8 @@ import type { PageSource } from '../../src/reading/read-catalog.js';
 import type {
   ReadRow,
   ReadingMethod,
+  RequestEstimate,
+  SheetEstimate,
   SheetIdentity,
   TableReading,
   Tokens,
@@ -28,17 +30,45 @@ export interface InventedPage {
   readings?: [TableReading, TableReading?];
   width?: number;
   height?: number;
+  /**
+   * What each request about this page really takes, where it is not the usual. No more than its
+   * estimate's ceiling, as no real answer can be.
+   */
+  tokens?: Tokens;
+  estimate?: Partial<SheetEstimate>;
 }
 
-export const TOKENS_PER_CALL: Tokens = { input: 1000, output: 200 };
+/**
+ * At the price list's $4 in and $20 out per million, a request costs $0.04, and the most one
+ * could cost is $0.10. Every page is estimated at $0.12: asked what it is, and read twice.
+ */
+export const TOKENS_PER_CALL: Tokens = { input: 5000, output: 1000 };
+export const ESTIMATE_PER_REQUEST: RequestEstimate = {
+  input: 5000,
+  output: 1000,
+  outputAtMost: 4000,
+};
 
-export function fakeReadingMethod(pages: InventedPage[]): ReadingMethod & { calls: string[] } {
+export function fakeReadingMethod(
+  pages: InventedPage[],
+): ReadingMethod & { calls: string[]; estimated: number[] } {
   const calls: string[] = [];
+  const estimated: number[] = [];
   const pageOf = (page: number): InventedPage => pages[page - 1] ?? {};
 
   return {
     name: 'a fake Reading method',
+    model: 'claude-opus-5-5',
     calls,
+    estimated,
+    async estimate(sheet) {
+      estimated.push(sheet.page);
+      return {
+        identify: ESTIMATE_PER_REQUEST,
+        reading: ESTIMATE_PER_REQUEST,
+        ...pageOf(sheet.page).estimate,
+      };
+    },
     async identify(sheet) {
       calls.push(`identify ${sheet.page}`);
       const identity: SheetIdentity = {
@@ -52,14 +82,14 @@ export function fakeReadingMethod(pages: InventedPage[]): ReadingMethod & { call
         sottogruppo: null,
         ...pageOf(sheet.page).identity,
       };
-      return { value: identity, tokens: TOKENS_PER_CALL };
+      return { value: identity, tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL };
     },
     async readTable(sheet, reading) {
       calls.push(`read ${sheet.page} ${reading}`);
       const [first, second] = pageOf(sheet.page).readings ?? [aTable([])];
       return {
         value: reading === 2 && second ? second : first,
-        tokens: TOKENS_PER_CALL,
+        tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL,
       };
     },
   };

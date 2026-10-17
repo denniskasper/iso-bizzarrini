@@ -20,6 +20,7 @@ describe('reading with Claude through an API key', () => {
   });
 
   interface Received {
+    url: string;
     headers: IncomingHttpHeaders;
     body: {
       model: string;
@@ -37,8 +38,15 @@ describe('reading with Claude through an API key', () => {
       let body = '';
       request.on('data', (chunk) => (body += chunk));
       request.on('end', () => {
-        received.push({ headers: request.headers, body: JSON.parse(body) });
+        received.push({ url: request.url ?? '', headers: request.headers, body: JSON.parse(body) });
         response.writeHead(status, { 'content-type': 'application/json' });
+        if (status === 200 && request.url?.startsWith('/v1/messages/count_tokens')) {
+          const images = JSON.parse(body).messages[0].content.filter(
+            (block: { type: string }) => block.type === 'image',
+          );
+          response.end(JSON.stringify({ input_tokens: 1000 * images.length + 400 }));
+          return;
+        }
         response.end(
           JSON.stringify(
             status === 200
@@ -110,6 +118,30 @@ describe('reading with Claude through an API key', () => {
     const blocks = api.received[0]?.body.messages[0]?.content ?? [];
     expect(blocks.filter((block) => block.type === 'image')).toHaveLength(3);
     expect(api.received[0]?.body.output_config.effort).toBe('high');
+  });
+
+  it('estimates a sheet by counting the requests it would send, without sending them', async () => {
+    const api = await givenTheApi(200, null);
+    const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 0 });
+
+    const estimate = await method.estimate(await aPage(1700));
+
+    // One image to identify it; three strips to read it.
+    expect(estimate).toEqual({
+      identify: { input: 1400, output: 1000, outputAtMost: 16000 },
+      reading: { input: 3400, output: 8000, outputAtMost: 16000 },
+    });
+    expect(api.received.map((request) => request.url)).toEqual([
+      '/v1/messages/count_tokens',
+      '/v1/messages/count_tokens',
+    ]);
+    expect(api.received.map((request) => request.body.output_config.effort).sort()).toEqual([
+      'high',
+      'low',
+    ]);
+    expect(api.received[0]?.body.model).toBe('claude-opus-5-5');
+    expect(api.received[0]?.body.output_config.format.type).toBe('json_schema');
+    expect(method.model).toBe(CLAUDE_MODEL);
   });
 
   it('names itself by the model and the credential, and never by the key', async () => {

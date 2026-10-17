@@ -13,17 +13,41 @@ reasons are in [ADR 0016](../adr/0016-the-catalog-is-read-by-machine-and-publish
   `poppler` in Homebrew).
 - An Anthropic API key in `ANTHROPIC_API_KEY`. It is billed per use. It is read from the
   environment, and it is never written to the output or printed.
+- A spending limit in dollars, given with `--limit`. There is no default.
 
 ## Reading
 
 ```sh
 pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \
-  --brand Iso --model Rivolta --pages 5-120
+  --brand Iso --model Rivolta --pages 5-120 --limit 20
 ```
 
 `--pages` leaves out the front matter and the technical data, so they are never sent to the
 model. The command prints each Tavola as it reads it, the Table sheets it found and how many rows
-are in doubt. It ends with the tokens it used.
+are in doubt. It ends with the tokens it used and what they cost.
+
+## What it costs
+
+- **It estimates the whole run before it sends anything to be read.** Each page's requests are
+  counted with the provider's free token-counting endpoint, exactly as they would be sent. An
+  answer cannot be counted before it is written, so each is allowed what it is expected to take
+  (1,000 tokens to say what a page is, 8,000 to read a Table sheet). Which pages are drawings is
+  only known once they have been asked, so every page is estimated as a Table sheet read twice,
+  and a catalog with drawings in it costs less than its estimate.
+- **It refuses to start without `--limit`, or with an estimate above it**, and says why.
+- **It never passes the limit.** Before each sheet it allows for the most that sheet could cost,
+  which is every answer at its ceiling, and stops if that would pass the limit. So give the limit
+  some room above the estimate. The Tavole it finished are written and load as usual. The rest are
+  printed as not read. Read their pages again into a new directory with `--pages`.
+- **It prints a running total** after every sheet, and the cost of each Tavola as it finishes.
+- **It writes `cost.json`**: the cost of every Tavola, sheet and Reading, the total beside the
+  estimate and the limit, the model, and the price list it used with the date that was checked.
+  That is what the Club is shown.
+
+The cost is the token counts each response reports, multiplied by the price list in
+`apps/api/src/reading/price-list.ts`. Nothing asks the provider's billing, so nothing needs an
+admin credential. When the prices change, check them at the source the list names, and move its
+date.
 
 What it decides, and where it decides it:
 
@@ -43,6 +67,7 @@ What it decides, and where it decides it:
 ```
 catalog-reading/
   reading.json          the Model, the Reading method, the Tavole
+  cost.json             what the run cost, per Tavola, sheet and Reading, beside its estimate
   set-aside.csv         pages not in any Tavola, and why
   tavola-84/
     tavola.json         number, Italian title, the factory's header, the sheets

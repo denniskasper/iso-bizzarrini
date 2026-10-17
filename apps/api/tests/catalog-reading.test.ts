@@ -40,6 +40,7 @@ describe('reading a scanned catalog', () => {
       model: { brand: 'Iso', name: 'Rivolta' },
       method,
       pages: fakePages(pages),
+      limit: 100,
       print: (line) => printed.push(line),
     });
     return { out: out.path, printed: printed.join('\n'), result, method };
@@ -384,8 +385,8 @@ describe('reading a scanned catalog', () => {
 
     expect(printed).toContain('Tavola 84: drawing on page 1, 1 Table sheet (page 2)');
     expect(printed).toContain('  3 Listings, 0 in doubt');
-    // Two pages identified, one Table sheet read twice: four calls at 1,000 in and 200 out.
-    expect(printed).toContain('Read by a fake Reading method: 4,000 tokens in, 800 out.');
+    // Two pages identified, one Table sheet read twice: four calls at 5,000 in and 1,000 out.
+    expect(printed).toContain('Read by a fake Reading method: 20,000 tokens in, 4,000 out.');
   });
 
   describe('where it writes', () => {
@@ -398,6 +399,7 @@ describe('reading a scanned catalog', () => {
           model: { brand: 'Iso', name: 'Rivolta' },
           method: fakeReadingMethod([]),
           pages: fakePages([]),
+          limit: 100,
           print: () => undefined,
         }),
       ).rejects.toThrow(/inside the repository/);
@@ -416,6 +418,7 @@ describe('reading a scanned catalog', () => {
           model: { brand: 'Iso', name: 'Rivolta' },
           method: fakeReadingMethod([]),
           pages: fakePages([]),
+          limit: 100,
           print: () => undefined,
         }),
       ).rejects.toThrow(/already holds something/);

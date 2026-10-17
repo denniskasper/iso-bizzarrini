@@ -3,7 +3,7 @@
  *
  * ```sh
  * ANTHROPIC_API_KEY=… pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \
- *   --brand Iso --model Rivolta --pages 5-120
+ *   --brand Iso --model Rivolta --pages 5-120 --limit 20
  * pnpm archive:load -- --source ../catalog-reading --dry-run
  * ```
  *
@@ -11,6 +11,10 @@
  * each Tavola's directory opens in Excel and may be corrected there before it is loaded; what is
  * loaded arrives Unchecked, for an Editor to compare with the sheets and publish. The procedure
  * is in `docs/operations/catalog-reading.md`.
+ *
+ * `--limit` is the most the run may cost, in dollars, and there is no default. The run is
+ * estimated before anything is read, refused above the limit, and stopped before it could pass it.
+ * What it cost is written to `cost.json`.
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -28,11 +32,12 @@ const { values } = parseArgs({
     brand: { type: 'string' },
     model: { type: 'string' },
     pages: { type: 'string' },
+    limit: { type: 'string' },
   },
 });
 
 const usage =
-  'pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading --brand Iso --model Rivolta [--pages 5-120]';
+  'pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading --brand Iso --model Rivolta --limit 20 [--pages 5-120]';
 
 if (!values.pdf || !values.out || !values.brand || !values.model) {
   console.error(`Which catalog, for which car, and where to? Give all four:\n  ${usage}\n`);
@@ -62,6 +67,7 @@ try {
       first: pages[1] ? Number(pages[1]) : undefined,
       last: pages[2] ? Number(pages[2]) : undefined,
     }),
+    limit: values.limit === undefined ? undefined : Number(values.limit.replace(/^\$/, '')),
     print: (line) => console.log(line),
   });
 } catch (error) {

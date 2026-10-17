@@ -12,6 +12,14 @@
 export interface ReadingMethod {
   /** What a Tavola records it was read by, and what the report names. Never a credential. */
   readonly name: string;
+  /** The model it sends to, which is what the price list is looked up by. */
+  readonly model: string;
+  /**
+   * What this sheet would take to read, worked out **before anything is sent** to be read. The
+   * input is counted for the requests exactly as they would go; the answer cannot be counted
+   * before it is written, so the method says what it expects one to take and the most it can.
+   */
+  estimate(sheet: SheetImage): Promise<SheetEstimate>;
   /** What kind of sheet this is, whose, and which way up its headings read. */
   identify(sheet: SheetImage): Promise<Answer<SheetIdentity>>;
   /**
@@ -37,6 +45,26 @@ export interface Answer<T> {
 export interface Tokens {
   input: number;
   output: number;
+}
+
+/**
+ * One page's requests. Which kind of sheet a page is is only known once it has been asked, so
+ * every page is estimated as though it were a Table sheet, whose two Readings are by far the
+ * larger part.
+ */
+export interface SheetEstimate {
+  identify: RequestEstimate;
+  /** One Reading of it as a Table sheet. */
+  reading: RequestEstimate;
+}
+
+export interface RequestEstimate {
+  /** Counted. */
+  input: number;
+  /** What the answer is expected to take. */
+  output: number;
+  /** The most the answer can take: the request's own ceiling. */
+  outputAtMost: number;
 }
 
 export type SheetKind = 'drawing' | 'table' | 'other';

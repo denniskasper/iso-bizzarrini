@@ -86,6 +86,7 @@ describe('a machine-read catalog, loaded', () => {
       model: { brand: 'Iso', name: 'Rivolta' },
       method: fakeReadingMethod(pages),
       pages: fakePages(pages),
+      limit: 100,
       print: () => undefined,
     });
     return out.path;

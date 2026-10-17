@@ -6,6 +6,7 @@ import { z } from 'zod';
  *
  * ```
  * reading.json              the Model, the Reading method, the Tavole in it
+ * cost.json                 what the run cost, per Tavola, sheet and Reading, beside its estimate
  * set-aside.csv             every page that is not in a Tavola, and why
  * set-aside/page-12.png     …and the page itself, for a person to look at
  * tavola-84/
@@ -18,6 +19,7 @@ import { z } from 'zod';
  * The directory is the Club's material and stays out of the repository (ADR 0016, `AGENTS.md`).
  */
 export const READING_FILE = 'reading.json';
+export const COST_FILE = 'cost.json';
 export const TAVOLA_FILE = 'tavola.json';
 export const LISTINGS_FILE = 'listings.csv';
 export const SCAN_FILE = 'scan.png';

@@ -6,6 +6,7 @@ import {
   TABLE_LAYOUTS,
   type Answer,
   type ReadingMethod,
+  type SheetEstimate,
   type SheetIdentity,
   type SheetImage,
   type TableReading,
@@ -23,6 +24,16 @@ import {
  * by a method that proves bad is found again. A refusal stops the run and says so.
  */
 export const CLAUDE_MODEL = 'claude-opus-5-5';
+
+/** The ceiling on every answer, and so the most any one request can cost. */
+const MAX_TOKENS = 16000;
+
+/**
+ * What an answer is expected to take, thinking included, since it cannot be counted before it is
+ * written. Generous on purpose: the identity is a few lines, a Table sheet's rows rarely pass a
+ * few thousand tokens. The cost record shows what each request really took.
+ */
+const EXPECTED_OUTPUT = { identify: 1000, reading: 8000 };
 
 export interface ClaudeApiOptions {
   apiKey: string;
@@ -97,35 +108,45 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     maxRetries: options.maxRetries ?? 2,
   });
 
+  function requestFor<Schema extends z.ZodType>(
+    schema: Schema,
+    instruction: string,
+    images: Buffer[],
+    effort: 'low' | 'high',
+  ) {
+    return {
+      model: CLAUDE_MODEL,
+      max_tokens: MAX_TOKENS,
+      output_config: { effort, format: zodOutputFormat(schema) },
+      messages: [
+        {
+          role: 'user' as const,
+          content: [
+            ...images.map((image) => ({
+              type: 'image' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: 'image/png' as const,
+                data: image.toString('base64'),
+              },
+            })),
+            { type: 'text' as const, text: instruction },
+          ],
+        },
+      ],
+    };
+  }
+
   async function ask<Schema extends z.ZodType>(
     schema: Schema,
     instruction: string,
     images: Buffer[],
     effort: 'low' | 'high',
   ): Promise<Answer<z.infer<Schema>>> {
+    const request = requestFor(schema, instruction, images, effort);
     let response;
     try {
-      response = await client.messages.parse({
-        model: CLAUDE_MODEL,
-        max_tokens: 16000,
-        output_config: { effort, format: zodOutputFormat(schema) },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              ...images.map((image) => ({
-                type: 'image' as const,
-                source: {
-                  type: 'base64' as const,
-                  media_type: 'image/png' as const,
-                  data: image.toString('base64'),
-                },
-              })),
-              { type: 'text' as const, text: instruction },
-            ],
-          },
-        ],
-      });
+      response = await client.messages.parse(request);
     } catch (error) {
       throw new ReadingMethodError(describe(error));
     }
@@ -149,8 +170,30 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     };
   }
 
+  /** The free token-counting endpoint, given the request exactly as it would be sent. */
+  async function counted(request: ReturnType<typeof requestFor<z.ZodType>>): Promise<number> {
+    try {
+      const { model, messages, output_config } = request;
+      return (await client.messages.countTokens({ model, messages, output_config })).input_tokens;
+    } catch (error) {
+      throw new ReadingMethodError(describe(error));
+    }
+  }
+
   return {
     name: `Claude (${CLAUDE_MODEL}) with an API key`,
+    model: CLAUDE_MODEL,
+
+    async estimate(sheet: SheetImage): Promise<SheetEstimate> {
+      const [identify, reading] = await Promise.all([
+        counted(requestFor(identitySchema, IDENTIFY, [sheet.image], 'low')),
+        counted(requestFor(tableSchema, READ_TABLE, await stripsOf(sheet.image), 'high')),
+      ]);
+      return {
+        identify: { input: identify, output: EXPECTED_OUTPUT.identify, outputAtMost: MAX_TOKENS },
+        reading: { input: reading, output: EXPECTED_OUTPUT.reading, outputAtMost: MAX_TOKENS },
+      };
+    },
 
     async identify(sheet: SheetImage): Promise<Answer<SheetIdentity>> {
       return ask(identitySchema, IDENTIFY, [sheet.image], 'low');
