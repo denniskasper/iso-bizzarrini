@@ -27,13 +27,19 @@ order, and a sheet whose number cannot be read is set aside for a person rather 
 **It is a command, not a screen.** It needs a paid model, minutes per sheet and files a person may
 want to correct between reading and loading; none of that belongs in a members' web application.
 
-**It reaches the model through a paid API key, and says what it spends.** Plain code, repeatable
-and unattended, which an operator-driven chat session is not. Before it reads anything it estimates
+**It reaches Claude with whichever credential it is given, and says what it spends.** An API key
+is billed per use and runs unattended; a subscription login is not billed but draws on that plan's
+limits and can stop part-way. The command is the same plain, repeatable code either way, which an
+operator-driven chat session is not. It starts on the subscription that already exists, and moves to
+an API key in the Club's own name once reading is the Club's standing tool rather than a one-off
+load, so the bill and the credential belong to the Club and not to one person. Before it reads anything it estimates
 the whole run from the pages it will send, and it refuses to start above the spending limit it is
 given — there is no default, so nobody spends by accident. While it reads it shows a running
 total, and it stops cleanly at the limit, keeping the Tavole already finished. Each run writes a
 cost record per Tavola, sheet and Reading, computed from the token counts the API returns at a
-price list kept in the repository with the date it was checked. That record is what the Club is
+price list kept in the repository with the date it was checked. On a subscription it says what the
+same run would have cost at those prices, and that it was not charged; the spending limit is
+measured the same way, so a run behaves alike whoever pays for it. That record is what the Club is
 shown; it needs no login to the model provider, and no second, more powerful credential to fetch
 the provider's own billing.
 
