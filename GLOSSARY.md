@@ -13,8 +13,41 @@ _Avoid_: Car, vehicle, variant, type
 
 **Tavola**:
 A factory exploded-view drawing belonging to one Model, carrying an Italian and an English
-name. Its number is meaningful only within its Model.
+name. Its number is meaningful only within its Model. Printed across one drawing sheet and
+however many table sheets it takes to list what is drawn.
 _Avoid_: Diagram, plate, drawing, illustration
+
+**Foglio**:
+One physical sheet of a factory catalog, numbered by the factory in large type at its corner —
+*175*, *150bis*. Several fogli make up one Tavola, so a Foglio number says where something was
+read from and never which Tavola it is.
+_Avoid_: Page, sheet number, drawing number
+
+**Scan**:
+The picture of a Tavola's drawing foglio — the one sheet Marks are placed on. A Tavola has one.
+_Avoid_: Image (the general word, below), drawing, picture
+
+**Table sheet**:
+The picture of one of a Tavola's table fogli, kept as the evidence its Listings were read from.
+A Tavola has as many as the factory printed. As private as the Scan.
+_Avoid_: Parts list, table scan, page
+
+**Unchecked / Published**:
+Whether an Editor has compared a Tavola against its fogli. An Unchecked Tavola was read by
+machine and is shown to nobody but Editors; publishing it is an Editor's statement that it
+says what the factory printed.
+_Avoid_: Draft, pending, imported, verified
+
+**Reading**:
+One pass over one Table sheet, turning what is printed there into rows. Every Table sheet is
+read twice, independently; where the two Readings differ on a Position, a Catalog Number or a
+quantity, the row is in doubt.
+_Avoid_: Reader, pass, scan (that is the drawing), OCR
+
+**Reading method**:
+What produced a Tavola's Readings — a particular model or piece of software. A Tavola is read
+by one, and an Editor can see which; a Member never can.
+_Avoid_: Reader, engine, provider, backend
 
 **Category**:
 The system of the car a Tavola belongs to — Brakes, Electrical, Fuel. Groups tavole within a
@@ -53,13 +86,13 @@ be listed on many Tavole and fit many Models.
 _Avoid_: Item, component, product, article
 
 **Catalog Number**:
-The factory's identifying number for a Part, as printed in the catalog's first column. Two
-Parts never share one. A Part may have none.
+The factory's identifying number for a Part — the one it was ordered by, printed under
+*N° Ordinazione*. Two Parts never share one. A Part may have none.
 _Avoid_: Product ID, part number, article number, SKU
 
 **Disegno Origine**:
-The original factory drawing number for a Part. Authoritative when known, but not what tells
-two Parts apart.
+The original factory drawing number for a Part, printed under that heading on the technical
+office's sheets — *260 06 110*. Authoritative when known, but not what tells two Parts apart.
 _Avoid_: Drawing number, origin number, DO
 
 **Listing**:
@@ -70,7 +103,10 @@ _Avoid_: Entry, row, appearance, occurrence, placement
 **Drawn / Undrawn**:
 Whether the Part is the one the Position's number points at. Undrawn Parts — the screws and
 washers that fasten a drawn Part — share its Position but appear on no drawing. Several
-*drawn* Parts at one Position are alternatives; *undrawn* ones are additional.
+*drawn* Parts at one Position are either alternatives or a handed pair, the left and right of
+the same thing; *undrawn* ones are additional. The factory marks both with a dash where the
+Position's number would be: on the catalog's own sheets the dash is an undrawn Part, on the
+technical office's it is the other hand of a pair.
 _Avoid_: Visible, invisible, hidden, implied
 
 **Fitment**:
@@ -88,6 +124,12 @@ _Avoid_: Cross-reference, alternative, substitute, OEM
 Somewhere a Part has been available, optionally with a price and the date that price was
 seen. A price is never meaningful without its date.
 _Avoid_: Supplier, vendor, dealer, shop
+
+**Machine translation**:
+An English name nobody has vouched for, produced from the Italian the factory printed. Shown
+with the Italian beside it and labelled as such until an Editor confirms or rewrites it —
+which is a separate judgement from publishing the Tavola it came from.
+_Avoid_: Auto-translation, draft name, unverified
 
 **Catalog Note**:
 Text transcribed from the factory catalog, in the factory's words. Evidence, not opinion.
