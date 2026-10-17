@@ -54,7 +54,7 @@ await run({
   // Maximum number of iterations (agent invocations) to run in a session.
   // Each iteration works on a single issue. Increase this to process more issues
   // per run, or set it to 1 for a single-shot mode.
-  maxIterations: 4,
+  maxIterations: 8,
 
   // Branch strategy — the agent's commits land on a branch of their own and are never merged
   // into whatever is checked out. Everything in this repository reaches `main` through a pull
