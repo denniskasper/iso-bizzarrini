@@ -38,6 +38,17 @@ machine and is shown to nobody but Editors; publishing it is an Editor's stateme
 says what the factory printed.
 _Avoid_: Draft, pending, imported, verified
 
+**Reading**:
+One pass over one Table sheet, turning what is printed there into rows. Every Table sheet is
+read twice, independently; where the two Readings differ on a Position, a Catalog Number or a
+quantity, the row is in doubt.
+_Avoid_: Reader, pass, scan (that is the drawing), OCR
+
+**Reading method**:
+What produced a Tavola's Readings — a particular model or piece of software. A Tavola is read
+by one, and an Editor can see which; a Member never can.
+_Avoid_: Reader, engine, provider, backend
+
 **Category**:
 The system of the car a Tavola belongs to — Brakes, Electrical, Fuel. Groups tavole within a
 Model and across Models. A name, never a code. The list is maintained by an Administrator; an
