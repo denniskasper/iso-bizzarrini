@@ -120,6 +120,13 @@
       "when": 1791626275611,
       "tag": "0016_renewal_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792277269590,
+      "tag": "0017_tavole_unchecked_until_published",
+      "breakpoints": true
     }
   ]
 }

@@ -70,6 +70,7 @@ export function toTavolaSummary(row: TavolaWithCategoryAndScan): TavolaSummary {
     nameEn: row.nameEn,
     category: row.category ? toCategory(row.category) : null,
     scan: row.scan ? toTavolaScan(row.scan) : null,
+    state: row.state,
   };
 }
 

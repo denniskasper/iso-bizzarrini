@@ -4,6 +4,7 @@ import type {
   CategoryWrittenResponse,
 } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
+import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { CategoryService } from '../services/category-service.js';
 import { required } from './fields.js';
@@ -23,19 +24,20 @@ export interface CategoryController {
 }
 
 export function createCategoryController(dependencies: {
+  gate: Gate;
   categoryService: CategoryService;
 }): CategoryController {
-  const { categoryService } = dependencies;
+  const { gate, categoryService } = dependencies;
 
   return {
     list: async (_request, response) => {
-      const body: CategoriesResponse = await categoryService.list();
+      const body: CategoriesResponse = await categoryService.list(gate.seesUnchecked(response));
       response.json(body);
     },
 
     read: async (request, response) => {
       const { slug } = slugParams.parse(request.params);
-      const body: CategoryResponse = await categoryService.read(slug);
+      const body: CategoryResponse = await categoryService.read(slug, gate.seesUnchecked(response));
       response.json(body);
     },
 

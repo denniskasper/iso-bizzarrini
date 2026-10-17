@@ -75,7 +75,9 @@ export function createContributionReviewService(dependencies: {
    */
   async function subjectOf(row: ContributionWithAuthor): Promise<ContributionSubject> {
     if (row.partId !== null) {
-      return { kind: 'part', ...(await partService.readPart(row.partId)) };
+      // Read for an Editor, so the sheets it names include the Unchecked ones a correction
+      // would reach as well.
+      return { kind: 'part', ...(await partService.readPart(row.partId, true)) };
     }
 
     // Both are held in place by the Contribution itself: a number cannot be removed from under

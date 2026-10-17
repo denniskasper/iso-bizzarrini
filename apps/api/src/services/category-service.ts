@@ -20,9 +20,9 @@ import { toCatalogModel, toCategory, toTavolaSummary } from './catalog-view.js';
  * drawing belonged to, which is the Model's job now.
  */
 export interface CategoryService {
-  list(): Promise<CategoriesResponse>;
+  list(seesUnchecked: boolean): Promise<CategoriesResponse>;
   /** One system across every car, grouped by Model. */
-  read(slug: string): Promise<CategoryResponse>;
+  read(slug: string, seesUnchecked: boolean): Promise<CategoryResponse>;
   add(name: string): Promise<Category>;
   rename(categoryId: string, name: string): Promise<Category>;
 }
@@ -63,10 +63,10 @@ export function createCategoryService(dependencies: {
   };
 
   return {
-    async list() {
+    async list(seesUnchecked) {
       const [listed, uncategorised] = await Promise.all([
-        categoryRepository.listWithCounts(),
-        categoryRepository.countUncategorised(),
+        categoryRepository.listWithCounts(seesUnchecked),
+        categoryRepository.countUncategorised(seesUnchecked),
       ]);
 
       return {
@@ -75,7 +75,7 @@ export function createCategoryService(dependencies: {
       };
     },
 
-    async read(slug) {
+    async read(slug, seesUnchecked) {
       const category = await categoryRepository.findBySlug(slug);
       if (!category) {
         throw new NotFoundError('No such Category.');
@@ -84,7 +84,7 @@ export function createCategoryService(dependencies: {
       // Already in brand, Model and catalog order, so cutting it into cars is a single pass and
       // a car's drawings stay in the order its catalog prints them.
       const models: CategoryOnModel[] = [];
-      for (const row of await tavolaRepository.listByCategory(category.id)) {
+      for (const row of await tavolaRepository.listByCategory(category.id, seesUnchecked)) {
         const last = models.at(-1);
         if (last && last.model.id === row.model.id) {
           last.tavole.push(toTavolaSummary(row));

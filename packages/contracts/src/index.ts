@@ -174,6 +174,12 @@ export interface TavolaScan {
   previewUrl: string;
 }
 
+/**
+ * Whether an Editor has compared a Tavola with its sheets (ADR 0016). Only an Editor is ever
+ * shown an `unchecked` one; to a Member every Tavola there is, is `published`.
+ */
+export type TavolaState = 'unchecked' | 'published';
+
 /** A Tavola as a Model's list reports it. */
 export interface TavolaSummary {
   id: string;
@@ -185,6 +191,18 @@ export interface TavolaSummary {
   category: Category | null;
   /** `null` until a scan is uploaded. A Tavola without one is a legitimate state. */
   scan: TavolaScan | null;
+  state: TavolaState;
+}
+
+/**
+ * Who vouched for a Tavola by publishing it, and when. `by` is `null` once their Account is gone
+ * (ADR 0007); the whole of it is `null` on a Tavola that was Published before publishing was an
+ * act anybody performed.
+ */
+export interface TavolaPublication {
+  /** ISO timestamp. */
+  at: string;
+  by: string | null;
 }
 
 /**
@@ -318,7 +336,13 @@ export interface TavolaResponse extends Sheet {
   tavola: TavolaSummary & {
     model: CatalogModel;
     provenance: CatalogProvenance;
+    publication: TavolaPublication | null;
   };
+}
+
+/** `POST /api/tavole/:tavolaId/publication` — an Editor publishing an Unchecked Tavola. */
+export interface TavolaPublishedResponse {
+  tavola: TavolaSummary & { publication: TavolaPublication };
 }
 
 /**

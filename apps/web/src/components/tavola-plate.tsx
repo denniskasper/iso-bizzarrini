@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { Plate } from '@/components/plate';
 import type { TavolaSummary } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 /**
  * A page of drawings, laid out as a **contact sheet** — the way anyone with a box of plates
@@ -36,6 +37,10 @@ export function TavolaSheet({
  * member is holding; the English one is underneath, for the member who is not. The number is
  * mono, like every number in this archive — it is an identifier to be compared, not read.
  *
+ * An Unchecked plate — one only an Editor is shown — is framed by a broken line and says so where
+ * its Category would be: what it is filed under matters less, until it is checked, than that no
+ * Member can open it yet.
+ *
  * The Category is named and not linked: the whole plate is already one link, to the drawing,
  * and a second target inside it is a target a gloved thumb hits by accident. The way to a
  * system is the filter above the sheet.
@@ -47,6 +52,8 @@ export function TavolaPlate({
   tavola: TavolaSummary;
   nameCategory?: boolean;
 }) {
+  const unchecked = tavola.state === 'unchecked';
+
   return (
     <Link
       to="/tavole/$tavolaId"
@@ -57,7 +64,10 @@ export function TavolaPlate({
       <Plate
         scan={tavola.scan}
         alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
-        className="aspect-[4/3] transition-opacity duration-150 ease-[var(--ease-out-quick)] group-hover:opacity-85"
+        className={cn(
+          'aspect-[4/3] transition-opacity duration-150 ease-[var(--ease-out-quick)] group-hover:opacity-85',
+          unchecked && 'plate-unchecked',
+        )}
       />
 
       <div className="mt-4 flex items-baseline gap-4">
@@ -66,7 +76,15 @@ export function TavolaPlate({
       </div>
       <div className="mt-1 flex items-baseline justify-between gap-4">
         <span className="text-sm text-muted">{tavola.nameEn}</span>
-        {nameCategory && tavola.category && <span className="tag">{tavola.category.name}</span>}
+        {/* Said in words as well as drawn, because a dashed line is not something a screen
+            reader announces. Only an Editor is ever sent an Unchecked plate. */}
+        {unchecked ? (
+          <span className="text-sm text-text" data-testid="tavola-unchecked">
+            Unchecked
+          </span>
+        ) : (
+          nameCategory && tavola.category && <span className="tag">{tavola.category.name}</span>
+        )}
       </div>
     </Link>
   );

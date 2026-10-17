@@ -725,6 +725,23 @@
   }
 
   /*
+   * A drawing **no Member can see yet**, because no Editor has checked it against its sheets
+   * (ADR 0016) — the same broken frame for the same reason. On the band above an Unchecked
+   * drawing it is the frame itself; on the contact sheet it is drawn around the plate as an
+   * outline, so the plate stays exactly where its Published neighbours are.
+   */
+  .tavola-unchecked {
+    padding: --spacing(4) --spacing(5);
+    background-color: var(--surface-sunken);
+    border: 1px dashed var(--line-strong);
+  }
+
+  .plate-unchecked {
+    outline: 1px dashed var(--line-strong);
+    outline-offset: --spacing(2);
+  }
+
+  /*
    * A panel an Editor opened deliberately: ruled off from the page, sunk a step below it, and
    * wearing the registration mark. **Not a modal** — the archive is a printed index, and a
    * dialogue over a drawing is exactly the chrome this interface stays out of the way of.

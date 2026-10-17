@@ -1,5 +1,6 @@
-import type { TavolaResponse } from '@ricambi/contracts';
+import type { TavolaPublishedResponse, TavolaResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
+import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { TavolaService } from '../services/tavola-service.js';
 import { blankToNull, required } from './fields.js';
@@ -35,12 +36,14 @@ export interface TavolaController {
   read: RequestHandler;
   create: RequestHandler;
   categorise: RequestHandler;
+  publish: RequestHandler;
 }
 
 export function createTavolaController(dependencies: {
+  gate: Gate;
   tavolaService: TavolaService;
 }): TavolaController {
-  const { tavolaService } = dependencies;
+  const { gate, tavolaService } = dependencies;
 
   return {
     read: async (request, response) => {
@@ -63,6 +66,15 @@ export function createTavolaController(dependencies: {
       const { category } = categoriseBody.parse(request.body);
       const tavola = await tavolaService.categorise(tavolaId, category);
       response.json({ tavola });
+    },
+
+    publish: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+      const who = gate.whoIsSignedIn(response);
+      const body: TavolaPublishedResponse = {
+        tavola: await tavolaService.publish(tavolaId, who.account.id),
+      };
+      response.json(body);
     },
   };
 }

@@ -39,7 +39,7 @@ export interface SearchService {
    * controller refuses one with nothing in it, because a blank search is not a request for the
    * whole archive but a field nobody has finished typing into.
    */
-  find(query: string): Promise<SearchResponse>;
+  find(query: string, seesUnchecked: boolean): Promise<SearchResponse>;
 }
 
 export function createSearchService(dependencies: {
@@ -49,9 +49,13 @@ export function createSearchService(dependencies: {
   const { partRepository, partRecordRepository } = dependencies;
 
   return {
-    async find(query) {
+    async find(query, seesUnchecked) {
       // One more than will be reported is read, so that a capped answer can say it is one.
-      const found = await partRepository.searchParts(query, MOST_MATCHES_REPORTED + 1);
+      const found = await partRepository.searchParts(
+        query,
+        MOST_MATCHES_REPORTED + 1,
+        seesUnchecked,
+      );
       const reported = found.slice(0, MOST_MATCHES_REPORTED);
       const partIds = reported.map((part) => part.id);
 
@@ -59,7 +63,7 @@ export function createSearchService(dependencies: {
       // and a query each for where they are listed is how a search becomes something a member
       // waits for — on a phone, in a garage, on whatever signal there is.
       const [places, equivalents] = await Promise.all([
-        partRepository.listEverywhereListed(partIds),
+        partRepository.listEverywhereListed(partIds, seesUnchecked),
         partRecordRepository.listMatchingEquivalents(partIds, query),
       ]);
 
