@@ -80,9 +80,10 @@ describe('the cost of reading a catalog', () => {
     const { printed, run } = await read(aTavola('84'), 1);
     await run;
 
-    expect(printed[0]).toBe(
+    expect(printed[0]).toBe('Reading with a fake Reading method: billed per use.');
+    expect(printed[1]).toBe(
       'Estimated at $0.24 for 2 pages, at claude-opus-5-5 list prices checked on 2026-10-17. ' +
-        'Every page is counted as a Table sheet read twice; a drawing costs less.',
+        'Every page is counted as a Table sheet read twice and translated; a drawing costs less.',
     );
     expect(printed).toContain('Page 1: drawing of Tavola 84. $0.04, $0.04 so far.');
     expect(printed).toContain('Page 2: Table sheet of Tavola 84. $0.04, $0.08 so far.');
@@ -121,7 +122,7 @@ describe('the cost of reading a catalog', () => {
     expect(existsSync(join(out, 'tavola-85'))).toBe(false);
 
     const record = await costRecordOf(out);
-    expect(record.stoppedAtLimit).toBe(true);
+    expect(record.stopped).toBe('spending-limit');
     expect(record.total).toBeCloseTo(0.42, 6);
     expect(record.total).toBeLessThanOrEqual(record.limit);
     expect(
@@ -162,6 +163,8 @@ describe('the cost of reading a catalog', () => {
     const identification = { tokens: { input: 5000, output: 1000 }, cost: 0.04 };
     expect(await costRecordOf(out)).toEqual({
       readingMethod: 'a fake Reading method',
+      charged: true,
+      run: 1,
       model: 'claude-opus-5-5',
       priceList: {
         inputPerMillion: 4,
@@ -173,12 +176,13 @@ describe('the cost of reading a catalog', () => {
       limit: 1,
       estimate: 0.36,
       total: 0.2,
-      stoppedAtLimit: false,
+      stopped: null,
       tavole: [
         {
           number: '84',
           finished: true,
           cost: 0.16,
+          translation: { tokens: { input: 0, output: 0 }, cost: 0 },
           sheets: [
             { page: 1, kind: 'drawing', cost: 0.04, identification, readings: [] },
             {

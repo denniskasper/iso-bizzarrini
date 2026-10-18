@@ -91,6 +91,8 @@ export interface TavolaRepository {
   publish(id: string, by: string, at: Date): Promise<boolean>;
   /** Files the sheet under a Category, or under none. `false` when there is no such sheet. */
   setCategory(id: string, categoryId: string | null): Promise<boolean>;
+  /** The English name as an Editor vouches for it, which is no Machine translation. */
+  nameInEnglish(id: string, nameEn: string): Promise<boolean>;
 }
 
 export function createTavolaRepository(db: DbSession): TavolaRepository {
@@ -225,6 +227,15 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
         .update(tavole)
         .set({ state: 'published', publishedAt: at, publishedBy: by })
         .where(and(eq(tavole.id, id), eq(tavole.state, 'unchecked')))
+        .returning({ id: tavole.id });
+      return written.length > 0;
+    },
+
+    async nameInEnglish(id, nameEn) {
+      const written = await db
+        .update(tavole)
+        .set({ nameEn, nameEnMachineTranslated: false })
+        .where(eq(tavole.id, id))
         .returning({ id: tavole.id });
       return written.length > 0;
     },

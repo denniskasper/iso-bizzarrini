@@ -274,6 +274,8 @@ describe('search', () => {
           tavolaId,
           tavolaNumber: '2',
           nameEn: 'Front brakes',
+          nameEnMachineTranslated: false,
+          nameIt: 'Impianto freni',
           model: expect.objectContaining({ brand: 'Iso', name: 'Grifo' }),
           positionNumber: '4',
         },
@@ -282,6 +284,8 @@ describe('search', () => {
           tavolaId: rivoltaTavola,
           tavolaNumber: '9',
           nameEn: 'Rear brakes',
+          nameEnMachineTranslated: false,
+          nameIt: 'Impianto freni',
           model: expect.objectContaining({ brand: 'Iso', name: 'Rivolta' }),
           // Listed on the sheet without anybody having decided which number it sits at.
           positionNumber: null,

@@ -108,6 +108,8 @@ describe('reading a Part from a Position', () => {
           part: {
             id: expect.any(String),
             nameEn: 'Window channel guide rod',
+            // An Editor typed it, so it is nobody's Machine translation.
+            nameEnMachineTranslated: false,
             nameIt: 'ASTA GUIDA PER CRISTALLO MONTANTE',
             catalogNumber: '260 03 150',
             disegnoOrigine: '208503',
@@ -115,6 +117,7 @@ describe('reading a Part from a Position', () => {
             dimensions: '412 mm',
             materialFinish: 'Steel, cadmium plated',
             catalogNote: 'Fino al telaio 310',
+            catalogNoteEn: null,
             note: 'The later cars use a longer rod; measure before ordering.',
             // What fits it, what replaces it, where it has been available (ticket 08) and what
             // it looks like (ticket 10) arrive with it — empty here, because a Part recorded a
@@ -352,6 +355,8 @@ describe('reading a Part from a Position', () => {
           tavolaId: other,
           tavolaNumber: '10',
           nameEn: 'Electrical system',
+          nameEnMachineTranslated: false,
+          nameIt: 'Impianto elettrico',
           model: { id: modelId, brand: 'Iso', name: 'Grifo', series: null, modelYears: null },
           positionNumber: '44',
           quantityPerCar: 2,
@@ -609,6 +614,7 @@ describe('reading a Part from a Position', () => {
           part: {
             id: expect.any(String),
             nameEn: 'Caliper mounting bolt',
+            nameEnMachineTranslated: false,
             nameIt: 'VITE FISSAGGIO PINZA',
             catalogNumber: '999 01 004',
           },

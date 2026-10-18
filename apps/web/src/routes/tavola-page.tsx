@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BelongsWithPanel } from '@/components/editor/belongs-with-panel';
@@ -8,6 +8,7 @@ import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
+import { ConfirmEnglish, MachineTranslationTag } from '@/components/machine-translation';
 import { PartReading } from '@/components/parts/part-reading';
 import { TavolaParts } from '@/components/parts/tavola-parts';
 import { BelongsWith } from '@/components/positions/belongs-with';
@@ -43,6 +44,7 @@ import { useSession } from '@/lib/session';
 export function TavolaPage() {
   const { tavolaId } = useParams({ from: '/tavole/$tavolaId' });
   const { isEditor } = useSession();
+  const queryClient = useQueryClient();
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['tavola', tavolaId],
@@ -269,7 +271,21 @@ export function TavolaPage() {
       </p>
 
       <h1 className="mt-2 text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
-      <p className="mt-1 text-lg text-muted">{tavola.nameEn}</p>
+      <p className="mt-1 flex flex-wrap items-baseline gap-x-3 text-lg text-muted">
+        <span>{tavola.nameEn}</span>
+        {tavola.nameEnMachineTranslated && <MachineTranslationTag />}
+      </p>
+      {isEditor && tavola.nameEnMachineTranslated && (
+        <ConfirmEnglish
+          confirm={async () => {
+            await api.nameTavolaInEnglish(tavola.id, tavola.nameEn);
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['tavola', tavola.id] }),
+              queryClient.invalidateQueries({ queryKey: ['model', tavola.model.id] }),
+            ]);
+          }}
+        />
+      )}
       {/* Who checked it is the Editors' business; a Member is simply shown the drawing. */}
       {isEditor && tavola.publication && (
         <div className="mt-3">

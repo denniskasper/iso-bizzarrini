@@ -37,6 +37,11 @@ export interface TavolaService {
    * recorded with who made it and when. Members see it from then on.
    */
   publish(tavolaId: string, accountId: string): Promise<TavolaPublishedResponse['tavola']>;
+  /**
+   * An Editor vouching for the English name, as it stands or rewritten: it stops being a Machine
+   * translation. Publishing the Tavola never does this; it is a judgement of its own.
+   */
+  nameInEnglish(tavolaId: string, nameEn: string): Promise<TavolaSummary>;
 }
 
 function publicationOf(row: TavolaInContext): TavolaPublication | null {
@@ -147,6 +152,17 @@ export function createTavolaService(dependencies: {
         throw new NotFoundError('No such Tavola.');
       }
 
+      const row = await tavolaRepository.findById(tavolaId);
+      if (!row) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      return toTavolaSummary(row);
+    },
+
+    async nameInEnglish(tavolaId, nameEn) {
+      if (!(await tavolaRepository.nameInEnglish(tavolaId, nameEn))) {
+        throw new NotFoundError('No such Tavola.');
+      }
       const row = await tavolaRepository.findById(tavolaId);
       if (!row) {
         throw new NotFoundError('No such Tavola.');

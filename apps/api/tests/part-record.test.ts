@@ -563,6 +563,7 @@ describe('what fits a Part, what replaces it, and where it has been', () => {
       expect(response.body.listings[0].part).toEqual({
         id: partId,
         nameEn: 'Flexible brake hose',
+        nameEnMachineTranslated: false,
         nameIt: null,
         catalogNumber: null,
       });

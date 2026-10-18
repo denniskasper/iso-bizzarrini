@@ -31,9 +31,19 @@ export class Spending {
     return this.costOf({ input: request.input, output: request.outputAtMost });
   }
 
-  /** Each page as though it were a Table sheet: asked what it is, then read twice. */
+  /** Each page as though it were a Table sheet: asked what it is, read twice, and translated. */
   estimateOf(sheet: SheetEstimate): number {
-    return this.expected(sheet.identify) + 2 * this.expected(sheet.reading);
+    return this.expected(sheet.identify) + this.readingOf(sheet);
+  }
+
+  /** A Table sheet already placed: read twice, and translated. */
+  readingOf(sheet: SheetEstimate): number {
+    return 2 * this.expected(sheet.reading) + this.expected(sheet.translation);
+  }
+
+  /** The most a Table sheet could cost once placed: both Readings and its translation. */
+  readingAtMost(sheet: SheetEstimate): number {
+    return 2 * this.atMost(sheet.reading) + this.atMost(sheet.translation);
   }
 
   wouldPass(atMost: number): boolean {
@@ -63,15 +73,35 @@ export interface SheetCost {
 /** What `cost.json` holds: what the Club is shown. Dollars throughout. */
 export interface CostRecord {
   readingMethod: string;
+  /**
+   * Whether the run was billed. One read on a subscription was not: its figures are what it would
+   * have cost at the price list, and its limit was held to those same figures.
+   */
+  charged: boolean;
+  /** 1 for the run that started the directory, then one more for each run resumed in it. */
+  run: number;
   model: string;
   priceList: ModelPrice & { currency: string; checkedOn: string; source: string };
   limit: number;
   estimate: number;
   total: number;
-  /** Whether the run stopped at the limit before it had read everything. */
-  stoppedAtLimit: boolean;
-  tavole: { number: string; finished: boolean; cost: number; sheets: SheetCost[] }[];
-  /** Pages that went into no Tavola. They were asked what they are, and that cost something. */
+  /**
+   * Why the run stopped before it had read everything: the next sheet could have passed the
+   * spending limit, or the subscription's usage limit was reached. `null` where it did not stop.
+   */
+  stopped: 'spending-limit' | 'usage-limit' | null;
+  tavole: {
+    number: string;
+    finished: boolean;
+    cost: number;
+    sheets: SheetCost[];
+    /** Its Italian put into English, once its sheets were read. `null` where nothing was sent. */
+    translation: Spent | null;
+  }[];
+  /**
+   * Pages this run asked about that went into no Tavola. They were asked what they are, and that
+   * cost something.
+   */
   setAside: { page: number; cost: number; identification: Spent }[];
   /** Pages never asked what they are, because the run stopped first. They cost nothing. */
   notIdentified: number[];

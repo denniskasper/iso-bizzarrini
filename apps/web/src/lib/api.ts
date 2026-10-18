@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  EnglishNameRequest,
   ContributionResponse,
   ContributionsResponse,
   ContributionTarget,
@@ -315,6 +316,11 @@ export const api = {
   /** An Editor's statement that an Unchecked Tavola says what the factory printed. */
   publishTavola: (tavolaId: string) =>
     send<TavolaPublishedResponse>('POST', `/tavole/${tavolaId}/publication`, {}),
+  /** An Editor vouching for an English name, as it stands or rewritten (issue #32). */
+  nameTavolaInEnglish: (tavolaId: string, nameEn: string) =>
+    send<{ tavola: TavolaSummary }>('PUT', `/tavole/${tavolaId}/english-name`, {
+      nameEn,
+    } satisfies EnglishNameRequest),
 
   /**
    * Marking up a drawing. **Every one of these answers with the sheet**, so nothing in this
@@ -420,6 +426,10 @@ export const api = {
   part: (partId: string) => request<PartResponse>(`/parts/${partId}`),
   correctPart: (partId: string, part: CorrectPartRequest) =>
     send<PartResponse>('PATCH', `/parts/${partId}`, part),
+  namePartInEnglish: (partId: string, nameEn: string) =>
+    send<PartResponse>('PUT', `/parts/${partId}/english-name`, {
+      nameEn,
+    } satisfies EnglishNameRequest),
   /** Refused while anything still lists it. The Listings go first, deliberately. */
   removePart: (partId: string) => request<void>(`/parts/${partId}`, { method: 'DELETE' }),
 

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { EnglishName } from '@/components/machine-translation';
 import { Counting, Fraction } from '@/components/progress/tally';
 import { api, type TavolaProgress, type TavolaSummary } from '@/lib/api';
 
@@ -103,7 +104,13 @@ function SheetRow({ tavola, progress }: { tavola: TavolaSummary; progress?: Tavo
         >
           {/* An identifier, and it does not wrap: `12 bis` broken over two lines is two numbers. */}
           <span className="tabular text-base whitespace-nowrap">{tavola.number}</span>
-          <span className="min-w-0 text-sm text-pretty text-muted">{tavola.nameEn}</span>
+          <span className="min-w-0 text-sm text-pretty text-muted">
+            <EnglishName
+              nameEn={tavola.nameEn}
+              nameIt={tavola.nameIt}
+              machineTranslated={tavola.nameEnMachineTranslated}
+            />
+          </span>
           {/*
            * **Beyond the boxes, and the most useful thing here.** A sheet with no scan cannot be
            * marked at all, so its empty counts are not an evening waiting to be spent — they are a

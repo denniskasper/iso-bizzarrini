@@ -134,6 +134,13 @@
       "when": 1792278308618,
       "tag": "0018_tavole_read_by_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792280762861,
+      "tag": "0019_machine_translation",
+      "breakpoints": true
     }
   ]
 }

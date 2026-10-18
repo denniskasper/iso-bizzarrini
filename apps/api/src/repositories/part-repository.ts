@@ -130,6 +130,8 @@ export interface PartRepository {
   searchParts(query: string, limit: number, seesUnchecked: boolean): Promise<PartRow[]>;
   /** Correcting the Part itself, which corrects it wherever it is listed (ADR 0001). */
   updatePart(id: string, fields: PartFields): Promise<PartRow | null>;
+  /** The English name as an Editor vouches for it, which is no Machine translation. */
+  nameInEnglish(id: string, nameEn: string): Promise<PartRow | null>;
   /**
    * Removing the Part, **and only while nothing lists it** — a condition this write carries
    * rather than trusting a caller to have checked. `false` means it did not go, which is either
@@ -362,7 +364,26 @@ export function createPartRepository(db: DbSession): PartRepository {
     },
 
     async updatePart(id, fields) {
-      const [updated] = await db.update(parts).set(fields).where(eq(parts.id, id)).returning();
+      const [updated] = await db
+        .update(parts)
+        .set({
+          ...fields,
+          // A name rewritten is the Editor's own; one left as it was keeps whatever label it had.
+          nameEnMachineTranslated: sql`${parts.nameEnMachineTranslated} and ${parts.nameEn} is not distinct from ${fields.nameEn ?? null}`,
+          // English for a Catalog Note goes with the note it translated.
+          catalogNoteEn: sql`case when ${parts.catalogNote} is not distinct from ${fields.catalogNote ?? null} then ${parts.catalogNoteEn} end`,
+        })
+        .where(eq(parts.id, id))
+        .returning();
+      return updated ?? null;
+    },
+
+    async nameInEnglish(id, nameEn) {
+      const [updated] = await db
+        .update(parts)
+        .set({ nameEn, nameEnMachineTranslated: false })
+        .where(eq(parts.id, id))
+        .returning();
       return updated ?? null;
     },
 

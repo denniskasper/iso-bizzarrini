@@ -3,14 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import type { PageSource } from '../../src/reading/read-catalog.js';
-import type {
-  ReadRow,
-  ReadingMethod,
-  RequestEstimate,
-  SheetEstimate,
-  SheetIdentity,
-  TableReading,
-  Tokens,
+import {
+  UsageLimitReached,
+  type ReadRow,
+  type ReadingMethod,
+  type RequestEstimate,
+  type SheetEstimate,
+  type SheetIdentity,
+  type TableReading,
+  type Tokens,
 } from '../../src/reading/reading-method.js';
 
 /**
@@ -49,28 +50,58 @@ export const ESTIMATE_PER_REQUEST: RequestEstimate = {
   outputAtMost: 4000,
 };
 
+/** Translating costs nothing here unless a test says so, so the figures above stay round. */
+export const NO_TOKENS: Tokens = { input: 0, output: 0 };
+export const NO_ESTIMATE: RequestEstimate = { input: 0, output: 0, outputAtMost: 0 };
+
+export interface FakeMethodOptions {
+  /** As though it read on a subscription: priced, but not charged. */
+  charged?: boolean;
+  /**
+   * What it translates each Italian text as, codes masked as `{{1}}`. Anything not here comes
+   * back as `[en] ` and the Italian, placeholders and all.
+   */
+  english?: Record<string, string>;
+  /** What each translation request takes, and is estimated to. Nothing, unless a test says. */
+  translationTokens?: Tokens;
+  translationEstimate?: RequestEstimate;
+  /** How many requests it answers before the plan's usage limit is reached. */
+  usageLimitAfter?: number;
+}
+
 export function fakeReadingMethod(
   pages: InventedPage[],
-): ReadingMethod & { calls: string[]; estimated: number[] } {
+  options: FakeMethodOptions = {},
+): ReadingMethod & { calls: string[]; estimated: number[]; translated: string[][] } {
   const calls: string[] = [];
+  const translated: string[][] = [];
   const estimated: number[] = [];
   const pageOf = (page: number): InventedPage => pages[page - 1] ?? {};
+  const call = (what: string) => {
+    if (options.usageLimitAfter !== undefined && calls.length >= options.usageLimitAfter) {
+      throw new UsageLimitReached('The subscription’s usage limit was reached: resets at 5pm.');
+    }
+    calls.push(what);
+  };
 
   return {
-    name: 'a fake Reading method',
+    name: options.charged === false ? 'a fake subscription' : 'a fake Reading method',
     model: 'claude-opus-5-5',
+    charged: options.charged ?? true,
     calls,
     estimated,
+    translated,
     async estimate(sheet) {
       estimated.push(sheet.page);
       return {
         identify: ESTIMATE_PER_REQUEST,
         reading: ESTIMATE_PER_REQUEST,
+        translation: options.translationEstimate ?? NO_ESTIMATE,
         ...pageOf(sheet.page).estimate,
       };
     },
     async identify(sheet) {
-      calls.push(`identify ${sheet.page}`);
+      call(`identify ${sheet.page}`);
       const identity: SheetIdentity = {
         kind: 'other',
         tavola: null,
@@ -85,11 +116,21 @@ export function fakeReadingMethod(
       return { value: identity, tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL };
     },
     async readTable(sheet, reading) {
-      calls.push(`read ${sheet.page} ${reading}`);
+      call(`read ${sheet.page} ${reading}`);
       const [first, second] = pageOf(sheet.page).readings ?? [aTable([])];
       return {
         value: reading === 2 && second ? second : first,
         tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL,
+      };
+    },
+    async estimateTranslation() {
+      return options.translationEstimate ?? NO_ESTIMATE;
+    },
+    async translate(texts) {
+      translated.push(texts);
+      return {
+        value: texts.map((text) => options.english?.[text] ?? `[en] ${text}`),
+        tokens: options.translationTokens ?? NO_TOKENS,
       };
     },
   };

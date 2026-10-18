@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { MachineTranslationTag } from '@/components/machine-translation';
 import { Plate } from '@/components/plate';
 import type { TavolaSummary } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -75,7 +76,15 @@ export function TavolaPlate({
         <span className="min-w-0 flex-1 text-xl text-pretty">{tavola.nameIt}</span>
       </div>
       <div className="mt-1 flex items-baseline justify-between gap-4">
-        <span className="text-sm text-muted">{tavola.nameEn}</span>
+        <span className="text-sm text-muted">
+          {tavola.nameEn}
+          {tavola.nameEnMachineTranslated && (
+            <>
+              {' '}
+              <MachineTranslationTag />
+            </>
+          )}
+        </span>
         {/* Said in words as well as drawn, because a dashed line is not something a screen
             reader announces. Only an Editor is ever sent an Unchecked plate. */}
         {unchecked ? (

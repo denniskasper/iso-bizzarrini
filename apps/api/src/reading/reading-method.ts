@@ -15,6 +15,12 @@ export interface ReadingMethod {
   /** The model it sends to, which is what the price list is looked up by. */
   readonly model: string;
   /**
+   * Whether what it reads is billed per use. A subscription login is not: its runs are priced at
+   * the same list prices, and the spending limit is held the same way, but they are reported as
+   * what the run *would have cost*, not charged.
+   */
+  readonly charged: boolean;
+  /**
    * What this sheet would take to read, worked out **before anything is sent** to be read. The
    * input is counted for the requests exactly as they would go; the answer cannot be counted
    * before it is written, so the method says what it expects one to take and the most it can.
@@ -27,6 +33,27 @@ export interface ReadingMethod {
    * its own that knows nothing of the other — which is the whole of what a disagreement is worth.
    */
   readTable(sheet: SheetImage, reading: 1 | 2): Promise<Answer<TableReading>>;
+  /**
+   * English for Italian the factory printed — *Denominazioni*, Notes and titles — in the same
+   * order, one for each. Every code and number has been taken out of the Italian first and stands
+   * as `{{1}}`, `{{2}}`…, which the English must carry exactly once each, so translation can never
+   * alter one (`translation.ts`). The term list keeps one Italian word one English word.
+   */
+  translate(texts: string[]): Promise<Answer<string[]>>;
+  /** What translating these would take, worked out before it is sent, as `estimate` is. */
+  estimateTranslation(texts: string[]): Promise<RequestEstimate>;
+}
+
+/**
+ * **The plan the method reads on will read no more for now.** Thrown by `identify` or `readTable`
+ * when a subscription's usage limit is reached. The read command stops cleanly, as it does at its
+ * spending limit, and a later run with `--resume` picks up what was not read.
+ */
+export class UsageLimitReached extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UsageLimitReached';
+  }
 }
 
 /** One page of the catalog as an image, and where in the PDF it was. */
@@ -50,12 +77,14 @@ export interface Tokens {
 /**
  * One page's requests. Which kind of sheet a page is is only known once it has been asked, so
  * every page is estimated as though it were a Table sheet, whose two Readings are by far the
- * larger part.
+ * larger part, and whose rows are then translated.
  */
 export interface SheetEstimate {
   identify: RequestEstimate;
   /** One Reading of it as a Table sheet. */
   reading: RequestEstimate;
+  /** Translating what a Table sheet holds into English. */
+  translation: RequestEstimate;
 }
 
 export interface RequestEstimate {

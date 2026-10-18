@@ -29,3 +29,9 @@ export function blankToNull() {
 export function required(what: string) {
   return z.string().trim().min(1, what);
 }
+
+/**
+ * Reads `EnglishNameRequest`: an English name an Editor vouches for, a Tavola's or a Part's. It
+ * cannot be blank, because vouching for no name is not vouching for one.
+ */
+export const englishNameBody = z.object({ nameEn: required('The English name is required') });
