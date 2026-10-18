@@ -49,6 +49,11 @@ What produced a Tavola's Readings — a particular model or piece of software. A
 by one, and an Editor can see which; a Member never can.
 _Avoid_: Reader, engine, provider, backend
 
+**Catalog run**:
+One Administrator-started pass over one uploaded catalog PDF for one Model. It is estimated
+before it starts, held to its limit, can stop and be continued, and is recorded.
+_Avoid_: Reading (that is one pass over one Table sheet), import, job, batch
+
 **Category**:
 The system of the car a Tavola belongs to — Brakes, Electrical, Fuel. Groups tavole within a
 Model and across Models. A name, never a code. The list is maintained by an Administrator; an

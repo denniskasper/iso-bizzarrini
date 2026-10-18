@@ -4,7 +4,7 @@ import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
 
 /**
- * **An English name nobody has vouched for yet** (ADR 0016, issue #32), said as such wherever a
+ * **An English name nobody has vouched for yet** (ADR 0017, issue #32), said as such wherever a
  * Member reads it. The quietest text there is, because it qualifies the name beside it and is
  * never read first — but it is always there, and the Italian the factory printed is always on
  * the same screen beside it, so nothing machine-made passes for somebody's word.

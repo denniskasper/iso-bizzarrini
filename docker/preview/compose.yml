@@ -50,6 +50,14 @@ services:
       # The address that invitation links point at. Members reach this stack on its own host.
       PUBLIC_URL: ${PUBLIC_URL:?the https address this preview is reached at}
 
+      # **What the catalog is read with** (issue #55, ADR 0018). The fake method unless this
+      # stack is told otherwise: it reads nothing and invents what it would have read, so a
+      # practice run costs nothing. A real one is `subscription` with CLAUDE_CODE_OAUTH_TOKEN, or
+      # `api-key` with ANTHROPIC_API_KEY, as secrets and never both.
+      READING_METHOD: ${READING_METHOD:-fake}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
       # The scans, on the volume below. Never inside the image: a container that keeps the
       # drawings in its own filesystem loses them on the next deployment.
       FILE_STORAGE_PATH: /app/data

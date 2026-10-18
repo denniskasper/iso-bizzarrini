@@ -9,7 +9,7 @@ test.describe('the archive in a browser', () => {
     await expect(page.getByRole('heading', { name: 'Covered cars', level: 1 })).toBeVisible();
 
     const rows = page.getByTestId('model-row');
-    await expect(rows).toHaveCount(3);
+    await expect(rows).toHaveCount(4);
     await expect(rows.first()).toContainText('5300 GT Strada');
 
     // Grouped by brand, so a member finds their car without reading the whole list.

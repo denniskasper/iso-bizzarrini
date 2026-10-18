@@ -74,6 +74,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # An uploaded catalog is rendered with Poppler, as it is in the image (issue #57).
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
       - run: pnpm test:api
       - uses: actions/upload-artifact@v4
         if: always()
@@ -111,6 +113,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ricambi/web exec playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

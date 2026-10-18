@@ -35,7 +35,7 @@ export function photographImageUrl(photographId: string, variant: ImageVariant):
 }
 
 /**
- * One of a Tavola's Table sheets (ADR 0016). Under the Tavola, so the guard that keeps an
+ * One of a Tavola's Table sheets (ADR 0017). Under the Tavola, so the guard that keeps an
  * Unchecked Tavola from a Member keeps its sheets from them too; loading a Tavola again makes a
  * new Tavola, so this address never changes what it points at either.
  */

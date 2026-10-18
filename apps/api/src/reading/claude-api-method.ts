@@ -34,7 +34,7 @@ import type {
 
 /**
  * **Claude, reached with an API key** — the Reading method that is billed per use and runs
- * unattended (ADR 0016).
+ * unattended (ADR 0017).
  *
  * The key comes from the caller, who reads it from the environment, and it goes nowhere but the
  * request header: not into the method's name, not into an error, not into anything written.

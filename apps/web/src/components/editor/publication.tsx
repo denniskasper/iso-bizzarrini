@@ -6,7 +6,7 @@ import { api, refusalText, type TavolaPublication } from '@/lib/api';
 import { writtenOn } from '@/lib/contributions';
 
 /**
- * **An Unchecked drawing, and the one action that ends checking it** (issue #30, ADR 0016).
+ * **An Unchecked drawing, and the one action that ends checking it** (issue #30, ADR 0017).
  *
  * Above the drawing rather than among the Editor's panels below it, because it is the first thing
  * an Editor has to know about this screen — nobody but them can see it — and Publish is the one

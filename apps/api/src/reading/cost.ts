@@ -2,7 +2,7 @@ import { PRICE_LIST, type ModelPrice } from './price-list.js';
 import type { RequestEstimate, SheetEstimate, SheetKind, Tokens } from './reading-method.js';
 
 /**
- * **What a run costs, and the limit it may not pass** (ADR 0016, issue #37).
+ * **What a run costs, and the limit it may not pass** (ADR 0017, issue #37).
  *
  * Every figure is the token counts the responses report, multiplied by the price list kept in the
  * repository. Before each sheet is sent, the most that sheet could cost is set against what is
@@ -97,9 +97,10 @@ export interface CostRecord {
   total: number;
   /**
    * Why the run stopped before it had read everything: the next sheet could have passed the
-   * spending limit, or the subscription's usage limit was reached. `null` where it did not stop.
+   * spending limit, the subscription's usage limit was reached, the method could not get an
+   * answer, or a person asked it to stop. `null` where it did not stop.
    */
-  stopped: 'spending-limit' | 'usage-limit' | null;
+  stopped: 'spending-limit' | 'usage-limit' | 'method-failed' | 'asked' | null;
   tavole: {
     number: string;
     finished: boolean;

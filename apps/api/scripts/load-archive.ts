@@ -11,7 +11,7 @@
  * in the spreadsheet rather than something to work around here, and a second run adds what was
  * missing without touching what already landed.
  *
- * **A directory the read command wrote** (`pnpm catalog:read`, ADR 0016) is loaded the same way
+ * **A directory the read command wrote** (`pnpm catalog:read`, ADR 0017) is loaded the same way
  * and is told apart by its `reading.json`: its Tavole arrive Unchecked, an Unchecked one already
  * there is replaced whole, and a Published one is refused.
  *

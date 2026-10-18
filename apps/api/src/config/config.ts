@@ -174,6 +174,17 @@ const environmentSchema = z.object({
     .default(25 * 1024 * 1024),
 
   /**
+   * The largest catalog PDF an Administrator may upload to be read (issue #57). The factory's
+   * catalog scanned whole runs to a few hundred pages of A3, so this one upload is allowed far
+   * more than a scan of one sheet.
+   */
+  MAX_CATALOG_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(500 * 1024 * 1024),
+
+  /**
    * Whether the application applies its own migrations before it starts listening.
    *
    * On by default, and that direction is deliberate too: a deployment whose schema has not
@@ -196,6 +207,23 @@ const environmentSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+
+  /**
+   * **What this server reads the factory catalog with** (ADR 0018, issue #55): exactly one of
+   * `subscription`, `api-key` or `fake`. Unset means none, and no reading can start. `fake`
+   * invents what it reads, for a practice system and the tests, and production refuses it.
+   */
+  READING_METHOD: z.preprocess(
+    blankAsUnset,
+    z.enum(['subscription', 'api-key', 'fake']).optional(),
+  ),
+  /**
+   * The subscription's login, as a secret: the long-lived token `claude setup-token` prints,
+   * which Claude Code in the image signs in with. Never shown, logged or written anywhere.
+   */
+  CLAUDE_CODE_OAUTH_TOKEN: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  /** The Anthropic API key, as a secret. Billed per use. Never shown, logged or written. */
+  ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -242,6 +270,7 @@ export interface AppConfig {
     storagePath: string;
     maxScanBytes: number;
     maxPhotographBytes: number;
+    maxCatalogBytes: number;
   };
   /** What the retention sweep applies and the privacy statement quotes (ADR 0007). */
   retention: RetentionTerms;
@@ -249,6 +278,20 @@ export interface AppConfig {
   renewalGraceDays: number;
   migrateOnStart: boolean;
   seedPracticeArchive: boolean;
+  /**
+   * The Reading method named, and the two credentials as they were found. Which of them may read
+   * is `composition/reading.ts`'s to decide, so that none and both are reported rather than
+   * refused at startup: the rest of the archive does not depend on reading.
+   */
+  reading: ReadingSettings;
+}
+
+export type ReadingMethodKind = NonNullable<Environment['READING_METHOD']>;
+
+export interface ReadingSettings {
+  method: ReadingMethodKind | undefined;
+  subscriptionToken: string | undefined;
+  apiKey: string | undefined;
 }
 
 export class ConfigurationError extends Error {
@@ -293,6 +336,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       storagePath: resolve(env.FILE_STORAGE_PATH),
       maxScanBytes: env.MAX_SCAN_BYTES,
       maxPhotographBytes: env.MAX_PHOTOGRAPH_BYTES,
+      maxCatalogBytes: env.MAX_CATALOG_BYTES,
     },
     retention: {
       accountYears: env.RETENTION_YEARS,
@@ -301,6 +345,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     renewalGraceDays: env.RENEWAL_GRACE_DAYS,
     migrateOnStart: env.MIGRATE_ON_START,
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,
+    reading: {
+      method: env.READING_METHOD,
+      subscriptionToken: env.CLAUDE_CODE_OAUTH_TOKEN,
+      apiKey: env.ANTHROPIC_API_KEY,
+    },
   };
 }
 

@@ -16,7 +16,7 @@ import {
 } from './support/catalog-reading.js';
 
 /**
- * **What a reading run costs** (ADR 0016, issue #37): an estimate before anything is sent, a
+ * **What a reading run costs** (ADR 0017, issue #37): an estimate before anything is sent, a
  * limit it never passes, a running total, and a record afterwards.
  *
  * The fake Reading method answers every request with the same token counts, so every figure here

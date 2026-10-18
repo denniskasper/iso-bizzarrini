@@ -88,6 +88,31 @@ const ADMINISTRATORS_ONLY = new Set([
   'PATCH /api/categories/:categoryId',
 ]);
 
+/**
+ * An Administrator's, and **not there at all** for anybody else (issue #55): how the catalog is
+ * read and what it costs is not something a Member is told exists, so the answer is a 404 rather
+ * than a refusal. Behind the role, not behind a Membership.
+ */
+const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
+  'GET /api/reading-method',
+  // A Catalog run, and the catalog it was uploaded with (issue #57).
+  'POST /api/catalog-runs',
+  'GET /api/catalog-runs/:runId',
+  'GET /api/catalog-runs/:runId/catalog',
+  // Starting one (issue #58).
+  'POST /api/catalog-runs/:runId/start',
+  // Stopping and continuing one (issue #59).
+  'POST /api/catalog-runs/:runId/continue',
+  'POST /api/catalog-runs/:runId/stop',
+  // The pages one set aside (issue #60).
+  'GET /api/catalog-runs/:runId/set-aside/:page',
+  // Reading one Unchecked Tavola again (issue #61).
+  'GET /api/catalog-runs/read-again',
+  'POST /api/catalog-runs/read-again',
+  // The list of past runs (issue #62).
+  'GET /api/catalog-runs',
+]);
+
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */
 const ANY_MEMBER = new Set([
   'GET /api/renewal',
@@ -152,6 +177,7 @@ describe('who may reach what', () => {
     for (const known of [
       ...OPEN,
       ...ADMINISTRATORS_ONLY,
+      ...HIDDEN_FROM_ALL_BUT_ADMINISTRATORS,
       ...ANY_MEMBER,
       ...A_MEMBERS_TO_WRITE,
       ...AN_EDITORS_TO_READ,
@@ -187,6 +213,10 @@ describe('who may reach what', () => {
       for (const address of surface) {
         const name = named(address);
         if (address.method === 'get' || OPEN.has(name) || ADMINISTRATORS_ONLY.has(name)) {
+          continue;
+        }
+        // Not refused but not there, which the test below asks of every hidden address.
+        if (HIDDEN_FROM_ALL_BUT_ADMINISTRATORS.has(name)) {
           continue;
         }
         // What a member may do about their own subscription is theirs, live Membership or not.
@@ -277,7 +307,12 @@ describe('who may reach what', () => {
     it('is refused the whole archive, by name and with the date', async () => {
       for (const address of surface) {
         const name = named(address);
-        if (OPEN.has(name) || ADMINISTRATORS_ONLY.has(name) || ANY_MEMBER.has(name)) {
+        if (
+          OPEN.has(name) ||
+          ADMINISTRATORS_ONLY.has(name) ||
+          HIDDEN_FROM_ALL_BUT_ADMINISTRATORS.has(name) ||
+          ANY_MEMBER.has(name)
+        ) {
           continue;
         }
 
@@ -326,6 +361,32 @@ describe('who may reach what', () => {
       const response = await member.agent.get(url);
       expect(response.status, `${url} was still being served`).toBe(403);
       expect(response.body.error?.code).toBe('membership_lapsed');
+    }
+  });
+
+  it('answers anybody but an Administrator as if the hidden addresses were not there', async () => {
+    const editor = (await givenAMember(app, administrator, { role: 'editor' })).agent;
+    const member = (await givenAMember(app, administrator, { paidThrough: '2027-12-31' })).agent;
+    const lapsed = (await givenAMember(app, administrator, { paidThrough: '2025-12-31' })).agent;
+    const boss = await givenAnAdministrator(app, { paidThrough: '2025-12-31' });
+
+    for (const name of HIDDEN_FROM_ALL_BUT_ADMINISTRATORS) {
+      const address = surface.find((route) => named(route) === name);
+      for (const [who, agent] of [
+        ['an Editor', editor],
+        ['a Member', member],
+        ['a lapsed member', lapsed],
+      ] as const) {
+        const response = await agent[address!.method](fill(address!.path));
+        expect(response.status, `${name} told ${who} it was there`).toBe(404);
+      }
+      // Let through, an Administrator is answered by the handler: about the id that names
+      // nothing, or the upload that was not sent, and never with the gate's bare 404.
+      const response = await boss.agent[address!.method](fill(address!.path));
+      expect(response.status, `${name} kept a lapsed Administrator out`).not.toBe(403);
+      expect(response.body.error?.message, `${name} hid itself from an Administrator`).not.toBe(
+        'Not found.',
+      );
     }
   });
 

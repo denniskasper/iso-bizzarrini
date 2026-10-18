@@ -34,7 +34,7 @@ export interface TavolaInContext extends TavolaWithCategoryAndScan {
 }
 
 /**
- * **Only an Editor is shown an Unchecked Tavola** (ADR 0016), so every read that lists Tavole is
+ * **Only an Editor is shown an Unchecked Tavola** (ADR 0017), so every read that lists Tavole is
  * told whether the person it is for may see them — and a read for anybody else is limited to the
  * Published ones here, in the query, rather than filtered afterwards by whoever remembers to.
  *

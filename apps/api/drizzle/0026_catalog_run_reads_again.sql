@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_runs" ADD COLUMN "reads_again" jsonb;

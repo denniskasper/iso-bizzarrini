@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MachineTranslationTag } from '@/components/machine-translation';
 import { Button } from '@/components/ui/button';
-import { Refusal } from '@/components/ui/field';
+import { Refusal, TextArea } from '@/components/ui/field';
 import {
   api,
   refusalText,
@@ -17,12 +17,14 @@ import { useRereadListings } from '@/lib/parts';
 import { cn } from '@/lib/utils';
 
 /**
- * **Checking a machine-read Tavola** (issue #34, ADR 0016) — the pieces the Tavola page adds for
+ * **Checking a machine-read Tavola** (issue #34, ADR 0017) — the pieces the Tavola page adds for
  * an Editor while a Tavola is Unchecked. The drawing, its Marks and the marking tool are the
  * page's own; what is here is the evidence beside them: the factory's table sheets with the rows
  * read off each, and what the read command was unsure of.
  *
- * Nothing here has to be settled before publishing. A doubt is a place to look, not a gate.
+ * Nothing here has to be settled before publishing. A doubt is a place to look, not a gate; one an
+ * Editor has looked at can be cleared, or rewritten in their words, so the band holds only what
+ * still needs looking at (issue #56).
  */
 
 /** What the read command left on the Tavola. An Editor's alone, so only asked for by one. */
@@ -43,10 +45,12 @@ function checkingKey(tavolaId: string) {
  * is about. Inside the Unchecked band, because it is what an Editor checks first.
  */
 export function ReadingDoubts({
+  tavolaId,
   checking,
   positions,
   onDoubt,
 }: {
+  tavolaId: string;
   checking: TavolaCheckingResponse;
   positions: Position[];
   onDoubt: (doubt: ReadingDoubt) => void;
@@ -63,32 +67,120 @@ export function ReadingDoubts({
       )}
 
       {doubts.length === 0 ? (
-        <p className="text-sm text-muted">The reading raised no doubts.</p>
+        <p className="text-sm text-muted">No doubts are left to look at.</p>
       ) : (
         <div>
           <h3 className="text-base font-semibold">
             {doubts.length === 1 ? '1 doubt' : `${doubts.length} doubts`}
           </h3>
           <ul className="mt-2 border-t border-line">
-            {doubts.map((doubt) => {
-              const number = doubt.positionId ? numberOf.get(doubt.positionId) : undefined;
-              return (
-                <li key={doubt.id} className="border-b border-line">
-                  <button
-                    type="button"
-                    className="grid min-h-control w-full grid-cols-[4rem_minmax(0,1fr)] items-baseline gap-4 py-2 text-left hover:bg-surface-raised"
-                    onClick={() => onDoubt(doubt)}
-                  >
-                    <span className="tabular text-lg">{number ?? '–'}</span>
-                    <span className="text-sm text-pretty">{doubt.reason}</span>
-                  </button>
-                </li>
-              );
-            })}
+            {doubts.map((doubt) => (
+              <DoubtRow
+                key={doubt.id}
+                tavolaId={tavolaId}
+                doubt={doubt}
+                number={doubt.positionId ? numberOf.get(doubt.positionId) : undefined}
+                onFollow={() => onDoubt(doubt)}
+              />
+            ))}
           </ul>
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * One doubt: the number and the words, which together are the way to the row, and the two things
+ * an Editor who has looked at it can do. Both are quiet, because Publish is the band's one
+ * action; clearing is a single press, as taking a Mark off is.
+ */
+function DoubtRow({
+  tavolaId,
+  doubt,
+  number,
+  onFollow,
+}: {
+  tavolaId: string;
+  doubt: ReadingDoubt;
+  number: string | undefined;
+  onFollow: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [rewriting, setRewriting] = useState(false);
+  const [reason, setReason] = useState(doubt.reason);
+  const settled = () => queryClient.invalidateQueries({ queryKey: checkingKey(tavolaId) });
+
+  const rewrite = useMutation({
+    mutationFn: () => api.rewriteDoubt(doubt.id, reason),
+    onSuccess: async () => {
+      await settled();
+      setRewriting(false);
+    },
+  });
+  const clear = useMutation({ mutationFn: () => api.clearDoubt(doubt.id), onSuccess: settled });
+  const failed = rewrite.error ?? clear.error;
+
+  return (
+    <li className="border-b border-line" data-testid="reading-doubt">
+      {rewriting ? (
+        <form
+          className="flex flex-col gap-4 py-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            rewrite.mutate();
+          }}
+        >
+          <TextArea
+            label={number ? `The doubt about ${number}` : 'The doubt'}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={2}
+            autoFocus
+          />
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={rewrite.isPending}>
+              {rewrite.isPending ? 'Saving…' : 'Save the doubt'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setRewriting(false);
+                setReason(doubt.reason);
+                rewrite.reset();
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-2">
+          <button
+            type="button"
+            className="grid min-h-control min-w-0 flex-1 grid-cols-[4rem_minmax(0,1fr)] items-baseline gap-4 py-2 text-left hover:bg-surface-raised"
+            onClick={onFollow}
+          >
+            <span className="tabular text-lg">{number ?? '–'}</span>
+            <span className="text-sm text-pretty">{doubt.reason}</span>
+          </button>
+          <span className="flex">
+            <Button variant="ghost" onClick={() => setRewriting(true)}>
+              Rewrite
+            </Button>
+            <Button variant="ghost" disabled={clear.isPending} onClick={() => clear.mutate()}>
+              {clear.isPending ? 'Clearing…' : 'Clear'}
+            </Button>
+          </span>
+        </div>
+      )}
+      {failed && (
+        <div className="pb-3">
+          <Refusal>{refusalText(failed)}</Refusal>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -216,7 +308,8 @@ function CheckedRows({
 
 /**
  * One row as read: the number, what it is ordered by, how many, the name — and whether the
- * number points at it. A row in doubt wears the dashed edge every Unchecked thing wears.
+ * number points at it. A row in doubt wears the dashed edge every Unchecked thing wears; a row one
+ * Reading hesitated over carries its Reading note, quietly.
  */
 function CheckedRow({
   tavolaId,
@@ -283,6 +376,12 @@ function CheckedRow({
             <span className="tabular">, {listing.quantityPerCar} per car</span>
           )}
         </span>
+        {/* Worth a glance and no more: a note, never a doubt, so it wears no dashed edge. */}
+        {listing.readingNote && (
+          <span className="mt-1 text-xs text-pretty text-faint" data-testid="reading-note">
+            {listing.readingNote}.
+          </span>
+        )}
       </span>
       <Button
         variant="ghost"

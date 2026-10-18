@@ -21,7 +21,7 @@ import { identitySchema } from './claude-requests.js';
  *   doubts.csv              each Position listed with no Mark, and each Mark listed nowhere
  * ```
  *
- * The directory is the Club's material and stays out of the repository (ADR 0016, `AGENTS.md`).
+ * The directory is the Club's material and stays out of the repository (ADR 0017, `AGENTS.md`).
  */
 export const READING_FILE = 'reading.json';
 export const PAGES_FILE = 'pages.json';
@@ -99,7 +99,7 @@ export type TavolaManifest = z.infer<typeof tavolaManifestSchema>;
 
 /**
  * The columns of `listings.csv`. The last three are for the Editor checking it: the loader keeps
- * the Table sheet and the Doubt, for the checking screen, and does not read the Reading note.
+ * the Table sheet, the Doubt and the Reading note, for the checking screen.
  * The two English columns are Machine translations until an Editor changes them.
  */
 export const LISTING_COLUMNS = {

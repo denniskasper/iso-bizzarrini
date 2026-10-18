@@ -1,8 +1,11 @@
 import type {
+  CatalogRunActionKind,
+  CatalogRunState,
   Currency,
   EquivalentKind,
   MembershipGrant,
   ProcessorRole,
+  ReadingMethodKind,
   Role,
   SourceCondition,
   TavolaState,
@@ -16,6 +19,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -24,6 +28,9 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import type { CostRecord } from '../reading/cost.js';
+import type { SheetIdentity } from '../reading/reading-method.js';
+import type { MachineTranslation } from '../reading/translation.js';
 
 /**
  * A fixed set of values written into a check constraint, from the same list the application
@@ -71,7 +78,7 @@ export const categories = pgTable('categories', {
 });
 
 /**
- * Whether an Editor has compared a Tavola with its sheets (ADR 0016). A machine-read Tavola
+ * Whether an Editor has compared a Tavola with its sheets (ADR 0017). A machine-read Tavola
  * arrives `unchecked` and is shown to nobody but Editors; publishing it is an Editor's statement
  * that it says what the factory printed. A Tavola an Editor records by hand is theirs already,
  * so `published` is where one begins unless it was read by machine.
@@ -103,7 +110,7 @@ export const tavole = pgTable(
     nameIt: text('name_it').notNull(),
     nameEn: text('name_en').notNull(),
     /**
-     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0016).
+     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0017).
      * Cleared when an Editor confirms or rewrites the name, and never by publishing the Tavola.
      */
     nameEnMachineTranslated: boolean('name_en_machine_translated').notNull().default(false),
@@ -136,7 +143,7 @@ export const tavole = pgTable(
       onDelete: 'set null',
     }),
     /**
-     * What read it off the factory's sheets (ADR 0016) — `null` for a Tavola a person recorded.
+     * What read it off the factory's sheets (ADR 0017) — `null` for a Tavola a person recorded.
      * An Editor may see it, to know which Tavole to read again if a method proves bad; a Member
      * never does.
      */
@@ -213,7 +220,7 @@ export const scans = pgTable(
 
 /**
  * A Table sheet is the picture of one of a Tavola's table fogli, kept as the evidence its
- * Listings were read from (ADR 0016). As private as the Scan, and stored the same way: the file
+ * Listings were read from (ADR 0017). As private as the Scan, and stored the same way: the file
  * is in the private store under a key, never at a path anything serves.
  *
  * `sheet` is its place among the Tavola's Table sheets, counting from 1, in the order the
@@ -401,7 +408,7 @@ export const parts = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     nameEn: text('name_en'),
     /**
-     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0016).
+     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0017).
      * Cleared when an Editor confirms or rewrites the name.
      */
     nameEnMachineTranslated: boolean('name_en_machine_translated').notNull().default(false),
@@ -469,11 +476,17 @@ export const listings = pgTable(
     quantityPerCar: integer('quantity_per_car'),
     drawn: boolean('drawn').notNull().default(true),
     /**
-     * Which of the Tavola's Table sheets the read command read this Listing from (ADR 0016), so
+     * Which of the Tavola's Table sheets the read command read this Listing from (ADR 0017), so
      * an Editor checking it sees the row beside the sheet it came from. `null` for a Listing a
      * person recorded.
      */
     tableSheet: integer('table_sheet'),
+    /**
+     * Where one Reading hesitated over this row and the other read the same (ADR 0017, #29 story
+     * 16): worth a glance, never a doubt. `null` for a row neither hesitated over, and for a
+     * Listing a person recorded.
+     */
+    readingNote: text('reading_note'),
   },
   (table) => [
     // One Part is listed once **at one Position**. Listing it twice there is a slip rather than
@@ -502,13 +515,14 @@ export const listings = pgTable(
 );
 
 /**
- * **What the read command was unsure of** on an Unchecked Tavola (ADR 0016): the two Readings
+ * **What the read command was unsure of** on an Unchecked Tavola (ADR 0017): the two Readings
  * disagreed on a row, or a Catalog Number is not shaped like one. Each concerns a Listing or a
  * Position, which is where the Editor checking the Tavola is taken to look. The words are the
- * read command's, or the Editor's if they rewrote them in `listings.csv` before loading.
+ * read command's, or the Editor's once they have rewritten them on the checking screen (#56).
  *
- * Nothing resolves a doubt: publishing is allowed while doubts remain, and they go with the row
- * or the number they are about.
+ * An Editor who has looked at one clears it, while the Tavola is Unchecked. Nothing else resolves
+ * a doubt: publishing is allowed while doubts remain, and they go with the row or the number they
+ * are about.
  */
 export const readingDoubts = pgTable(
   'reading_doubts',
@@ -522,6 +536,184 @@ export const readingDoubts = pgTable(
     reason: text('reason').notNull(),
   },
   (table) => [index('reading_doubts_tavola_id_index').on(table.tavolaId)],
+);
+
+/** Where a Catalog run stands (issues #57, #58). */
+export const CATALOG_RUN_STATES = [
+  'estimated',
+  'running',
+  'finished',
+  'stopped-at-limit',
+  'stopped-at-usage-limit',
+  'stopped-after-failures',
+  'stopped-by-administrator',
+  'failed',
+] as const satisfies readonly CatalogRunState[];
+
+export const CATALOG_RUN_ACTIONS = [
+  'started',
+  'raised',
+  'continued',
+  'stopped',
+] as const satisfies readonly CatalogRunActionKind[];
+
+/**
+ * A **Catalog run** (ADR 0018): one Administrator-started pass over one uploaded catalog PDF for
+ * one Model. It begins `estimated`: the PDF is in the private file store, as a Scan is, and what
+ * reading its pages would cost has been worked out as the read command works it out. Nothing has
+ * been sent to a model.
+ *
+ * The Reading method is recorded by its kind, which is all the Readings section ever says about
+ * it. The price list is recorded by the model it priced and the date it was checked, because the
+ * list in the repository moves on and the estimate must still say what it was made from.
+ */
+export const catalogRuns = pgTable(
+  'catalog_runs',
+  {
+    id: uuid('id').primaryKey(),
+    modelId: uuid('model_id')
+      .notNull()
+      .references(() => models.id, { onDelete: 'cascade' }),
+    state: text('state').notNull().$type<CatalogRunState>(),
+    /** A key in the private file store. Never a path and never a URL. */
+    catalogKey: text('catalog_key').notNull(),
+    catalogByteSize: integer('catalog_byte_size').notNull(),
+    /** How many pages the PDF has. */
+    catalogPages: integer('catalog_pages').notNull(),
+    /** The pages to read, counting from 1, both included. */
+    firstPage: integer('first_page').notNull(),
+    lastPage: integer('last_page').notNull(),
+    readingMethod: text('reading_method').notNull().$type<ReadingMethodKind>(),
+    charged: boolean('charged').notNull(),
+    /** The model the price list was read for, and when its prices were checked. */
+    pricedModel: text('priced_model').notNull(),
+    pricesCheckedOn: text('prices_checked_on').notNull(),
+    /** In dollars, to a ten-thousandth of a cent. */
+    estimate: doublePrecision('estimate').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    /** Who uploaded it. Deleting the Account keeps the run and drops the name (ADR 0007). */
+    createdBy: uuid('created_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    /** The most it may cost, in dollars, given when it was started. There is no default. */
+    spendingLimit: doublePrecision('spending_limit'),
+    /** What it has cost so far, in dollars: the running total, kept after every request. */
+    spent: doublePrecision('spent').notNull().default(0),
+    /**
+     * The read command's `cost.json`, kept here: what each Tavola, sheet and Reading cost. One
+     * record for each time the run read, as `cost.json`, `cost-2.json` and on are: it is started,
+     * then continued after a stop or a restart (issue #59).
+     */
+    costs: jsonb('costs').notNull().$type<CostRecord[]>().default([]),
+    /**
+     * The pages that went into no Tavola, and why: one whose Tavola number could not be read is
+     * set aside for a person rather than guessed (issue #60). Each page's image is kept in the
+     * file store under the run, at `set-aside/page-N.png`.
+     */
+    setAside: jsonb('set_aside').notNull().$type<{ page: number; reason: string }[]>().default([]),
+    /**
+     * Where the run reads one Unchecked Tavola again from an earlier run's catalog (issue #61):
+     * its number, and the pages it was found on, which are the only pages read. The catalog is the
+     * earlier run's, shared rather than copied, and what those pages were found to be is carried
+     * over, so they are not asked about again.
+     */
+    readsAgain: jsonb('reads_again').$type<{ tavola: string; pages: number[] }>(),
+    /**
+     * Why a failed run failed, or why a stopped one stopped where its state does not say it all,
+     * in words with no credential in them.
+     */
+    failure: text('failure'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    startedBy: uuid('started_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+  },
+  (table) => [
+    check('catalog_runs_state_is_known', sql`${table.state} in (${oneOf(CATALOG_RUN_STATES)})`),
+    check(
+      'catalog_runs_pages_run_forwards',
+      sql`1 <= ${table.firstPage} and ${table.firstPage} <= ${table.lastPage} and ${table.lastPage} <= ${table.catalogPages}`,
+    ),
+    check(
+      'catalog_runs_started_with_a_limit',
+      sql`${table.state} = 'estimated' or ${table.spendingLimit} > 0`,
+    ),
+    index('catalog_runs_model_id_index').on(table.modelId),
+    // **One Catalog run at a time** (issue #58), so two never spend against each other or read the
+    // same Tavole. Refused by the database, so two Administrators starting at once cannot both.
+    uniqueIndex('catalog_runs_one_running')
+      .on(table.state)
+      .where(sql`${table.state} = 'running'`),
+  ],
+);
+
+/** What each page of a Catalog run was found to be, so a page is never asked about twice. */
+export const catalogRunPages = pgTable(
+  'catalog_run_pages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => catalogRuns.id, { onDelete: 'cascade' }),
+    page: integer('page').notNull(),
+    identity: jsonb('identity').notNull().$type<SheetIdentity>(),
+  },
+  (table) => [uniqueIndex('catalog_run_pages_page_unique').on(table.runId, table.page)],
+);
+
+/**
+ * Each Tavola a Catalog run finished and handed to the loader: the Unchecked Tavola it became,
+ * or why the loader refused it. What it cost is in the run's cost record.
+ */
+export const catalogRunTavole = pgTable(
+  'catalog_run_tavole',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => catalogRuns.id, { onDelete: 'cascade' }),
+    number: text('number').notNull(),
+    /** `null` where it was refused, or where it has since been replaced or deleted. */
+    tavolaId: uuid('tavola_id').references(() => tavole.id, { onDelete: 'set null' }),
+    refused: text('refused'),
+    /** What its Italian was translated as, so the Tavole read after a stop read the same. */
+    machineTranslations: jsonb('machine_translations')
+      .notNull()
+      .$type<MachineTranslation[]>()
+      .default([]),
+    finishedAt: timestamp('finished_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex('catalog_run_tavole_number_unique').on(table.runId, table.number)],
+);
+
+/**
+ * **Who started, raised, continued or stopped a Catalog run, and when** (issue #59). `by` is the
+ * Administrator; it is empty where the server carried the run on after a restart, and where the
+ * Account has since been deleted (ADR 0007).
+ */
+export const catalogRunActions = pgTable(
+  'catalog_run_actions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => catalogRuns.id, { onDelete: 'cascade' }),
+    action: text('action').notNull().$type<CatalogRunActionKind>(),
+    by: uuid('by').references((): AnyPgColumn => accounts.id, { onDelete: 'set null' }),
+    at: timestamp('at', { withTimezone: true }).notNull(),
+    /** The limit started with or raised to, in dollars. */
+    spendingLimit: doublePrecision('spending_limit'),
+    /** The order they were recorded in, which two in the same instant cannot take from `at`. */
+    sequence: integer('sequence').generatedAlwaysAsIdentity(),
+  },
+  (table) => [
+    check(
+      'catalog_run_actions_action_is_known',
+      sql`${table.action} in (${oneOf(CATALOG_RUN_ACTIONS)})`,
+    ),
+    index('catalog_run_actions_run_id_index').on(table.runId),
+  ],
 );
 
 /**
@@ -1317,6 +1509,10 @@ export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
 export type TableSheetRow = typeof tableSheets.$inferSelect;
 export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
+export type CatalogRunRow = typeof catalogRuns.$inferSelect;
+export type NewCatalogRunRow = typeof catalogRuns.$inferInsert;
+export type CatalogRunTavolaRow = typeof catalogRunTavole.$inferSelect;
+export type CatalogRunActionRow = typeof catalogRunActions.$inferSelect;
 export type NewScanRow = typeof scans.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;

@@ -733,6 +733,22 @@
   }
 
   /*
+   * What a Catalog run cost, sheet by sheet: a column for each request a page can cost, so a
+   * column of figures adds up by eye. Narrower than the tally, because there are five of them.
+   */
+  .cost-table {
+    width: 100%;
+    min-width: 32rem;
+    border-collapse: collapse;
+  }
+
+  .cost-table th:not(:first-child),
+  .cost-table td:not(:first-child) {
+    width: 5.5rem;
+    text-align: right;
+  }
+
+  /*
    * The factory's own words, transcribed — and boxed, because it is a quotation from a document
    * rather than something this archive says.
    *
@@ -772,7 +788,7 @@
 
   /*
    * A drawing **no Member can see yet**, because no Editor has checked it against its sheets
-   * (ADR 0016) — the same broken frame for the same reason. On the band above an Unchecked
+   * (ADR 0017) — the same broken frame for the same reason. On the band above an Unchecked
    * drawing it is the frame itself; on the contact sheet it is drawn around the plate as an
    * outline, so the plate stays exactly where its Published neighbours are.
    */

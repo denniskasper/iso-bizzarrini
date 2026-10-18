@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_runs" ADD COLUMN "set_aside" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { CategoryFilter } from '@/components/categories/category-filter';
 import { NewTavolaForm } from '@/components/editor/new-tavola-form';
+import { LeftToCheck } from '@/components/progress/left-to-check';
 import { ModelProgress } from '@/components/progress/model-progress';
 import { TavolaSheet } from '@/components/tavola-plate';
 import { api } from '@/lib/api';
@@ -74,6 +75,8 @@ export function ModelPage() {
           ? 'No drawing has been recorded for this car yet.'
           : 'Open a drawing, then click the numbered position to read the part.'}
       </p>
+
+      <LeftToCheck tavole={tavole} className="mt-12" />
 
       <NewTavolaForm modelId={modelId} className="mt-12" />
 

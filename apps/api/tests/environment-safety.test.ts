@@ -4,6 +4,7 @@ import {
   assertSeedable,
   EnvironmentSafetyError,
 } from '../src/composition/environment-safety.js';
+import { configureReading } from '../src/composition/reading.js';
 import { loadConfig, type AppConfig } from '../src/config/config.js';
 import { InMemoryEmailSender, type EmailSender } from '../src/platform/email.js';
 import {
@@ -137,6 +138,43 @@ describe('production and an e-mail transport that sends nothing', () => {
         paymentProvider: new UnconfiguredPaymentProvider(),
       }),
     ).not.toThrow();
+  });
+});
+
+/**
+ * **The fake Reading method invents what it reads** (issue #55), which is what a practice system
+ * and a test want and the one thing the archive must never publish from. So production refuses
+ * it, the way it refuses a transport that writes letters to the log.
+ */
+describe('production and the fake Reading method', () => {
+  function assertSafe(overrides: Record<string, string>): void {
+    const config = configFor({
+      ENVIRONMENT_MODE: 'production',
+      PUBLIC_URL: 'https://ricambi.example',
+      ...overrides,
+    });
+    assertSafeForEnvironment({
+      config,
+      emailSender: new InMemoryEmailSender(),
+      paymentProvider: new UnconfiguredPaymentProvider(),
+      reading: configureReading(config.reading),
+    });
+  }
+
+  it('refuses to start with the fake method', () => {
+    expect(() => assertSafe({ READING_METHOD: 'fake' })).toThrow(/READING_METHOD=fake/);
+  });
+
+  it('starts with a method that really reads, or with none', () => {
+    expect(() =>
+      assertSafe({ READING_METHOD: 'api-key', ANTHROPIC_API_KEY: 'sk-ant-api03-made-up' }),
+    ).not.toThrow();
+    expect(() => assertSafe({})).not.toThrow();
+  });
+
+  it('leaves a practice system free to read with it', async () => {
+    const app = await startTestApp({ env: { READING_METHOD: 'fake' } });
+    await app.close();
   });
 });
 

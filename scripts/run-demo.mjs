@@ -30,6 +30,11 @@ const environment = {
   // the demo's own port — and `log` is what makes the link readable, in this terminal.
   PUBLIC_URL: process.env.DEMO_PUBLIC_URL ?? `http://localhost:${process.env.DEMO_PORT ?? '3200'}`,
   EMAIL_TRANSPORT: 'log',
+  // Reads nothing and invents what it would have read (issue #55), so a practice catalog run
+  // costs nothing. A laptop with a credential in its environment does not change that.
+  READING_METHOD: 'fake',
+  CLAUDE_CODE_OAUTH_TOKEN: '',
+  ANTHROPIC_API_KEY: '',
 };
 
 run('pnpm', ['setup']);

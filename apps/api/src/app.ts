@@ -5,10 +5,12 @@ import { createGate } from './access/gate.js';
 import { createUncheckedTavolaGuard } from './access/unchecked-tavole.js';
 import { createPasswordHasher, type PasswordHasher } from './access/passwords.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
+import type { ConfiguredReading } from './composition/reading.js';
 import { createReminders } from './composition/reminder-run.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
+import { createCatalogRunController } from './controllers/catalog-run-controller.js';
 import { createCheckingController } from './controllers/checking-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
@@ -19,6 +21,7 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createReadingController } from './controllers/reading-controller.js';
 import { createReminderController } from './controllers/reminder-controller.js';
 import { createRetentionController } from './controllers/retention-controller.js';
 import { createRosterController } from './controllers/roster-controller.js';
@@ -51,6 +54,7 @@ import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
 import { createReadingRepository } from './repositories/reading-repository.js';
+import { createCatalogRunRepository } from './repositories/catalog-run-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
@@ -74,6 +78,7 @@ import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
+import { createCatalogRunService } from './services/catalog-run-service.js';
 import { createSearchService } from './services/search-service.js';
 import { createStatusService } from './services/status-service.js';
 import {
@@ -99,6 +104,11 @@ export interface AppDependencies {
    * in tests for the same reason the other two are — a seam must not need a third party to be up.
    */
   breachedPasswords: BreachedPasswordCheck;
+  /**
+   * What the factory catalog is read with (issue #55): the one edge that talks to a model. Tests
+   * hand in the method they want reported, or the fake one, as they hand in an e-mail sender.
+   */
+  reading: ConfiguredReading;
   logger?: Logger;
   /**
    * How hard passwords are to store. Defaults to the recommended cost, which is deliberately a
@@ -138,13 +148,22 @@ export interface PlatformLocals {
 /** Where the payment provider delivers, as the request itself spells it. */
 const WEBHOOK_ADDRESS = API_MOUNT + WEBHOOK_PATH;
 
-export function createApp(dependencies: AppDependencies): Express {
-  const { config, clock, db, emailSender, paymentProvider } = dependencies;
+/** The application, and what the process that serves it tells it as it goes away. */
+export type RicambiApp = Express & {
+  /**
+   * The process is going away: every Catalog run reading here stops before its next request and
+   * is left running, for the next server to carry on (issue #59).
+   */
+  interruptCatalogRuns(): void;
+};
+
+export function createApp(dependencies: AppDependencies): RicambiApp {
+  const { config, clock, db, emailSender, paymentProvider, reading } = dependencies;
 
   // Before anything else. A non-production environment that could reach a real member or a real
   // mandate does not get to exist, and neither does a production one that has not been told the
   // address its invitations point at — every way of starting this application comes through here.
-  assertSafeForEnvironment({ config, emailSender, paymentProvider });
+  assertSafeForEnvironment({ config, emailSender, paymentProvider, reading });
 
   const logger = dependencies.logger ?? createLogger(config);
   const fileStore = dependencies.fileStore ?? createFileStore(config.files.storagePath);
@@ -161,6 +180,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
   const readingRepository = createReadingRepository(db);
+  const catalogRunRepository = createCatalogRunRepository(db);
   const positionRepository = createPositionRepository(db);
   const partRepository = createPartRepository(db);
   const partRecordRepository = createPartRecordRepository(db);
@@ -318,6 +338,17 @@ export function createApp(dependencies: AppDependencies): Express {
     // Built the way the nightly run builds it, so the preview and the run are one reading.
     reminderService: createReminders({ db, clock, logger, emailSender, paymentProvider, config }),
   });
+  const readingController = createReadingController({ reading });
+  const catalogRunService = createCatalogRunService({
+    reading,
+    catalogRunRepository,
+    modelRepository,
+    fileStore,
+    clock,
+    db,
+    logger,
+  });
+  const catalogRunController = createCatalogRunController({ gate, catalogRunService });
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
@@ -405,11 +436,14 @@ export function createApp(dependencies: AppDependencies): Express {
       uncheckedTavolaGuard,
       maxScanBytes: config.files.maxScanBytes,
       maxPhotographBytes: config.files.maxPhotographBytes,
+      maxCatalogBytes: config.files.maxCatalogBytes,
       statusController,
       sessionController,
       rosterController,
       subscriptionController,
       reminderController,
+      readingController,
+      catalogRunController,
       retentionController,
       rosterImportController,
       clubController,
@@ -443,5 +477,13 @@ export function createApp(dependencies: AppDependencies): Express {
   dependencies.attachErrorReporting?.(app);
   app.use(createErrorHandler(logger));
 
-  return app;
+  // **A Catalog run left running by the last server is carried on** (issue #59). Every merge
+  // redeploys the preview, so this is the usual way a run meets a restart, not an accident.
+  catalogRunService.pickUp().catch((error: unknown) => {
+    logger.error({ err: error }, 'Could not carry on the Catalog runs left running');
+  });
+
+  return Object.assign(app, {
+    interruptCatalogRuns: () => catalogRunService.interrupt(),
+  });
 }

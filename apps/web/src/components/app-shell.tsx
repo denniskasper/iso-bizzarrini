@@ -53,7 +53,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Wordmark />
             </a>
-            <div className="ml-auto flex items-center gap-1">
+            {/* Its links wrap too, for an Administrator only: with Readings beside Roster and
+                Club they are wider than a phone on their own, and the row wrapping is no help. */}
+            <div
+              className={cn(
+                'ml-auto flex items-center gap-1',
+                isAdministrator && 'flex-wrap justify-end',
+              )}
+            >
               {/*
                 Searching is the one thing a member may want from *any* screen, because the
                 bracket in their hand does not know which drawing is open — so it lives in the
@@ -92,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               )}
               {/*
-                An Administrator's two screens, and only an Administrator's. They are in the
+                An Administrator's screens, and only an Administrator's. They are in the
                 chrome rather than on a menu because keeping the roster is a job somebody sits
                 down to do, and a screen you have to go looking for is a screen nobody goes to.
                 The archive enforces the role; hiding them here is convenience, not the rule.
@@ -104,6 +111,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Link>
                   <Link to="/club" className={chromeLink}>
                     Club
+                  </Link>
+                  <Link to="/readings" className={chromeLink}>
+                    Readings
                   </Link>
                 </>
               )}

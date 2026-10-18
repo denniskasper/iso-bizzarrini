@@ -1,5 +1,12 @@
 import type {
   ApiErrorBody,
+  CatalogRunResponse,
+  CatalogRunsResponse,
+  ContinueCatalogRunRequest,
+  ReadAgainFromResponse,
+  ReadAgainRequest,
+  StartCatalogRunRequest,
+  ReadingSetup,
   EnglishNameRequest,
   ContributionResponse,
   ContributionsResponse,
@@ -77,6 +84,8 @@ import type {
   TavolaScan,
   TavolaSummary,
   TurnScanRequest,
+  ReadingDoubt,
+  RewriteDoubtRequest,
 } from '@ricambi/contracts';
 
 /**
@@ -258,6 +267,42 @@ export const api = {
   reminderPlan: () => request<ReminderPlan>('/reminders'),
   runReminders: () => send<ReminderRun>('POST', '/reminders/run', {}),
 
+  /** What this server reads the factory catalog with (issue #55). An Administrator's alone. */
+  readingSetup: () => request<ReadingSetup>('/reading-method'),
+  /**
+   * A catalog uploaded and priced (issue #57). The PDF is the body, as a scan is; the Model and
+   * the pages to read travel in the address, because there is nothing else on the request.
+   */
+  estimateCatalogRun: (
+    catalog: File,
+    run: { modelId: string; firstPage: number; lastPage: number },
+  ) =>
+    request<CatalogRunResponse>(
+      `/catalog-runs?${new URLSearchParams({
+        modelId: run.modelId,
+        firstPage: String(run.firstPage),
+        lastPage: String(run.lastPage),
+      }).toString()}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: catalog },
+    ),
+  /** Every Catalog run, the latest first (issue #62). */
+  catalogRuns: () => request<CatalogRunsResponse>('/catalog-runs'),
+  catalogRun: (runId: string) => request<CatalogRunResponse>(`/catalog-runs/${runId}`),
+  startCatalogRun: (runId: string, start: StartCatalogRunRequest) =>
+    send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/start`, start),
+  continueCatalogRun: (runId: string, carryOn: ContinueCatalogRunRequest) =>
+    send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/continue`, carryOn),
+  stopCatalogRun: (runId: string) =>
+    send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/stop`, {}),
+  /** The run an Unchecked Tavola would be read again from, if one read it (issue #61). */
+  readAgainFrom: (tavolaId: string) =>
+    request<ReadAgainFromResponse>(
+      `/catalog-runs/read-again?${new URLSearchParams({ tavolaId }).toString()}`,
+    ),
+  /** One Tavola's own run, estimated for reading only its pages again. Nothing is read yet. */
+  readAgain: (readAgain: ReadAgainRequest) =>
+    send<CatalogRunResponse>('POST', '/catalog-runs/read-again', readAgain),
+
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),
   correctClub: (fields: CorrectClubRequest) => send<ClubResponse>('PATCH', '/club', fields),
@@ -322,6 +367,12 @@ export const api = {
   /** What an Editor checks a machine-read Tavola against (issue #34). An Editor's alone. */
   tavolaChecking: (tavolaId: string) =>
     request<TavolaCheckingResponse>(`/tavole/${tavolaId}/checking`),
+  /** A doubt an Editor has looked at, rewritten in their words or cleared (issue #56). */
+  rewriteDoubt: (doubtId: string, reason: string) =>
+    send<{ doubt: ReadingDoubt }>('PUT', `/doubts/${doubtId}`, {
+      reason,
+    } satisfies RewriteDoubtRequest),
+  clearDoubt: (doubtId: string) => request<void>(`/doubts/${doubtId}`, { method: 'DELETE' }),
   /** An Editor vouching for an English name, as it stands or rewritten (issue #32). */
   nameTavolaInEnglish: (tavolaId: string, nameEn: string) =>
     send<{ tavola: TavolaSummary }>('PUT', `/tavole/${tavolaId}/english-name`, {
@@ -561,6 +612,7 @@ export const api = {
 
 export type {
   CatalogModel,
+  CatalogRun,
   CheckedListing,
   QuarterTurn,
   ReadingDoubt,

@@ -11,6 +11,7 @@ import {
   models,
   parts,
   positions,
+  readingDoubts,
   relatedPositions,
   sources,
   subAssemblies,
@@ -55,6 +56,9 @@ export const practiceModels = [
   { brand: 'Bizzarrini', name: '5300 GT Strada', series: null, modelYears: '1965–68' },
   { brand: 'Iso', name: 'Grifo', series: 'GL 365', modelYears: '1965–68' },
   { brand: 'Iso', name: 'Rivolta IR 300', series: null, modelYears: '1962–70' },
+  // No Tavole of its own: the one a practice Catalog run reads into, so trying a run never
+  // changes what the other cars show (the browser suite counts their sheets).
+  { brand: 'Iso', name: 'Fidia', series: null, modelYears: '1967–74' },
 ];
 
 /** Keyed by the Model above they belong to, since a Tavola belongs to exactly one (ADR 0002). */
@@ -430,6 +434,8 @@ export interface SeedOutcome {
   equivalents: number;
   sources: number;
   photographs: number;
+  /** Tavole left Unchecked, as a Catalog run leaves them, for an Editor to check. */
+  unchecked: number;
 }
 
 /**
@@ -552,6 +558,7 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
 
   const record = await writePracticeRecord(db, modelIdsByName, partIds);
   const photographed = await writePracticePhotographs(dependencies, partIds);
+  const unchecked = await writePracticeUncheckedTavola(dependencies, scanService, modelIdsByName);
 
   return {
     models: practiceModels.length,
@@ -563,7 +570,78 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     ...belongsWith,
     ...record,
     photographs: photographed,
+    unchecked,
   };
+}
+
+/**
+ * **A drawing as a reading leaves it: Unchecked, with doubts** (issue #56), so the checking screen
+ * has something to be practised and tested on. Only an Editor is shown it, as always.
+ *
+ * Its doubts are about numbers on the drawing and not about rows, so no Part gains a sheet here
+ * and every count the rest of this archive is judged by stays as it was. There are several,
+ * because the browser suite runs on two screens against one archive, and each clears its own.
+ */
+export const practiceUncheckedTavola = {
+  model: '5300 GT Strada',
+  number: '9',
+  nameIt: 'Pompa benzina',
+  nameEn: 'Fuel pump',
+  category: 'Fuel',
+  readingMethod: 'a practice Reading method',
+  doubts: [
+    { position: '1', reason: 'Only one of the two Readings has this row' },
+    { position: '3', reason: 'The quantity: the other Reading has “4”' },
+    { position: '4', reason: 'This number is drawn, and no row of the table lists it' },
+  ],
+} as const;
+
+async function writePracticeUncheckedTavola(
+  dependencies: SeedDependencies,
+  scanService: ReturnType<typeof createScanService>,
+  modelIdsByName: Map<string, string>,
+): Promise<number> {
+  const { db } = dependencies;
+  const seed = practiceUncheckedTavola;
+  const modelId = modelIdsByName.get(seed.model);
+  if (!modelId) {
+    throw new Error(`The practice Unchecked Tavola names a Model that is not seeded.`);
+  }
+
+  const category = await createCategoryRepository(db).findOrAdd(
+    seed.category,
+    categorySlug(seed.category),
+  );
+  const [tavola] = await db
+    .insert(tavole)
+    .values({
+      modelId,
+      number: seed.number,
+      numberSort: numericPrefixOf(seed.number),
+      nameIt: seed.nameIt,
+      nameEn: seed.nameEn,
+      categoryId: category.id,
+      state: 'unchecked',
+      readingMethod: seed.readingMethod,
+    })
+    .returning();
+  if (!tavola) {
+    throw new Error('The practice Unchecked Tavola was not inserted.');
+  }
+
+  await scanService.ingest(tavola.id, await inventedDrawing(seed.number, seed.nameIt));
+  const positionIds = await markPracticeTavola(db, tavola.id);
+  await db.insert(readingDoubts).values(
+    seed.doubts.map((doubt) => {
+      const positionId = positionIds.get(doubt.position);
+      if (!positionId) {
+        throw new Error(`The practice doubt names a Position not seeded: ${doubt.position}.`);
+      }
+      return { tavolaId: tavola.id, listingId: null, positionId, reason: doubt.reason };
+    }),
+  );
+
+  return 1;
 }
 
 /**
@@ -802,9 +880,11 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
   await db.execute(sql`TRUNCATE ${models}, ${categories}, ${parts} RESTART IDENTITY CASCADE`);
   // Truncating the tables without taking the files leaves a directory of images nothing points
   // at, growing every time the practice archive is rebuilt. Both kinds of image, because both
-  // kinds have files: the Photographs cascade from the Parts named above.
+  // kinds have files: the Photographs cascade from the Parts named above. So do the catalogs
+  // uploaded to be read, whose Catalog runs cascade from the Models.
   await fileStore.remove('scans');
   await fileStore.remove('photographs');
+  await fileStore.remove('catalog-runs');
 }
 
 /**

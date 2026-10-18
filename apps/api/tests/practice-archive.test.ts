@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   emptyCatalog,
+  practiceUncheckedTavola,
   seedPracticeArchiveIfEmpty,
   writePracticeArchive,
 } from '../src/catalog/practice-archive.js';
 import { standingCategories } from '../src/catalog/standing-categories.js';
 import { createFileStore } from '../src/storage/file-store.js';
 import { givenModel } from './support/fixtures.js';
-import { givenAnEditor } from './support/roster.js';
+import { givenAMember, givenAnAdministrator, givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -49,7 +50,7 @@ describe('a practice system writing itself a catalog', () => {
     const written = await seed();
 
     expect(written).toMatchObject({
-      models: 3,
+      models: 4,
       tavole: 5,
       drawings: 3,
       positions: 15,
@@ -64,7 +65,7 @@ describe('a practice system writing itself a catalog', () => {
 
     const member = await givenAnEditor(app);
     const response = await member.get('/api/models').expect(200);
-    expect(response.body.models).toHaveLength(3);
+    expect(response.body.models).toHaveLength(4);
   });
 
   // The reason this is safe to run on every boot.
@@ -95,6 +96,35 @@ describe('a practice system writing itself a catalog', () => {
     expect(read.body.tavole).toHaveLength(3);
 
     await member.get(drawn[0].scan.displayUrl).expect(200);
+  });
+
+  // The checking screen needs a drawing to be checked, and only a reading makes one (issue #56).
+  it('leaves one drawing Unchecked, with doubts, for an Editor and nobody else', async () => {
+    expect(await seed()).toMatchObject({ unchecked: 1 });
+    const editor = await givenAnEditor(app);
+
+    const models = await editor.get('/api/models').expect(200);
+    const strada = models.body.models.find(
+      (model: { name: string }) => model.name === practiceUncheckedTavola.model,
+    );
+    const read = await editor.get(`/api/models/${strada.id}`).expect(200);
+    const unchecked = read.body.tavole.filter(
+      (tavola: { state: string }) => tavola.state === 'unchecked',
+    );
+    expect(unchecked).toMatchObject([{ number: practiceUncheckedTavola.number }]);
+
+    const checking = await editor.get(`/api/tavole/${unchecked[0].id}/checking`).expect(200);
+    expect(checking.body.readingMethod).toBe(practiceUncheckedTavola.readingMethod);
+    expect(checking.body.doubts.map((doubt: { reason: string }) => doubt.reason)).toEqual(
+      practiceUncheckedTavola.doubts.map((doubt) => doubt.reason),
+    );
+
+    const administrator = await givenAnAdministrator(app);
+    const member = (await givenAMember(app, administrator.agent)).agent;
+    const asMember = await member.get(`/api/models/${strada.id}`).expect(200);
+    expect(asMember.body.tavole.map((tavola: { number: string }) => tavola.number)).not.toContain(
+      practiceUncheckedTavola.number,
+    );
   });
 
   // Emptying the archive empties the list a migration put there. A practice system has to
@@ -350,10 +380,10 @@ describe('a practice system writing itself a catalog', () => {
     await emptyCatalog(app.db, createFileStore(app.filesPath));
 
     const again = await writePracticeArchive(dependencies());
-    expect(again).toMatchObject({ models: 3, parts: 6, listings: 8 });
+    expect(again).toMatchObject({ models: 4, parts: 6, listings: 8 });
 
     const member = await givenAnEditor(app);
     const models = await member.get('/api/models').expect(200);
-    expect(models.body.models).toHaveLength(3);
+    expect(models.body.models).toHaveLength(4);
   });
 });

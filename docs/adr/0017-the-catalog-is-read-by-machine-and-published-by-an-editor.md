@@ -1,5 +1,10 @@
 # The factory catalog is read by machine, and published by an Editor
 
+> **Where it is read, with which credential, and the spreadsheet step are superseded by ADR
+> 0018.** The catalog is read inside Ricambi, started by Administrators, with the one credential
+> the server is configured with, and every correction is made in Ricambi. Everything else here
+> stands.
+
 The catalog exists only as scanned sheets: a few dozen Tavole per Model, each a drawing with up
 to a hundred position numbers and one to eight sheets of typed table. Keying that in by hand is
 the long pole of the whole archive, so a command reads the scans and proposes each Tavola's

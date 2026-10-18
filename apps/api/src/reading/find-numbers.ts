@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 
 /**
- * **Where the position numbers on a drawing are, from pixel geometry alone** (ADR 0016, issue #33).
+ * **Where the position numbers on a drawing are, from pixel geometry alone** (ADR 0017, issue #33).
  *
  * The split is the point: *where* a number is comes from the ink, which is exact; *what* it says
  * comes from the model, one crop at a time, and the model is never asked for a coordinate. This

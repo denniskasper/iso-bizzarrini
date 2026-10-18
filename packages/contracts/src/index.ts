@@ -151,7 +151,7 @@ export interface TavolaCategoryRequest {
 /**
  * `PUT /api/tavole/:tavolaId/english-name` and `PUT /api/parts/:partId/english-name` — an Editor
  * vouching for an English name, as it stands or rewritten. Either way it is no longer a Machine
- * translation (ADR 0016). The Tavola answers `{ tavola: TavolaSummary }`; the Part answers
+ * translation (ADR 0017). The Tavola answers `{ tavola: TavolaSummary }`; the Part answers
  * `PartResponse`, as correcting it does.
  */
 export interface EnglishNameRequest {
@@ -185,7 +185,7 @@ export interface TavolaScan {
 }
 
 /**
- * Whether an Editor has compared a Tavola with its sheets (ADR 0016). Only an Editor is ever
+ * Whether an Editor has compared a Tavola with its sheets (ADR 0017). Only an Editor is ever
  * shown an `unchecked` one; to a Member every Tavola there is, is `published`.
  */
 export type TavolaState = 'unchecked' | 'published';
@@ -348,7 +348,7 @@ export interface Sheet {
 
 /**
  * The picture of one of the factory's table fogli for a Tavola, kept as the evidence its Listings
- * were read from (ADR 0016). As private as the Scan: the address is authenticated, and a Member
+ * were read from (ADR 0017). As private as the Scan: the address is authenticated, and a Member
  * reaches it only once the Tavola is Published.
  */
 export interface TableSheet {
@@ -371,20 +371,33 @@ export interface TavolaResponse extends Sheet {
 }
 
 /**
- * Something the read command was unsure of on a Tavola (ADR 0016), and the row or the number it
+ * Something the read command was unsure of on a Tavola (ADR 0017), and the row or the number it
  * concerns — which is where an Editor checking the Tavola is taken.
  */
 export interface ReadingDoubt {
   id: string;
-  /** In the read command's words, or the Editor's if they rewrote it before loading. */
+  /** In the read command's words, or the Editor's once they have rewritten it. */
   reason: string;
   listingId: string | null;
   positionId: string | null;
 }
 
+/**
+ * `PUT /api/doubts/:doubtId` — an Editor rewriting a doubt on an Unchecked Tavola in their own
+ * words (issue #56). Answers `{ doubt: ReadingDoubt }`. `DELETE` on the same address clears it.
+ */
+export interface RewriteDoubtRequest {
+  reason: string;
+}
+
 /** A line of the sheet's index, with the Table sheet it was read from — `null` if recorded by hand. */
 export interface CheckedListing extends TavolaListing {
   tableSheet: number | null;
+  /**
+   * Where one Reading hesitated and the other read the same: a quiet note beside the row, never a
+   * doubt. `null` where neither hesitated, and on a row recorded by hand.
+   */
+  readingNote: string | null;
 }
 
 /**
@@ -397,6 +410,251 @@ export interface TavolaCheckingResponse {
   readingMethod: string | null;
   listings: CheckedListing[];
   doubts: ReadingDoubt[];
+}
+
+/** What a server can be configured to read the factory catalog with (ADR 0018). */
+export type ReadingMethodKind = 'subscription' | 'api-key' | 'fake';
+
+/**
+ * `GET /api/reading-method` — **what this server reads the catalog with** (issue #55), for the
+ * Readings section. An Administrator's alone, and 404 to anybody else. It never names a
+ * credential or whose subscription it is: only the kind, and whether it is charged.
+ */
+export interface ReadingSetup {
+  /** `null` where none is configured. */
+  method: ReadingMethodKind | null;
+  /** Whether what it reads is billed per use; `null` where there is no method. */
+  charged: boolean | null;
+  /** Whether a reading can start. */
+  available: boolean;
+  /** Why no reading can start, or `null` where one can. */
+  unavailable: string | null;
+}
+
+/**
+ * Where a Catalog run stands (issues #57, #58, #59). `estimated`: uploaded and priced, nothing
+ * read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
+ * stopped: before the next sheet could pass the spending limit, at the subscription plan's usage
+ * limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
+ * A stopped run can be continued. `failed` is the end of it, with the reason.
+ */
+export type CatalogRunState =
+  | 'estimated'
+  | 'running'
+  | 'finished'
+  | 'stopped-at-limit'
+  | 'stopped-at-usage-limit'
+  | 'stopped-after-failures'
+  | 'stopped-by-administrator'
+  | 'failed';
+
+/** What a person, or the server itself, did to a Catalog run (issue #59). */
+export type CatalogRunActionKind = 'started' | 'raised' | 'continued' | 'stopped';
+
+export interface CatalogRunAction {
+  action: CatalogRunActionKind;
+  /**
+   * The Administrator who did it. `null` where the server carried the run on after a restart, or
+   * where the Account has since been deleted.
+   */
+  by: { id: string; name: string } | null;
+  at: string;
+  /** The limit it was started with, or raised to, in dollars. `null` for the other actions. */
+  limit: number | null;
+}
+
+/** One Tavola of a Catalog run, as the run page lists it. */
+export interface CatalogRunTavola {
+  number: string;
+  /** Whether it was read whole. One the run stopped in the middle of is not. */
+  finished: boolean;
+  /** In dollars, at the price list's prices: what it cost, or would have cost, so far. */
+  cost: number;
+  /** The Unchecked Tavola it became, or `null` where it has not become one. */
+  tavolaId: string | null;
+  /** Why it was not loaded into the archive, where it was not: it is Published, say. */
+  refused: string | null;
+}
+
+/**
+ * `POST /api/catalog-runs?modelId=&firstPage=&lastPage=`, with the catalog PDF as the body, and
+ * `GET /api/catalog-runs/:runId` — **one Catalog run**, for the Readings section. An
+ * Administrator's alone, and 404 to anybody else. Like `ReadingSetup`, it names the kind of
+ * Reading method and never a credential.
+ */
+export interface CatalogRun {
+  id: string;
+  state: CatalogRunState;
+  model: { id: string; brand: string; name: string; series: string | null };
+  /** The pages of the PDF to read, counting from 1, both included. */
+  pages: { first: number; last: number };
+  /** How many pages the uploaded PDF has. */
+  catalogPages: number;
+  /** In dollars, at the price list's prices, for every page in `pages`. */
+  estimate: number;
+  readingMethod: ReadingMethodKind;
+  /** Whether what it reads is billed per use. Where it is not, `estimate` is what it would cost. */
+  charged: boolean;
+  /** The model the run is priced for, and the date its prices were checked. */
+  priceList: { model: string; checkedOn: string };
+  createdAt: string;
+  /** The most it may cost, in dollars, given when it was started. `null` before then. */
+  limit: number | null;
+  /** What it has cost so far, in dollars: the running total held against `limit`. */
+  spent: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  /**
+   * Why a `failed` run failed, or why a stopped one stopped where its state does not say it all,
+   * in words with no credential in them.
+   */
+  failure: string | null;
+  /** Each Tavola the run has found, in the order it reads them. */
+  tavole: CatalogRunTavola[];
+  /** Who started, raised, continued and stopped it, and when, oldest first. */
+  actions: CatalogRunAction[];
+  /**
+   * The pages it put into no Tavola, in page order, and why: a page whose Tavola number could not
+   * be read is shown rather than guessed (issue #60). Empty until the run has ended.
+   */
+  setAside: CatalogRunSetAsidePage[];
+  /**
+   * Where the run reads one Unchecked Tavola again (issue #61): its number, and the pages of the
+   * catalog it was found on, which are all the run reads. `null` for a run of the catalog.
+   */
+  readsAgain: { tavola: string; pages: number[] } | null;
+  /**
+   * **Its record** (issue #62): what each time it read cost, the first and then one for each time
+   * it was continued, as `cost.json` held it. Empty until it has spent something.
+   */
+  costs: CatalogRunCostRecord[];
+}
+
+/** One request's token counts, as the response reported them, and what they cost in dollars. */
+export interface CatalogRunSpent {
+  input: number;
+  output: number;
+  cost: number;
+}
+
+/** What one page placed in a Tavola cost. */
+export interface CatalogRunSheetCost {
+  page: number;
+  kind: 'drawing' | 'table';
+  /** Everything below added up. */
+  cost: number;
+  /** Asking what the page is. Nothing where an earlier run had already asked. */
+  identification: CatalogRunSpent;
+  /** On a Table sheet, its two Readings. Empty on a drawing. */
+  readings: (CatalogRunSpent & { reading: 1 | 2 })[];
+  /** On a drawing, each request that read its numbers into proposed Marks. Empty on a sheet. */
+  marks: CatalogRunSpent[];
+}
+
+/** One time a Catalog run read, from being started or continued to stopping or finishing. */
+export interface CatalogRunCostRecord {
+  /** 1 for the first time, then one more for each time it was continued. */
+  time: number;
+  /** The prices it was costed at, in `currency` per million tokens, and when they were checked. */
+  priceList: {
+    model: string;
+    inputPerMillion: number;
+    outputPerMillion: number;
+    currency: string;
+    checkedOn: string;
+  };
+  /** What was left of the run's limit this time, and what reading the rest was estimated at. */
+  limit: number;
+  estimate: number;
+  total: number;
+  /**
+   * Why it stopped before it had read everything: the spending limit, the plan's usage limit, the
+   * model failing or declining, or an Administrator asking. `null` where it did not stop.
+   */
+  stopped: 'spending-limit' | 'usage-limit' | 'method-failed' | 'asked' | null;
+  tavole: {
+    number: string;
+    finished: boolean;
+    cost: number;
+    sheets: CatalogRunSheetCost[];
+    /** Its Italian put into English. `null` where nothing was sent. */
+    translation: CatalogRunSpent | null;
+  }[];
+  /** Pages asked what they are that went into no Tavola. */
+  setAside: { page: number; identification: CatalogRunSpent }[];
+}
+
+/**
+ * `GET /api/catalog-runs` — **every Catalog run, the latest first** (issue #62), for the Readings
+ * section. Each opens its record at `GET /api/catalog-runs/:runId`. An Administrator's alone, and
+ * 404 to anybody else.
+ */
+export interface CatalogRunsResponse {
+  runs: CatalogRunListed[];
+}
+
+export interface CatalogRunListed {
+  id: string;
+  model: CatalogRun['model'];
+  state: CatalogRunState;
+  createdAt: string;
+  startedAt: string | null;
+  /** What it has cost, or would have cost where it is not charged, in dollars. */
+  spent: number;
+  estimate: number;
+  readingMethod: ReadingMethodKind;
+  charged: boolean;
+  readsAgain: CatalogRun['readsAgain'];
+}
+
+export interface CatalogRunSetAsidePage {
+  page: number;
+  reason: string;
+  /** Where its image is served, to Administrators only. */
+  image: string;
+}
+
+export interface CatalogRunResponse {
+  run: CatalogRun;
+}
+
+/**
+ * `POST /api/catalog-runs/:runId/start` — an estimated run started, held to `limit` dollars.
+ * There is no default limit, and one below the estimate is refused. Answers `CatalogRunResponse`
+ * at once: the reading goes on in the background.
+ */
+export interface StartCatalogRunRequest {
+  limit: number;
+}
+
+/**
+ * `POST /api/catalog-runs/:runId/continue` — a stopped run read on from where it stopped (issue
+ * #59). `limit` raises its spending limit first, and is needed where the limit is what stopped
+ * it. Answers `CatalogRunResponse` at once.
+ *
+ * `POST /api/catalog-runs/:runId/stop`, with no body, stops a running run before its next request.
+ */
+export interface ContinueCatalogRunRequest {
+  limit?: number;
+}
+
+/**
+ * `GET /api/catalog-runs/read-again?tavolaId=` — the Catalog run a Tavola would be read again
+ * from: the one that last read it, or `null` where none did (issue #61). An Administrator's alone,
+ * and 404 to anybody else.
+ */
+export interface ReadAgainFromResponse {
+  runId: string | null;
+}
+
+/**
+ * `POST /api/catalog-runs/read-again` — an Unchecked Tavola's own run, estimated for reading only
+ * its pages again from the stored catalog. Answers `CatalogRunResponse`, a run to start as any
+ * other. Refused, with the reason, for a Published Tavola and for one with Contributions on its
+ * Positions.
+ */
+export interface ReadAgainRequest {
+  tavolaId: string;
 }
 
 /** Which way a quarter turn goes, looking at the drawing. */

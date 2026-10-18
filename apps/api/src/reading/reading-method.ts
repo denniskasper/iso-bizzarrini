@@ -3,7 +3,7 @@ import type { NumberCrop } from './find-numbers.js';
 export type { NumberCrop };
 
 /**
- * **The one seam between the read command and a model** (ADR 0016). A Reading method is given one
+ * **The one seam between the read command and a model** (ADR 0017). A Reading method is given one
  * sheet of the factory's catalog and told what to read from it, and answers with what it read and
  * the tokens that cost. Everything above it — which sheet is whose, what a dash means, where two
  * Readings disagree, the files an Editor opens — is plain code that never talks to a model, and
@@ -83,6 +83,19 @@ export class UsageLimitReached extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'UsageLimitReached';
+  }
+}
+
+/**
+ * **The method could not get an answer**: the request failed after the method's own retries, or
+ * the model declined it or answered with something that could not be read. Its message is written
+ * never to carry a request, and so never a credential. A run stops cleanly on one rather than ask
+ * again and pay again (issue #59).
+ */
+export class ReadingMethodError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReadingMethodError';
   }
 }
 

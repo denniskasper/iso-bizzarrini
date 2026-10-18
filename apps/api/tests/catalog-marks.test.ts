@@ -17,7 +17,7 @@ import {
 } from './support/catalog-reading.js';
 
 /**
- * **Marks proposed from the drawing** (ADR 0016, issue #33).
+ * **Marks proposed from the drawing** (ADR 0017, issue #33).
  *
  * The drawings here are invented with real ink on them — digits a finder can find, and a ruled
  * title block — and the fake Reading method reads a crop as whatever is printed inside its box.

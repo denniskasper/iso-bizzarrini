@@ -17,7 +17,7 @@ import {
 } from './support/catalog-reading.js';
 
 /**
- * **Reading a scanned catalog into files** (ADR 0016, issue #31).
+ * **Reading a scanned catalog into files** (ADR 0017, issue #31).
  *
  * The command is run against a fake Reading method and an invented PDF, and what is asserted is
  * what the operator and the Editor can see: the directory it writes, and what it prints.

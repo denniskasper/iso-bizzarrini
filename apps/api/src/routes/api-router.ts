@@ -1,14 +1,17 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import type { UncheckedTavolaGuard } from '../access/unchecked-tavole.js';
+import { HttpError } from '../http/errors.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
+import type { CatalogRunController } from '../controllers/catalog-run-controller.js';
 import type { CheckingController } from '../controllers/checking-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
 import type { LegalController } from '../controllers/legal-controller.js';
 import type { ContributionController } from '../controllers/contribution-controller.js';
 import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
+import type { ReadingController } from '../controllers/reading-controller.js';
 import type { ReminderController } from '../controllers/reminder-controller.js';
 import type { RetentionController } from '../controllers/retention-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
@@ -52,11 +55,14 @@ export function createApiRouter(dependencies: {
   uncheckedTavolaGuard: UncheckedTavolaGuard;
   maxScanBytes: number;
   maxPhotographBytes: number;
+  maxCatalogBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
   subscriptionController: SubscriptionController;
   reminderController: ReminderController;
+  readingController: ReadingController;
+  catalogRunController: CatalogRunController;
   retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
@@ -83,6 +89,8 @@ export function createApiRouter(dependencies: {
     rosterController,
     subscriptionController,
     reminderController,
+    readingController,
+    catalogRunController,
     retentionController,
     rosterImportController,
     clubController,
@@ -161,6 +169,76 @@ export function createApiRouter(dependencies: {
   router.get('/reminders', administratorsOnly, reminderController.plan);
   router.post('/reminders/run', administratorsOnly, reminderController.run);
 
+  // **The Readings section** (issue #55): what this server reads the catalog with. Behind the
+  // role like the roster, and not there at all for anybody else: how the catalog is read, and
+  // what it costs, is not something a Member is told exists.
+  router.get('/reading-method', gate.hiddenFromAllButAdministrators, readingController.readMethod);
+  // **A Catalog run** (issue #57): the catalog uploaded and priced, before anything is read. The
+  // role is checked before the body is read, so nobody else can even send a catalog here. The
+  // catalog is as private as a Scan, and served to nobody but an Administrator.
+  // Every run, the latest first, each opening its record of what it cost (issue #62).
+  router.get('/catalog-runs', gate.hiddenFromAllButAdministrators, catalogRunController.list);
+  router.post(
+    '/catalog-runs',
+    gate.hiddenFromAllButAdministrators,
+    rawUpTo(
+      dependencies.maxCatalogBytes,
+      `A catalog may be up to ${megabytes(dependencies.maxCatalogBytes)}, and that one was larger than this archive accepts.`,
+    ),
+    catalogRunController.estimate,
+  );
+  // **One Unchecked Tavola read again** (issue #61), from the catalog the run that read it kept:
+  // the run it would be read from, and a new run estimated, to start as any other. The Tavola is
+  // named in the query and the body rather than the path, because a Tavola in the path is guarded
+  // as the archive is, below; these are as hidden as every other Catalog run address. Above
+  // `/catalog-runs/:runId`, which would otherwise take `read-again` for a run.
+  router.get(
+    '/catalog-runs/read-again',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readAgainFrom,
+  );
+  router.post(
+    '/catalog-runs/read-again',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readAgain,
+  );
+
+  router.get(
+    '/catalog-runs/:runId',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.read,
+  );
+  // Started with a spending limit, and read in the background (issue #58). Only an Administrator
+  // spends the Club's money.
+  router.post(
+    '/catalog-runs/:runId/start',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.start,
+  );
+  // Stopped, and continued from where it stopped, with its limit raised first where that is
+  // what stopped it (issue #59).
+  router.post(
+    '/catalog-runs/:runId/continue',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.carryOn,
+  );
+  router.post(
+    '/catalog-runs/:runId/stop',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.stop,
+  );
+  router.get(
+    '/catalog-runs/:runId/catalog',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readCatalog,
+  );
+  // The pages a run set aside, to look at (issue #60). As private as the catalog they came from.
+  router.get(
+    '/catalog-runs/:runId/set-aside/:page',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readSetAsidePage,
+  );
+
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
 
@@ -212,7 +290,7 @@ export function createApiRouter(dependencies: {
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);
 
-  // **An Unchecked Tavola is an Editor's until one publishes it** (ADR 0016): every address that
+  // **An Unchecked Tavola is an Editor's until one publishes it** (ADR 0017): every address that
   // names a Tavola, a number on one or its scan answers a Member as if it were not there.
   router.param('tavolaId', uncheckedTavolaGuard.tavolaId);
   router.param('positionId', uncheckedTavolaGuard.positionId);
@@ -290,6 +368,11 @@ export function createApiRouter(dependencies: {
   // Member reaches them once the Tavola is Published — the guard above sees to the rest.
   router.get('/tavole/:tavolaId/checking', editorsOnly, checkingController.read);
   router.get('/tavole/:tavolaId/table-sheets/:sheet', checkingController.readTableSheet);
+  // **A doubt an Editor has looked at** (issue #56): rewritten in their words, or cleared, so the
+  // band shows only what still needs looking at. Writes, so the guard above keeps them an
+  // Editor's; and only while the Tavola is Unchecked.
+  router.put('/doubts/:doubtId', checkingController.rewriteDoubt);
+  router.delete('/doubts/:doubtId', checkingController.clearDoubt);
 
   // **One click is one request**, which is why the Position is named by its printed number here
   // rather than by an id: at the moment an Editor clicks the drawing they know what the factory
@@ -456,4 +539,25 @@ export function createApiRouter(dependencies: {
   router.get('/contribution-photographs/:photographId/:variant', contributionController.readImage);
 
   return router;
+}
+
+/**
+ * The body unparsed, up to `limit`, and refused **with the limit named** above it: the one upload
+ * that is allowed to be large says how large, so an Administrator knows what to send instead.
+ */
+function rawUpTo(limit: number, refusal: string): RequestHandler {
+  const parse = express.raw({ type: () => true, limit });
+  return (request, response, next) => {
+    parse(request, response, (error?: unknown) => {
+      const tooLarge =
+        typeof error === 'object' &&
+        error !== null &&
+        (error as { type?: unknown }).type === 'entity.too.large';
+      next(tooLarge ? new HttpError(413, 'payload_too_large', refusal) : error);
+    });
+  };
+}
+
+function megabytes(bytes: number): string {
+  return `${Math.floor(bytes / (1024 * 1024))} MB`;
 }

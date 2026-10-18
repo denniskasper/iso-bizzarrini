@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import type { Box } from '../../src/reading/find-numbers.js';
+import type { CostRecord } from '../../src/reading/cost.js';
 import type { PageSource } from '../../src/reading/read-catalog.js';
 import {
   UsageLimitReached,
@@ -15,11 +16,18 @@ import {
   type TableReading,
   type Tokens,
 } from '../../src/reading/reading-method.js';
+import {
+  NOTHING_DONE,
+  type DoneBefore,
+  type FinishedTavola,
+  type ReadingStore,
+  type SetAsidePage,
+} from '../../src/reading/reading-store.js';
 
 /**
  * **A catalog, invented, and a Reading method that knows it by heart.**
  *
- * No test calls a model (ADR 0016). The fake answers each page with what the test says is
+ * No test calls a model (ADR 0017). The fake answers each page with what the test says is
  * printed on it, and the same fixed token counts every time, so what is asserted is everything
  * above the seam: which sheet went to which Tavola, what the rows were taken to mean, where the
  * two Readings were compared, and what was written for an Editor to open.
@@ -313,4 +321,60 @@ export async function givenOutputDirectory(): Promise<OutputDirectory> {
     path: join(parent, 'read'),
     remove: () => rm(parent, { recursive: true, force: true }),
   };
+}
+
+/**
+ * **A store that keeps a reading in memory**, as the database will: what it was told, in order,
+ * and what it answers when asked what an earlier run already did.
+ */
+export interface MemoryStore extends ReadingStore {
+  readingMethod: string | null;
+  pages: { page: number; identity: SheetIdentity }[];
+  tavole: FinishedTavola[];
+  costs: CostRecord[];
+  setAside: SetAsidePage[];
+  stopped: CostRecord['stopped'] | undefined;
+  /** What a run carrying on from this one would be told was already done. */
+  carriedOn(): DoneBefore;
+}
+
+export function memoryStore(before: DoneBefore = NOTHING_DONE): MemoryStore {
+  const store: MemoryStore = {
+    readingMethod: null,
+    pages: [...before.pages],
+    tavole: [],
+    costs: [],
+    setAside: [],
+    stopped: undefined,
+    async done() {
+      return before;
+    },
+    async started({ readingMethod }) {
+      store.readingMethod = readingMethod;
+    },
+    async pageFound(page, identity) {
+      store.pages.push({ page, identity });
+    },
+    async tavolaFinished(tavola) {
+      store.tavole.push(tavola);
+    },
+    async costed(record) {
+      store.costs.push(record);
+    },
+    async ended({ cost, setAside }) {
+      store.costs.push(cost);
+      store.setAside = setAside;
+      store.stopped = cost.stopped;
+    },
+    carriedOn: () => ({
+      run: before.run + 1,
+      pages: store.pages,
+      tavole: [...before.tavole, ...store.tavole.map((tavola) => tavola.number)],
+      translations: [
+        ...before.translations,
+        ...store.tavole.flatMap((tavola) => tavola.machineTranslations),
+      ],
+    }),
+  };
+  return store;
 }

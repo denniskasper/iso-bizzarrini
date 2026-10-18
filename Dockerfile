@@ -66,9 +66,21 @@ ENV NODE_ENV=production
 # `<text>` with — so it silently draws everything *except* the words. That produced a
 # demonstration archive of numbered circles with no numbers in them, which is the one thing a
 # parts catalog may not be. Around 4 MB, and it fails visibly rather than silently if removed.
+#
+# Poppler's `pdftoppm` and Claude Code, because the server reads the factory catalog itself
+# (ADR 0018, issue #55): `pdftoppm` turns the uploaded PDF into pages, and Claude Code is the
+# subscription Reading method, signed in through `CLAUDE_CODE_OAUTH_TOKEN`. Pinned, so an image
+# built twice reads with the same Claude Code, and kept from updating itself inside a container.
+# The last line fails the build if either is missing.
+ARG CLAUDE_CODE_VERSION=2.1.302
+ENV DISABLE_AUTOUPDATER=1
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core poppler-utils \
+  && rm -rf /var/lib/apt/lists/* \
+  && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+  && npm cache clean --force \
+  && pdftoppm -v \
+  && claude --version
 
 # The repository's layout, kept: the server lives in `apps/api` and finds the root `package.json`,
 # the one place the Version is written, where it would in a checkout. The commit sits beside it.

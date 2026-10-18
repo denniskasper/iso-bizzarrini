@@ -17,7 +17,7 @@ import {
 } from './support/catalog-reading.js';
 
 /**
- * **Reading on a subscription, which is not charged and can run out** (ADR 0016, issue #38).
+ * **Reading on a subscription, which is not charged and can run out** (ADR 0017, issue #38).
  *
  * A run on a subscription is priced and limited exactly like one on an API key, and reported as
  * what it would have cost. When the plan's usage limit is reached it stops cleanly, and a later

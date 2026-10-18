@@ -8,6 +8,7 @@ import type {
 } from '@ricambi/contracts';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { loadReadTavole, type ReadTavola } from '../src/migration/load-read-tavola.js';
 import { loadReading, type ReadingLoadReport } from '../src/migration/load-reading.js';
 import { readCatalog } from '../src/reading/read-catalog.js';
 import { createFileStore } from '../src/storage/file-store.js';
@@ -22,12 +23,12 @@ import {
   type InventedPage,
   type OutputDirectory,
 } from './support/catalog-reading.js';
-import { givenModel, givenTavola } from './support/fixtures.js';
+import { givenModel, givenScanImage, givenTavola } from './support/fixtures.js';
 import { givenAMember, givenAnAdministrator } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
- * **Loading what the read command wrote, as Unchecked Tavole** (ADR 0016, issue #31).
+ * **Loading what the read command wrote, as Unchecked Tavole** (ADR 0017, issue #31).
  *
  * Read back over HTTP, as an Editor and as a Member, because "loaded as Unchecked" is a claim
  * about who can open what. The catalog is invented per test and read with a fake Reading method.
@@ -466,5 +467,148 @@ describe('a machine-read catalog, loaded', () => {
 
     expect(report.tavole[0]).toMatchObject({ outcome: 'loaded', listings: 3 });
     expect(await tavolaNumbered(editor, '84')).toBeUndefined();
+  });
+
+  describe('held in memory, with no directory', () => {
+    const A_ROW = {
+      drawn: '',
+      disegnoOrigine: '',
+      quantity: '',
+      nameEn: '',
+      catalogNote: '',
+      catalogNoteEn: '',
+      fitmentQualifier: '',
+      tableSheet: '1',
+      doubt: '',
+      readingNote: '',
+    };
+
+    async function aReadTavola(): Promise<ReadTavola> {
+      const scan = await givenScanImage();
+      const sheet = await givenScanImage({ width: 800, height: 1200 });
+      return {
+        number: '12',
+        titleIt: 'FRENO ANTERIORE',
+        titleEn: 'FRONT BRAKE',
+        catalogSection: '300',
+        catalogGroup: '04',
+        catalogSubgroup: null,
+        readingMethod: 'a Reading method in memory',
+        machineTranslations: [{ italian: 'FRENO ANTERIORE', english: 'FRONT BRAKE' }],
+        scan: () => Promise.resolve(scan),
+        tableSheets: [() => Promise.resolve(sheet)],
+        listings: [
+          { ...A_ROW, position: '1', catalogNumber: '310001', nameIt: 'PINZA FRENO' },
+          {
+            ...A_ROW,
+            position: '1',
+            drawn: 'no',
+            catalogNumber: '310900',
+            nameIt: 'VITE',
+            quantity: '4',
+            readingNote: 'One Reading hesitated over the quantity.',
+          },
+          {
+            ...A_ROW,
+            position: '2',
+            catalogNumber: '310002',
+            nameIt: 'DISCO',
+            doubt: 'The two Readings disagree on the Catalog Number.',
+          },
+        ],
+        marks: [
+          { position: '1', x: '0.25', y: '0.5' },
+          { position: '2', x: '0.75', y: '0.5' },
+        ],
+        positionDoubts: [{ position: '2', doubt: 'Its Mark was hard to read.' }],
+      };
+    }
+
+    it('arrives as an Unchecked Tavola an Editor checks over HTTP, and a Member cannot open', async () => {
+      const report = await loadReadTavole({
+        db: app.db,
+        fileStore: createFileStore(app.filesPath),
+        clock: app.clock,
+        logger: app.logger,
+        reading: 'a Catalog run',
+        model: { brand: 'Iso', name: 'Rivolta' },
+        tavole: [await aReadTavola()],
+      });
+      expect(report.rejected).toEqual([]);
+      expect(report).toMatchObject({ scans: 1, tableSheets: 1, marks: 2 });
+      expect(report.tavole).toEqual([
+        {
+          number: '12',
+          outcome: 'loaded',
+          readingMethod: 'a Reading method in memory',
+          listings: 3,
+        },
+      ]);
+
+      const tavola = await tavolaNumbered(editor, '12');
+      expect(tavola).toMatchObject({ state: 'unchecked', nameIt: 'FRENO ANTERIORE' });
+      expect(await tavolaNumbered(member, '12')).toBeUndefined();
+      await member.get(`/api/tavole/${tavola?.id}`).expect(404);
+
+      const drawing = (await editor.get(`/api/tavole/${tavola?.id}`).expect(200))
+        .body as TavolaResponse;
+      expect(drawing.tavola.scan).not.toBeNull();
+      expect(drawing.positions.flatMap((position) => position.marks)).toHaveLength(2);
+
+      const checking = (await editor.get(`/api/tavole/${tavola?.id}/checking`).expect(200))
+        .body as TavolaCheckingResponse;
+      expect(checking.readingMethod).toBe('a Reading method in memory');
+      expect(
+        checking.listings.map((listing) => ({
+          catalogNumber: listing.part.catalogNumber,
+          drawn: listing.drawn,
+          quantityPerCar: listing.quantityPerCar,
+          tableSheet: listing.tableSheet,
+          readingNote: listing.readingNote,
+        })),
+      ).toEqual(
+        expect.arrayContaining([
+          {
+            catalogNumber: '310001',
+            drawn: true,
+            quantityPerCar: null,
+            tableSheet: 1,
+            readingNote: null,
+          },
+          {
+            catalogNumber: '310900',
+            drawn: false,
+            quantityPerCar: 4,
+            tableSheet: 1,
+            readingNote: 'One Reading hesitated over the quantity.',
+          },
+        ]),
+      );
+      expect(checking.doubts.map((doubt) => doubt.reason).sort()).toEqual([
+        'Its Mark was hard to read.',
+        'The two Readings disagree on the Catalog Number.',
+      ]);
+    });
+
+    it('replaces an Unchecked copy whole, and refuses a Published one', async () => {
+      const options = {
+        db: app.db,
+        fileStore: createFileStore(app.filesPath),
+        clock: app.clock,
+        logger: app.logger,
+        reading: 'a Catalog run',
+        model: { brand: 'Iso', name: 'Rivolta' },
+        tavole: [await aReadTavola()],
+      };
+      await loadReadTavole(options);
+      const again = await loadReadTavole(options);
+      expect(again.tavole[0]).toMatchObject({ outcome: 'replaced', listings: 3 });
+
+      const tavola = await tavolaNumbered(editor, '12');
+      await editor.post(`/api/tavole/${tavola?.id}/publication`).expect(200);
+      const refused = await loadReadTavole(options);
+      expect(refused.tavole[0]).toMatchObject({ outcome: 'refused' });
+      expect(refused.rejected[0]).toMatchObject({ file: 'Tavola 12', at: 'tavola 12' });
+    });
   });
 });

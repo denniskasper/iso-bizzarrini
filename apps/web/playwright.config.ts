@@ -79,6 +79,10 @@ export default defineConfig({
       // password committed to this repository works on a practice system deployed from it. This
       // seam is the thing that needs one, so this seam is where it is said.
       PRACTICE_MEMBER_PASSWORD: practicePassword,
+      // The practice Reading method (issue #55): no model is reached from a test run either.
+      READING_METHOD: 'fake',
+      CLAUDE_CODE_OAUTH_TOKEN: '',
+      ANTHROPIC_API_KEY: '',
       // The scans this run ingests, thrown away with the rest of the run's output.
       FILE_STORAGE_PATH: fileURLToPath(new URL('./test-results/files', import.meta.url)),
     },

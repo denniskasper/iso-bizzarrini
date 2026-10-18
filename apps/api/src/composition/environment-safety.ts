@@ -1,6 +1,7 @@
 import type { AppConfig } from '../config/config.js';
 import type { EmailSender } from '../platform/email.js';
 import type { PaymentProvider } from '../platform/payments.js';
+import type { ConfiguredReading } from './reading.js';
 
 /**
  * What a non-production environment is not allowed to be able to do.
@@ -26,8 +27,10 @@ export function assertSafeForEnvironment(assembled: {
   config: AppConfig;
   emailSender: EmailSender;
   paymentProvider: PaymentProvider;
+  /** Left out by the commands that read nothing; the application always hands it in. */
+  reading?: ConfiguredReading;
 }): void {
-  const { config, emailSender, paymentProvider } = assembled;
+  const { config, emailSender, paymentProvider, reading } = assembled;
 
   if (config.environmentMode === 'production') {
     /**
@@ -49,6 +52,16 @@ export function assertSafeForEnvironment(assembled: {
           'That writes invitations and password-reset links to the log rather than sending ' +
           'them — so no member ever receives one, and the secret in each is left in a log file. ' +
           'Configure a transport that can reach a real inbox.',
+      );
+    }
+
+    // The fake Reading method invents what it reads (issue #55). In a practice system that is
+    // the point; in the archive it would put Tavole nobody's catalog printed in front of an
+    // Editor to publish.
+    if (reading?.invented === true) {
+      throw new EnvironmentSafetyError(
+        `"${config.environmentName}" is production and will not start with READING_METHOD=fake. ` +
+          'The fake method invents what it reads. Configure subscription or api-key, or none.',
       );
     }
 

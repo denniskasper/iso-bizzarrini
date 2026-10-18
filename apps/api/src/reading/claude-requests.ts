@@ -5,7 +5,7 @@ import { TABLE_LAYOUTS, type NumberReading } from './reading-method.js';
 import { TERM_LIST } from './translation.js';
 
 /**
- * **What Claude is asked, whichever credential it is reached with** (ADR 0016). The API key and
+ * **What Claude is asked, whichever credential it is reached with** (ADR 0017). The API key and
  * the subscription login send the same instructions, the same images and the same schema to the
  * same model, so a Tavola read by one is read the way the other would have read it.
  */
@@ -29,12 +29,7 @@ export const EXPECTED_TRANSLATION_INPUT = 2000;
 
 export type Effort = 'low' | 'high';
 
-export class ReadingMethodError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ReadingMethodError';
-  }
-}
+export { ReadingMethodError } from './reading-method.js';
 
 export const identitySchema = z.object({
   kind: z.enum(['drawing', 'table', 'other']),

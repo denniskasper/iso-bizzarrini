@@ -5,7 +5,7 @@ import type { OnATavola, TavolaRepository } from '../repositories/tavola-reposit
 import type { Gate } from './gate.js';
 
 /**
- * **An Unchecked Tavola is not there for anybody but an Editor** (ADR 0016) — not its address,
+ * **An Unchecked Tavola is not there for anybody but an Editor** (ADR 0017) — not its address,
  * not its scan, not any number on it.
  *
  * Asked of the address rather than inside each handler, because it is a property of the address:
