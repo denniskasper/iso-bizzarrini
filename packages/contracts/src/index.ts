@@ -432,13 +432,14 @@ export interface ReadingSetup {
 }
 
 /**
- * Where a Catalog run stands (issues #57, #58, #59). `estimated`: uploaded and priced, nothing
- * read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
+ * Where a Catalog run stands (issues #57, #58, #59, #65). `estimating`: uploaded, and being
+ * priced page by page on the server. `estimated`: uploaded and priced, nothing read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
  * stopped: before the next sheet could pass the spending limit, at the subscription plan's usage
  * limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
  * A stopped run can be continued. `failed` is the end of it, with the reason.
  */
 export type CatalogRunState =
+  | 'estimating'
   | 'estimated'
   | 'running'
   | 'finished'
@@ -490,8 +491,16 @@ export interface CatalogRun {
   pages: { first: number; last: number };
   /** How many pages the uploaded PDF has. */
   catalogPages: number;
-  /** In dollars, at the price list's prices, for every page in `pages`. */
+  /**
+   * In dollars, at the price list's prices, for every page in `pages`. While it is `estimating`,
+   * for the pages estimated so far.
+   */
   estimate: number;
+  /**
+   * How far its estimate has got, while it is `estimating` (issue #65): how many of the `of` pages
+   * to read have been priced. `null` in every other state.
+   */
+  estimating: { pages: number; of: number } | null;
   readingMethod: ReadingMethodKind;
   /** Whether what it reads is billed per use. Where it is not, `estimate` is what it would cost. */
   charged: boolean;

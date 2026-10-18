@@ -7,6 +7,7 @@ import type {
 } from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
+import { Estimating } from '@/components/readings/estimating';
 import { RunCosts } from '@/components/readings/run-costs';
 import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
@@ -26,7 +27,8 @@ import { dollars, useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from
  * #62), and who did what to it, and when.
  *
  * A run that reads one Unchecked Tavola again (issue #61) is the same page, named for that Tavola,
- * and while it is only estimated, starting it with a limit is the one action.
+ * and while it is only estimated, starting it with a limit is the one action. While its catalog is
+ * still being estimated (issue #65), it says how far the estimate has got, and offers nothing.
  */
 export function CatalogRunPage() {
   return (
@@ -88,6 +90,7 @@ function RunRecord({ run }: { run: CatalogRun }) {
         </p>
       )}
 
+      {run.state === 'estimating' && <Estimating run={run} />}
       {run.state === 'estimated' && <StartRun run={run} />}
       {run.state === 'running' && !stopping(run) && <Stop run={run} />}
       {STOPPED.includes(run.state) && <Continue key={String(run.limit)} run={run} />}
@@ -393,6 +396,8 @@ function SetAsideLine({ page }: { page: CatalogRunSetAsidePage }) {
 
 function stateNamed(state: CatalogRunState): string {
   switch (state) {
+    case 'estimating':
+      return 'Being estimated. Nothing has been read.';
     case 'estimated':
       return 'Estimated. Nothing has been read.';
     case 'running':

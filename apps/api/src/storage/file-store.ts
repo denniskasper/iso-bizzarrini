@@ -1,6 +1,8 @@
-import { createReadStream, type ReadStream } from 'node:fs';
+import { createReadStream, createWriteStream, type ReadStream } from 'node:fs';
 import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
+import type { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 /**
  * Where the archive's image files live: **a directory that nothing serves.**
@@ -16,6 +18,11 @@ import { dirname, join, resolve, sep } from 'node:path';
  */
 export interface FileStore {
   write(key: string, contents: Buffer): Promise<void>;
+  /**
+   * `contents` written a chunk at a time, for a file too large to hold in memory: an uploaded
+   * catalog (issue #65). Nothing is left under the key where it fails part-way.
+   */
+  writeFrom(key: string, contents: Readable): Promise<void>;
   /** `null` when there is no such file, so a caller can answer 404 rather than crash. */
   open(key: string): Promise<StoredFile | null>;
   /** Removes a key and anything beneath it. Silent when there is nothing there. */
@@ -35,6 +42,17 @@ export function createFileStore(rootPath: string): FileStore {
       const path = pathFor(root, key);
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, contents);
+    },
+
+    async writeFrom(key, contents) {
+      const path = pathFor(root, key);
+      await mkdir(dirname(path), { recursive: true });
+      try {
+        await pipeline(contents, createWriteStream(path));
+      } catch (error) {
+        await rm(path, { force: true });
+        throw error;
+      }
     },
 
     async open(key) {

@@ -27,7 +27,10 @@ Claude Code still reports making with a key is refused.
 The Readings section says what the server reads with, and whether that is charged. It never shows
 a credential, or whose subscription it is.
 
-The catalog upload may be up to `MAX_CATALOG_BYTES`, 500 MB unless it is set otherwise.
+The catalog upload may be up to `MAX_CATALOG_BYTES`, 500 MB unless it is set otherwise. It is
+written to the file store as it arrives, never held in the server's memory whole, and the request
+is answered once it is stored. A proxy in front of the server must still let a request that large
+through.
 
 ## Reading a catalog
 
@@ -36,8 +39,12 @@ In **Readings**, under **Read a catalog**:
 1. Choose the catalog PDF and the Model it is for.
 2. Give the first and the last page to read. Leave out the front matter and the technical data,
    so they are never sent to the model. Both pages are required.
-3. Press **Estimate the cost**. Nothing is read yet. Ricambi shows what reading those pages would
-   cost, whether that is charged, and the prices it used.
+3. Press **Estimate the cost**. Nothing is read yet. Once the catalog is uploaded, the server
+   prices it a page at a time, and the screen shows how many pages it has priced. You can leave
+   the page: the run is under **Past runs**, being estimated. Then Ricambi shows what reading
+   those pages would cost, whether that is charged, and the prices it used. A catalog being
+   estimated is the one thing being read, as a run is: nothing else can be uploaded or started
+   until it is done, and a restart picks the estimate up from the page it had reached.
 4. Give a **spending limit** in dollars, and press **Start reading**. There is no default. A limit
    below the estimate is refused.
 

@@ -1,7 +1,6 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import type { UncheckedTavolaGuard } from '../access/unchecked-tavole.js';
-import { HttpError } from '../http/errors.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { CatalogRunController } from '../controllers/catalog-run-controller.js';
@@ -55,7 +54,6 @@ export function createApiRouter(dependencies: {
   uncheckedTavolaGuard: UncheckedTavolaGuard;
   maxScanBytes: number;
   maxPhotographBytes: number;
-  maxCatalogBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
@@ -178,15 +176,9 @@ export function createApiRouter(dependencies: {
   // catalog is as private as a Scan, and served to nobody but an Administrator.
   // Every run, the latest first, each opening its record of what it cost (issue #62).
   router.get('/catalog-runs', gate.hiddenFromAllButAdministrators, catalogRunController.list);
-  router.post(
-    '/catalog-runs',
-    gate.hiddenFromAllButAdministrators,
-    rawUpTo(
-      dependencies.maxCatalogBytes,
-      `A catalog may be up to ${megabytes(dependencies.maxCatalogBytes)}, and that one was larger than this archive accepts.`,
-    ),
-    catalogRunController.estimate,
-  );
+  // No body parser: a catalog runs to hundreds of megabytes, and goes to the file store as it
+  // arrives (issue #65). Its size is held to the limit as it is read.
+  router.post('/catalog-runs', gate.hiddenFromAllButAdministrators, catalogRunController.estimate);
   // **One Unchecked Tavola read again** (issue #61), from the catalog the run that read it kept:
   // the run it would be read from, and a new run estimated, to start as any other. The Tavola is
   // named in the query and the body rather than the path, because a Tavola in the path is guarded
@@ -539,25 +531,4 @@ export function createApiRouter(dependencies: {
   router.get('/contribution-photographs/:photographId/:variant', contributionController.readImage);
 
   return router;
-}
-
-/**
- * The body unparsed, up to `limit`, and refused **with the limit named** above it: the one upload
- * that is allowed to be large says how large, so an Administrator knows what to send instead.
- */
-function rawUpTo(limit: number, refusal: string): RequestHandler {
-  const parse = express.raw({ type: () => true, limit });
-  return (request, response, next) => {
-    parse(request, response, (error?: unknown) => {
-      const tooLarge =
-        typeof error === 'object' &&
-        error !== null &&
-        (error as { type?: unknown }).type === 'entity.too.large';
-      next(tooLarge ? new HttpError(413, 'payload_too_large', refusal) : error);
-    });
-  };
-}
-
-function megabytes(bytes: number): string {
-  return `${Math.floor(bytes / (1024 * 1024))} MB`;
 }

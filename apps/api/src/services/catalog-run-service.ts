@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type {
   CatalogRun,
@@ -15,6 +16,7 @@ import type { ConfiguredReading } from '../composition/reading.js';
 import type { Db } from '../db/client.js';
 import {
   ConflictError,
+  HttpError,
   NotFoundError,
   UnsupportedMediaTypeError,
   ValidationError,
@@ -50,7 +52,10 @@ export interface NewCatalogRun {
   modelId: string;
   firstPage: number;
   lastPage: number;
-  catalog: Buffer;
+  /** The PDF as it arrives, written to the file store a chunk at a time and never held whole. */
+  catalog: Readable;
+  /** How large the request said it was, where it said: one too large is refused unread. */
+  declaredBytes: number | null;
   /** The Administrator uploading it. */
   by: string;
 }
@@ -59,6 +64,11 @@ export interface NewCatalogRun {
  * **Catalog runs** (ADR 0018). An Administrator uploads the catalog PDF, says which Model it is
  * for and which pages to read, and is told what reading them would cost (issue #57). Nothing is
  * sent to be read until they start it with a spending limit (issue #58).
+ *
+ * A scanned catalog runs to hundreds of megabytes and pages (issue #65). The upload goes to the
+ * file store as it arrives, and is answered once it is stored; its pages are priced after that,
+ * in the background, as a run is read. An estimate is the one thing being read, as a run is, and
+ * one a restart cuts off is priced on by the next server from the page it had reached.
  *
  * A started run reads **in the background, in this process**, one at a time, so the Administrator
  * can close the page and come back. Its progress is kept in the database as it goes, and each
@@ -77,6 +87,10 @@ export interface NewCatalogRun {
  * Every run is kept, with the record of what it cost (issue #62), and listed the latest first.
  */
 export interface CatalogRunService {
+  /**
+   * A catalog stored and its run `estimating`. Answers once it is stored; its pages are priced
+   * after the request has been answered. What is refused is refused before anything is stored.
+   */
   estimate(request: NewCatalogRun): Promise<CatalogRun>;
   /**
    * An estimated run started, held to `limit` dollars. Answers as soon as it is running; the
@@ -105,7 +119,10 @@ export interface CatalogRunService {
   readAgain(tavolaId: string, readAgain: { by: string }): Promise<CatalogRun>;
   /** The run that read a Tavola, or `null` where none did. */
   readBy(tavolaId: string): Promise<string | null>;
-  /** Every run left running when the server last went away, carried on. Once, on starting. */
+  /**
+   * Every run left running or being estimated when the server last went away, carried on. Once,
+   * on starting.
+   */
   pickUp(): Promise<void>;
   /**
    * The process is going away. Every run reading here stops before its next request and records
@@ -117,7 +134,8 @@ export interface CatalogRunService {
 const PDF_SIGNATURE = '%PDF-';
 
 const ANOTHER_IS_READING =
-  'Another Catalog run is reading. Runs go one at a time: start this one when it has finished.';
+  'Another Catalog run is being estimated or is reading. Runs go one at a time: try again once ' +
+  'it has finished.';
 
 export function createCatalogRunService(dependencies: {
   reading: ConfiguredReading;
@@ -127,8 +145,11 @@ export function createCatalogRunService(dependencies: {
   clock: Clock;
   db: Db;
   logger: Logger;
+  /** The largest catalog PDF that may be uploaded, in bytes. */
+  maxCatalogBytes: number;
 }): CatalogRunService {
   const { reading, catalogRunRepository, modelRepository, fileStore, clock, logger } = dependencies;
+  const { maxCatalogBytes } = dependencies;
 
   const catalogKey = (runId: string) => join(catalogRunKeyPrefix(runId), 'catalog.pdf');
 
@@ -232,6 +253,118 @@ export function createCatalogRunService(dependencies: {
     }
   }
 
+  /** The runs being estimated in this process. */
+  const estimators = new Set<string>();
+
+  /**
+   * A stored catalog's pages priced, from the first not yet priced to the last, while nobody waits
+   * for it (issue #65). Each page is kept as it is priced, so a server that goes away loses at
+   * most the page in hand, and the next one prices on from there. As for a run, nothing escapes.
+   */
+  async function estimateRest(runId: string): Promise<void> {
+    estimators.add(runId);
+    let directory: string | undefined;
+    try {
+      const { method, price } = pricedMethod();
+      directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-estimate-'));
+      const found = await catalogRunRepository.findById(runId);
+      const catalog = found && (await fileStore.open(found.run.catalogKey));
+      if (!found || !catalog) {
+        throw new Error(`Catalog run ${runId} has no catalog to estimate.`);
+      }
+      const pdf = join(directory, 'catalog.pdf');
+      await pipeline(catalog.stream(), createWriteStream(pdf));
+
+      const { firstPage, lastPage } = found.run;
+      let after = found.run.pagesEstimated;
+      let estimate = found.run.estimate;
+      // A page at a time, rather than every page rendered before the first is priced, so that the
+      // estimate moves while an Administrator watches it.
+      const pages = Array.from(
+        { length: lastPage - firstPage + 1 - after },
+        (_, index) => firstPage + after + index,
+      );
+      const spending = new Spending(Number.POSITIVE_INFINITY, price);
+      for await (const page of pdfPagesNamed(pages)(pdf)) {
+        const { cost } = await estimatePage(method, spending, page);
+        if (interrupted.signal.aborted) {
+          return;
+        }
+        estimate += cost;
+        if (!(await catalogRunRepository.pageEstimated(runId, { after, estimate }))) {
+          // Priced by another server, or no longer being estimated: it is not this one's to do.
+          return;
+        }
+        after += 1;
+      }
+      await catalogRunRepository.estimated(runId, rounded(estimate));
+    } catch (error) {
+      if (interrupted.signal.aborted) {
+        logger.info(
+          { runId },
+          'A catalog was left being estimated, for the next start to carry on',
+        );
+        return;
+      }
+      logger.error({ err: error, runId }, 'Estimating a catalog failed');
+      await catalogRunRepository
+        .ended(runId, { state: 'failed', failure: estimateFailureOf(error) }, clock.now())
+        .catch((failed: unknown) => {
+          logger.error({ err: failed, runId }, 'Could not record how estimating a catalog ended');
+        });
+    } finally {
+      estimators.delete(runId);
+      if (directory) {
+        await rm(directory, { recursive: true, force: true }).catch((failed: unknown) => {
+          logger.warn({ err: failed, runId }, 'Could not remove an estimate’s scratch directory');
+        });
+      }
+    }
+  }
+
+  /**
+   * The upload written to `pdf` as it arrives, refused as soon as it is too large or is not a PDF,
+   * and its size in bytes. The request is only stopped, never destroyed, so it can still be told.
+   */
+  async function received(catalog: Readable, pdf: string): Promise<number> {
+    let bytes = 0;
+    let head = Buffer.alloc(0);
+    await pipeline(async function* () {
+      for await (const chunk of catalog.iterator({
+        destroyOnReturn: false,
+      }) as AsyncIterable<Buffer>) {
+        bytes += chunk.byteLength;
+        if (bytes > maxCatalogBytes) {
+          throw tooLarge();
+        }
+        // What the file is is decided by reading it, never by what the request said it was.
+        if (head.byteLength < PDF_SIGNATURE.length) {
+          head = Buffer.concat([head, chunk]).subarray(0, PDF_SIGNATURE.length);
+          if (!PDF_SIGNATURE.startsWith(head.toString('latin1'))) {
+            throw notAPdf();
+          }
+        }
+        yield chunk;
+      }
+    }, createWriteStream(pdf));
+    if (bytes === 0) {
+      throw new ValidationError('That upload was empty.');
+    }
+    if (head.toString('latin1') !== PDF_SIGNATURE) {
+      throw notAPdf();
+    }
+    return bytes;
+  }
+
+  function tooLarge(): HttpError {
+    return new HttpError(
+      413,
+      'payload_too_large',
+      `A catalog may be up to ${megabytes(maxCatalogBytes)}, and that one was larger than this ` +
+        'archive accepts.',
+    );
+  }
+
   function methodOrRefuse(): NonNullable<ConfiguredReading['method']> {
     if (!reading.method) {
       throw new ConflictError(`Nothing can be read. ${reading.unavailable ?? ''}`.trim());
@@ -298,29 +431,30 @@ export function createCatalogRunService(dependencies: {
       }));
     },
 
-    async estimate({ modelId, firstPage, lastPage, catalog, by }) {
-      const { method, kind, price } = pricedMethod();
+    async estimate({ modelId, firstPage, lastPage, catalog, declaredBytes, by }) {
+      const { method, kind } = pricedMethod();
 
       const model = await modelRepository.findById(modelId);
       if (!model) {
         throw new NotFoundError('No such Model.');
       }
-
-      // What the file is is decided by reading it, never by what the request said it was.
-      if (catalog.subarray(0, PDF_SIGNATURE.length).toString('latin1') !== PDF_SIGNATURE) {
-        throw new UnsupportedMediaTypeError('That is not a PDF. Upload the catalog as a PDF.');
+      if (await catalogRunRepository.busy()) {
+        throw new ConflictError(ANOTHER_IS_READING);
+      }
+      if (declaredBytes !== null && declaredBytes > maxCatalogBytes) {
+        throw tooLarge();
       }
 
       // Poppler reads from a file. The copy is the request's own and goes with it; the catalog
-      // is only kept once it has been read and priced.
+      // is only kept once it is known to be one, with the pages asked for.
       const directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-'));
-      let catalogPages: number;
-      let estimate = 0;
+      // The id is minted here, because the catalog is written before the row is, under it.
+      const id = randomUUID();
       try {
         const pdf = join(directory, 'catalog.pdf');
-        await writeFile(pdf, catalog);
+        const byteSize = await received(catalog, pdf);
 
-        catalogPages = await notReadableAsUnsupported(() => pdfPageCount(pdf));
+        const catalogPages = await notReadableAsUnsupported(() => pdfPageCount(pdf));
         if (lastPage > catalogPages) {
           throw new ValidationError(
             `The catalog has ${catalogPages} ${catalogPages === 1 ? 'page' : 'pages'}, so there ` +
@@ -328,50 +462,52 @@ export function createCatalogRunService(dependencies: {
           );
         }
 
-        // Priced as the read command prices a run. The limit comes when the run is started.
-        const spending = new Spending(Number.POSITIVE_INFINITY, price);
-        await notReadableAsUnsupported(async () => {
-          for await (const page of pdfPages({ first: firstPage, last: lastPage })(pdf)) {
-            estimate += (await estimatePage(method, spending, page)).cost;
-          }
-        });
+        const key = catalogKey(id);
+        await fileStore.writeFrom(key, createReadStream(pdf));
+        const added = await catalogRunRepository
+          .add({
+            id,
+            modelId,
+            state: 'estimating',
+            catalogKey: key,
+            catalogByteSize: byteSize,
+            catalogPages,
+            firstPage,
+            lastPage,
+            readingMethod: kind,
+            charged: method.charged,
+            pricedModel: method.model,
+            pricesCheckedOn: PRICE_LIST.checkedOn,
+            estimate: 0,
+            createdAt: clock.now(),
+            createdBy: by,
+          })
+          .catch(async (error: unknown) => {
+            await fileStore.remove(catalogRunKeyPrefix(id));
+            throw error;
+          });
+        if (added === 'another is reading') {
+          await fileStore.remove(catalogRunKeyPrefix(id));
+          throw new ConflictError(ANOTHER_IS_READING);
+        }
       } finally {
         await rm(directory, { recursive: true, force: true });
       }
 
-      // The id is minted here, because the catalog is written before the row is, under it.
-      const id = randomUUID();
-      const key = catalogKey(id);
-      await fileStore.write(key, catalog);
-      try {
-        await catalogRunRepository.add({
-          id,
-          modelId,
-          state: 'estimated',
-          catalogKey: key,
-          catalogByteSize: catalog.byteLength,
-          catalogPages,
-          firstPage,
-          lastPage,
-          readingMethod: kind,
-          charged: method.charged,
-          pricedModel: method.model,
-          pricesCheckedOn: PRICE_LIST.checkedOn,
-          estimate: rounded(estimate),
-          createdAt: clock.now(),
-          createdBy: by,
-        });
-      } catch (error) {
-        await fileStore.remove(catalogRunKeyPrefix(id));
-        throw error;
-      }
-
-      return find(id);
+      // As it was stored, before a page of it is priced; the run page follows the rest.
+      const run = await find(id);
+      void estimateRest(id);
+      return run;
     },
 
     async start(runId, { limit, by }) {
       const method = methodOrRefuse();
       const { run } = await found(runId);
+      if (run.state === 'estimating') {
+        throw new ConflictError(
+          'This catalog is still being estimated. Start it once its estimate is there.',
+        );
+      }
       if (run.state !== 'estimated') {
         throw new ConflictError('This Catalog run has been started already.');
       }
@@ -488,7 +624,7 @@ export function createCatalogRunService(dependencies: {
             'read again.',
         );
       }
-      if ((await catalogRunRepository.running()).length > 0) {
+      if (await catalogRunRepository.busy()) {
         throw new ConflictError(ANOTHER_IS_READING);
       }
       const catalog = await fileStore.open(source.run.catalogKey);
@@ -514,7 +650,7 @@ export function createCatalogRunService(dependencies: {
       }
 
       const id = randomUUID();
-      await catalogRunRepository.add({
+      const added = await catalogRunRepository.add({
         id,
         modelId: source.run.modelId,
         state: 'estimated',
@@ -532,6 +668,9 @@ export function createCatalogRunService(dependencies: {
         createdAt: clock.now(),
         createdBy: by,
       });
+      if (added === 'another is reading') {
+        throw new ConflictError(ANOTHER_IS_READING);
+      }
       for (const { page, identity } of known) {
         await catalogRunRepository.pageFound(id, page, identity);
       }
@@ -547,6 +686,12 @@ export function createCatalogRunService(dependencies: {
     },
 
     async pickUp() {
+      for (const runId of await catalogRunRepository.estimating()) {
+        if (!estimators.has(runId)) {
+          logger.info({ runId }, 'Carrying on estimating a catalog');
+          void estimateRest(runId);
+        }
+      }
       for (const runId of await catalogRunRepository.running()) {
         if (readers.has(runId)) {
           continue;
@@ -608,6 +753,28 @@ function failureOf(error: unknown): string {
   );
 }
 
+/**
+ * Why estimating a catalog failed, as the run page says it. As for a run, what the server refused
+ * on its own is said; anything else is only named.
+ */
+function estimateFailureOf(error: unknown): string {
+  if (error instanceof HttpError) {
+    return error.message;
+  }
+  if (error instanceof PdfNotReadable) {
+    return 'The catalog could not be read as a PDF.';
+  }
+  return 'Estimating stopped on an error, which the server has logged. Upload the catalog again.';
+}
+
+function notAPdf(): UnsupportedMediaTypeError {
+  return new UnsupportedMediaTypeError('That is not a PDF. Upload the catalog as a PDF.');
+}
+
+function megabytes(bytes: number): string {
+  return `${Math.floor(bytes / (1024 * 1024))} MB`;
+}
+
 async function notReadableAsUnsupported<T>(read: () => Promise<T>): Promise<T> {
   try {
     return await read();
@@ -629,6 +796,10 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
     pages: { first: run.firstPage, last: run.lastPage },
     catalogPages: run.catalogPages,
     estimate: run.estimate,
+    estimating:
+      run.state === 'estimating'
+        ? { pages: run.pagesEstimated, of: run.lastPage - run.firstPage + 1 }
+        : null,
     readingMethod: run.readingMethod,
     charged: run.charged,
     priceList: { model: run.pricedModel, checkedOn: run.pricesCheckedOn },

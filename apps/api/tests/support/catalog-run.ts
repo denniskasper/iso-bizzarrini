@@ -1,18 +1,20 @@
-import type { CatalogRun, CatalogRunResponse } from '@ricambi/contracts';
+import type { CatalogRun, CatalogRunResponse, CatalogRunState } from '@ricambi/contracts';
 import type TestAgent from 'supertest/lib/agent.js';
 import type { ConfiguredReading } from '../../src/composition/reading.js';
 import type { ModelRow } from '../../src/db/schema.js';
 import { fakeReadingMethod, type FakeMethodOptions, type InventedPage } from './catalog-reading.js';
 import { fixturePdf } from './fixture-pdf.js';
 
-/** A Reading method that can be held at one request, to look at a run while it is going. */
+/**
+ * A Reading method that can be held at one request, to look at a run while it is going: reading a
+ * Table sheet, `read 1 1`, or estimating a page, `estimate 2`.
+ */
 export function heldReadingMethod(pages: InventedPage[], options: FakeMethodOptions = {}) {
   const method = fakeReadingMethod(pages, options);
   let held: { call: string; release: () => void; reached: () => void } | null = null;
   let reached: Promise<void> = Promise.resolve();
-  const readTable = method.readTable.bind(method);
-  method.readTable = async (sheet, reading) => {
-    if (held && held.call === `read ${sheet.page} ${reading}`) {
+  async function wait(call: string): Promise<void> {
+    if (held && held.call === call) {
       const waiting = held;
       held = null;
       await new Promise<void>((release) => {
@@ -20,7 +22,16 @@ export function heldReadingMethod(pages: InventedPage[], options: FakeMethodOpti
         waiting.reached();
       });
     }
+  }
+  const readTable = method.readTable.bind(method);
+  method.readTable = async (sheet, reading) => {
+    await wait(`read ${sheet.page} ${reading}`);
     return readTable(sheet, reading);
+  };
+  const estimate = method.estimate.bind(method);
+  method.estimate = async (sheet) => {
+    await wait(`estimate ${sheet.page}`);
+    return estimate(sheet);
   };
   return Object.assign(method, {
     /** Holds the run when it asks for this, until `release` is called. */
@@ -37,6 +48,7 @@ export function configured(method: ReturnType<typeof fakeReadingMethod>): Config
   return { kind: 'api-key', method, unavailable: null, invented: false };
 }
 
+/** A catalog of `pages` blank pages uploaded, and its estimate waited for. */
 export async function estimated(agent: TestAgent, model: ModelRow, pages = 2): Promise<CatalogRun> {
   const response = await agent
     .post('/api/catalog-runs')
@@ -44,7 +56,12 @@ export async function estimated(agent: TestAgent, model: ModelRow, pages = 2): P
     .set('Content-Type', 'application/pdf')
     .send(fixturePdf(pages))
     .expect(201);
-  return (response.body as CatalogRunResponse).run;
+  return estimateSettled(agent, (response.body as CatalogRunResponse).run);
+}
+
+/** The run as its page shows it, once it is no longer being estimated (issue #65). */
+export async function estimateSettled(agent: TestAgent, run: CatalogRun): Promise<CatalogRun> {
+  return until(agent, run, 'estimating');
 }
 
 export function start(agent: TestAgent, run: CatalogRun, body: object) {
@@ -53,15 +70,19 @@ export function start(agent: TestAgent, run: CatalogRun, body: object) {
 
 /** The run as its page shows it, once it is no longer running. */
 export async function settled(agent: TestAgent, run: CatalogRun): Promise<CatalogRun> {
+  return until(agent, run, 'running');
+}
+
+async function until(agent: TestAgent, run: CatalogRun, state: CatalogRunState) {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const response = await agent.get(`/api/catalog-runs/${run.id}`).expect(200);
     const current = (response.body as CatalogRunResponse).run;
-    if (current.state !== 'running') {
+    if (current.state !== state) {
       return current;
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  throw new Error(`Catalog run ${run.id} was still running.`);
+  throw new Error(`Catalog run ${run.id} was still ${state}.`);
 }
 
 /** A stopped run continued, with `body` as the request: `{ limit }` to raise its limit first. */

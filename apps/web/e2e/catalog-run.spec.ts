@@ -17,7 +17,7 @@ const READ_INTO = 'Iso Fidia';
 
 /**
  * Beginning a Catalog run, in a real browser (issue #57): the catalog uploaded, a Model and the
- * pages chosen, and the estimate shown. Who may do it, and the figures themselves, are proved at
+ * pages chosen, the estimate worked out on the server (issue #65), and then shown. Who may do it, and the figures themselves, are proved at
  * the API seam.
  *
  * This suite's server reads with the fake method, which counts every request at a cent, so a
@@ -36,7 +36,22 @@ test('an Administrator uploads a catalog and sees what reading it would cost', a
   await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('2');
   await page.getByLabel('To page').fill('4');
+
+  // The upload is answered once the catalog is stored, and the pages are priced after it (issue
+  // #65). The fake method prices five blank pages quicker than anybody could look, so the run is
+  // held as the upload answered it until the estimating state has been seen.
+  const estimating = page.getByTestId('catalog-estimating');
+  let seen = false;
+  await page.route(/\/api\/catalog-runs\/[0-9a-f-]{36}$/, async (route) => {
+    if (!seen) {
+      await expect(estimating).toContainText('pages priced');
+      seen = true;
+    }
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
+  await expect(estimating).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start reading' })).toHaveCount(0);
 
   const estimate = page.getByTestId('catalog-estimate');
   await expect(estimate).toContainText('$0.12');

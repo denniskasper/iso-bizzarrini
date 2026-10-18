@@ -73,7 +73,8 @@ export interface CatalogRunController {
 
 /**
  * **Catalog runs** (ADR 0018, issue #57). The catalog is the request body, as a Scan is, and
- * what it is for travels in the address: there is nothing else on the request to name.
+ * what it is for travels in the address: there is nothing else on the request to name. Unlike a
+ * Scan's, the body is not read into memory first: it is handed on as it arrives (issue #65).
  */
 export function createCatalogRunController(dependencies: {
   gate: Gate;
@@ -87,16 +88,16 @@ export function createCatalogRunController(dependencies: {
       if (!query.success) {
         throw new ValidationError(query.error.issues[0]?.message ?? 'The request was not valid.');
       }
-      if (!Buffer.isBuffer(request.body)) {
+      // Read here as a stream, never parsed: one parsed already was sent as something else.
+      if (request.body !== undefined) {
         throw new UnsupportedMediaTypeError('Send the catalog itself as the request body.');
       }
-      if (request.body.byteLength === 0) {
-        throw new ValidationError('That upload was empty.');
-      }
+      const declared = request.headers['content-length'];
 
       const run = await catalogRunService.estimate({
         ...query.data,
-        catalog: request.body,
+        catalog: request,
+        declaredBytes: declared === undefined ? null : Number(declared),
         by: gate.whoIsSignedIn(response).account.id,
       });
       response.status(201).json({ run } satisfies CatalogRunResponse);

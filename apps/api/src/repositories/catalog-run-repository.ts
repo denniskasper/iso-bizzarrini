@@ -55,7 +55,11 @@ export type CatalogRunEnd =
 
 /** Catalog runs (ADR 0018). The repository knows about rows; nothing above it does. */
 export interface CatalogRunRepository {
-  add(run: NewCatalogRunRow): Promise<CatalogRunRow>;
+  /**
+   * A new run. `'another is reading'` where it is added `estimating` while another run is being
+   * estimated or is running: the database keeps it to one at a time (issue #65).
+   */
+  add(run: NewCatalogRunRow): Promise<CatalogRunRow | 'another is reading'>;
   findById(id: string): Promise<CatalogRunWithModel | null>;
   /** Every run with the Model it is for, the latest first (issue #62). */
   list(): Promise<{ run: CatalogRunRow; model: ModelRow }[]>;
@@ -77,6 +81,18 @@ export interface CatalogRunRepository {
   ): Promise<'running' | 'another is running' | 'not stopped'>;
   /** The runs left running, as the server finds them when it starts. */
   running(): Promise<string[]>;
+  /** The runs left being estimated, as the server finds them when it starts (issue #65). */
+  estimating(): Promise<string[]>;
+  /** Whether any run is being estimated or is running: the one thing being read. */
+  busy(): Promise<boolean>;
+  /**
+   * One more of an estimating run's pages priced, after `after` of them, making its estimate so
+   * far `estimate`. `false`, and nothing kept, where the run is no longer being estimated or
+   * another server has priced that page already.
+   */
+  pageEstimated(runId: string, page: { after: number; estimate: number }): Promise<boolean>;
+  /** An estimating run's every page priced, at `estimate` in all. */
+  estimated(runId: string, estimate: number): Promise<void>;
   recordAction(
     runId: string,
     action: { action: CatalogRunActionKind; by: string | null; at: Date; limit?: number },
@@ -157,11 +173,18 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
 
   return {
     async add(run) {
-      const [row] = await db.insert(catalogRuns).values(run).returning();
-      if (!row) {
-        throw new Error('Recording a Catalog run returned nothing.');
+      try {
+        const [row] = await db.insert(catalogRuns).values(run).returning();
+        if (!row) {
+          throw new Error('Recording a Catalog run returned nothing.');
+        }
+        return row;
+      } catch (error) {
+        if (violates(error, 'catalog_runs_one_reading')) {
+          return 'another is reading';
+        }
+        throw error;
       }
-      return row;
     },
 
     async findById(id) {
@@ -209,7 +232,7 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
           .returning({ id: catalogRuns.id });
         return started.length > 0 ? 'started' : 'not estimated';
       } catch (error) {
-        if (violates(error, 'catalog_runs_one_running')) {
+        if (violates(error, 'catalog_runs_one_reading')) {
           return 'another is running';
         }
         throw error;
@@ -225,7 +248,7 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
           .returning({ id: catalogRuns.id });
         return running.length > 0 ? 'running' : 'not stopped';
       } catch (error) {
-        if (violates(error, 'catalog_runs_one_running')) {
+        if (violates(error, 'catalog_runs_one_reading')) {
           return 'another is running';
         }
         throw error;
@@ -238,6 +261,45 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .from(catalogRuns)
         .where(eq(catalogRuns.state, 'running'));
       return rows.map((row) => row.id);
+    },
+
+    async estimating() {
+      const rows = await db
+        .select({ id: catalogRuns.id })
+        .from(catalogRuns)
+        .where(eq(catalogRuns.state, 'estimating'));
+      return rows.map((row) => row.id);
+    },
+
+    async busy() {
+      const [row] = await db
+        .select({ id: catalogRuns.id })
+        .from(catalogRuns)
+        .where(inArray(catalogRuns.state, ['estimating', 'running']))
+        .limit(1);
+      return !!row;
+    },
+
+    async pageEstimated(runId, { after, estimate }) {
+      const priced = await db
+        .update(catalogRuns)
+        .set({ estimate, pagesEstimated: after + 1 })
+        .where(
+          and(
+            eq(catalogRuns.id, runId),
+            eq(catalogRuns.state, 'estimating'),
+            eq(catalogRuns.pagesEstimated, after),
+          ),
+        )
+        .returning({ id: catalogRuns.id });
+      return priced.length > 0;
+    },
+
+    async estimated(runId, estimate) {
+      await db
+        .update(catalogRuns)
+        .set({ state: 'estimated', estimate })
+        .where(and(eq(catalogRuns.id, runId), eq(catalogRuns.state, 'estimating')));
     },
 
     async recordAction(runId, { action, by, at, limit }) {
