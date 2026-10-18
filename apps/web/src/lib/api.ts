@@ -69,6 +69,7 @@ import type {
   ServiceStatus,
   SessionResponse,
   TavolaListingsResponse,
+  TavolaPublishedResponse,
   TavolaResponse,
   TavolaScan,
   TavolaSummary,
@@ -311,6 +312,9 @@ export const api = {
   /** Filing a sheet under a system, moving it, or — with a blank — taking it out again. */
   categoriseTavola: (tavolaId: string, category: TavolaCategoryRequest) =>
     send<{ tavola: TavolaSummary }>('PUT', `/tavole/${tavolaId}/category`, category),
+  /** An Editor's statement that an Unchecked Tavola says what the factory printed. */
+  publishTavola: (tavolaId: string) =>
+    send<TavolaPublishedResponse>('POST', `/tavole/${tavolaId}/publication`, {}),
 
   /**
    * Marking up a drawing. **Every one of these answers with the sheet**, so nothing in this
@@ -608,7 +612,10 @@ export type {
   SubAssembly,
   TavolaListing,
   TavolaProgress,
+  TavolaPublishedResponse,
   TavolaResponse,
   TavolaScan,
+  TavolaPublication,
+  TavolaState,
   TavolaSummary,
 } from '@ricambi/contracts';

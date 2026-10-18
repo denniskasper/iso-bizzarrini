@@ -75,6 +75,11 @@ export interface Gate {
    * for the one handler whose *answer* depends on it rather than whether it answers at all.
    */
   mayEdit(who: SignedIn): boolean;
+  /**
+   * Whether the person a handler is serving is shown Unchecked Tavole (ADR 0016). The same
+   * answer as `mayEdit`, asked of the request: what a list holds depends on who reads it.
+   */
+  seesUnchecked(response: Response): boolean;
   signIn(response: Response, claim: SessionClaim): void;
   signOut(response: Response): void;
 }
@@ -131,6 +136,16 @@ export function createGate(dependencies: {
 
   const mayEdit = new Set<Role>(['editor', 'administrator']);
 
+  function whoIsSignedIn(response: Response): SignedIn {
+    const who = response.locals[SIGNED_IN] as SignedIn | undefined;
+    if (who === undefined) {
+      // A handler asking this from outside the gate is a wiring mistake rather than a refusal,
+      // and it should read like one instead of arriving at a member as a 401.
+      throw new Error('Nothing has identified this request. Put it behind the gate.');
+    }
+    return who;
+  }
+
   return {
     identify,
 
@@ -156,15 +171,11 @@ export function createGate(dependencies: {
       }
     }),
 
-    whoIsSignedIn(response) {
-      const who = response.locals[SIGNED_IN] as SignedIn | undefined;
-      if (who === undefined) {
-        // A handler asking this from outside the gate is a wiring mistake rather than a refusal,
-        // and it should read like one instead of arriving at a member as a 401.
-        throw new Error('Nothing has identified this request. Put it behind the gate.');
-      }
-      return who;
+    seesUnchecked(response) {
+      return mayEdit.has(whoIsSignedIn(response).account.role);
     },
+
+    whoIsSignedIn,
 
     signIn(response, claim) {
       // `maxAge` rather than an absolute `expires`: the attribute is read against the browser's

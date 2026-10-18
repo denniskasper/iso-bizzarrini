@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { DbSession } from '../db/client.js';
 import {
@@ -6,6 +6,7 @@ import {
   marks,
   models,
   positions,
+  scans,
   tavole,
   type CategoryRow,
   type ModelRow,
@@ -28,7 +29,24 @@ export interface TavolaWithCategoryAndScan extends TavolaRow {
 
 export interface TavolaInContext extends TavolaWithCategoryAndScan {
   model: ModelRow;
+  /** Who published it, while their Account exists. Nothing else about them is read. */
+  publisher: { name: string } | null;
 }
+
+/**
+ * **Only an Editor is shown an Unchecked Tavola** (ADR 0016), so every read that lists Tavole is
+ * told whether the person it is for may see them — and a read for anybody else is limited to the
+ * Published ones here, in the query, rather than filtered afterwards by whoever remembers to.
+ *
+ * Exported because a Tavola is listed from other tables' reads too: a Part's sheets, a
+ * Category's count, a search.
+ */
+export function shownTavole(seesUnchecked: boolean): SQL | undefined {
+  return seesUnchecked ? undefined : eq(tavole.state, 'published');
+}
+
+/** Something that belongs to exactly one Tavola, named by whichever id an address carries. */
+export type OnATavola = { tavolaId: string } | { positionId: string } | { scanId: string };
 
 /** How much of one sheet has been done, counted rather than read. */
 export interface TavolaProgressRow {
@@ -39,12 +57,12 @@ export interface TavolaProgressRow {
 }
 
 export interface TavolaRepository {
-  listByModel(modelId: string): Promise<TavolaWithCategoryAndScan[]>;
+  listByModel(modelId: string, seesUnchecked: boolean): Promise<TavolaWithCategoryAndScan[]>;
   /**
    * Every Tavola filed under one Category, on whichever car — brand, then Model, then the order
    * each catalog prints its sheets in, so the answer is already grouped the way it is shown.
    */
-  listByCategory(categoryId: string): Promise<TavolaInContext[]>;
+  listByCategory(categoryId: string, seesUnchecked: boolean): Promise<TavolaInContext[]>;
   findById(id: string): Promise<TavolaInContext | null>;
   /**
    * How much of each of a Model's sheets has been done, **in one query rather than one a sheet.**
@@ -53,14 +71,24 @@ export interface TavolaRepository {
    * every sheet and count in the process — is twelve thousand rows crossing a wire to produce
    * three numbers each. The database is where a count belongs.
    */
-  progressByModel(modelId: string): Promise<TavolaProgressRow[]>;
+  progressByModel(modelId: string, seesUnchecked: boolean): Promise<TavolaProgressRow[]>;
   /**
    * Whether there is such a sheet, and nothing more. Placing a Mark is the one request an
    * Editor makes hundreds of times an evening, and it has no use for a Tavola's Category, its
    * Model or its scan — only for the difference between a real sheet and a made-up id.
    */
   exists(id: string): Promise<boolean>;
+  /**
+   * Whether what an address names belongs to an Unchecked Tavola. `false` for something that
+   * does not exist, which is the handler's to refuse in its own words.
+   */
+  isUnchecked(on: OnATavola): Promise<boolean>;
   add(tavola: NewTavolaRow): Promise<TavolaRow>;
+  /**
+   * Publishes an Unchecked Tavola, recording who and when. `false` when there is no Unchecked
+   * Tavola by that id — one that is Published already keeps the record of who vouched for it.
+   */
+  publish(id: string, by: string, at: Date): Promise<boolean>;
   /** Files the sheet under a Category, or under none. `false` when there is no such sheet. */
   setCategory(id: string, categoryId: string | null): Promise<boolean>;
 }
@@ -71,22 +99,22 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
   const byNumber = [sql`${tavole.numberSort} asc nulls last`, asc(tavole.number)];
 
   return {
-    listByModel(modelId) {
+    listByModel(modelId, seesUnchecked) {
       return db.query.tavole.findMany({
-        where: eq(tavole.modelId, modelId),
+        where: and(eq(tavole.modelId, modelId), shownTavole(seesUnchecked)),
         with: { category: true, scan: true },
         orderBy: byNumber,
       });
     },
 
-    async listByCategory(categoryId) {
+    async listByCategory(categoryId, seesUnchecked) {
       // The order is another table's columns, which the relational reader cannot sort by — so
       // the ids are put in order first and the sheets read whole afterwards, by those ids.
       const ordered = await db
         .select({ id: tavole.id })
         .from(tavole)
         .innerJoin(models, eq(models.id, tavole.modelId))
-        .where(eq(tavole.categoryId, categoryId))
+        .where(and(eq(tavole.categoryId, categoryId), shownTavole(seesUnchecked)))
         .orderBy(asc(models.brand), asc(models.name), asc(models.series), ...byNumber);
 
       if (ordered.length === 0) {
@@ -98,7 +126,7 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
           tavole.id,
           ordered.map((row) => row.id),
         ),
-        with: { category: true, scan: true, model: true },
+        with: { category: true, scan: true, model: true, publisher: { columns: { name: true } } },
       });
       const byId = new Map(rows.map((row) => [row.id, row]));
       return ordered.flatMap(({ id }) => byId.get(id) ?? []);
@@ -107,12 +135,12 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
     async findById(id) {
       const row = await db.query.tavole.findFirst({
         where: eq(tavole.id, id),
-        with: { category: true, scan: true, model: true },
+        with: { category: true, scan: true, model: true, publisher: { columns: { name: true } } },
       });
       return row ?? null;
     },
 
-    progressByModel(modelId) {
+    progressByModel(modelId, seesUnchecked) {
       /*
        * **Marked and listed are two independent questions asked of the same number**, which is
        * why each is its own `exists` rather than a join. Joining to Marks and to Listings at once
@@ -143,7 +171,7 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
           })
           .from(tavole)
           .leftJoin(positions, eq(positions.tavolaId, tavole.id))
-          .where(eq(tavole.modelId, modelId))
+          .where(and(eq(tavole.modelId, modelId), shownTavole(seesUnchecked)))
           .groupBy(tavole.id)
           // The catalog's own order, the same one the Model's list of sheets is read in — so the
           // table of counts and the contact sheet beside it name the drawings in one order.
@@ -160,12 +188,45 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
       return row !== undefined;
     },
 
+    async isUnchecked(on) {
+      const unchecked = eq(tavole.state, 'unchecked');
+      const query =
+        'tavolaId' in on
+          ? db
+              .select({ id: tavole.id })
+              .from(tavole)
+              .where(and(eq(tavole.id, on.tavolaId), unchecked))
+          : 'positionId' in on
+            ? db
+                .select({ id: tavole.id })
+                .from(positions)
+                .innerJoin(tavole, eq(tavole.id, positions.tavolaId))
+                .where(and(eq(positions.id, on.positionId), unchecked))
+            : db
+                .select({ id: tavole.id })
+                .from(scans)
+                .innerJoin(tavole, eq(tavole.id, scans.tavolaId))
+                .where(and(eq(scans.id, on.scanId), unchecked));
+
+      const [row] = await query.limit(1);
+      return row !== undefined;
+    },
+
     async add(tavola) {
       const [row] = await db.insert(tavole).values(tavola).returning();
       if (!row) {
         throw new Error('Inserting a Tavola returned nothing.');
       }
       return row;
+    },
+
+    async publish(id, by, at) {
+      const written = await db
+        .update(tavole)
+        .set({ state: 'published', publishedAt: at, publishedBy: by })
+        .where(and(eq(tavole.id, id), eq(tavole.state, 'unchecked')))
+        .returning({ id: tavole.id });
+      return written.length > 0;
     },
 
     async setCategory(id, categoryId) {

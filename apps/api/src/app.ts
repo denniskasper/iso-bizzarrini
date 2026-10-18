@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { createGate } from './access/gate.js';
+import { createUncheckedTavolaGuard } from './access/unchecked-tavole.js';
 import { createPasswordHasher, type PasswordHasher } from './access/passwords.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
 import { createReminders } from './composition/reminder-run.js';
@@ -263,6 +264,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const bulkPasteService = createBulkPasteService({ db });
   const categoryService = createCategoryService({ categoryRepository, tavolaRepository });
   const tavolaService = createTavolaService({
+    clock,
     modelRepository,
     categoryRepository,
     tavolaRepository,
@@ -298,6 +300,7 @@ export function createApp(dependencies: AppDependencies): Express {
     logger,
   });
 
+  const uncheckedTavolaGuard = createUncheckedTavolaGuard({ gate, tavolaRepository });
   const statusController = createStatusController({ statusService });
   const sessionController = createSessionController({ gate, accountService });
   const rosterController = createRosterController({ gate, rosterService });
@@ -314,12 +317,12 @@ export function createApp(dependencies: AppDependencies): Express {
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
   const legalController = createLegalController({ legalService });
-  const searchController = createSearchController({ searchService });
-  const catalogController = createCatalogController({ catalogService });
-  const categoryController = createCategoryController({ categoryService });
-  const tavolaController = createTavolaController({ tavolaService });
+  const searchController = createSearchController({ gate, searchService });
+  const catalogController = createCatalogController({ gate, catalogService });
+  const categoryController = createCategoryController({ gate, categoryService });
+  const tavolaController = createTavolaController({ gate, tavolaService });
   const positionController = createPositionController({ positionService });
-  const partController = createPartController({ partService });
+  const partController = createPartController({ gate, partService });
   const partRecordController = createPartRecordController({ partRecordService });
   const bulkPasteController = createBulkPasteController({ bulkPasteService });
   const photographController = createPhotographController({ photographService });
@@ -385,6 +388,7 @@ export function createApp(dependencies: AppDependencies): Express {
     API_MOUNT,
     createApiRouter({
       gate,
+      uncheckedTavolaGuard,
       maxScanBytes: config.files.maxScanBytes,
       maxPhotographBytes: config.files.maxPhotographBytes,
       statusController,

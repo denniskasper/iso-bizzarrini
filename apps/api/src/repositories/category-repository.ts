@@ -1,6 +1,7 @@
-import { asc, count, eq, isNull } from 'drizzle-orm';
+import { and, asc, count, eq, isNull } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import { categories, tavole, type CategoryRow } from '../db/schema.js';
+import { shownTavole } from './tavola-repository.js';
 
 /** A Category and how many Tavole are filed under it, counted rather than read. */
 export interface CategoryWithCount extends CategoryRow {
@@ -19,10 +20,13 @@ export interface CategoryWithCount extends CategoryRow {
  * the Categories are whatever the source names and there is nobody to ask.
  */
 export interface CategoryRepository {
-  /** The whole list in alphabetical order, each entry with its number of Tavole. */
-  listWithCounts(): Promise<CategoryWithCount[]>;
-  /** How many Tavole have no Category at all. */
-  countUncategorised(): Promise<number>;
+  /**
+   * The whole list in alphabetical order, each entry with its number of Tavole — counting the
+   * Unchecked ones only for somebody who may see them.
+   */
+  listWithCounts(seesUnchecked: boolean): Promise<CategoryWithCount[]>;
+  /** How many Tavole have no Category at all, counted the same way. */
+  countUncategorised(seesUnchecked: boolean): Promise<number>;
   findBySlug(slug: string): Promise<CategoryRow | null>;
   /** Refused by `categories_slug_unique` when the list already has that name. */
   add(name: string, slug: string): Promise<CategoryRow>;
@@ -33,28 +37,32 @@ export interface CategoryRepository {
 
 export function createCategoryRepository(db: DbSession): CategoryRepository {
   return {
-    listWithCounts() {
+    listWithCounts(seesUnchecked) {
       // `left join`, so an entry nobody has filed anything under is on the list with a zero.
       // That is most of the list on the day an archive is new, and exactly the entries an
       // Editor must still be able to choose.
-      return db
-        .select({
-          id: categories.id,
-          name: categories.name,
-          slug: categories.slug,
-          tavole: count(tavole.id),
-        })
-        .from(categories)
-        .leftJoin(tavole, eq(tavole.categoryId, categories.id))
-        .groupBy(categories.id)
-        .orderBy(asc(categories.name));
+      return (
+        db
+          .select({
+            id: categories.id,
+            name: categories.name,
+            slug: categories.slug,
+            tavole: count(tavole.id),
+          })
+          .from(categories)
+          // In the join and not after it, so a Category with only Unchecked Tavole still counts zero
+          // rather than falling off the list.
+          .leftJoin(tavole, and(eq(tavole.categoryId, categories.id), shownTavole(seesUnchecked)))
+          .groupBy(categories.id)
+          .orderBy(asc(categories.name))
+      );
     },
 
-    async countUncategorised() {
+    async countUncategorised(seesUnchecked) {
       const [row] = await db
         .select({ tavole: count(tavole.id) })
         .from(tavole)
-        .where(isNull(tavole.categoryId));
+        .where(and(isNull(tavole.categoryId), shownTavole(seesUnchecked)));
       return row?.tavole ?? 0;
     },
 

@@ -4,6 +4,7 @@ import type {
   ModelProgressResponse,
 } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
+import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { CatalogService } from '../services/catalog-service.js';
 import { blankToNull, required } from './fields.js';
@@ -43,9 +44,10 @@ export interface CatalogController {
 }
 
 export function createCatalogController(dependencies: {
+  gate: Gate;
   catalogService: CatalogService;
 }): CatalogController {
-  const { catalogService } = dependencies;
+  const { gate, catalogService } = dependencies;
 
   return {
     listModels: async (request, response) => {
@@ -60,13 +62,19 @@ export function createCatalogController(dependencies: {
 
     readModel: async (request, response) => {
       const { modelId } = modelIdParams.parse(request.params);
-      const body: CatalogModelResponse = await catalogService.readModel(modelId);
+      const body: CatalogModelResponse = await catalogService.readModel(
+        modelId,
+        gate.seesUnchecked(response),
+      );
       response.json(body);
     },
 
     readModelProgress: async (request, response) => {
       const { modelId } = modelIdParams.parse(request.params);
-      const body: ModelProgressResponse = await catalogService.readModelProgress(modelId);
+      const body: ModelProgressResponse = await catalogService.readModelProgress(
+        modelId,
+        gate.seesUnchecked(response),
+      );
       response.json(body);
     },
 

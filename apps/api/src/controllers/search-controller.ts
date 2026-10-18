@@ -1,5 +1,6 @@
 import type { SearchResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
+import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { SearchService } from '../services/search-service.js';
 import { required } from './fields.js';
@@ -21,15 +22,16 @@ export interface SearchController {
 }
 
 export function createSearchController(dependencies: {
+  gate: Gate;
   searchService: SearchService;
 }): SearchController {
-  const { searchService } = dependencies;
+  const { gate, searchService } = dependencies;
 
   return {
     find: async (request, response) => {
       const { q } = searchQuery.parse(request.query);
 
-      const body: SearchResponse = await searchService.find(q);
+      const body: SearchResponse = await searchService.find(q, gate.seesUnchecked(response));
       response.json(body);
     },
   };

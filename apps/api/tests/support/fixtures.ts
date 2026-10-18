@@ -1,3 +1,4 @@
+import type { TavolaState } from '@ricambi/contracts';
 import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import { categorySlug, numericPrefixOf } from '../../src/catalog/naming.js';
@@ -66,6 +67,8 @@ export interface TavolaFixture {
   catalogSection?: string | null;
   catalogGroup?: string | null;
   catalogSubgroup?: string | null;
+  /** Left out, it is Published — as every Tavola an Editor records by hand is. */
+  state?: TavolaState;
 }
 
 export async function givenTavola(
@@ -89,6 +92,7 @@ export async function givenTavola(
       catalogSection: fixture.catalogSection ?? null,
       catalogGroup: fixture.catalogGroup ?? null,
       catalogSubgroup: fixture.catalogSubgroup ?? null,
+      state: fixture.state ?? 'published',
     })
     .returning();
 

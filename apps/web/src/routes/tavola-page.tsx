@@ -6,6 +6,7 @@ import { BulkPaste } from '@/components/editor/bulk-paste';
 import { FileUnder } from '@/components/editor/file-under';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
+import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
 import { PartReading } from '@/components/parts/part-reading';
 import { TavolaParts } from '@/components/parts/tavola-parts';
@@ -20,6 +21,7 @@ import { api, type CatalogProvenance, type Mark, type Position } from '@/lib/api
 import { useMarkingTool } from '@/lib/marking';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
 import { useSheetProgress } from '@/lib/progress';
+import { useSession } from '@/lib/session';
 
 /**
  * One drawing, with the numbered circles on it and the Part beside it.
@@ -40,6 +42,7 @@ import { useSheetProgress } from '@/lib/progress';
  */
 export function TavolaPage() {
   const { tavolaId } = useParams({ from: '/tavole/$tavolaId' });
+  const { isEditor } = useSession();
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['tavola', tavolaId],
@@ -267,6 +270,18 @@ export function TavolaPage() {
 
       <h1 className="mt-2 text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
       <p className="mt-1 text-lg text-muted">{tavola.nameEn}</p>
+      {/* Who checked it is the Editors' business; a Member is simply shown the drawing. */}
+      {isEditor && tavola.publication && (
+        <div className="mt-3">
+          <PublishedBy publication={tavola.publication} />
+        </div>
+      )}
+
+      {tavola.state === 'unchecked' && (
+        <div className="mt-8">
+          <UncheckedBand tavolaId={tavola.id} modelId={tavola.model.id} />
+        </div>
+      )}
 
       {/*
        * **The drawing and the text of the sheet, side by side** — which is the whole of story 44

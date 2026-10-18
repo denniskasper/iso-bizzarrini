@@ -5,6 +5,7 @@ import type {
   ProcessorRole,
   Role,
   SourceCondition,
+  TavolaState,
   TokenPurpose,
 } from '@ricambi/contracts';
 import { relations, sql } from 'drizzle-orm';
@@ -70,6 +71,14 @@ export const categories = pgTable('categories', {
 });
 
 /**
+ * Whether an Editor has compared a Tavola with its sheets (ADR 0016). A machine-read Tavola
+ * arrives `unchecked` and is shown to nobody but Editors; publishing it is an Editor's statement
+ * that it says what the factory printed. A Tavola an Editor records by hand is theirs already,
+ * so `published` is where one begins unless it was read by machine.
+ */
+export const TAVOLA_STATES = ['unchecked', 'published'] as const satisfies readonly TavolaState[];
+
+/**
  * A Tavola is a factory exploded-view drawing belonging to exactly one Model (ADR 0002),
  * carrying an Italian and an English name. Its number is meaningful only within its Model,
  * which is why the uniqueness constraint is on the pair.
@@ -110,8 +119,24 @@ export const tavole = pgTable(
     catalogSection: text('catalog_section'),
     catalogGroup: text('catalog_group'),
     catalogSubgroup: text('catalog_subgroup'),
+
+    state: text('state').notNull().$type<TavolaState>().default('published'),
+    /**
+     * Who vouched for it and when — set by the act of publishing, and so `null` on every Tavola
+     * that was Published before there was such an act. Deleting the Account keeps the date and
+     * drops the name (ADR 0007).
+     */
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishedBy: uuid('published_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
   },
   (table) => [
+    check('tavole_state_is_one_of_two', sql`${table.state} in (${oneOf(TAVOLA_STATES)})`),
+    check(
+      'tavole_an_unchecked_tavola_was_never_published',
+      sql`${table.state} = 'published' or ${table.publishedAt} is null`,
+    ),
     unique('tavole_model_id_number_unique').on(table.modelId, table.number),
     index('tavole_model_id_index').on(table.modelId),
     index('tavole_category_id_index').on(table.categoryId),
@@ -1122,6 +1147,7 @@ export const tavoleRelations = relations(tavole, ({ one, many }) => ({
   model: one(models, { fields: [tavole.modelId], references: [models.id] }),
   category: one(categories, { fields: [tavole.categoryId], references: [categories.id] }),
   scan: one(scans, { fields: [tavole.id], references: [scans.tavolaId] }),
+  publisher: one(accounts, { fields: [tavole.publishedBy], references: [accounts.id] }),
   positions: many(positions),
   listings: many(listings),
 }));

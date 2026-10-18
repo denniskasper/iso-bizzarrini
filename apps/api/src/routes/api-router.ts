@@ -1,5 +1,6 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
+import type { UncheckedTavolaGuard } from '../access/unchecked-tavole.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
@@ -47,6 +48,7 @@ export const WEBHOOK_PATH = '/payments/webhook';
  */
 export function createApiRouter(dependencies: {
   gate: Gate;
+  uncheckedTavolaGuard: UncheckedTavolaGuard;
   maxScanBytes: number;
   maxPhotographBytes: number;
   statusController: StatusController;
@@ -73,6 +75,7 @@ export function createApiRouter(dependencies: {
 }): Router {
   const {
     gate,
+    uncheckedTavolaGuard,
     statusController,
     sessionController,
     rosterController,
@@ -206,6 +209,12 @@ export function createApiRouter(dependencies: {
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);
 
+  // **An Unchecked Tavola is an Editor's until one publishes it** (ADR 0016): every address that
+  // names a Tavola, a number on one or its scan answers a Member as if it were not there.
+  router.param('tavolaId', uncheckedTavolaGuard.tavolaId);
+  router.param('positionId', uncheckedTavolaGuard.positionId);
+  router.param('scanId', uncheckedTavolaGuard.scanId);
+
   /**
    * **What a member offers** (issue #5) — above the rule below, and the only writes that are.
    *
@@ -265,6 +274,9 @@ export function createApiRouter(dependencies: {
   // Filing a sheet under a system, moving it, or taking it out — the one thing about a Tavola
   // that changes after it is recorded, because the list it is chosen from changes too.
   router.put('/tavole/:tavolaId/category', tavolaController.categorise);
+  // **Publishing is one act and an Editor's** (issue #30). It has an address of its own rather
+  // than a field on the Tavola, because it is a statement somebody makes and is recorded as one.
+  router.post('/tavole/:tavolaId/publication', tavolaController.publish);
 
   // **One click is one request**, which is why the Position is named by its printed number here
   // rather than by an id: at the moment an Editor clicks the drawing they know what the factory

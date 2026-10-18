@@ -1,11 +1,17 @@
-import type { TavolaResponse, TavolaSummary } from '@ricambi/contracts';
+import type {
+  TavolaPublication,
+  TavolaPublishedResponse,
+  TavolaResponse,
+  TavolaSummary,
+} from '@ricambi/contracts';
 import { categorySlug, numericPrefixOf } from '../catalog/naming.js';
 import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
 import type { CategoryRepository } from '../repositories/category-repository.js';
 import type { CategoryRow } from '../db/schema.js';
+import type { Clock } from '../platform/clock.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
-import type { TavolaRepository } from '../repositories/tavola-repository.js';
+import type { TavolaInContext, TavolaRepository } from '../repositories/tavola-repository.js';
 import { toCatalogModel, toTavolaSummary } from './catalog-view.js';
 import type { PositionService } from './position-service.js';
 
@@ -26,15 +32,28 @@ export interface TavolaService {
   createTavola(modelId: string, tavola: NewTavola): Promise<TavolaSummary>;
   /** Files a sheet under a Category on the list, moves it to another, or takes it out. */
   categorise(tavolaId: string, category: string | null): Promise<TavolaSummary>;
+  /**
+   * An Editor's statement that an Unchecked Tavola says what the factory printed (ADR 0016),
+   * recorded with who made it and when. Members see it from then on.
+   */
+  publish(tavolaId: string, accountId: string): Promise<TavolaPublishedResponse['tavola']>;
+}
+
+function publicationOf(row: TavolaInContext): TavolaPublication | null {
+  return row.publishedAt === null
+    ? null
+    : { at: row.publishedAt.toISOString(), by: row.publisher?.name ?? null };
 }
 
 export function createTavolaService(dependencies: {
+  clock: Clock;
   modelRepository: ModelRepository;
   categoryRepository: CategoryRepository;
   tavolaRepository: TavolaRepository;
   positionService: PositionService;
 }): TavolaService {
-  const { modelRepository, categoryRepository, tavolaRepository, positionService } = dependencies;
+  const { clock, modelRepository, categoryRepository, tavolaRepository, positionService } =
+    dependencies;
 
   /**
    * **Chosen, never typed into existence.** The list is an Administrator's, so a name that is
@@ -81,6 +100,7 @@ export function createTavolaService(dependencies: {
             group: row.catalogGroup,
             subgroup: row.catalogSubgroup,
           },
+          publication: publicationOf(row),
         },
       };
     },
@@ -132,6 +152,25 @@ export function createTavolaService(dependencies: {
         throw new NotFoundError('No such Tavola.');
       }
       return toTavolaSummary(row);
+    },
+
+    async publish(tavolaId, accountId) {
+      if (!(await tavolaRepository.publish(tavolaId, accountId, clock.now()))) {
+        // Nothing was Unchecked by that id, so say which of the two reasons that was.
+        if (await tavolaRepository.exists(tavolaId)) {
+          throw new ConflictError(
+            'This Tavola is Published already, and keeps the record of who published it.',
+          );
+        }
+        throw new NotFoundError('No such Tavola.');
+      }
+
+      const row = await tavolaRepository.findById(tavolaId);
+      const publication = row && publicationOf(row);
+      if (!row || !publication) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      return { ...toTavolaSummary(row), publication };
     },
   };
 }

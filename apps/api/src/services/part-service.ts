@@ -78,11 +78,11 @@ export interface PartService {
   removeListing(listingId: string): Promise<void>;
 
   /** The whole Part, and every sheet a correction to it would reach. */
-  readPart(partId: string): Promise<PartResponse>;
+  readPart(partId: string, seesUnchecked: boolean): Promise<PartResponse>;
   correctPart(partId: string, part: NewPart): Promise<PartResponse>;
   /** Refused while anything still lists it — the Listings go first, deliberately. */
   removePart(partId: string): Promise<void>;
-  lookUpParts(query: string): Promise<PartLookupResponse>;
+  lookUpParts(query: string, seesUnchecked: boolean): Promise<PartLookupResponse>;
 }
 
 export function createPartService(dependencies: {
@@ -122,8 +122,11 @@ export function createPartService(dependencies: {
    * The sheets a set of Parts is listed on, read once for the whole set — the same argument
    * `elsewhereFor` makes, for the question an Editor's lookup asks of every Part it found.
    */
-  async function listedOnFor(partIds: string[]): Promise<Map<string, ListedOnRow[]>> {
-    return byPart(await partRepository.listListedOn(partIds));
+  async function listedOnFor(
+    partIds: string[],
+    seesUnchecked: boolean,
+  ): Promise<Map<string, ListedOnRow[]>> {
+    return byPart(await partRepository.listListedOn(partIds, seesUnchecked));
   }
 
   /** The Position a Listing names, checked against the sheet it is being recorded on. */
@@ -175,11 +178,11 @@ export function createPartService(dependencies: {
    * is one thing (ADR 0001), so correcting it corrects it at every number it sits at on every
    * drawing — which is invisible from a screen showing one Position.
    */
-  async function wholePart(partId: string): Promise<PartResponse> {
+  async function wholePart(partId: string, seesUnchecked: boolean): Promise<PartResponse> {
     const part = await partThatExists(partId);
     const [records, listedOn] = await Promise.all([
       partRecordService.recordsFor([partId]),
-      partRepository.listListedOn([partId]),
+      partRepository.listListedOn([partId], seesUnchecked),
     ]);
 
     return {
@@ -366,7 +369,8 @@ export function createPartService(dependencies: {
       if (!corrected) {
         throw new NotFoundError('No such Part.');
       }
-      return wholePart(partId);
+      // Correcting is an Editor's, and reaches the Unchecked sheets as well.
+      return wholePart(partId, true);
     },
 
     /**
@@ -426,11 +430,18 @@ export function createPartService(dependencies: {
      * told "no such Part" by a truncated answer records a second copy of the Part the answer
      * did not reach.
      */
-    async lookUpParts(query) {
-      const found = await partRepository.searchParts(query, MOST_MATCHES_REPORTED + 1);
+    async lookUpParts(query, seesUnchecked) {
+      const found = await partRepository.searchParts(
+        query,
+        MOST_MATCHES_REPORTED + 1,
+        seesUnchecked,
+      );
       const reported = found.slice(0, MOST_MATCHES_REPORTED);
 
-      const listedOn = await listedOnFor(reported.map((part) => part.id));
+      const listedOn = await listedOnFor(
+        reported.map((part) => part.id),
+        seesUnchecked,
+      );
       return {
         parts: reported.map((row): FoundPart => ({
           part: toPart(row),

@@ -21,6 +21,7 @@ import {
   squashedNumber,
 } from '../catalog/part-matching.js';
 import type { DbSession } from '../db/client.js';
+import { shownTavole } from './tavola-repository.js';
 import {
   equivalents,
   listings,
@@ -126,7 +127,7 @@ export interface PartRepository {
    * not searched (spec): matching a word inside them is free-text search, which is what "Postgres
    * only, no relevance ranking" rules out.
    */
-  searchParts(query: string, limit: number): Promise<PartRow[]>;
+  searchParts(query: string, limit: number, seesUnchecked: boolean): Promise<PartRow[]>;
   /** Correcting the Part itself, which corrects it wherever it is listed (ADR 0001). */
   updatePart(id: string, fields: PartFields): Promise<PartRow | null>;
   /**
@@ -154,15 +155,19 @@ export interface PartRepository {
   listAtPosition(positionId: string): Promise<ListingWithPart[]>;
   /** Everything listed on one sheet, in the order the factory printed its numbers. */
   listOnTavola(tavolaId: string): Promise<ListingOnTavola[]>;
-  /** Every other Tavola these Parts are listed on, in one query rather than one a Part. */
+  /**
+   * Every other Tavola these Parts are listed on, in one query rather than one a Part — and
+   * **only the Published ones, whoever is reading**: a Part's other sheets are where somebody
+   * goes next, and an Unchecked sheet is not yet somewhere to send anybody (ADR 0016).
+   */
   listElsewhere(partIds: string[], exceptTavolaId: string): Promise<ElsewhereRow[]>;
   /**
    * The same question with no *here* to be elsewhere of — every place these Parts are listed,
    * for a screen that arrived from a number rather than from a drawing.
    */
-  listEverywhereListed(partIds: string[]): Promise<ElsewhereRow[]>;
+  listEverywhereListed(partIds: string[], seesUnchecked: boolean): Promise<ElsewhereRow[]>;
   /** Every Tavola these Parts are listed on, each named once. */
-  listListedOn(partIds: string[]): Promise<ListedOnRow[]>;
+  listListedOn(partIds: string[], seesUnchecked: boolean): Promise<ListedOnRow[]>;
   addListing(row: NewListingRow): Promise<ListingRow>;
   findListing(id: string): Promise<ListingRow | null>;
   /**
@@ -200,7 +205,7 @@ export function createPartRepository(db: DbSession): PartRepository {
    * would eventually order a Part's appearances differently depending on how the member got to
    * them, which is the same list disagreeing with itself.
    */
-  function whereListed(partIds: string[], exceptTavolaId: string | null) {
+  function whereListed(partIds: string[], exceptTavolaId: string | null, seesUnchecked: boolean) {
     if (partIds.length === 0) {
       return Promise.resolve([]);
     }
@@ -222,6 +227,7 @@ export function createPartRepository(db: DbSession): PartRepository {
           and(
             inArray(listings.partId, partIds),
             exceptTavolaId === null ? undefined : ne(listings.tavolaId, exceptTavolaId),
+            shownTavole(seesUnchecked),
           ),
         )
         // The car first, then that car's catalog in the order it is printed — which is how
@@ -273,7 +279,7 @@ export function createPartRepository(db: DbSession): PartRepository {
       return added;
     },
 
-    async searchParts(query, limit) {
+    async searchParts(query, limit, seesUnchecked) {
       /** Whichever of the Part's own numbers a search matched, as a subquery can also ask it. */
       const referenceMatching = (how: (column: AnyPgColumn, query: string) => SQL) =>
         exists(
@@ -297,20 +303,44 @@ export function createPartRepository(db: DbSession): PartRepository {
         referenceMatching(numberIsExactly),
       );
 
+      /**
+       * **A Part only an Unchecked Tavola lists is not there yet** for somebody who may not see
+       * that Tavola. A Part listed nowhere is still found — it is in the archive, and has simply
+       * not been placed — so this asks whether it is listed *only* where they cannot look.
+       */
+      const listedWhereTheyCanLook = or(
+        notExists(
+          db
+            .select({ listed: sql`1` })
+            .from(listings)
+            .where(eq(listings.partId, parts.id)),
+        ),
+        exists(
+          db
+            .select({ listed: sql`1` })
+            .from(listings)
+            .innerJoin(tavole, eq(listings.tavolaId, tavole.id))
+            .where(and(eq(listings.partId, parts.id), shownTavole(false))),
+        ),
+      );
+
       return (
         db
           .select()
           .from(parts)
           .where(
-            or(
-              numberBeginsWith(parts.catalogNumber, query),
-              numberBeginsWith(parts.disegnoOrigine, query),
-              // **The reverse lookup**, and the reason it is a subquery rather than a join: a
-              // Part with four matching Equivalents is one Part, and joining would report it four
-              // times. Which of them matched is a second question, asked of the Parts this found.
-              referenceMatching(numberBeginsWith),
-              nameBeginsWith(parts.nameEn, query),
-              nameBeginsWith(parts.nameIt, query),
+            and(
+              seesUnchecked ? undefined : listedWhereTheyCanLook,
+              or(
+                numberBeginsWith(parts.catalogNumber, query),
+                numberBeginsWith(parts.disegnoOrigine, query),
+                // **The reverse lookup**, and the reason it is a subquery rather than a join: a
+                // Part with four matching Equivalents is one Part, and joining would report it four
+                // times. Which of them matched is a second question, asked of the Parts this found.
+                referenceMatching(numberBeginsWith),
+                nameBeginsWith(parts.nameEn, query),
+                nameBeginsWith(parts.nameIt, query),
+              ),
             ),
           )
           // **The number typed in full first, and this is not relevance ranking.** Nothing is
@@ -419,14 +449,14 @@ export function createPartRepository(db: DbSession): PartRepository {
     },
 
     listElsewhere(partIds, exceptTavolaId) {
-      return whereListed(partIds, exceptTavolaId);
+      return whereListed(partIds, exceptTavolaId, false);
     },
 
-    listEverywhereListed(partIds) {
-      return whereListed(partIds, null);
+    listEverywhereListed(partIds, seesUnchecked) {
+      return whereListed(partIds, null, seesUnchecked);
     },
 
-    async listListedOn(partIds) {
+    async listListedOn(partIds, seesUnchecked) {
       if (partIds.length === 0) {
         return [];
       }
@@ -439,7 +469,7 @@ export function createPartRepository(db: DbSession): PartRepository {
         .from(listings)
         .innerJoin(tavole, eq(listings.tavolaId, tavole.id))
         .innerJoin(models, eq(tavole.modelId, models.id))
-        .where(inArray(listings.partId, partIds))
+        .where(and(inArray(listings.partId, partIds), shownTavole(seesUnchecked)))
         // The car first, then that car's catalog in the order it is printed.
         .orderBy(
           asc(models.brand),

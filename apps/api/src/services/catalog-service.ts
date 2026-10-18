@@ -13,9 +13,9 @@ export interface NewModel {
 
 export interface CatalogService {
   listModels(filter?: { brand?: string }): Promise<CatalogModel[]>;
-  readModel(modelId: string): Promise<CatalogModelResponse>;
+  readModel(modelId: string, seesUnchecked: boolean): Promise<CatalogModelResponse>;
   /** Where the work stands across every drawing of one car. */
-  readModelProgress(modelId: string): Promise<ModelProgressResponse>;
+  readModelProgress(modelId: string, seesUnchecked: boolean): Promise<ModelProgressResponse>;
   createModel(model: NewModel): Promise<CatalogModel>;
 }
 
@@ -34,13 +34,13 @@ export function createCatalogService(dependencies: {
       return rows.map(toCatalogModel);
     },
 
-    async readModel(modelId) {
+    async readModel(modelId, seesUnchecked) {
       const model = await modelRepository.findById(modelId);
       if (!model) {
         throw new NotFoundError('No such Model.');
       }
 
-      const tavole = await tavolaRepository.listByModel(modelId);
+      const tavole = await tavolaRepository.listByModel(modelId, seesUnchecked);
       return { model: toCatalogModel(model), tavole: tavole.map(toTavolaSummary) };
     },
 
@@ -50,12 +50,12 @@ export function createCatalogService(dependencies: {
      * the same sentence a car whose every sheet is finished gets, about a car that does not
      * exist.
      */
-    async readModelProgress(modelId) {
+    async readModelProgress(modelId, seesUnchecked) {
       if (!(await modelRepository.findById(modelId))) {
         throw new NotFoundError('No such Model.');
       }
 
-      const rows = await tavolaRepository.progressByModel(modelId);
+      const rows = await tavolaRepository.progressByModel(modelId, seesUnchecked);
       return { tavole: rows.map(toTavolaProgress) };
     },
 

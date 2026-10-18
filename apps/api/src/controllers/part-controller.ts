@@ -6,6 +6,7 @@ import type {
   TavolaListingsResponse,
 } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
+import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { PartService } from '../services/part-service.js';
 import { blankToNull, required } from './fields.js';
@@ -97,8 +98,11 @@ export interface PartController {
   remove: RequestHandler;
 }
 
-export function createPartController(dependencies: { partService: PartService }): PartController {
-  const { partService } = dependencies;
+export function createPartController(dependencies: {
+  gate: Gate;
+  partService: PartService;
+}): PartController {
+  const { gate, partService } = dependencies;
 
   return {
     listAtPosition: async (request, response) => {
@@ -156,14 +160,17 @@ export function createPartController(dependencies: { partService: PartService })
     lookUp: async (request, response) => {
       const { q } = lookupQuery.parse(request.query);
 
-      const body: PartLookupResponse = await partService.lookUpParts(q);
+      const body: PartLookupResponse = await partService.lookUpParts(
+        q,
+        gate.seesUnchecked(response),
+      );
       response.json(body);
     },
 
     read: async (request, response) => {
       const { partId } = partIdParams.parse(request.params);
 
-      const body: PartResponse = await partService.readPart(partId);
+      const body: PartResponse = await partService.readPart(partId, gate.seesUnchecked(response));
       response.json(body);
     },
 
