@@ -1,4 +1,4 @@
-import type { ReadingLoadReport } from './load-reading.js';
+import type { ReadingLoadReport } from './load-read-tavola.js';
 import type { RowProblem } from './load-archive.js';
 
 /** What loading a machine-read catalog did, for the person who ran it. Markdown, like the other. */
