@@ -1,185 +1,190 @@
-# Reading the factory catalog by machine
+# Reading the factory catalog
 
-The factory catalog exists only as scanned sheets. A command reads them and writes a directory of
-plain files. `archive:load` turns that directory into **Unchecked** Tavole, which only Editors
-see until one of them compares each with its sheets and publishes it. The decision and its
-reasons are in [ADR 0017](../adr/0017-the-catalog-is-read-by-machine-and-published-by-an-editor.md).
+The factory catalog exists only as scanned sheets. An Administrator reads it inside Ricambi, in
+the **Readings** section. Each Tavola it reads arrives in the archive **Unchecked**. Only Editors
+see it until one of them compares it with its sheets, corrects it and publishes it. Every
+correction is made in Ricambi. The decisions and their reasons are in
+[ADR 0017](../adr/0017-the-catalog-is-read-by-machine-and-published-by-an-editor.md) and
+[ADR 0018](../adr/0018-the-catalog-is-read-inside-ricambi.md).
 
-## What it needs
+## What the server needs
 
-- The catalog as a PDF, kept outside this repository. The command refuses an output directory
-  inside it.
-- Poppler's `pdftoppm` on the machine that runs it (`poppler-utils` on Debian and Ubuntu,
-  `poppler` in Homebrew).
-- Something to read with, either:
-  - **a subscription login**: Claude Code (`claude`) installed and signed in with a plan
-    (`claude auth login`). It is not charged, and it draws on the plan's usage limits. This is
-    where reading starts (ADR 0017).
-  - **an API key** in `ANTHROPIC_API_KEY`. It is billed per use. It is read from the environment,
-    and it is never written to the output or printed.
+The server reads with the one **Reading method** its configuration names in `READING_METHOD`:
 
-  Where only one is there, the command uses it. Where both are, it refuses to start until it is
-  told which, with `--with subscription` or `--with api-key`. A key that happens to be set never
-  pays for a run meant for the subscription: it is taken out of Claude Code's environment, and a
-  run Claude Code still reports reading with a key is refused.
-- A spending limit in dollars, given with `--limit`. There is no default.
+- **`subscription`**: Claude Code in the server image, signed in with the token
+  `claude setup-token` prints, given as the secret `CLAUDE_CODE_OAUTH_TOKEN`. It is not charged,
+  and it draws on the plan's usage limits. Reading starts here while the Club has no API key.
+- **`api-key`**: the Club's Anthropic API key, given as the secret `ANTHROPIC_API_KEY`. It is
+  billed per use.
+- **`fake`**: invents what it reads, for the practice environment and the tests. A production
+  server refuses to start with it.
 
-## Reading
+Give exactly one credential. With no method, a missing credential, or both credentials, nothing
+can be read, and the Readings section says which and why. A key that happens to be set never
+pays for a subscription's reading: it is taken out of Claude Code's environment, and a reading
+Claude Code still reports making with a key is refused.
+
+The Readings section says what the server reads with, and whether that is charged. It never shows
+a credential, or whose subscription it is.
+
+The catalog upload may be up to `MAX_CATALOG_BYTES`, 500 MB unless it is set otherwise.
+
+## Reading a catalog
+
+In **Readings**, under **Read a catalog**:
+
+1. Choose the catalog PDF and the Model it is for.
+2. Give the first and the last page to read. Leave out the front matter and the technical data,
+   so they are never sent to the model. Both pages are required.
+3. Press **Estimate the cost**. Nothing is read yet. Ricambi shows what reading those pages would
+   cost, whether that is charged, and the prices it used.
+4. Give a **spending limit** in dollars, and press **Start reading**. There is no default. A limit
+   below the estimate is refused.
+
+The run then reads on the server, and its page shows it as it goes:
+
+- its state;
+- what it has spent against its limit;
+- each Tavola it has found, with what it cost.
+
+Each Tavola is in the archive, Unchecked, as soon as it is read, and its line on the run page
+opens it. The page can be closed: the run carries on. Only one Catalog run reads at a time.
+
+A Tavola already Published is not replaced. Its line says so, and the run reads on.
+
+## When a run stops
+
+A run stops cleanly, and keeps every Tavola it has finished:
+
+- before the next request could pass its spending limit;
+- at the subscription's usage limit;
+- when the model fails or declines to answer, rather than asking again at the Club's expense
+  (what it said is in the server's log, not on the page);
+- when an Administrator presses **Stop reading**.
+
+**Continue reading** carries it on from where it stopped. Where the limit stopped it, give a
+higher limit first. What it has already spent counts against the new limit. A continued run does
+not ask again about a page it has placed, and does not read a finished Tavola again. A Tavola it
+stopped in the middle of is read again whole.
+
+Every deployment restarts the server. A run left reading is carried on by the next server from
+its last finished step, and its page says the server continued it.
+
+## Pages set aside
+
+A page whose Tavola number cannot be read is never guessed. The run page lists it under **Set
+aside**, with why, and **Open the page** shows it. Like the catalog, it is shown to
+Administrators only. A continued run does not ask about it again.
+
+## What it costs
+
+- **The whole run is estimated before anything is sent.** Every page is counted as whichever
+  would cost more:
+  - a Table sheet: asked what it is, read twice and translated;
+  - a drawing: asked what it is, and its numbers read 40 to a request.
+
+  A catalog with drawings in it therefore costs less than its estimate. An answer cannot be
+  counted before it is written, so each is allowed what it is expected to take: 1,000 tokens to
+  say what a page is, 8,000 to read a Table sheet, 2,000 to translate one, 2,000 for each request
+  for numbers. With an API key, the questions are counted with the provider's free
+  token-counting endpoint, exactly as they would be sent. A subscription cannot use that
+  endpoint, so its questions are worked out from above, every image at full size and twice over.
+- **It never passes the limit.** Before each request, the most it could cost is set against what
+  is left of the limit, and the run stops first if it could pass it. So give the limit some room
+  above the estimate.
+- **On a subscription it is not charged.** Its figures are what the same run would have cost at
+  list prices, and its limit is held to those same figures, so a run behaves alike whichever
+  credential pays.
+
+**Every run is recorded.** Readings lists past runs, the latest first, each with its date, Model,
+state, total and Reading method. Each opens its run page. The run's **Record** shows:
+
+- its total beside its estimate and its limit;
+- the model and the price list, with the date the prices were checked;
+- every Tavola, page by page: asking what the page is, each Reading, the drawing's numbers read
+  into Marks, and the translation;
+- the pages set aside, and what asking about them cost.
+
+A continued run has a record for each time it read. **Who did what** lists who started, raised,
+continued or stopped it, and when. Runs, their costs and their Reading method are shown to
+Administrators only.
+
+The cost is the token counts each response reports, multiplied by the price list in
+`apps/api/src/reading/price-list.ts`. Nothing asks the provider's billing, so nothing needs an
+admin credential. When the prices change, a developer checks them at the source the list names,
+and moves its date.
+
+## What the reading decides
+
+- **A sheet belongs to the Tavola printed on it**, not the page it follows. A page whose Tavola
+  number cannot be read is set aside.
+- **Each sheet is turned upright** the way its headings read.
+- **Every Table sheet is read twice**, independently. A row is in doubt only where the two
+  Readings differ on its Position, Catalog Number or quantity, or where a Catalog Number is not
+  shaped like one. Where one Reading hesitated and the other read the same, that is a Reading
+  note, not a doubt.
+- **The Italian is put into English** once a Tavola's sheets are read: its title, every
+  *Denominazione* and every Note. The Italian is kept verbatim. The English beside it is a
+  **Machine translation** until an Editor confirms or rewrites it, and publishing does not remove
+  the label. The term list in `apps/api/src/reading/translation.ts` keeps one Italian word one
+  English word. Every code and number is taken out before the Italian is sent, and an English
+  that does not carry each one back unchanged is dropped.
+- **A Mark is proposed for every position number found on the drawing.** Where a number is comes
+  from the ink alone. The model is shown each one as a small crop and says what number it is, or
+  that it is none. It is never asked where anything is. Nothing near the sheet's edge, or inside
+  a title block's cells, is sent or marked. A number printed sideways is not found, and shows up
+  as a Position with no Mark.
+- **Where the drawing and the table disagree, it is in doubt**: every Position the table lists
+  with no Mark, and every Mark whose number no row lists.
+- **A dash** for a position is the Position above. **A range** (`16-17`) is the Part at each
+  Position. **Different numbers under the Dal–Al columns** are separate Parts, each with the
+  column heading as its Fitment qualifier.
+
+## Checking and publishing
+
+An Editor opens an Unchecked Tavola as any other. A Model's page lists its Tavole **Left to
+check**. While a Tavola is Unchecked, its page also shows:
+
+- in the Unchecked band, the Reading method that read it, and every doubt. A doubt leads to the
+  row it is about. Once looked at, it can be rewritten or cleared;
+- each Table sheet beside the rows read from it. Any row can be corrected there, or flipped
+  between drawn and not drawn;
+- a row's Reading note, as a quiet line under it.
+
+Marks are corrected with the marking tool, and a Part with its usual panel. A Scan read on its
+side is turned a quarter at a time, and its Marks turn with it. English names are confirmed or
+rewritten where they are shown.
+
+**Publish** is allowed while doubts remain. Once the Tavola is Published, Members can open it and
+its Table sheets, but are never told which Reading method read it.
+
+### Reading one Tavola again
+
+Where a Tavola was read badly, an Administrator can press **Read again** under its Unchecked band
+instead of reading the catalog again. Its own run is estimated, from only the pages it was found
+on, and started with its own limit like any other. When the run finishes, the Tavola is replaced
+whole. Reading again is refused, with the reason:
+
+- for a Published Tavola, which is corrected in Ricambi instead;
+- for one with Contributions on its Positions;
+- while another run is reading.
+
+## The read command, for developers
+
+The reading also runs from the command line. It is for developing and testing the reading
+itself, and is not how the Club reads its catalog.
 
 ```sh
 pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \
   --brand Iso --model Rivolta --pages 5-120 --limit 20
+pnpm archive:load -- --source ../catalog-reading --dry-run
 ```
 
-`--pages` leaves out the front matter and the technical data, so they are never sent to the
-model. The command first says what it is reading with, and whether that is charged. It prints
-each Tavola as it reads it, the Table sheets it found and how many rows are in doubt. It ends with
-the tokens it used and what they cost.
-
-## When it stops part-way
-
-A run stops cleanly at its spending limit, and on a subscription also when the plan's usage limit
-is reached. The Tavole it finished are written and load as usual, and the rest are printed as not
-read. Carry on later with the same command, `--resume` and a limit for what is left:
-
-```sh
-pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading --pages 5-120 \
-  --limit 10 --resume
-```
-
-It does not ask again about a page it has already placed (`pages.json` keeps what each page was
-found to be), and it does not read a finished Tavola again. A Tavola it stopped in the middle of is
-read again whole. The car comes from the directory, and a different PDF or car is refused. Each
-Tavola records the Reading method that read it, so a run carried on with the other credential
-leaves an honest record.
-
-## What it costs
-
-- **It estimates the whole run before it sends anything to be read.** Reading a drawing's
-  numbers is counted from the candidates found on it, 40 to a request, each expected to answer in
-  2,000 tokens. With an API key, each
-  page's requests are counted with the provider's free token-counting endpoint, exactly as they
-  would be sent. A subscription login cannot use that endpoint, so its input is worked out from
-  above instead: every image at its full size, the text at three characters a token, and Claude
-  Code's own framing, all twice over, since Claude Code asks the model a second time after the
-  structured answer. An
-  answer cannot be counted before it is written, so each is allowed what it is expected to take
-  (1,000 tokens to say what a page is, 8,000 to read a Table sheet, 2,000 to translate it). A
-  Table sheet's Italian is unknown until it is read, so its translation is allowed 2,000 tokens of
-  text. Which pages are drawings is only known once they have been asked, so every page is
-  estimated as a Table sheet read twice and translated, and a catalog with drawings in it costs
-  less than its estimate.
-- **It refuses to start without `--limit`, or with an estimate above it**, and says why.
-- **It never passes the limit.** Before each sheet it allows for the most that sheet could cost,
-  which is every answer at its ceiling, translation included, and stops if that would pass the
-  limit. Before a Tavola is translated, the translation itself is counted again and held to the
-  limit the same way. So give the limit
-  some room above the estimate. The Tavole it finished are written and load as usual. The rest are
-  printed as not read. Carry on with `--resume`.
-- **It prints a running total** after every sheet, and the cost of each Tavola as it finishes.
-- **It writes `cost.json`**: the cost of every Tavola, sheet and Reading, the total beside the
-  estimate and the limit, the model, and the price list it used with the date that was checked.
-  That is what the Club is shown. A run carried on with `--resume` writes `cost-2.json`,
-  `cost-3.json` and so on, each saying what that run spent.
-- **On a subscription it is not charged**, and it says so before it starts, beside each Tavola and
-  at the end. Its figures are what the same run would have cost at the price list, and the limit
-  is held to those same figures, so a run behaves alike whichever credential pays. `cost.json`
-  says `"charged": false`.
-
-The cost is the token counts each response reports, multiplied by the price list in
-`apps/api/src/reading/price-list.ts`. Nothing asks the provider's billing, so nothing needs an
-admin credential. When the prices change, check them at the source the list names, and move its
-date.
-
-What it decides, and where it decides it:
-
-- **A sheet belongs to the Tavola printed on it**, not the page it follows. A page whose Tavola
-  number cannot be read is set aside in `set-aside.csv` and `set-aside/`, for a person to look at.
-- **Each sheet is turned upright the way its headings read.**
-- **Every Table sheet is read twice**, independently. A row is in doubt only where the two
-  Readings differ on its Position, Catalog Number or quantity, or where a Catalog Number is not
-  shaped like one. Where one Reading hesitated and the other read the same, that is a note.
-- **The Italian is put into English** once a Tavola's sheets are read: its title, every
-  *Denominazione* and every Note. The Italian is kept verbatim, and the English beside it is a
-  **Machine translation** until an Editor confirms or rewrites it in Ricambi. Publishing the Tavola
-  does not remove the label. The term list in `apps/api/src/reading/translation.ts` keeps one
-  Italian word one English word, and within a directory the same Italian is translated once and
-  reused, even across `--resume`. Every code and number is taken out before the Italian is sent,
-  and an English that does not carry each one back unchanged is dropped, so that text is left
-  without English.
-- **A Mark is proposed for every position number found on the drawing.** Where a number is comes
-  from the ink alone: everything the size and shape of a printed number at 200 dpi, including
-  digits whose ink touches. The model is shown each one as a small crop, boxed in red and labelled
-  only by an id, and says what number it is or that it is none. It is never asked where anything
-  is. A number the finder split in two is put back together. Nothing within the outer 2.5% of the
-  sheet, or closed in by ruled lines on four sides as a title block's cells are, is sent or marked.
-  A number printed sideways is not found, and shows up as a Position with no Mark. A Mark is in fractions of the drawing (ADR 0013).
-- **Where the drawing and the table disagree, it is in doubt**: every Position the table lists
-  with no Mark, and every Mark whose number no row lists, go into `doubts.csv`.
-- **A dash** for a position is the Position above: an undrawn Part on the catalogue layout, a drawn
-  Part of the other hand on the Ufficio Tecnico layout. **A range** (`16-17`) is the Part at each
-  Position. **Different numbers under the Dal–Al columns** are separate Parts, each with the
-  column heading as its Fitment qualifier.
-
-## What it writes
-
-```
-catalog-reading/
-  reading.json          the Model, the Reading method, the Tavole
-  pages.json            what each page was found to be, for --resume
-  cost.json             what the run cost, per Tavola, sheet and Reading, beside its estimate
-  cost-2.json …         the same, for each run carried on with --resume
-  set-aside.csv         pages not in any Tavola, and why
-  tavola-84/
-    tavola.json         number, the title in Italian and English, the factory's header, the
-                        sheets, and what the machine translated
-    scan.png            the drawing
-    table-1.png …       the Table sheets
-    listings.csv        one row per Listing
-    marks.csv           one row per Mark proposed on the drawing: its number, X and Y
-    doubts.csv          each Position listed with no Mark, and each Mark listed nowhere
-```
-
-`listings.csv` opens in Excel. An Editor may correct it there: change a Catalog Number, a
-quantity, `Drawn`, an English name, or add and remove rows. Then save it as CSV. The loader keeps
-each row's `Table sheet` and `Doubt` for the checking screen, so a doubt may be rewritten or
-cleared here. It ignores `Reading note`. An English name or title
-still as the machine wrote it loads as a Machine translation. One an Editor changed, in
-`listings.csv` or as `titleEn` in `tavola.json`, loads as theirs. The English of a Catalog Note is
-always shown as a Machine translation. Where a Tavola has no English title, it carries its Italian
-title in both places, and the load report says so.
-
-`marks.csv` opens the same way. A misread number can be rewritten there and a Mark that is not one
-deleted. X and Y are fractions of the drawing, from 0 to 1, and a comma for the decimal point is
-read as one. Moving a Mark is easier on the drawing, with the marking tool. Each row of
-`doubts.csv` becomes a doubt about its Position on the checking screen, so one can be rewritten or
-deleted before loading.
-
-## Loading
-
-```sh
-pnpm archive:load -- --source ../catalog-reading --dry-run   # writes nothing
-pnpm archive:load -- --source ../catalog-reading
-```
-
-- Every Tavola arrives Unchecked, with its Scan, Table sheets, Listings, Catalog Notes and proposed
-  Marks, and the Reading method that read it. A Mark for a number no row lists arrives as a
-  Position with nothing listed at it.
-- **An Unchecked Tavola already there is discarded and loaded again whole**, together with every
-  Part that appears nowhere else. Read again, correct the CSV, and load again as often as needed.
-- **A Published Tavola is refused.** It has been checked, and it is corrected in Ricambi.
-
-## Checking
-
-An Editor opens an Unchecked Tavola in Ricambi as any other. While it is Unchecked, the page also
-shows:
-
-- in the Unchecked band, which Reading method read it and every doubt. A doubt leads to the row
-  it is about, with its number opened on the drawing;
-- each Table sheet beside the rows read from it, where any row can be flipped between drawn and
-  not drawn.
-
-The Marks are corrected with the marking tool, and a Part with its usual panel. A Scan read on its
-side is turned a quarter at a time under the drawing, and its Marks turn with it. Publish is
-allowed while doubts remain. Once the Tavola is Published, Members can open its Table sheets but
-are never told which Reading method read it.
+- It writes a directory of plain files, which it refuses to put inside this repository: what each
+  page was found to be, `cost.json`, the set-aside pages, and a directory for each Tavola.
+- It reads with Claude Code signed in on the machine, or with `ANTHROPIC_API_KEY`. `--with
+  subscription` or `--with api-key` chooses between them where both are there.
+- It needs Poppler's `pdftoppm` (`poppler-utils` on Debian and Ubuntu, `poppler` in Homebrew).
+- `--resume` carries a stopped run on in the same directory.
+- `archive:load` loads the directory as Unchecked Tavole, by the same rules a Catalog run loads
+  by. `--dry-run` writes nothing.

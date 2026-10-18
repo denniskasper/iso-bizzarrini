@@ -176,6 +176,8 @@ export function createApiRouter(dependencies: {
   // **A Catalog run** (issue #57): the catalog uploaded and priced, before anything is read. The
   // role is checked before the body is read, so nobody else can even send a catalog here. The
   // catalog is as private as a Scan, and served to nobody but an Administrator.
+  // Every run, the latest first, each opening its record of what it cost (issue #62).
+  router.get('/catalog-runs', gate.hiddenFromAllButAdministrators, catalogRunController.list);
   router.post(
     '/catalog-runs',
     gate.hiddenFromAllButAdministrators,

@@ -125,15 +125,11 @@ make are in [`docs/operations/archive-migration.md`](docs/operations/archive-mig
 
 ### Reading the factory catalog
 
-```sh
-ANTHROPIC_API_KEY=… pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \
-  --brand Iso --model Rivolta --pages 5-120
-pnpm archive:load -- --source ../catalog-reading --dry-run
-```
-
-A scanned catalog becomes a directory of files: each Tavola's Scan, its Table sheets and a
-`listings.csv` that opens in Excel. The same loader turns it into **Unchecked** Tavole, which
-only Editors see until they publish them (ADR 0017). See
+An Administrator reads the scanned catalog inside Ricambi, in the Readings section: upload it,
+see what reading it would cost, and start it with a spending limit. Each Tavola arrives
+**Unchecked**, which only Editors see until they check and publish it (ADR 0017, ADR 0018). The
+server reads with the one Reading method `READING_METHOD` names. The command line reader,
+`pnpm catalog:read`, is a developer tool. See
 [`docs/operations/catalog-reading.md`](docs/operations/catalog-reading.md).
 
 ### The practice archive

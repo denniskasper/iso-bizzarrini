@@ -209,3 +209,44 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
   await page.goto(before);
   await expect(page.getByTestId('unchecked-band')).toHaveCount(0);
 });
+
+/**
+ * **The record of a finished run, opened from the list of past runs** (issue #62). The latest run
+ * is listed first, so the one just read is the first line. Its figures are proved at the API seam.
+ */
+test('an Administrator opens a finished run’s record from the list of past runs', async ({
+  page,
+}) => {
+  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
+  await signIn(page);
+  await page.getByRole('link', { name: 'Readings' }).click();
+
+  await page.getByTestId('catalog-file').setInputFiles({
+    name: 'catalog.pdf',
+    mimeType: 'application/pdf',
+    buffer: fixturePdf(5),
+  });
+  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
+  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('From page').fill('2');
+  await page.getByLabel('To page').fill('2');
+  await page.getByRole('button', { name: 'Estimate the cost' }).click();
+  await page.getByLabel('Spending limit, in dollars').fill('1');
+  await page.getByRole('button', { name: 'Start reading' }).click();
+  await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
+    timeout: 30_000,
+  });
+
+  await page.getByRole('link', { name: 'Readings' }).first().click();
+  const latest = page.getByTestId('past-run').first();
+  await expect(latest).toContainText('Grifo');
+  await expect(latest).toContainText('finished');
+  await expect(latest).toContainText('not charged');
+  await latest.click();
+
+  const record = page.getByTestId('run-costs');
+  await expect(record).toBeVisible();
+  await expect(record).toContainText('not charged');
+  await expect(record).toContainText('Tavola 102');
+  await expect(record.getByTestId('run-cost-sheet')).toContainText('Page 2, Table sheet');
+});

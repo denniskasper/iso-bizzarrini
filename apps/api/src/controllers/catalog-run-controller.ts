@@ -1,5 +1,6 @@
 import type {
   CatalogRunResponse,
+  CatalogRunsResponse,
   ContinueCatalogRunRequest,
   StartCatalogRunRequest,
   ReadAgainFromResponse,
@@ -63,6 +64,7 @@ export interface CatalogRunController {
   carryOn: RequestHandler;
   stop: RequestHandler;
   read: RequestHandler;
+  list: RequestHandler;
   readCatalog: RequestHandler;
   readSetAsidePage: RequestHandler;
   readAgain: RequestHandler;
@@ -160,6 +162,10 @@ export function createCatalogRunController(dependencies: {
     read: async (request, response) => {
       const { runId } = runParams.parse(request.params);
       response.json({ run: await catalogRunService.find(runId) } satisfies CatalogRunResponse);
+    },
+
+    list: async (_request, response) => {
+      response.json({ runs: await catalogRunService.list() } satisfies CatalogRunsResponse);
     },
 
     readCatalog: async (request, response, next) => {

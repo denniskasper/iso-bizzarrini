@@ -7,12 +7,13 @@ import type {
 } from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
+import { RunCosts } from '@/components/readings/run-costs';
 import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button } from '@/components/ui/button';
 import { Field, Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
-import { useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from '@/lib/readings';
+import { dollars, useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from '@/lib/readings';
 
 /**
  * **One Catalog run** (issue #58). The run reads on the server, so this page is somewhere to look
@@ -21,7 +22,8 @@ import { useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from '@/lib/r
  *
  * Its one action follows its state (issue #59): Stop while it reads, Continue once it has stopped,
  * with a higher limit where the limit is what stopped it. Below, the pages it set aside rather than
- * guess their Tavola (issue #60), and who did what to it, and when.
+ * guess their Tavola (issue #60), its record of what each Tavola, sheet and Reading cost (issue
+ * #62), and who did what to it, and when.
  *
  * A run that reads one Unchecked Tavola again (issue #61) is the same page, named for that Tavola,
  * and while it is only estimated, starting it with a limit is the one action.
@@ -92,6 +94,7 @@ function RunRecord({ run }: { run: CatalogRun }) {
 
       <Tavole run={run} />
       <SetAside pages={run.setAside} />
+      <RunCosts run={run} />
       <Actions actions={run.actions} />
     </>
   );
@@ -407,8 +410,4 @@ function stateNamed(state: CatalogRunState): string {
     case 'failed':
       return 'Failed.';
   }
-}
-
-function dollars(amount: number): string {
-  return `$${amount.toFixed(2)}`;
 }

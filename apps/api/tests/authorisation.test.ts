@@ -109,6 +109,8 @@ const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
   // Reading one Unchecked Tavola again (issue #61).
   'GET /api/catalog-runs/read-again',
   'POST /api/catalog-runs/read-again',
+  // The list of past runs (issue #62).
+  'GET /api/catalog-runs',
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */

@@ -1,6 +1,7 @@
 import type { CatalogRun, ReadingSetup } from '@ricambi/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
+import { PastRuns } from '@/components/readings/past-runs';
 import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -19,6 +20,8 @@ import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
  * Below it, a Catalog run begins (issue #57): the catalog uploaded, its Model and pages chosen,
  * and what reading them would cost. Once there is an estimate, starting it with a spending limit
  * is the screen's one action (issue #58), and estimating steps back.
+ *
+ * Last, every run there has been, each opening its record of what it cost (issue #62).
  */
 export function ReadingsPage() {
   return (
@@ -54,6 +57,8 @@ function Readings() {
       <Method setup={setup.data} />
 
       {setup.data.available && <NewRun />}
+
+      <PastRuns />
     </div>
   );
 }

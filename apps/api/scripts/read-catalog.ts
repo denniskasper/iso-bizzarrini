@@ -7,10 +7,10 @@
  * pnpm archive:load -- --source ../catalog-reading --dry-run
  * ```
  *
- * The directory is the Club's material and is refused inside this repository. `listings.csv` in
- * each Tavola's directory opens in Excel and may be corrected there before it is loaded; what is
- * loaded arrives Unchecked, for an Editor to compare with the sheets and publish. The procedure
- * is in `docs/operations/catalog-reading.md`.
+ * A developer tool: the Club reads its catalog inside Ricambi (ADR 0018). The directory is the
+ * Club's material and is refused inside this repository; what is loaded from it arrives
+ * Unchecked, for an Editor to check and publish in Ricambi. The procedure is in
+ * `docs/operations/catalog-reading.md`.
  *
  * It reads with Claude Code's subscription login, which is not charged, or with an API key in
  * `ANTHROPIC_API_KEY`, which is billed per use. Where there are both, `--with subscription` or

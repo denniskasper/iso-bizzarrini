@@ -57,6 +57,8 @@ export type CatalogRunEnd =
 export interface CatalogRunRepository {
   add(run: NewCatalogRunRow): Promise<CatalogRunRow>;
   findById(id: string): Promise<CatalogRunWithModel | null>;
+  /** Every run with the Model it is for, the latest first (issue #62). */
+  list(): Promise<{ run: CatalogRunRow; model: ModelRow }[]>;
   /**
    * An estimated run set running. `'another is running'` where one already is: the database
    * keeps it to one at a time. `'not estimated'` where this one has been started before.
@@ -166,6 +168,14 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         tavole: finished,
         actions: actions.map(({ action, byName }) => ({ ...action, byName })),
       };
+    },
+
+    async list() {
+      return db
+        .select({ run: catalogRuns, model: models })
+        .from(catalogRuns)
+        .innerJoin(models, eq(models.id, catalogRuns.modelId))
+        .orderBy(desc(catalogRuns.createdAt), desc(catalogRuns.id));
     },
 
     async start(id, { limit, at, by }) {

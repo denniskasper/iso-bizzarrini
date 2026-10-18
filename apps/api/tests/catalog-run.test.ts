@@ -226,4 +226,20 @@ describe('a Catalog run that fails', () => {
     await start(administrator, next, { limit: 1 }).expect(202);
     await settled(administrator, next);
   });
+
+  it('fails, rather than stopping the server, when it has nowhere to work', async () => {
+    const administrator = (await givenAnAdministrator(app)).agent;
+    const model = await givenModel(app.db, { brand: 'Iso', name: 'Fidia' });
+    const run = await estimated(administrator, model);
+
+    const scratch = process.env.TMPDIR;
+    process.env.TMPDIR = '/nowhere/ricambi-test';
+    try {
+      await start(administrator, run, { limit: 1 }).expect(202);
+      expect((await settled(administrator, run)).state).toBe('failed');
+    } finally {
+      process.env.TMPDIR = scratch;
+    }
+    await administrator.get('/api/catalog-runs').expect(200);
+  });
 });

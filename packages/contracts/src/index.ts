@@ -523,6 +523,88 @@ export interface CatalogRun {
    * catalog it was found on, which are all the run reads. `null` for a run of the catalog.
    */
   readsAgain: { tavola: string; pages: number[] } | null;
+  /**
+   * **Its record** (issue #62): what each time it read cost, the first and then one for each time
+   * it was continued, as `cost.json` held it. Empty until it has spent something.
+   */
+  costs: CatalogRunCostRecord[];
+}
+
+/** One request's token counts, as the response reported them, and what they cost in dollars. */
+export interface CatalogRunSpent {
+  input: number;
+  output: number;
+  cost: number;
+}
+
+/** What one page placed in a Tavola cost. */
+export interface CatalogRunSheetCost {
+  page: number;
+  kind: 'drawing' | 'table';
+  /** Everything below added up. */
+  cost: number;
+  /** Asking what the page is. Nothing where an earlier run had already asked. */
+  identification: CatalogRunSpent;
+  /** On a Table sheet, its two Readings. Empty on a drawing. */
+  readings: (CatalogRunSpent & { reading: 1 | 2 })[];
+  /** On a drawing, each request that read its numbers into proposed Marks. Empty on a sheet. */
+  marks: CatalogRunSpent[];
+}
+
+/** One time a Catalog run read, from being started or continued to stopping or finishing. */
+export interface CatalogRunCostRecord {
+  /** 1 for the first time, then one more for each time it was continued. */
+  time: number;
+  /** The prices it was costed at, in `currency` per million tokens, and when they were checked. */
+  priceList: {
+    model: string;
+    inputPerMillion: number;
+    outputPerMillion: number;
+    currency: string;
+    checkedOn: string;
+  };
+  /** What was left of the run's limit this time, and what reading the rest was estimated at. */
+  limit: number;
+  estimate: number;
+  total: number;
+  /**
+   * Why it stopped before it had read everything: the spending limit, the plan's usage limit, the
+   * model failing or declining, or an Administrator asking. `null` where it did not stop.
+   */
+  stopped: 'spending-limit' | 'usage-limit' | 'method-failed' | 'asked' | null;
+  tavole: {
+    number: string;
+    finished: boolean;
+    cost: number;
+    sheets: CatalogRunSheetCost[];
+    /** Its Italian put into English. `null` where nothing was sent. */
+    translation: CatalogRunSpent | null;
+  }[];
+  /** Pages asked what they are that went into no Tavola. */
+  setAside: { page: number; identification: CatalogRunSpent }[];
+}
+
+/**
+ * `GET /api/catalog-runs` — **every Catalog run, the latest first** (issue #62), for the Readings
+ * section. Each opens its record at `GET /api/catalog-runs/:runId`. An Administrator's alone, and
+ * 404 to anybody else.
+ */
+export interface CatalogRunsResponse {
+  runs: CatalogRunListed[];
+}
+
+export interface CatalogRunListed {
+  id: string;
+  model: CatalogRun['model'];
+  state: CatalogRunState;
+  createdAt: string;
+  startedAt: string | null;
+  /** What it has cost, or would have cost where it is not charged, in dollars. */
+  spent: number;
+  estimate: number;
+  readingMethod: ReadingMethodKind;
+  charged: boolean;
+  readsAgain: CatalogRun['readsAgain'];
 }
 
 export interface CatalogRunSetAsidePage {

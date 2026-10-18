@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   CatalogRunResponse,
+  CatalogRunsResponse,
   ContinueCatalogRunRequest,
   ReadAgainFromResponse,
   ReadAgainRequest,
@@ -284,6 +285,8 @@ export const api = {
       }).toString()}`,
       { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: catalog },
     ),
+  /** Every Catalog run, the latest first (issue #62). */
+  catalogRuns: () => request<CatalogRunsResponse>('/catalog-runs'),
   catalogRun: (runId: string) => request<CatalogRunResponse>(`/catalog-runs/${runId}`),
   startCatalogRun: (runId: string, start: StartCatalogRunRequest) =>
     send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/start`, start),

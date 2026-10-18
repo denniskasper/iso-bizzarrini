@@ -4,7 +4,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import type { CatalogRun, CatalogRunTavola } from '@ricambi/contracts';
+import type {
+  CatalogRun,
+  CatalogRunCostRecord,
+  CatalogRunListed,
+  CatalogRunSpent,
+  CatalogRunTavola,
+} from '@ricambi/contracts';
 import type { ConfiguredReading } from '../composition/reading.js';
 import type { Db } from '../db/client.js';
 import {
@@ -20,7 +26,7 @@ import {
   ReadCatalogError,
   readCatalogInto,
 } from '../reading/catalog-reading.js';
-import { Spending, dollars, rounded } from '../reading/cost.js';
+import { Spending, dollars, rounded, type CostRecord, type Spent } from '../reading/cost.js';
 import { estimatePage } from '../reading/estimate.js';
 import { PdfNotReadable, pdfPageCount, pdfPages, pdfPagesNamed } from '../reading/pdf-pages.js';
 import { PRICE_LIST, priceOf } from '../reading/price-list.js';
@@ -67,6 +73,8 @@ export interface NewCatalogRun {
  * One Unchecked Tavola read badly can be read again on its own (issue #61): a run of its own,
  * reading only the pages the run that read it found it on, from that run's catalog, with what
  * those pages were found to be carried over. The loader replaces the Tavola whole when it finishes.
+ *
+ * Every run is kept, with the record of what it cost (issue #62), and listed the latest first.
  */
 export interface CatalogRunService {
   estimate(request: NewCatalogRun): Promise<CatalogRun>;
@@ -76,6 +84,8 @@ export interface CatalogRunService {
    */
   start(runId: string, start: { limit: number; by: string }): Promise<CatalogRun>;
   find(runId: string): Promise<CatalogRun>;
+  /** Every run, the latest first. */
+  list(): Promise<CatalogRunListed[]>;
   /** The uploaded PDF, or `null` when there is no such run. */
   openCatalog(runId: string): Promise<StoredFile | null>;
   /** The image of a page the run set aside, or `null` when it set no such page aside. */
@@ -144,8 +154,11 @@ export function createCatalogRunService(dependencies: {
   ): Promise<void> {
     const reader = { stopAsked: false };
     readers.set(runId, reader);
-    const directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-run-'));
+    // Nothing here may escape: nobody awaits a run, and a rejection nobody handles stops the
+    // whole server. Whatever goes wrong, even making the scratch directory, ends the run instead.
+    let directory: string | undefined;
     try {
+      directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-run-'));
       const found = await catalogRunRepository.findById(runId);
       const catalog = found && (await fileStore.open(found.run.catalogKey));
       if (!found || !catalog) {
@@ -208,7 +221,11 @@ export function createCatalogRunService(dependencies: {
       });
     } finally {
       readers.delete(runId);
-      await rm(directory, { recursive: true, force: true });
+      if (directory) {
+        await rm(directory, { recursive: true, force: true }).catch((failed: unknown) => {
+          logger.warn({ err: failed, runId }, 'Could not remove a Catalog run’s scratch directory');
+        });
+      }
     }
   }
 
@@ -262,6 +279,21 @@ export function createCatalogRunService(dependencies: {
 
   return {
     find,
+
+    async list() {
+      return (await catalogRunRepository.list()).map(({ run, model }) => ({
+        id: run.id,
+        model: modelOf(model),
+        state: run.state,
+        createdAt: run.createdAt.toISOString(),
+        startedAt: run.startedAt?.toISOString() ?? null,
+        spent: run.spent,
+        estimate: run.estimate,
+        readingMethod: run.readingMethod,
+        charged: run.charged,
+        readsAgain: run.readsAgain,
+      }));
+    },
 
     async estimate({ modelId, firstPage, lastPage, catalog, by }) {
       const { method, kind, price } = pricedMethod();
@@ -590,7 +622,7 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
   return {
     id: run.id,
     state: run.state,
-    model: { id: model.id, brand: model.brand, name: model.name, series: model.series },
+    model: modelOf(model),
     pages: { first: run.firstPage, last: run.lastPage },
     catalogPages: run.catalogPages,
     estimate: run.estimate,
@@ -616,7 +648,59 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
       image: `/api/catalog-runs/${run.id}/set-aside/${page}`,
     })),
     readsAgain: run.readsAgain,
+    // A run's records are kept by the time they were read; one never recorded is a gap.
+    costs: run.costs.filter(Boolean).map(costRecordOf),
   };
+}
+
+function modelOf(model: CatalogRunWithModel['model']): CatalogRun['model'] {
+  return { id: model.id, brand: model.brand, name: model.name, series: model.series };
+}
+
+/**
+ * A cost record as the run page shows it. Its own Reading method's name is left out: the run says
+ * which kind of method read it, and a name might say whose subscription it was.
+ */
+function costRecordOf(record: CostRecord): CatalogRunCostRecord {
+  return {
+    time: record.run,
+    priceList: {
+      model: record.model,
+      inputPerMillion: record.priceList.inputPerMillion,
+      outputPerMillion: record.priceList.outputPerMillion,
+      currency: record.priceList.currency,
+      checkedOn: record.priceList.checkedOn,
+    },
+    limit: record.limit,
+    estimate: record.estimate,
+    total: record.total,
+    stopped: record.stopped,
+    tavole: record.tavole.map((tavola) => ({
+      number: tavola.number,
+      finished: tavola.finished,
+      cost: tavola.cost,
+      sheets: tavola.sheets.map((sheet) => ({
+        page: sheet.page,
+        kind: sheet.kind,
+        cost: sheet.cost,
+        identification: spentOf(sheet.identification),
+        readings: sheet.readings.map((reading) => ({
+          reading: reading.reading,
+          ...spentOf(reading),
+        })),
+        marks: sheet.numbers.map(spentOf),
+      })),
+      translation: tavola.translation && spentOf(tavola.translation),
+    })),
+    setAside: record.setAside.map((sheet) => ({
+      page: sheet.page,
+      identification: spentOf(sheet.identification),
+    })),
+  };
+}
+
+function spentOf({ tokens, cost }: Spent): CatalogRunSpent {
+  return { input: tokens.input, output: tokens.output, cost };
 }
 
 /**

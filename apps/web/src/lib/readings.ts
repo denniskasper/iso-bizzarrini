@@ -27,6 +27,15 @@ export function useEstimateCatalogRun() {
   });
 }
 
+/**
+ * Every Catalog run, the latest first, each opening its record (issue #62). Asked afresh on every
+ * visit: a run moves on the server while nobody is looking, so a list kept from before it started
+ * would leave it out.
+ */
+export function useCatalogRuns() {
+  return useQuery({ queryKey: ['catalog-runs'], queryFn: api.catalogRuns, staleTime: 0 });
+}
+
 export const catalogRunQueryKey = (runId: string) => ['catalog-runs', runId] as const;
 
 /**
@@ -96,4 +105,9 @@ export function useReadAgain() {
       queryClient.setQueryData(catalogRunQueryKey(data.run.id), data);
     },
   });
+}
+
+/** Dollars to the cent, as every figure of a Catalog run is shown. */
+export function dollars(amount: number): string {
+  return `$${amount.toFixed(2)}`;
 }
