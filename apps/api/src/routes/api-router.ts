@@ -190,6 +190,13 @@ export function createApiRouter(dependencies: {
     gate.hiddenFromAllButAdministrators,
     catalogRunController.read,
   );
+  // Started with a spending limit, and read in the background (issue #58). Only an Administrator
+  // spends the Club's money.
+  router.post(
+    '/catalog-runs/:runId/start',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.start,
+  );
   router.get(
     '/catalog-runs/:runId/catalog',
     gate.hiddenFromAllButAdministrators,

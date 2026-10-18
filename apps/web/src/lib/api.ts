@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   CatalogRunResponse,
+  StartCatalogRunRequest,
   ReadingSetup,
   EnglishNameRequest,
   ContributionResponse,
@@ -280,6 +281,9 @@ export const api = {
       }).toString()}`,
       { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: catalog },
     ),
+  catalogRun: (runId: string) => request<CatalogRunResponse>(`/catalog-runs/${runId}`),
+  startCatalogRun: (runId: string, start: StartCatalogRunRequest) =>
+    send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/start`, start),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

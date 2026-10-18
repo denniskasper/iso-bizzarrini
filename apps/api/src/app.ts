@@ -338,6 +338,8 @@ export function createApp(dependencies: AppDependencies): Express {
       modelRepository,
       fileStore,
       clock,
+      db,
+      logger,
     }),
   });
   const retentionController = createRetentionController({ gate, retentionService });

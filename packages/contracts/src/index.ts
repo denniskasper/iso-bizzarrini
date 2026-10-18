@@ -432,10 +432,26 @@ export interface ReadingSetup {
 }
 
 /**
- * Where a Catalog run stands (issue #57). `estimated` is all there is until starting arrives:
- * the catalog is uploaded and priced, and nothing has been read.
+ * Where a Catalog run stands (issues #57, #58). `estimated`: uploaded and priced, nothing read.
+ * `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
+ * stopped before the next sheet could pass the spending limit, or at the subscription plan's
+ * usage limit, or `failed`, with the reason.
  */
-export type CatalogRunState = 'estimated';
+export type CatalogRunState =
+  'estimated' | 'running' | 'finished' | 'stopped-at-limit' | 'stopped-at-usage-limit' | 'failed';
+
+/** One Tavola of a Catalog run, as the run page lists it. */
+export interface CatalogRunTavola {
+  number: string;
+  /** Whether it was read whole. One the run stopped in the middle of is not. */
+  finished: boolean;
+  /** In dollars, at the price list's prices: what it cost, or would have cost, so far. */
+  cost: number;
+  /** The Unchecked Tavola it became, or `null` where it has not become one. */
+  tavolaId: string | null;
+  /** Why it was not loaded into the archive, where it was not: it is Published, say. */
+  refused: string | null;
+}
 
 /**
  * `POST /api/catalog-runs?modelId=&firstPage=&lastPage=`, with the catalog PDF as the body, and
@@ -459,10 +475,29 @@ export interface CatalogRun {
   /** The model the run is priced for, and the date its prices were checked. */
   priceList: { model: string; checkedOn: string };
   createdAt: string;
+  /** The most it may cost, in dollars, given when it was started. `null` before then. */
+  limit: number | null;
+  /** What it has cost so far, in dollars: the running total held against `limit`. */
+  spent: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  /** Why a `failed` run failed, in words with no credential in them. */
+  failure: string | null;
+  /** Each Tavola the run has found, in the order it reads them. */
+  tavole: CatalogRunTavola[];
 }
 
 export interface CatalogRunResponse {
   run: CatalogRun;
+}
+
+/**
+ * `POST /api/catalog-runs/:runId/start` — an estimated run started, held to `limit` dollars.
+ * There is no default limit, and one below the estimate is refused. Answers `CatalogRunResponse`
+ * at once: the reading goes on in the background.
+ */
+export interface StartCatalogRunRequest {
+  limit: number;
 }
 
 /** Which way a quarter turn goes, looking at the drawing. */

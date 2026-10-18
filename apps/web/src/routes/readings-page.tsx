@@ -1,11 +1,12 @@
 import type { CatalogRun, ReadingSetup } from '@ricambi/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, Refusal, Select } from '@/components/ui/field';
 import { api, refusalText } from '@/lib/api';
-import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
+import { useEstimateCatalogRun, useReadingSetup, useStartCatalogRun } from '@/lib/readings';
 
 /**
  * **The Readings section** (issue #55, ADR 0018): what this server reads the factory catalog
@@ -16,8 +17,8 @@ import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
  * subscription it is; the API does not know how to say either.
  *
  * Below it, a Catalog run begins (issue #57): the catalog uploaded, its Model and pages chosen,
- * and what reading them would cost. Estimating is the screen's one action; starting arrives
- * later, from the estimate.
+ * and what reading them would cost. Once there is an estimate, starting it with a spending limit
+ * is the screen's one action (issue #58), and estimating steps back.
  */
 export function ReadingsPage() {
   return (
@@ -211,13 +212,23 @@ function NewRun() {
         {estimate.error && <Refusal>{refusalText(estimate.error)}</Refusal>}
 
         <div>
-          <Button type="submit" variant="primary" size="lg" disabled={!ready || estimate.isPending}>
+          <Button
+            type="submit"
+            variant={estimate.data ? 'outline' : 'primary'}
+            size="lg"
+            disabled={!ready || estimate.isPending}
+          >
             {estimate.isPending ? 'Estimating…' : 'Estimate the cost'}
           </Button>
         </div>
       </form>
 
-      {estimate.data && <Estimate run={estimate.data.run} />}
+      {estimate.data && (
+        <>
+          <Estimate run={estimate.data.run} />
+          <Start run={estimate.data.run} />
+        </>
+      )}
     </section>
   );
 }
@@ -243,5 +254,62 @@ function Estimate({ run }: { run: CatalogRun }) {
         whichever costs more: a Table sheet read twice, or a drawing with its numbers read.
       </p>
     </div>
+  );
+}
+
+/**
+ * **Starting the run** (issue #58), with a limit the Administrator types: there is no default,
+ * so nothing is spent because a box was left as it came. It reads on the server from then on,
+ * and the run's own page is where it is watched.
+ */
+function Start({ run }: { run: CatalogRun }) {
+  const start = useStartCatalogRun();
+  const navigate = useNavigate();
+  const [limit, setLimit] = useState('');
+  const dollars = Number(limit);
+
+  return (
+    <form
+      className="mt-10 flex flex-col gap-6 border-t border-line pt-10"
+      onSubmit={(event) => {
+        event.preventDefault();
+        start.mutate(
+          { runId: run.id, limit: dollars },
+          {
+            onSuccess: () =>
+              void navigate({ to: '/readings/runs/$runId', params: { runId: run.id } }),
+          },
+        );
+      }}
+    >
+      <Field
+        label="Spending limit, in dollars"
+        hint="The run never passes it. It stops before any sheet that could, and keeps every Tavola it has read."
+        type="number"
+        inputMode="decimal"
+        min={0.01}
+        step={0.01}
+        mono
+        className="sm:max-w-xs"
+        value={limit}
+        onChange={(event) => {
+          start.reset();
+          setLimit(event.target.value);
+        }}
+      />
+
+      {start.error && <Refusal>{refusalText(start.error)}</Refusal>}
+
+      <div>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={limit === '' || !(dollars > 0) || start.isPending}
+        >
+          {start.isPending ? 'Starting…' : 'Start reading'}
+        </Button>
+      </div>
+    </form>
   );
 }

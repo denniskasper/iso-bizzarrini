@@ -130,7 +130,8 @@ export interface ReadTavoleLoadOptions {
   logger: Logger;
   /** What the Tavole were read from, for the report. */
   reading: string;
-  model: { brand: string; name: string };
+  /** Found, or added, by all three. A reading directory names no series. */
+  model: { brand: string; name: string; series?: string | null };
   tavole: ReadTavola[];
   dryRun?: boolean;
 }
@@ -186,7 +187,7 @@ export async function loadReadTavole(options: ReadTavoleLoadOptions): Promise<Re
     const model = await writer.findOrAddModel({
       brand: options.model.brand,
       name: options.model.name,
-      series: null,
+      series: options.model.series ?? null,
       modelYears: null,
     });
 

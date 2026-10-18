@@ -1,4 +1,4 @@
-import type { CatalogRunResponse } from '@ricambi/contracts';
+import type { CatalogRunResponse, StartCatalogRunRequest } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { Gate } from '../access/gate.js';
@@ -23,8 +23,23 @@ const estimateQuery = z
 
 const runParams = z.object({ runId: z.uuid('That is not a Catalog run id.') });
 
+const LIMIT_NEEDED =
+  'Give a spending limit in dollars. There is no default, so that nobody spends by accident; ' +
+  'the run never passes the limit it is given.';
+
+const startBody: z.ZodType<StartCatalogRunRequest> = z.object(
+  {
+    limit: z
+      .number(LIMIT_NEEDED)
+      .positive(LIMIT_NEEDED)
+      .max(1_000_000, 'That limit is more than a catalog could cost.'),
+  },
+  LIMIT_NEEDED,
+);
+
 export interface CatalogRunController {
   estimate: RequestHandler;
+  start: RequestHandler;
   read: RequestHandler;
   readCatalog: RequestHandler;
 }
@@ -58,6 +73,19 @@ export function createCatalogRunController(dependencies: {
         by: gate.whoIsSignedIn(response).account.id,
       });
       response.status(201).json({ run } satisfies CatalogRunResponse);
+    },
+
+    start: async (request, response) => {
+      const { runId } = runParams.parse(request.params);
+      const body = startBody.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError(body.error.issues[0]?.message ?? LIMIT_NEEDED);
+      }
+      const run = await catalogRunService.start(runId, {
+        limit: body.data.limit,
+        by: gate.whoIsSignedIn(response).account.id,
+      });
+      response.status(202).json({ run } satisfies CatalogRunResponse);
     },
 
     read: async (request, response) => {

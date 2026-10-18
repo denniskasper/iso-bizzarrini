@@ -16,6 +16,7 @@ import { MembershipPage } from '@/routes/membership-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
 import { PrivacyPage } from '@/routes/privacy-page';
+import { CatalogRunPage } from '@/routes/catalog-run-page';
 import { ReadingsPage } from '@/routes/readings-page';
 import { RemindersPage } from '@/routes/reminders-page';
 import { ReviewPage } from '@/routes/review-page';
@@ -154,6 +155,13 @@ const readingsRoute = createRoute({
   component: ReadingsPage,
 });
 
+/** One Catalog run as it reads, and once it has (issue #58). An Administrator's, like Readings. */
+const catalogRunRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/readings/runs/$runId',
+  component: CatalogRunPage,
+});
+
 const clubRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/club',
@@ -280,6 +288,7 @@ export const router = createRouter({
     clubRoute,
     remindersRoute,
     readingsRoute,
+    catalogRunRoute,
     privacyRoute,
     membershipRoute,
     legalNoticeRoute,

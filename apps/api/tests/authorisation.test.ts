@@ -99,6 +99,8 @@ const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
   'POST /api/catalog-runs',
   'GET /api/catalog-runs/:runId',
   'GET /api/catalog-runs/:runId/catalog',
+  // Starting one (issue #58).
+  'POST /api/catalog-runs/:runId/start',
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */

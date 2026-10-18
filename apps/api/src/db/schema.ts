@@ -18,6 +18,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -26,6 +27,8 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import type { CostRecord } from '../reading/cost.js';
+import type { SheetIdentity } from '../reading/reading-method.js';
 
 /**
  * A fixed set of values written into a check constraint, from the same list the application
@@ -533,8 +536,15 @@ export const readingDoubts = pgTable(
   (table) => [index('reading_doubts_tavola_id_index').on(table.tavolaId)],
 );
 
-/** Where a Catalog run stands (issue #57). Starting, stopping and finishing add to it. */
-export const CATALOG_RUN_STATES = ['estimated'] as const satisfies readonly CatalogRunState[];
+/** Where a Catalog run stands (issues #57, #58). */
+export const CATALOG_RUN_STATES = [
+  'estimated',
+  'running',
+  'finished',
+  'stopped-at-limit',
+  'stopped-at-usage-limit',
+  'failed',
+] as const satisfies readonly CatalogRunState[];
 
 /**
  * A **Catalog run** (ADR 0018): one Administrator-started pass over one uploaded catalog PDF for
@@ -574,6 +584,19 @@ export const catalogRuns = pgTable(
     createdBy: uuid('created_by').references((): AnyPgColumn => accounts.id, {
       onDelete: 'set null',
     }),
+    /** The most it may cost, in dollars, given when it was started. There is no default. */
+    spendingLimit: doublePrecision('spending_limit'),
+    /** What it has cost so far, in dollars: the running total, after every finished Tavola. */
+    spent: doublePrecision('spent').notNull().default(0),
+    /** The read command's `cost.json`, kept here: what each Tavola, sheet and Reading cost. */
+    cost: jsonb('cost').$type<CostRecord>(),
+    /** Why a failed run failed, in words with no credential in them. */
+    failure: text('failure'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    startedBy: uuid('started_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
   },
   (table) => [
     check('catalog_runs_state_is_known', sql`${table.state} in (${oneOf(CATALOG_RUN_STATES)})`),
@@ -581,8 +604,51 @@ export const catalogRuns = pgTable(
       'catalog_runs_pages_run_forwards',
       sql`1 <= ${table.firstPage} and ${table.firstPage} <= ${table.lastPage} and ${table.lastPage} <= ${table.catalogPages}`,
     ),
+    check(
+      'catalog_runs_started_with_a_limit',
+      sql`${table.state} = 'estimated' or ${table.spendingLimit} > 0`,
+    ),
     index('catalog_runs_model_id_index').on(table.modelId),
+    // **One Catalog run at a time** (issue #58), so two never spend against each other or read the
+    // same Tavole. Refused by the database, so two Administrators starting at once cannot both.
+    uniqueIndex('catalog_runs_one_running')
+      .on(table.state)
+      .where(sql`${table.state} = 'running'`),
   ],
+);
+
+/** What each page of a Catalog run was found to be, so a page is never asked about twice. */
+export const catalogRunPages = pgTable(
+  'catalog_run_pages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => catalogRuns.id, { onDelete: 'cascade' }),
+    page: integer('page').notNull(),
+    identity: jsonb('identity').notNull().$type<SheetIdentity>(),
+  },
+  (table) => [uniqueIndex('catalog_run_pages_page_unique').on(table.runId, table.page)],
+);
+
+/**
+ * Each Tavola a Catalog run finished and handed to the loader: the Unchecked Tavola it became,
+ * or why the loader refused it. What it cost is in the run's cost record.
+ */
+export const catalogRunTavole = pgTable(
+  'catalog_run_tavole',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => catalogRuns.id, { onDelete: 'cascade' }),
+    number: text('number').notNull(),
+    /** `null` where it was refused, or where it has since been replaced or deleted. */
+    tavolaId: uuid('tavola_id').references(() => tavole.id, { onDelete: 'set null' }),
+    refused: text('refused'),
+    finishedAt: timestamp('finished_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex('catalog_run_tavole_number_unique').on(table.runId, table.number)],
 );
 
 /**
@@ -1380,6 +1446,7 @@ export type TableSheetRow = typeof tableSheets.$inferSelect;
 export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
 export type CatalogRunRow = typeof catalogRuns.$inferSelect;
 export type NewCatalogRunRow = typeof catalogRuns.$inferInsert;
+export type CatalogRunTavolaRow = typeof catalogRunTavole.$inferSelect;
 export type NewScanRow = typeof scans.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;
