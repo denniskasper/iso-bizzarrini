@@ -56,6 +56,9 @@ export const practiceModels = [
   { brand: 'Bizzarrini', name: '5300 GT Strada', series: null, modelYears: '1965–68' },
   { brand: 'Iso', name: 'Grifo', series: 'GL 365', modelYears: '1965–68' },
   { brand: 'Iso', name: 'Rivolta IR 300', series: null, modelYears: '1962–70' },
+  // No Tavole of its own: the one a practice Catalog run reads into, so trying a run never
+  // changes what the other cars show (the browser suite counts their sheets).
+  { brand: 'Iso', name: 'Fidia', series: null, modelYears: '1967–74' },
 ];
 
 /** Keyed by the Model above they belong to, since a Tavola belongs to exactly one (ADR 0002). */

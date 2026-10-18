@@ -3,6 +3,19 @@ import { fixturePdf } from './support/catalog-pdf.js';
 import { signIn } from './support/gate.js';
 
 /**
+ * **One run at a time, into a car nobody else counts.** The archive reads one Catalog run at a
+ * time, so these run one after another, on the desktop project only, and every one reads into the
+ * Fidia, which the practice archive keeps empty for it: the specs that count Grifo's sheets never
+ * see a Tavola read here.
+ */
+test.describe.configure({ mode: 'serial' });
+test.beforeEach(() => {
+  // Both projects share one server, and a run started by one would hold the other's back.
+  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
+});
+const READ_INTO = 'Iso Fidia';
+
+/**
  * Beginning a Catalog run, in a real browser (issue #57): the catalog uploaded, a Model and the
  * pages chosen, and the estimate shown. Who may do it, and the figures themselves, are proved at
  * the API seam.
@@ -20,8 +33,7 @@ test('an Administrator uploads a catalog and sees what reading it would cost', a
     mimeType: 'application/pdf',
     buffer: fixturePdf(5),
   });
-  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
-  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('2');
   await page.getByLabel('To page').fill('4');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
@@ -42,7 +54,6 @@ test('an Administrator uploads a catalog and sees what reading it would cost', a
 test('an Administrator starts a run, watches it finish and opens a Tavola it read', async ({
   page,
 }) => {
-  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
   await signIn(page);
   await page.getByRole('link', { name: 'Readings' }).click();
 
@@ -51,8 +62,7 @@ test('an Administrator starts a run, watches it finish and opens a Tavola it rea
     mimeType: 'application/pdf',
     buffer: fixturePdf(5),
   });
-  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
-  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('2');
   await page.getByLabel('To page').fill('4');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
@@ -83,7 +93,6 @@ test('an Administrator starts a run, watches it finish and opens a Tavola it rea
 test('an Administrator raises the limit of a stopped run and continues it to the end', async ({
   page,
 }) => {
-  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
   await signIn(page);
   await page.getByRole('link', { name: 'Readings' }).click();
 
@@ -92,8 +101,7 @@ test('an Administrator raises the limit of a stopped run and continues it to the
     mimeType: 'application/pdf',
     buffer: fixturePdf(5),
   });
-  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
-  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('2');
   await page.getByLabel('To page').fill('4');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
@@ -125,7 +133,6 @@ test('an Administrator raises the limit of a stopped run and continues it to the
  * aside, with its image for the Administrator to open.
  */
 test('an Administrator sees a page a run set aside, and opens it', async ({ page }) => {
-  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
   await signIn(page);
   await page.getByRole('link', { name: 'Readings' }).click();
 
@@ -134,8 +141,7 @@ test('an Administrator sees a page a run set aside, and opens it', async ({ page
     mimeType: 'application/pdf',
     buffer: fixturePdf(5),
   });
-  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
-  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('4');
   await page.getByLabel('To page').fill('5');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
@@ -166,7 +172,6 @@ test('an Administrator sees a page a run set aside, and opens it', async ({ page
  * address, Unchecked, and the old one is gone.
  */
 test('an Administrator reads an Unchecked Tavola again and sees it replaced', async ({ page }) => {
-  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
   await signIn(page);
   await page.getByRole('link', { name: 'Readings' }).click();
 
@@ -175,8 +180,7 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
     mimeType: 'application/pdf',
     buffer: fixturePdf(5),
   });
-  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
-  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('3');
   await page.getByLabel('To page').fill('3');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
@@ -217,7 +221,6 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
 test('an Administrator opens a finished run’s record from the list of past runs', async ({
   page,
 }) => {
-  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
   await signIn(page);
   await page.getByRole('link', { name: 'Readings' }).click();
 
@@ -226,8 +229,7 @@ test('an Administrator opens a finished run’s record from the list of past run
     mimeType: 'application/pdf',
     buffer: fixturePdf(5),
   });
-  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
-  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('2');
   await page.getByLabel('To page').fill('2');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
@@ -239,7 +241,7 @@ test('an Administrator opens a finished run’s record from the list of past run
 
   await page.getByRole('link', { name: 'Readings' }).first().click();
   const latest = page.getByTestId('past-run').first();
-  await expect(latest).toContainText('Grifo');
+  await expect(latest).toContainText('Fidia');
   await expect(latest).toContainText('finished');
   await expect(latest).toContainText('not charged');
   await latest.click();

@@ -50,7 +50,7 @@ describe('a practice system writing itself a catalog', () => {
     const written = await seed();
 
     expect(written).toMatchObject({
-      models: 3,
+      models: 4,
       tavole: 5,
       drawings: 3,
       positions: 15,
@@ -65,7 +65,7 @@ describe('a practice system writing itself a catalog', () => {
 
     const member = await givenAnEditor(app);
     const response = await member.get('/api/models').expect(200);
-    expect(response.body.models).toHaveLength(3);
+    expect(response.body.models).toHaveLength(4);
   });
 
   // The reason this is safe to run on every boot.
@@ -380,10 +380,10 @@ describe('a practice system writing itself a catalog', () => {
     await emptyCatalog(app.db, createFileStore(app.filesPath));
 
     const again = await writePracticeArchive(dependencies());
-    expect(again).toMatchObject({ models: 3, parts: 6, listings: 8 });
+    expect(again).toMatchObject({ models: 4, parts: 6, listings: 8 });
 
     const member = await givenAnEditor(app);
     const models = await member.get('/api/models').expect(200);
-    expect(models.body.models).toHaveLength(3);
+    expect(models.body.models).toHaveLength(4);
   });
 });
