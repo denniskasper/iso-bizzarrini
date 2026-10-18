@@ -7,6 +7,7 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { Gate } from '../access/gate.js';
 import { NotFoundError, UnsupportedMediaTypeError, ValidationError } from '../http/errors.js';
+import { sendImage } from '../http/served-image.js';
 import type { CatalogRunService } from '../services/catalog-run-service.js';
 
 const page = (which: string) =>
@@ -26,6 +27,13 @@ const estimateQuery = z
   });
 
 const runParams = z.object({ runId: z.uuid('That is not a Catalog run id.') });
+
+const setAsideParams = runParams.extend({
+  page: z.coerce
+    .number('That is not a page.')
+    .int('That is not a page.')
+    .min(1, 'That is not a page.'),
+});
 
 const LIMIT_NEEDED =
   'Give a spending limit in dollars. There is no default, so that nobody spends by accident; ' +
@@ -51,6 +59,7 @@ export interface CatalogRunController {
   stop: RequestHandler;
   read: RequestHandler;
   readCatalog: RequestHandler;
+  readSetAsidePage: RequestHandler;
 }
 
 /**
@@ -138,6 +147,20 @@ export function createCatalogRunController(dependencies: {
       const file = catalog.stream();
       file.on('error', next);
       file.pipe(response);
+    },
+
+    readSetAsidePage: async (request, response, next) => {
+      const { runId, page } = setAsideParams.parse(request.params);
+      const image = await catalogRunService.openSetAsidePage(runId, page);
+      if (!image) {
+        throw new NotFoundError('That Catalog run set no such page aside.');
+      }
+      // A page of an uploaded catalog, rendered once: what is at this address never changes.
+      sendImage(request, response, next, {
+        ...image,
+        contentType: 'image/png',
+        etag: `"catalog-run-${runId}-set-aside-${page}"`,
+      });
     },
   };
 }

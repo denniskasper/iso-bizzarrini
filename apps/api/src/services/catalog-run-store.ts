@@ -6,7 +6,7 @@ import type { Logger } from '../platform/logger.js';
 import type { CostRecord } from '../reading/cost.js';
 import type { FinishedTavola, ReadingStore } from '../reading/reading-store.js';
 import type { CatalogRunRepository, StoppedState } from '../repositories/catalog-run-repository.js';
-import type { FileStore } from '../storage/file-store.js';
+import { setAsidePageKey, type FileStore } from '../storage/file-store.js';
 
 /**
  * **A Catalog run's store** (issue #58): where the reading core keeps its progress when Ricambi
@@ -17,6 +17,9 @@ import type { FileStore } from '../storage/file-store.js';
  * the archive as Unchecked while the run reads on, and an Editor can begin checking it. The loader
  * refuses a Published Tavola, and one with Contributions, as it always has: the run records why
  * and reads on.
+ *
+ * The pages it sets aside, a page whose Tavola number could not be read above all, are kept with
+ * their images for an Administrator to look at, as the read command keeps them (issue #60).
  *
  * What it was told is also what it answers when the run is continued, after a stop or a restart
  * (issue #59): the pages already placed and the Tavole already finished are not asked about again.
@@ -67,7 +70,16 @@ export function catalogRunStore(dependencies: {
       await catalogRunRepository.costed(runId, record);
     },
 
-    async ended({ cost }) {
+    async ended({ cost, setAside }) {
+      // Each time the run reads, it sets aside every page it has placed in no Tavola, the ones an
+      // earlier time found as well, so this list stands in place of the one before.
+      for (const page of setAside) {
+        await dependencies.fileStore.write(setAsidePageKey(runId, page.page), page.image);
+      }
+      await catalogRunRepository.setAside(
+        runId,
+        setAside.map(({ page, reason }) => ({ page, reason })),
+      );
       const state = cost.stopped === null ? 'finished' : STOPPED[cost.stopped];
       await catalogRunRepository.ended(runId, { state, cost }, clock.now());
     },

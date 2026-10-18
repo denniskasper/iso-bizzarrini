@@ -606,6 +606,12 @@ export const catalogRuns = pgTable(
      */
     costs: jsonb('costs').notNull().$type<CostRecord[]>().default([]),
     /**
+     * The pages that went into no Tavola, and why: one whose Tavola number could not be read is
+     * set aside for a person rather than guessed (issue #60). Each page's image is kept in the
+     * file store under the run, at `set-aside/page-N.png`.
+     */
+    setAside: jsonb('set_aside').notNull().$type<{ page: number; reason: string }[]>().default([]),
+    /**
      * Why a failed run failed, or why a stopped one stopped where its state does not say it all,
      * in words with no credential in them.
      */

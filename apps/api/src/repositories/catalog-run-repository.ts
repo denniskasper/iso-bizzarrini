@@ -93,6 +93,8 @@ export interface CatalogRunRepository {
   /** The cost record of one time reading, `cost.run`, kept beside the others. */
   costed(runId: string, cost: CostRecord): Promise<void>;
   ended(runId: string, end: CatalogRunEnd, at: Date): Promise<void>;
+  /** The pages the run put into no Tavola, and why, in place of any it set aside before. */
+  setAside(runId: string, pages: { page: number; reason: string }[]): Promise<void>;
 }
 
 export function createCatalogRunRepository(db: DbSession): CatalogRunRepository {
@@ -262,6 +264,13 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
             ? { state: end.state, ...(await withCost(runId, end.cost)), endedAt: at }
             : { state: end.state, failure: end.failure, endedAt: at },
         )
+        .where(eq(catalogRuns.id, runId));
+    },
+
+    async setAside(runId, pages) {
+      await db
+        .update(catalogRuns)
+        .set({ setAside: [...pages].sort((a, b) => a.page - b.page) })
         .where(eq(catalogRuns.id, runId));
     },
   };

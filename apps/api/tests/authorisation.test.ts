@@ -104,6 +104,8 @@ const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
   // Stopping and continuing one (issue #59).
   'POST /api/catalog-runs/:runId/continue',
   'POST /api/catalog-runs/:runId/stop',
+  // The pages one set aside (issue #60).
+  'GET /api/catalog-runs/:runId/set-aside/:page',
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */

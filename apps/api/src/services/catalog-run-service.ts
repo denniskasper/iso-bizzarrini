@@ -30,7 +30,12 @@ import {
   type CatalogRunWithModel,
 } from '../repositories/catalog-run-repository.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
-import { catalogRunKeyPrefix, type FileStore, type StoredFile } from '../storage/file-store.js';
+import {
+  catalogRunKeyPrefix,
+  setAsidePageKey,
+  type FileStore,
+  type StoredFile,
+} from '../storage/file-store.js';
 import { catalogRunStore } from './catalog-run-store.js';
 
 export interface NewCatalogRun {
@@ -67,6 +72,8 @@ export interface CatalogRunService {
   find(runId: string): Promise<CatalogRun>;
   /** The uploaded PDF, or `null` when there is no such run. */
   openCatalog(runId: string): Promise<StoredFile | null>;
+  /** The image of a page the run set aside, or `null` when it set no such page aside. */
+  openSetAsidePage(runId: string, page: number): Promise<StoredFile | null>;
   /**
    * A stopped run read on from where it stopped, its limit raised to `limit` first where one is
    * given. Answers as soon as it is running again.
@@ -411,6 +418,12 @@ export function createCatalogRunService(dependencies: {
       const found = await catalogRunRepository.findById(runId);
       return found ? fileStore.open(found.run.catalogKey) : null;
     },
+
+    async openSetAsidePage(runId, page) {
+      const found = await catalogRunRepository.findById(runId);
+      const setAside = found?.run.setAside.some((sheet) => sheet.page === page);
+      return setAside ? fileStore.open(setAsidePageKey(runId, page)) : null;
+    },
   };
 }
 
@@ -467,6 +480,11 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
       by: action.by && action.byName ? { id: action.by, name: action.byName } : null,
       at: action.at.toISOString(),
       limit: action.spendingLimit,
+    })),
+    setAside: run.setAside.map(({ page, reason }) => ({
+      page,
+      reason,
+      image: `/api/catalog-runs/${run.id}/set-aside/${page}`,
     })),
   };
 }

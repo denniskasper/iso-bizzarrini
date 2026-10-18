@@ -214,6 +214,12 @@ export function createApiRouter(dependencies: {
     gate.hiddenFromAllButAdministrators,
     catalogRunController.readCatalog,
   );
+  // The pages a run set aside, to look at (issue #60). As private as the catalog they came from.
+  router.get(
+    '/catalog-runs/:runId/set-aside/:page',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readSetAsidePage,
+  );
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);

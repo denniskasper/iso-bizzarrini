@@ -118,3 +118,44 @@ test('an Administrator raises the limit of a stopped run and continues it to the
   await expect(page.getByRole('link', { name: 'Open, Unchecked' })).toHaveCount(3);
   await expect(page.getByTestId('run-actions')).toContainText('Limit raised to $1.00');
 });
+
+/**
+ * **A page set aside, shown rather than guessed** (issue #60). The practice server's fake method
+ * cannot read page 5's Tavola number, so a run over pages 4 and 5 reads Tavola 104 and sets page 5
+ * aside, with its image for the Administrator to open.
+ */
+test('an Administrator sees a page a run set aside, and opens it', async ({ page }) => {
+  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
+  await signIn(page);
+  await page.getByRole('link', { name: 'Readings' }).click();
+
+  await page.getByTestId('catalog-file').setInputFiles({
+    name: 'catalog.pdf',
+    mimeType: 'application/pdf',
+    buffer: fixturePdf(5),
+  });
+  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
+  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('From page').fill('4');
+  await page.getByLabel('To page').fill('5');
+  await page.getByRole('button', { name: 'Estimate the cost' }).click();
+  await expect(page.getByTestId('catalog-estimate')).toBeVisible();
+
+  await page.getByLabel('Spending limit, in dollars').fill('1');
+  await page.getByRole('button', { name: 'Start reading' }).click();
+
+  await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
+    timeout: 30_000,
+  });
+  const setAside = page.getByTestId('run-set-aside-page');
+  await expect(setAside).toHaveCount(1);
+  await expect(setAside).toContainText('Page 5');
+  await expect(setAside).toContainText('Its Tavola number could not be read.');
+
+  const opened = page.waitForEvent('popup');
+  await setAside.getByRole('link', { name: 'Open the page' }).click();
+  const image = await opened;
+  const response = await page.request.get(image.url());
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toBe('image/png');
+});

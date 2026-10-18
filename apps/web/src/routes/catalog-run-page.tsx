@@ -1,6 +1,7 @@
 import type {
   CatalogRun,
   CatalogRunAction,
+  CatalogRunSetAsidePage,
   CatalogRunState,
   CatalogRunTavola,
 } from '@ricambi/contracts';
@@ -18,7 +19,8 @@ import { useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from '@/lib/r
  * Tavola it has found, with what it cost and a way to its Unchecked page as soon as it is there.
  *
  * Its one action follows its state (issue #59): Stop while it reads, Continue once it has stopped,
- * with a higher limit where the limit is what stopped it. Below, who did what to it, and when.
+ * with a higher limit where the limit is what stopped it. Below, the pages it set aside rather than
+ * guess their Tavola (issue #60), and who did what to it, and when.
  */
 export function CatalogRunPage() {
   return (
@@ -83,6 +85,7 @@ function RunRecord({ run }: { run: CatalogRun }) {
       {STOPPED.includes(run.state) && <Continue key={String(run.limit)} run={run} />}
 
       <Tavole run={run} />
+      <SetAside pages={run.setAside} />
       <Actions actions={run.actions} />
     </>
   );
@@ -305,6 +308,64 @@ function TavolaLine({ tavola, running }: { tavola: CatalogRunTavola; running: bo
           </span>
         )}
       </span>
+    </li>
+  );
+}
+
+/**
+ * The pages the run placed in no Tavola, each with why and the page itself, small: enough to
+ * recognise, and opened whole to read its number by eye.
+ */
+function SetAside({ pages }: { pages: CatalogRunSetAsidePage[] }) {
+  if (pages.length === 0) {
+    return null;
+  }
+  return (
+    <section className="mt-12" aria-labelledby="run-set-aside">
+      <h2 id="run-set-aside" className="label">
+        Set aside
+      </h2>
+      <p className="mt-2 text-pretty text-muted">
+        Pages it put into no Tavola. Their Tavola number is never guessed.
+      </p>
+      <ul className="mt-4 divide-y divide-line border-y border-line">
+        {pages.map((page) => (
+          <SetAsideLine key={page.page} page={page} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SetAsideLine({ page }: { page: CatalogRunSetAsidePage }) {
+  return (
+    <li className="flex items-start gap-4 py-3" data-testid="run-set-aside-page">
+      <a
+        href={page.image}
+        target="_blank"
+        rel="noreferrer"
+        className="shrink-0"
+        aria-label={`Open page ${page.page}`}
+      >
+        <img
+          src={page.image}
+          alt=""
+          loading="lazy"
+          className="h-28 w-20 rounded-sm border border-line bg-surface-sunken object-contain"
+        />
+      </a>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-lg font-medium text-text">Page {page.page}</span>
+        <span className="text-pretty text-muted">{page.reason}</span>
+        <a
+          href={page.image}
+          target="_blank"
+          rel="noreferrer"
+          className="-my-2 inline-flex min-h-control items-center self-start text-accent-ink underline underline-offset-4"
+        >
+          Open the page
+        </a>
+      </div>
     </li>
   );
 }

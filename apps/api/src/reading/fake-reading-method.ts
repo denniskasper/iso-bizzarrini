@@ -4,7 +4,8 @@ import type { ReadRow, ReadingMethod, RequestEstimate, Tokens } from './reading-
 /**
  * **The fake Reading method**, for a practice system (issue #55). It sends nothing anywhere and
  * reads nothing: every page is a Table sheet of a Tavola of its own, numbered 100 past the page so
- * it stands clear of the practice archive's, with one invented row; every request takes the same
+ * it stands clear of the practice archive's, with one invented row, except page 5, whose number it
+ * cannot read; every request takes the same
  * few tokens, and translating hands the Italian back. That is enough to show a Catalog run bring
  * in Unchecked Tavole without paying for one (issue #58), and nothing it says could be published
  * as fact.
@@ -12,6 +13,8 @@ import type { ReadRow, ReadingMethod, RequestEstimate, Tokens } from './reading-
  * It prices itself as the real model, so its runs are costed as a real run would be, and it is
  * never charged. Production refuses to start with it (`composition/environment-safety.ts`).
  */
+/** A page whose Tavola number it cannot read, so a run has a page to set aside (issue #60). */
+const UNREADABLE_PAGE = 5;
 const TOKENS: Tokens = { input: 1500, output: 200 };
 const ESTIMATE: RequestEstimate = { input: 1500, output: 200, outputAtMost: 1000 };
 const INVENTED_ROW: ReadRow = {
@@ -37,7 +40,7 @@ export function createFakeReadingMethod(): ReadingMethod {
       return {
         value: {
           kind: 'table',
-          tavola: String(100 + sheet.page),
+          tavola: sheet.page === UNREADABLE_PAGE ? null : String(100 + sheet.page),
           foglio: null,
           turn: 0,
           titleIt: 'TAVOLA DI PROVA',

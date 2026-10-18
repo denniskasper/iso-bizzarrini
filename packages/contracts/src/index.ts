@@ -513,6 +513,18 @@ export interface CatalogRun {
   tavole: CatalogRunTavola[];
   /** Who started, raised, continued and stopped it, and when, oldest first. */
   actions: CatalogRunAction[];
+  /**
+   * The pages it put into no Tavola, in page order, and why: a page whose Tavola number could not
+   * be read is shown rather than guessed (issue #60). Empty until the run has ended.
+   */
+  setAside: CatalogRunSetAsidePage[];
+}
+
+export interface CatalogRunSetAsidePage {
+  page: number;
+  reason: string;
+  /** Where its image is served, to Administrators only. */
+  image: string;
 }
 
 export interface CatalogRunResponse {
