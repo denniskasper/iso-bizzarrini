@@ -1,8 +1,10 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import type { UncheckedTavolaGuard } from '../access/unchecked-tavole.js';
+import { HttpError } from '../http/errors.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
+import type { CatalogRunController } from '../controllers/catalog-run-controller.js';
 import type { CheckingController } from '../controllers/checking-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
@@ -53,12 +55,14 @@ export function createApiRouter(dependencies: {
   uncheckedTavolaGuard: UncheckedTavolaGuard;
   maxScanBytes: number;
   maxPhotographBytes: number;
+  maxCatalogBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
   subscriptionController: SubscriptionController;
   reminderController: ReminderController;
   readingController: ReadingController;
+  catalogRunController: CatalogRunController;
   retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
@@ -86,6 +90,7 @@ export function createApiRouter(dependencies: {
     subscriptionController,
     reminderController,
     readingController,
+    catalogRunController,
     retentionController,
     rosterImportController,
     clubController,
@@ -168,6 +173,28 @@ export function createApiRouter(dependencies: {
   // role like the roster, and not there at all for anybody else: how the catalog is read, and
   // what it costs, is not something a Member is told exists.
   router.get('/reading-method', gate.hiddenFromAllButAdministrators, readingController.readMethod);
+  // **A Catalog run** (issue #57): the catalog uploaded and priced, before anything is read. The
+  // role is checked before the body is read, so nobody else can even send a catalog here. The
+  // catalog is as private as a Scan, and served to nobody but an Administrator.
+  router.post(
+    '/catalog-runs',
+    gate.hiddenFromAllButAdministrators,
+    rawUpTo(
+      dependencies.maxCatalogBytes,
+      `A catalog may be up to ${megabytes(dependencies.maxCatalogBytes)}, and that one was larger than this archive accepts.`,
+    ),
+    catalogRunController.estimate,
+  );
+  router.get(
+    '/catalog-runs/:runId',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.read,
+  );
+  router.get(
+    '/catalog-runs/:runId/catalog',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readCatalog,
+  );
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
@@ -469,4 +496,25 @@ export function createApiRouter(dependencies: {
   router.get('/contribution-photographs/:photographId/:variant', contributionController.readImage);
 
   return router;
+}
+
+/**
+ * The body unparsed, up to `limit`, and refused **with the limit named** above it: the one upload
+ * that is allowed to be large says how large, so an Administrator knows what to send instead.
+ */
+function rawUpTo(limit: number, refusal: string): RequestHandler {
+  const parse = express.raw({ type: () => true, limit });
+  return (request, response, next) => {
+    parse(request, response, (error?: unknown) => {
+      const tooLarge =
+        typeof error === 'object' &&
+        error !== null &&
+        (error as { type?: unknown }).type === 'entity.too.large';
+      next(tooLarge ? new HttpError(413, 'payload_too_large', refusal) : error);
+    });
+  };
+}
+
+function megabytes(bytes: number): string {
+  return `${Math.floor(bytes / (1024 * 1024))} MB`;
 }

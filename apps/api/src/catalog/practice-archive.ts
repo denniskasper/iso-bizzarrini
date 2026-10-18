@@ -877,9 +877,11 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
   await db.execute(sql`TRUNCATE ${models}, ${categories}, ${parts} RESTART IDENTITY CASCADE`);
   // Truncating the tables without taking the files leaves a directory of images nothing points
   // at, growing every time the practice archive is rebuilt. Both kinds of image, because both
-  // kinds have files: the Photographs cascade from the Parts named above.
+  // kinds have files: the Photographs cascade from the Parts named above. So do the catalogs
+  // uploaded to be read, whose Catalog runs cascade from the Models.
   await fileStore.remove('scans');
   await fileStore.remove('photographs');
+  await fileStore.remove('catalog-runs');
 }
 
 /**

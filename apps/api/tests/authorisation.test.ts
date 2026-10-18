@@ -93,7 +93,13 @@ const ADMINISTRATORS_ONLY = new Set([
  * read and what it costs is not something a Member is told exists, so the answer is a 404 rather
  * than a refusal. Behind the role, not behind a Membership.
  */
-const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set(['GET /api/reading-method']);
+const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
+  'GET /api/reading-method',
+  // A Catalog run, and the catalog it was uploaded with (issue #57).
+  'POST /api/catalog-runs',
+  'GET /api/catalog-runs/:runId',
+  'GET /api/catalog-runs/:runId/catalog',
+]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */
 const ANY_MEMBER = new Set([
@@ -195,6 +201,10 @@ describe('who may reach what', () => {
       for (const address of surface) {
         const name = named(address);
         if (address.method === 'get' || OPEN.has(name) || ADMINISTRATORS_ONLY.has(name)) {
+          continue;
+        }
+        // Not refused but not there, which the test below asks of every hidden address.
+        if (HIDDEN_FROM_ALL_BUT_ADMINISTRATORS.has(name)) {
           continue;
         }
         // What a member may do about their own subscription is theirs, live Membership or not.
@@ -358,8 +368,13 @@ describe('who may reach what', () => {
         const response = await agent[address!.method](fill(address!.path));
         expect(response.status, `${name} told ${who} it was there`).toBe(404);
       }
+      // Let through, an Administrator is answered by the handler: about the id that names
+      // nothing, or the upload that was not sent, and never with the gate's bare 404.
       const response = await boss.agent[address!.method](fill(address!.path));
-      expect(response.status, `${name} kept a lapsed Administrator out`).toBe(200);
+      expect(response.status, `${name} kept a lapsed Administrator out`).not.toBe(403);
+      expect(response.body.error?.message, `${name} hid itself from an Administrator`).not.toBe(
+        'Not found.',
+      );
     }
   });
 

@@ -1,6 +1,11 @@
-import type { ReadingSetup } from '@ricambi/contracts';
+import type { CatalogRun, ReadingSetup } from '@ricambi/contracts';
+import { useQuery } from '@tanstack/react-query';
+import { useId, useState } from 'react';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
-import { useReadingSetup } from '@/lib/readings';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Field, Refusal, Select } from '@/components/ui/field';
+import { api, refusalText } from '@/lib/api';
+import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
 
 /**
  * **The Readings section** (issue #55, ADR 0018): what this server reads the factory catalog
@@ -8,8 +13,11 @@ import { useReadingSetup } from '@/lib/readings';
  *
  * One statement is the whole of the page for now, said in the words the Club decides by:
  * "Subscription, not charged" or "API key, charged". Never the credential and never whose
- * subscription it is; the API does not know how to say either. Starting a Catalog run arrives
- * here later, and will be the screen's one action.
+ * subscription it is; the API does not know how to say either.
+ *
+ * Below it, a Catalog run begins (issue #57): the catalog uploaded, its Model and pages chosen,
+ * and what reading them would cost. Estimating is the screen's one action; starting arrives
+ * later, from the estimate.
  */
 export function ReadingsPage() {
   return (
@@ -43,6 +51,8 @@ function Readings() {
       </p>
 
       <Method setup={setup.data} />
+
+      {setup.data.available && <NewRun />}
     </div>
   );
 }
@@ -96,4 +106,142 @@ function whatItMeans({ method }: ReadingSetup): string {
     case null:
       return '';
   }
+}
+
+/**
+ * **A new Catalog run, as far as its estimate.** The catalog, the car it is for and the pages to
+ * read, then one press: nothing is read, and what it would cost is shown where the press was.
+ * The pages are asked for rather than defaulted, so the front matter and the technical data are
+ * never sent because nobody thought to leave them out.
+ */
+function NewRun() {
+  const models = useQuery({ queryKey: ['models'], queryFn: api.models });
+  const estimate = useEstimateCatalogRun();
+  const pickerId = useId();
+  const [catalog, setCatalog] = useState<File | null>(null);
+  const [modelId, setModelId] = useState('');
+  const [firstPage, setFirstPage] = useState('');
+  const [lastPage, setLastPage] = useState('');
+
+  const ready = catalog !== null && modelId !== '' && firstPage !== '' && lastPage !== '';
+  const changed =
+    <T,>(set: (value: T) => void) =>
+    (value: T) => {
+      estimate.reset();
+      set(value);
+    };
+
+  return (
+    <section aria-labelledby="new-run" className="editor-panel registration-mark mt-16">
+      <h2 id="new-run" className="label">
+        Read a catalog
+      </h2>
+      <p className="mt-4 max-w-measure text-pretty text-muted">
+        Upload the factory catalog as one PDF, and say which pages hold its Tavole. You see what
+        reading them would cost before anything is read.
+      </p>
+
+      <form
+        className="mt-8 flex flex-col gap-6"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (catalog) {
+            estimate.mutate({
+              catalog,
+              modelId,
+              firstPage: Number(firstPage),
+              lastPage: Number(lastPage),
+            });
+          }
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <label htmlFor={pickerId} className={buttonVariants({ variant: 'outline' })}>
+            {catalog ? 'Choose another PDF' : 'Choose the catalog PDF'}
+          </label>
+          <input
+            id={pickerId}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="sr-only"
+            data-testid="catalog-file"
+            onChange={(event) => changed(setCatalog)(event.target.files?.[0] ?? null)}
+          />
+          {catalog && <span className="tabular text-sm text-muted">{catalog.name}</span>}
+        </div>
+
+        <Select
+          label="Model"
+          value={modelId}
+          onChange={(event) => changed(setModelId)(event.target.value)}
+          disabled={!models.data}
+        >
+          <option value="" disabled>
+            Choose the car the catalog is for
+          </option>
+          {models.data?.models.map((model) => (
+            <option key={model.id} value={model.id}>
+              {[model.brand, model.name, model.series].filter(Boolean).join(' ')}
+            </option>
+          ))}
+        </Select>
+
+        <fieldset className="grid grid-cols-2 gap-4 sm:max-w-sm">
+          <legend className="sr-only">Pages to read</legend>
+          <Field
+            label="From page"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            mono
+            value={firstPage}
+            onChange={(event) => changed(setFirstPage)(event.target.value)}
+          />
+          <Field
+            label="To page"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            mono
+            value={lastPage}
+            onChange={(event) => changed(setLastPage)(event.target.value)}
+          />
+        </fieldset>
+
+        {estimate.error && <Refusal>{refusalText(estimate.error)}</Refusal>}
+
+        <div>
+          <Button type="submit" variant="primary" size="lg" disabled={!ready || estimate.isPending}>
+            {estimate.isPending ? 'Estimating…' : 'Estimate the cost'}
+          </Button>
+        </div>
+      </form>
+
+      {estimate.data && <Estimate run={estimate.data.run} />}
+    </section>
+  );
+}
+
+/** What the run would cost, said once, large, and then what that figure is made of. */
+function Estimate({ run }: { run: CatalogRun }) {
+  const pages = run.pages.last - run.pages.first + 1;
+  return (
+    <div role="status" className="mt-10 animate-rise" data-testid="catalog-estimate">
+      <p className="display tabular text-5xl tracking-display text-text">
+        {`$${run.estimate.toFixed(2)}`}
+      </p>
+      <p className="mt-4 max-w-measure text-lg text-pretty text-text">
+        {run.charged
+          ? 'is what reading it should cost, billed to the API key.'
+          : 'is what reading it would cost at list prices. It is not charged.'}
+      </p>
+      <p className="mt-2 max-w-measure text-pretty text-muted">
+        {pages} {pages === 1 ? 'page' : 'pages'}, {run.pages.first} to {run.pages.last} of{' '}
+        {run.catalogPages}, for the {run.model.brand} {run.model.name}. Priced at{' '}
+        <span className="tabular">{run.priceList.model}</span> list prices checked on{' '}
+        <span className="tabular">{run.priceList.checkedOn}</span>. Each page is counted as
+        whichever costs more: a Table sheet read twice, or a drawing with its numbers read.
+      </p>
+    </div>
+  );
 }

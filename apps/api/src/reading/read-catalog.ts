@@ -15,7 +15,8 @@ import {
   type SheetCost,
   type Spent,
 } from './cost.js';
-import { cropsOf, findNumbers, type NumberCrop } from './find-numbers.js';
+import { batchesOf, estimatePage } from './estimate.js';
+import { cropsOf, findNumbers } from './find-numbers.js';
 import { interpretTable, type ComparedSheet, type ReadListing } from './interpret.js';
 import { markDoubts, proposeMarks, type MarkDoubt, type ProposedMark } from './marks.js';
 import { PRICE_LIST, priceOf } from './price-list.js';
@@ -45,11 +46,9 @@ import {
   type TavolaManifest,
 } from './read-directory.js';
 import {
-  NUMBERS_PER_REQUEST,
   UsageLimitReached,
   type NumberReading,
   type ReadingMethod,
-  type RequestEstimate,
   type SheetEstimate,
   type SheetIdentity,
   type SheetImage,
@@ -195,16 +194,9 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     if (identity && !stillToRead(identity)) {
       continue;
     }
-    const sheet = await method.estimate(page);
+    const { sheet, cost } = await estimatePage(method, spending, page, identity);
     estimates.set(page.page, sheet);
-    // A page not yet asked about is found numbers on the way it was scanned; once turned upright
-    // it may group a few differently, and each request is counted again before it is sent.
-    const numbers = identity?.kind === 'table' ? [] : await estimateNumbers(method, page.image);
-    estimate += !identity
-      ? spending.estimateOf(sheet, numbers)
-      : identity.kind === 'drawing'
-        ? spending.numbersOf(numbers)
-        : spending.readingOf(sheet);
+    estimate += cost;
   }
   print(
     `Estimated at ${dollars(estimate)} for ${estimates.size} ${estimates.size === 1 ? 'page' : 'pages'}, ` +
@@ -602,24 +594,6 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
   }
 
   return result;
-}
-
-/** The requests a drawing's numbers would take to read, each counted as it would be sent. */
-async function estimateNumbers(method: ReadingMethod, image: Buffer): Promise<RequestEstimate[]> {
-  const crops = await cropsOf(image, await findNumbers(image));
-  const requests: RequestEstimate[] = [];
-  for (const batch of batchesOf(crops)) {
-    requests.push(await method.estimateNumbers(batch));
-  }
-  return requests;
-}
-
-function batchesOf(crops: NumberCrop[]): NumberCrop[][] {
-  const batches: NumberCrop[][] = [];
-  for (let start = 0; start < crops.length; start += NUMBERS_PER_REQUEST) {
-    batches.push(crops.slice(start, start + NUMBERS_PER_REQUEST));
-  }
-  return batches;
 }
 
 function roundedSpent(spent: Spent): Spent {

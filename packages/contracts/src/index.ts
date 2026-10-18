@@ -431,6 +431,40 @@ export interface ReadingSetup {
   unavailable: string | null;
 }
 
+/**
+ * Where a Catalog run stands (issue #57). `estimated` is all there is until starting arrives:
+ * the catalog is uploaded and priced, and nothing has been read.
+ */
+export type CatalogRunState = 'estimated';
+
+/**
+ * `POST /api/catalog-runs?modelId=&firstPage=&lastPage=`, with the catalog PDF as the body, and
+ * `GET /api/catalog-runs/:runId` — **one Catalog run**, for the Readings section. An
+ * Administrator's alone, and 404 to anybody else. Like `ReadingSetup`, it names the kind of
+ * Reading method and never a credential.
+ */
+export interface CatalogRun {
+  id: string;
+  state: CatalogRunState;
+  model: { id: string; brand: string; name: string; series: string | null };
+  /** The pages of the PDF to read, counting from 1, both included. */
+  pages: { first: number; last: number };
+  /** How many pages the uploaded PDF has. */
+  catalogPages: number;
+  /** In dollars, at the price list's prices, for every page in `pages`. */
+  estimate: number;
+  readingMethod: ReadingMethodKind;
+  /** Whether what it reads is billed per use. Where it is not, `estimate` is what it would cost. */
+  charged: boolean;
+  /** The model the run is priced for, and the date its prices were checked. */
+  priceList: { model: string; checkedOn: string };
+  createdAt: string;
+}
+
+export interface CatalogRunResponse {
+  run: CatalogRun;
+}
+
 /** Which way a quarter turn goes, looking at the drawing. */
 export type QuarterTurn = 'clockwise' | 'anticlockwise';
 

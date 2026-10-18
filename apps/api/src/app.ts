@@ -10,6 +10,7 @@ import { createReminders } from './composition/reminder-run.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
+import { createCatalogRunController } from './controllers/catalog-run-controller.js';
 import { createCheckingController } from './controllers/checking-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
@@ -53,6 +54,7 @@ import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
 import { createReadingRepository } from './repositories/reading-repository.js';
+import { createCatalogRunRepository } from './repositories/catalog-run-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
@@ -76,6 +78,7 @@ import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
 import { createScanService } from './services/scan-service.js';
+import { createCatalogRunService } from './services/catalog-run-service.js';
 import { createSearchService } from './services/search-service.js';
 import { createStatusService } from './services/status-service.js';
 import {
@@ -168,6 +171,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
   const readingRepository = createReadingRepository(db);
+  const catalogRunRepository = createCatalogRunRepository(db);
   const positionRepository = createPositionRepository(db);
   const partRepository = createPartRepository(db);
   const partRecordRepository = createPartRecordRepository(db);
@@ -326,6 +330,16 @@ export function createApp(dependencies: AppDependencies): Express {
     reminderService: createReminders({ db, clock, logger, emailSender, paymentProvider, config }),
   });
   const readingController = createReadingController({ reading });
+  const catalogRunController = createCatalogRunController({
+    gate,
+    catalogRunService: createCatalogRunService({
+      reading,
+      catalogRunRepository,
+      modelRepository,
+      fileStore,
+      clock,
+    }),
+  });
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
@@ -413,12 +427,14 @@ export function createApp(dependencies: AppDependencies): Express {
       uncheckedTavolaGuard,
       maxScanBytes: config.files.maxScanBytes,
       maxPhotographBytes: config.files.maxPhotographBytes,
+      maxCatalogBytes: config.files.maxCatalogBytes,
       statusController,
       sessionController,
       rosterController,
       subscriptionController,
       reminderController,
       readingController,
+      catalogRunController,
       retentionController,
       rosterImportController,
       clubController,

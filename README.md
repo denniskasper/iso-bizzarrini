@@ -32,7 +32,9 @@ club's **domain**, which the club-website stream untangles.
 
 ## Running it
 
-One command. It needs Docker (for Postgres) and Node 24.
+One command. It needs Docker (for Postgres) and Node 24, and Poppler's `pdftoppm` and `pdfinfo`
+to read an uploaded catalog and run the tests that do (`poppler-utils` on Debian and Ubuntu,
+`poppler` in Homebrew).
 
 ```sh
 pnpm install

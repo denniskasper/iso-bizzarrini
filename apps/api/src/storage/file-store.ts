@@ -81,6 +81,11 @@ function isMissing(error: unknown): boolean {
   );
 }
 
+/** Where one Catalog run's files live, beginning with the catalog PDF it was uploaded with. */
+export function catalogRunKeyPrefix(runId: string): string {
+  return join('catalog-runs', runId);
+}
+
 /** Where one Scan's files live. Everything about a scan is removed by removing its prefix. */
 export function scanKeyPrefix(scanId: string): string {
   return join('scans', scanId);

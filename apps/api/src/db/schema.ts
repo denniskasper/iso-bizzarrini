@@ -1,8 +1,10 @@
 import type {
+  CatalogRunState,
   Currency,
   EquivalentKind,
   MembershipGrant,
   ProcessorRole,
+  ReadingMethodKind,
   Role,
   SourceCondition,
   TavolaState,
@@ -529,6 +531,58 @@ export const readingDoubts = pgTable(
     reason: text('reason').notNull(),
   },
   (table) => [index('reading_doubts_tavola_id_index').on(table.tavolaId)],
+);
+
+/** Where a Catalog run stands (issue #57). Starting, stopping and finishing add to it. */
+export const CATALOG_RUN_STATES = ['estimated'] as const satisfies readonly CatalogRunState[];
+
+/**
+ * A **Catalog run** (ADR 0018): one Administrator-started pass over one uploaded catalog PDF for
+ * one Model. It begins `estimated`: the PDF is in the private file store, as a Scan is, and what
+ * reading its pages would cost has been worked out as the read command works it out. Nothing has
+ * been sent to a model.
+ *
+ * The Reading method is recorded by its kind, which is all the Readings section ever says about
+ * it. The price list is recorded by the model it priced and the date it was checked, because the
+ * list in the repository moves on and the estimate must still say what it was made from.
+ */
+export const catalogRuns = pgTable(
+  'catalog_runs',
+  {
+    id: uuid('id').primaryKey(),
+    modelId: uuid('model_id')
+      .notNull()
+      .references(() => models.id, { onDelete: 'cascade' }),
+    state: text('state').notNull().$type<CatalogRunState>(),
+    /** A key in the private file store. Never a path and never a URL. */
+    catalogKey: text('catalog_key').notNull(),
+    catalogByteSize: integer('catalog_byte_size').notNull(),
+    /** How many pages the PDF has. */
+    catalogPages: integer('catalog_pages').notNull(),
+    /** The pages to read, counting from 1, both included. */
+    firstPage: integer('first_page').notNull(),
+    lastPage: integer('last_page').notNull(),
+    readingMethod: text('reading_method').notNull().$type<ReadingMethodKind>(),
+    charged: boolean('charged').notNull(),
+    /** The model the price list was read for, and when its prices were checked. */
+    pricedModel: text('priced_model').notNull(),
+    pricesCheckedOn: text('prices_checked_on').notNull(),
+    /** In dollars, to a ten-thousandth of a cent. */
+    estimate: doublePrecision('estimate').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    /** Who uploaded it. Deleting the Account keeps the run and drops the name (ADR 0007). */
+    createdBy: uuid('created_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    check('catalog_runs_state_is_known', sql`${table.state} in (${oneOf(CATALOG_RUN_STATES)})`),
+    check(
+      'catalog_runs_pages_run_forwards',
+      sql`1 <= ${table.firstPage} and ${table.firstPage} <= ${table.lastPage} and ${table.lastPage} <= ${table.catalogPages}`,
+    ),
+    index('catalog_runs_model_id_index').on(table.modelId),
+  ],
 );
 
 /**
@@ -1324,6 +1378,8 @@ export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
 export type TableSheetRow = typeof tableSheets.$inferSelect;
 export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
+export type CatalogRunRow = typeof catalogRuns.$inferSelect;
+export type NewCatalogRunRow = typeof catalogRuns.$inferInsert;
 export type NewScanRow = typeof scans.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;

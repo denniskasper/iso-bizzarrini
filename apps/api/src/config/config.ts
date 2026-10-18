@@ -174,6 +174,17 @@ const environmentSchema = z.object({
     .default(25 * 1024 * 1024),
 
   /**
+   * The largest catalog PDF an Administrator may upload to be read (issue #57). The factory's
+   * catalog scanned whole runs to a few hundred pages of A3, so this one upload is allowed far
+   * more than a scan of one sheet.
+   */
+  MAX_CATALOG_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(500 * 1024 * 1024),
+
+  /**
    * Whether the application applies its own migrations before it starts listening.
    *
    * On by default, and that direction is deliberate too: a deployment whose schema has not
@@ -259,6 +270,7 @@ export interface AppConfig {
     storagePath: string;
     maxScanBytes: number;
     maxPhotographBytes: number;
+    maxCatalogBytes: number;
   };
   /** What the retention sweep applies and the privacy statement quotes (ADR 0007). */
   retention: RetentionTerms;
@@ -324,6 +336,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       storagePath: resolve(env.FILE_STORAGE_PATH),
       maxScanBytes: env.MAX_SCAN_BYTES,
       maxPhotographBytes: env.MAX_PHOTOGRAPH_BYTES,
+      maxCatalogBytes: env.MAX_CATALOG_BYTES,
     },
     retention: {
       accountYears: env.RETENTION_YEARS,

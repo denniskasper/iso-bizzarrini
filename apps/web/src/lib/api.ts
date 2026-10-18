@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  CatalogRunResponse,
   ReadingSetup,
   EnglishNameRequest,
   ContributionResponse,
@@ -263,6 +264,22 @@ export const api = {
 
   /** What this server reads the factory catalog with (issue #55). An Administrator's alone. */
   readingSetup: () => request<ReadingSetup>('/reading-method'),
+  /**
+   * A catalog uploaded and priced (issue #57). The PDF is the body, as a scan is; the Model and
+   * the pages to read travel in the address, because there is nothing else on the request.
+   */
+  estimateCatalogRun: (
+    catalog: File,
+    run: { modelId: string; firstPage: number; lastPage: number },
+  ) =>
+    request<CatalogRunResponse>(
+      `/catalog-runs?${new URLSearchParams({
+        modelId: run.modelId,
+        firstPage: String(run.firstPage),
+        lastPage: String(run.lastPage),
+      }).toString()}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: catalog },
+    ),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),
@@ -573,6 +590,7 @@ export const api = {
 
 export type {
   CatalogModel,
+  CatalogRun,
   CheckedListing,
   QuarterTurn,
   ReadingDoubt,
