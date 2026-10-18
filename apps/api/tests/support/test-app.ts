@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { Express } from 'express';
 import supertest from 'supertest';
 import type TestAgent from 'supertest/lib/agent.js';
-import { createApp } from '../../src/app.js';
+import { createApp, type RicambiApp } from '../../src/app.js';
 import { createPasswordHasher } from '../../src/access/passwords.js';
 import { configureReading, type ConfiguredReading } from '../../src/composition/reading.js';
 import { loadConfig, type AppConfig } from '../../src/config/config.js';
@@ -48,6 +48,12 @@ export interface TestApp {
   memberAgent(credentials: { email: string; password: string }): Promise<TestAgent>;
   /** Empties the database between tests. */
   reset(): Promise<void>;
+  /**
+   * **The server going away and a new one starting** (issue #59): this app's Catalog runs are
+   * interrupted, as a process going away interrupts them, and a new app is built on the same
+   * database and files, as the next deployment finds them. Close the new one, not this one.
+   */
+  restart(options?: Pick<TestAppOptions, 'reading'>): Promise<TestApp>;
   close(): Promise<void>;
 }
 
@@ -114,7 +120,14 @@ export const DEFAULT_TEST_NOW = new Date('2026-01-15T09:00:00.000Z');
 
 export async function startTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const filesPath = await mkdtemp(join(tmpdir(), 'ricambi-files-'));
+  return buildTestApp(options, filesPath, await createTestDatabase());
+}
 
+async function buildTestApp(
+  options: TestAppOptions,
+  filesPath: string,
+  database: TestDatabase,
+): Promise<TestApp> {
   const config = loadConfig({
     NODE_ENV: 'test',
     ENVIRONMENT_NAME: 'test',
@@ -133,9 +146,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
   const paymentProvider = options.paymentProvider ?? new UnconfiguredPaymentProvider();
   const breached = new KnownBreachedPasswords();
 
-  const database: TestDatabase = await createTestDatabase();
-
-  let app: Express;
+  let app: RicambiApp;
   try {
     app = createApp({
       config,
@@ -177,6 +188,10 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       emails.clear();
       breached.clear();
       clock.setTo(options.now ?? DEFAULT_TEST_NOW);
+    },
+    async restart(restarted = {}) {
+      app.interruptCatalogRuns();
+      return buildTestApp({ ...options, ...restarted }, filesPath, database);
     },
     async close() {
       await database.close();

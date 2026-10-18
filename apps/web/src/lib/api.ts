@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   CatalogRunResponse,
+  ContinueCatalogRunRequest,
   StartCatalogRunRequest,
   ReadingSetup,
   EnglishNameRequest,
@@ -284,6 +285,10 @@ export const api = {
   catalogRun: (runId: string) => request<CatalogRunResponse>(`/catalog-runs/${runId}`),
   startCatalogRun: (runId: string, start: StartCatalogRunRequest) =>
     send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/start`, start),
+  continueCatalogRun: (runId: string, carryOn: ContinueCatalogRunRequest) =>
+    send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/continue`, carryOn),
+  stopCatalogRun: (runId: string) =>
+    send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/stop`, {}),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

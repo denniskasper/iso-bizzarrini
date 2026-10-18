@@ -16,12 +16,15 @@ import { interpretTable, type ComparedSheet } from './interpret.js';
 import { markDoubts, proposeMarks, type MarkDoubt, type ProposedMark } from './marks.js';
 import { PRICE_LIST, priceOf } from './price-list.js';
 import {
+  ReadingMethodError,
   UsageLimitReached,
   type NumberReading,
   type ReadingMethod,
+  type Answer,
   type SheetEstimate,
   type SheetIdentity,
   type SheetImage,
+  type TableReading,
   type Tokens,
 } from './reading-method.js';
 import type { FinishedTavola, ReadingStore, SetAsidePage } from './reading-store.js';
@@ -54,6 +57,16 @@ export interface CatalogReadingOptions {
   store: ReadingStore;
   /** Where each line of the running report goes. */
   print: (line: string) => void;
+  /**
+   * Whether a person has asked the run to stop. Asked before every request: the run stops there,
+   * cleanly, as it does at its limit (issue #59).
+   */
+  stopAsked?: () => boolean;
+  /**
+   * Aborted when the process is going away. Before every request the run throws the reason and
+   * tells the store nothing more, so whatever picks the run up carries on from its last step.
+   */
+  interrupted?: AbortSignal;
 }
 
 export interface CatalogReading {
@@ -81,6 +94,20 @@ export class ReadCatalogError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ReadCatalogError';
+  }
+}
+
+/** What is still to read is estimated above the limit. Nothing was sent. */
+export class EstimateAboveLimit extends ReadCatalogError {
+  constructor(
+    readonly estimate: number,
+    readonly limit: number,
+  ) {
+    super(
+      `The estimate, ${dollars(estimate)}, is above the limit of ${dollars(limit)}. Nothing ` +
+        'was read. Give a higher limit, or fewer pages with --pages.',
+    );
+    this.name = 'EstimateAboveLimit';
   }
 }
 
@@ -149,10 +176,7 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       'or a drawing with its numbers read.',
   );
   if (estimate > limit) {
-    throw new ReadCatalogError(
-      `The estimate, ${dollars(estimate)}, is above the limit of ${dollars(limit)}. Nothing ` +
-        'was read. Give a higher limit, or fewer pages with --pages.',
-    );
+    throw new EstimateAboveLimit(rounded(estimate), limit);
   }
   print(`Limit: ${dollars(limit)}.`);
 
@@ -170,9 +194,28 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
         `of ${dollars(limit)} with ${dollars(spending.spent)} spent.`,
     );
   };
-  const stopAtUsageLimit = (error: UsageLimitReached) => {
-    stopped = 'usage-limit';
+  /** A request the method could not answer stops the run, rather than be asked and paid again. */
+  const stopOn = (error: unknown) => {
+    if (error instanceof UsageLimitReached) {
+      stopped = 'usage-limit';
+    } else if (error instanceof ReadingMethodError) {
+      stopped = 'method-failed';
+    } else {
+      throw error;
+    }
     print(`Stopped: ${error.message}`);
+  };
+  /**
+   * Whether the next request may be sent: not once the run has stopped, or a person has asked it
+   * to, and never after the process has begun to go away.
+   */
+  const mayAsk = (): boolean => {
+    options.interrupted?.throwIfAborted();
+    if (stopped === null && options.stopAsked?.()) {
+      stopped = 'asked';
+      print('Stopped: asked to stop.');
+    }
+    return stopped === null;
   };
   const soFar = (cost: number) => `${dollars(cost)}, ${dollars(spending.spent)} so far.`;
 
@@ -184,71 +227,6 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
   const sheetCosts = new Map<number, SheetCost>();
   const notIdentified: number[] = [];
   const nothing: Spent = { tokens: { input: 0, output: 0 }, cost: 0 };
-
-  for (const page of pages) {
-    let identity = known.get(page.page);
-    let identification = nothing;
-
-    if (!identity) {
-      const atMost = spending.atMost((estimates.get(page.page) as SheetEstimate).identify);
-      if (stopped === null && spending.wouldPass(atMost)) {
-        stopAtLimit(atMost);
-      }
-      if (stopped !== null) {
-        notIdentified.push(page.page);
-        continue;
-      }
-
-      let answer;
-      try {
-        answer = await method.identify(page);
-      } catch (error) {
-        if (!(error instanceof UsageLimitReached)) {
-          throw error;
-        }
-        stopAtUsageLimit(error);
-        notIdentified.push(page.page);
-        continue;
-      }
-      identity = answer.value;
-      identification = spend(answer.tokens);
-      await store.pageFound(page.page, identity);
-    }
-
-    const number = identity.tavola?.trim();
-    if (identity.kind === 'other' || !number) {
-      const reason =
-        identity.kind === 'other'
-          ? 'It is neither a drawing nor a Table sheet.'
-          : 'Its Tavola number could not be read.';
-      setAside.push({ ...page, reason });
-      if (identification !== nothing) {
-        setAsideCosts.push({ page: page.page, cost: identification.cost, identification });
-        print(`Page ${page.page}: set aside. ${soFar(identification.cost)}`);
-      }
-      continue;
-    }
-
-    if (identification !== nothing) {
-      print(
-        `Page ${page.page}: ${identity.kind === 'drawing' ? 'drawing' : 'Table sheet'} of ` +
-          `Tavola ${number}. ${soFar(identification.cost)}`,
-      );
-    }
-    sheetCosts.set(page.page, {
-      page: page.page,
-      kind: identity.kind,
-      cost: identification.cost,
-      identification,
-      readings: [],
-      numbers: [],
-    });
-    const upright = await sharp(page.image).rotate(identity.turn).png().toBuffer();
-    const sheets = byTavola.get(number) ?? [];
-    sheets.push({ page: page.page, image: upright, identity: { ...identity, tavola: number } });
-    byTavola.set(number, sheets);
-  }
-
   const finished = new Set<string>();
   const translationCosts = new Map<string, Spent>();
   const costRecord = (): CostRecord => ({
@@ -294,6 +272,72 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
     })),
     notIdentified,
   });
+
+  for (const page of pages) {
+    let identity = known.get(page.page);
+    let identification = nothing;
+
+    if (!identity) {
+      const atMost = spending.atMost((estimates.get(page.page) as SheetEstimate).identify);
+      if (mayAsk() && spending.wouldPass(atMost)) {
+        stopAtLimit(atMost);
+      }
+      if (stopped !== null) {
+        notIdentified.push(page.page);
+        continue;
+      }
+
+      let answer;
+      try {
+        answer = await method.identify(page);
+      } catch (error) {
+        stopOn(error);
+        notIdentified.push(page.page);
+        continue;
+      }
+      identity = answer.value;
+      identification = spend(answer.tokens);
+      await store.pageFound(page.page, identity);
+    }
+
+    const number = identity.tavola?.trim();
+    if (identity.kind === 'other' || !number) {
+      const reason =
+        identity.kind === 'other'
+          ? 'It is neither a drawing nor a Table sheet.'
+          : 'Its Tavola number could not be read.';
+      setAside.push({ ...page, reason });
+      if (identification !== nothing) {
+        setAsideCosts.push({ page: page.page, cost: identification.cost, identification });
+        print(`Page ${page.page}: set aside. ${soFar(identification.cost)}`);
+        await store.costed(costRecord());
+      }
+      continue;
+    }
+
+    if (identification !== nothing) {
+      print(
+        `Page ${page.page}: ${identity.kind === 'drawing' ? 'drawing' : 'Table sheet'} of ` +
+          `Tavola ${number}. ${soFar(identification.cost)}`,
+      );
+    }
+    sheetCosts.set(page.page, {
+      page: page.page,
+      kind: identity.kind,
+      cost: identification.cost,
+      identification,
+      readings: [],
+      numbers: [],
+    });
+    const upright = await sharp(page.image).rotate(identity.turn).png().toBuffer();
+    const sheets = byTavola.get(number) ?? [];
+    sheets.push({ page: page.page, image: upright, identity: { ...identity, tavola: number } });
+    byTavola.set(number, sheets);
+    if (identification !== nothing) {
+      await store.costed(costRecord());
+    }
+  }
+
   const result: CatalogReading = {
     tavole: [],
     setAside: [],
@@ -330,28 +374,36 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
     const compared: ComparedSheet[] = [];
     for (const [index, sheet] of tables.entries()) {
       const atMost = spending.readingAtMost(estimates.get(sheet.page) as SheetEstimate);
+      if (!mayAsk()) {
+        break;
+      }
       if (spending.wouldPass(atMost)) {
         stopAtLimit(atMost);
         break;
       }
 
       const sheetCost = sheetCosts.get(sheet.page) as SheetCost;
-      let first, second;
+      const answers: Answer<TableReading>[] = [];
       try {
-        first = await method.readTable(sheet, 1);
-        sheetCost.readings.push({ reading: 1, ...spend(first.tokens) });
-        second = await method.readTable(sheet, 2);
-        sheetCost.readings.push({ reading: 2, ...spend(second.tokens) });
-      } catch (error) {
-        if (!(error instanceof UsageLimitReached)) {
-          throw error;
+        for (const reading of [1, 2] as const) {
+          if (!mayAsk()) {
+            break;
+          }
+          const answer = await method.readTable(sheet, reading);
+          sheetCost.readings.push({ reading, ...spend(answer.tokens) });
+          answers.push(answer);
         }
-        stopAtUsageLimit(error);
-        break;
+      } catch (error) {
+        stopOn(error);
       } finally {
         const readingsCost = sheetCost.readings.reduce((sum, reading) => sum + reading.cost, 0);
         sheetCost.cost = sheetCost.identification.cost + readingsCost;
       }
+      const [first, second] = answers;
+      if (!first || !second) {
+        break;
+      }
+      await store.costed(costRecord());
 
       const rows = compareReadings(first.value.rows, second.value.rows);
       compared.push({ layout: first.value.layout, ranges: first.value.ranges, rows });
@@ -376,6 +428,9 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       const found = await findNumbers(drawing.image);
       for (const batch of batchesOf(await cropsOf(drawing.image, found))) {
         const atMost = spending.atMost(await method.estimateNumbers(batch));
+        if (!mayAsk()) {
+          break;
+        }
         if (spending.wouldPass(atMost)) {
           stopAtLimit(atMost, `reading the numbers on the drawing of Tavola ${number}`);
           break;
@@ -385,16 +440,14 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
           sheetCost.numbers.push(spend(answer.tokens));
           readings.push(...answer.value);
         } catch (error) {
-          if (!(error instanceof UsageLimitReached)) {
-            throw error;
-          }
-          stopAtUsageLimit(error);
+          stopOn(error);
           break;
         } finally {
           sheetCost.cost =
             sheetCost.identification.cost +
             sheetCost.numbers.reduce((sum, request) => sum + request.cost, 0);
         }
+        await store.costed(costRecord());
       }
       if (stopped !== null) {
         result.notRead.push(number);
@@ -421,6 +474,10 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       const masked = toTranslate.map(maskCodes);
       const texts = masked.map((text) => text.text);
       const atMost = spending.atMost(await method.estimateTranslation(texts));
+      if (!mayAsk()) {
+        result.notRead.push(number);
+        continue;
+      }
       if (spending.wouldPass(atMost)) {
         stopAtLimit(atMost, `translating Tavola ${number}`);
         result.notRead.push(number);
@@ -430,10 +487,7 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       try {
         answer = await method.translate(texts);
       } catch (error) {
-        if (!(error instanceof UsageLimitReached)) {
-          throw error;
-        }
-        stopAtUsageLimit(error);
+        stopOn(error);
         result.notRead.push(number);
         continue;
       }

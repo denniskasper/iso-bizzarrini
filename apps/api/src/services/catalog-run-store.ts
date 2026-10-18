@@ -3,8 +3,9 @@ import type { ModelRow } from '../db/schema.js';
 import { loadReadTavole, type ReadTavola } from '../migration/load-read-tavola.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
-import { NOTHING_DONE, type FinishedTavola, type ReadingStore } from '../reading/reading-store.js';
-import type { CatalogRunRepository } from '../repositories/catalog-run-repository.js';
+import type { CostRecord } from '../reading/cost.js';
+import type { FinishedTavola, ReadingStore } from '../reading/reading-store.js';
+import type { CatalogRunRepository, StoppedState } from '../repositories/catalog-run-repository.js';
 import type { FileStore } from '../storage/file-store.js';
 
 /**
@@ -16,6 +17,9 @@ import type { FileStore } from '../storage/file-store.js';
  * the archive as Unchecked while the run reads on, and an Editor can begin checking it. The loader
  * refuses a Published Tavola, and one with Contributions, as it always has: the run records why
  * and reads on.
+ *
+ * What it was told is also what it answers when the run is continued, after a stop or a restart
+ * (issue #59): the pages already placed and the Tavole already finished are not asked about again.
  */
 export function catalogRunStore(dependencies: {
   runId: string;
@@ -30,7 +34,7 @@ export function catalogRunStore(dependencies: {
 
   return {
     async done() {
-      return NOTHING_DONE;
+      return catalogRunRepository.done(runId);
     },
 
     async started() {},
@@ -54,6 +58,7 @@ export function catalogRunStore(dependencies: {
         number: tavola.number,
         modelId: model.id,
         refused: outcome?.outcome === 'refused' ? (outcome.reason ?? 'It was refused.') : null,
+        machineTranslations: tavola.machineTranslations,
         at: clock.now(),
       });
     },
@@ -63,16 +68,18 @@ export function catalogRunStore(dependencies: {
     },
 
     async ended({ cost }) {
-      const state =
-        cost.stopped === 'spending-limit'
-          ? 'stopped-at-limit'
-          : cost.stopped === 'usage-limit'
-            ? 'stopped-at-usage-limit'
-            : 'finished';
+      const state = cost.stopped === null ? 'finished' : STOPPED[cost.stopped];
       await catalogRunRepository.ended(runId, { state, cost }, clock.now());
     },
   };
 }
+
+const STOPPED: Record<NonNullable<CostRecord['stopped']>, StoppedState> = {
+  'spending-limit': 'stopped-at-limit',
+  'usage-limit': 'stopped-at-usage-limit',
+  'method-failed': 'stopped-after-failures',
+  asked: 'stopped-by-administrator',
+};
 
 /** A finished Tavola as the loader takes it: its cells as the read command writes them. */
 export function readTavolaOf(tavola: FinishedTavola): ReadTavola {

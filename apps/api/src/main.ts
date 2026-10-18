@@ -130,6 +130,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     logger.info({ signal }, 'Shutting down');
     stopRetentionSweep();
     stopReminders();
+    app.interruptCatalogRuns();
     server.close(() => {
       void database.close().then(() => process.exit(0));
     });

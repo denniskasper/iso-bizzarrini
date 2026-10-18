@@ -1,4 +1,5 @@
 import type {
+  CatalogRunActionKind,
   CatalogRunState,
   Currency,
   EquivalentKind,
@@ -29,6 +30,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { CostRecord } from '../reading/cost.js';
 import type { SheetIdentity } from '../reading/reading-method.js';
+import type { MachineTranslation } from '../reading/translation.js';
 
 /**
  * A fixed set of values written into a check constraint, from the same list the application
@@ -543,8 +545,17 @@ export const CATALOG_RUN_STATES = [
   'finished',
   'stopped-at-limit',
   'stopped-at-usage-limit',
+  'stopped-after-failures',
+  'stopped-by-administrator',
   'failed',
 ] as const satisfies readonly CatalogRunState[];
+
+export const CATALOG_RUN_ACTIONS = [
+  'started',
+  'raised',
+  'continued',
+  'stopped',
+] as const satisfies readonly CatalogRunActionKind[];
 
 /**
  * A **Catalog run** (ADR 0018): one Administrator-started pass over one uploaded catalog PDF for
@@ -586,11 +597,18 @@ export const catalogRuns = pgTable(
     }),
     /** The most it may cost, in dollars, given when it was started. There is no default. */
     spendingLimit: doublePrecision('spending_limit'),
-    /** What it has cost so far, in dollars: the running total, after every finished Tavola. */
+    /** What it has cost so far, in dollars: the running total, kept after every request. */
     spent: doublePrecision('spent').notNull().default(0),
-    /** The read command's `cost.json`, kept here: what each Tavola, sheet and Reading cost. */
-    cost: jsonb('cost').$type<CostRecord>(),
-    /** Why a failed run failed, in words with no credential in them. */
+    /**
+     * The read command's `cost.json`, kept here: what each Tavola, sheet and Reading cost. One
+     * record for each time the run read, as `cost.json`, `cost-2.json` and on are: it is started,
+     * then continued after a stop or a restart (issue #59).
+     */
+    costs: jsonb('costs').notNull().$type<CostRecord[]>().default([]),
+    /**
+     * Why a failed run failed, or why a stopped one stopped where its state does not say it all,
+     * in words with no credential in them.
+     */
     failure: text('failure'),
     startedAt: timestamp('started_at', { withTimezone: true }),
     startedBy: uuid('started_by').references((): AnyPgColumn => accounts.id, {
@@ -646,9 +664,43 @@ export const catalogRunTavole = pgTable(
     /** `null` where it was refused, or where it has since been replaced or deleted. */
     tavolaId: uuid('tavola_id').references(() => tavole.id, { onDelete: 'set null' }),
     refused: text('refused'),
+    /** What its Italian was translated as, so the Tavole read after a stop read the same. */
+    machineTranslations: jsonb('machine_translations')
+      .notNull()
+      .$type<MachineTranslation[]>()
+      .default([]),
     finishedAt: timestamp('finished_at', { withTimezone: true }).notNull(),
   },
   (table) => [uniqueIndex('catalog_run_tavole_number_unique').on(table.runId, table.number)],
+);
+
+/**
+ * **Who started, raised, continued or stopped a Catalog run, and when** (issue #59). `by` is the
+ * Administrator; it is empty where the server carried the run on after a restart, and where the
+ * Account has since been deleted (ADR 0007).
+ */
+export const catalogRunActions = pgTable(
+  'catalog_run_actions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => catalogRuns.id, { onDelete: 'cascade' }),
+    action: text('action').notNull().$type<CatalogRunActionKind>(),
+    by: uuid('by').references((): AnyPgColumn => accounts.id, { onDelete: 'set null' }),
+    at: timestamp('at', { withTimezone: true }).notNull(),
+    /** The limit started with or raised to, in dollars. */
+    spendingLimit: doublePrecision('spending_limit'),
+    /** The order they were recorded in, which two in the same instant cannot take from `at`. */
+    sequence: integer('sequence').generatedAlwaysAsIdentity(),
+  },
+  (table) => [
+    check(
+      'catalog_run_actions_action_is_known',
+      sql`${table.action} in (${oneOf(CATALOG_RUN_ACTIONS)})`,
+    ),
+    index('catalog_run_actions_run_id_index').on(table.runId),
+  ],
 );
 
 /**
@@ -1447,6 +1499,7 @@ export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
 export type CatalogRunRow = typeof catalogRuns.$inferSelect;
 export type NewCatalogRunRow = typeof catalogRuns.$inferInsert;
 export type CatalogRunTavolaRow = typeof catalogRunTavole.$inferSelect;
+export type CatalogRunActionRow = typeof catalogRunActions.$inferSelect;
 export type NewScanRow = typeof scans.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;

@@ -202,8 +202,12 @@ describe('reading into a store', () => {
     expect(result.cost).toEqual(record);
     expect(record.total).toBeGreaterThan(0);
     expect(record.tavole.map((tavola: { number: string }) => tavola.number)).toEqual(['84', '85']);
-    // Once after each Tavola, and once at the end.
-    expect(store.costs).toHaveLength(3);
+    // After every request it paid for, so a run cut off part-way has kept what it spent, and
+    // once more at the end.
+    const totals = store.costs.map((cost) => cost.total);
+    expect(totals.length).toBeGreaterThan(3);
+    expect(totals).toEqual([...totals].sort((a, b) => a - b));
+    expect(totals.at(-2)).toBe(record.total);
     expect(store.stopped).toBeNull();
   });
 

@@ -52,3 +52,26 @@ export function useStartCatalogRun() {
     },
   });
 }
+
+/** A stopped run read on, its limit raised first where one is given (issue #59). */
+export function useContinueCatalogRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, limit }: { runId: string; limit?: number }) =>
+      api.continueCatalogRun(runId, limit === undefined ? {} : { limit }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(catalogRunQueryKey(data.run.id), data);
+    },
+  });
+}
+
+/** A running run asked to stop before its next request. It says so once it has. */
+export function useStopCatalogRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => api.stopCatalogRun(runId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(catalogRunQueryKey(data.run.id), data);
+    },
+  });
+}

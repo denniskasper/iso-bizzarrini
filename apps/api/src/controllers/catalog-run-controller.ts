@@ -1,4 +1,8 @@
-import type { CatalogRunResponse, StartCatalogRunRequest } from '@ricambi/contracts';
+import type {
+  CatalogRunResponse,
+  ContinueCatalogRunRequest,
+  StartCatalogRunRequest,
+} from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import type { Gate } from '../access/gate.js';
@@ -27,19 +31,24 @@ const LIMIT_NEEDED =
   'Give a spending limit in dollars. There is no default, so that nobody spends by accident; ' +
   'the run never passes the limit it is given.';
 
-const startBody: z.ZodType<StartCatalogRunRequest> = z.object(
-  {
-    limit: z
-      .number(LIMIT_NEEDED)
-      .positive(LIMIT_NEEDED)
-      .max(1_000_000, 'That limit is more than a catalog could cost.'),
-  },
-  LIMIT_NEEDED,
-);
+const limit = z
+  .number(LIMIT_NEEDED)
+  .positive(LIMIT_NEEDED)
+  .max(1_000_000, 'That limit is more than a catalog could cost.');
+
+const startBody: z.ZodType<StartCatalogRunRequest> = z.object({ limit }, LIMIT_NEEDED);
+
+const RAISE_NEEDED = 'A raised limit is a number of dollars.';
+const continueBody: z.ZodType<ContinueCatalogRunRequest> = z
+  .object({ limit: limit.optional() }, RAISE_NEEDED)
+  .optional()
+  .transform((body) => body ?? {});
 
 export interface CatalogRunController {
   estimate: RequestHandler;
   start: RequestHandler;
+  carryOn: RequestHandler;
+  stop: RequestHandler;
   read: RequestHandler;
   readCatalog: RequestHandler;
 }
@@ -83,6 +92,27 @@ export function createCatalogRunController(dependencies: {
       }
       const run = await catalogRunService.start(runId, {
         limit: body.data.limit,
+        by: gate.whoIsSignedIn(response).account.id,
+      });
+      response.status(202).json({ run } satisfies CatalogRunResponse);
+    },
+
+    carryOn: async (request, response) => {
+      const { runId } = runParams.parse(request.params);
+      const body = continueBody.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError(body.error.issues[0]?.message ?? RAISE_NEEDED);
+      }
+      const run = await catalogRunService.carryOn(runId, {
+        ...body.data,
+        by: gate.whoIsSignedIn(response).account.id,
+      });
+      response.status(202).json({ run } satisfies CatalogRunResponse);
+    },
+
+    stop: async (request, response) => {
+      const { runId } = runParams.parse(request.params);
+      const run = await catalogRunService.stop(runId, {
         by: gate.whoIsSignedIn(response).account.id,
       });
       response.status(202).json({ run } satisfies CatalogRunResponse);

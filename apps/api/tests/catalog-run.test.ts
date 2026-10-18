@@ -1,7 +1,6 @@
-import type { CatalogRun, CatalogRunResponse, TavolaResponse } from '@ricambi/contracts';
+import type { CatalogRunResponse, TavolaResponse } from '@ricambi/contracts';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { ConfiguredReading } from '../src/composition/reading.js';
 import type { ModelRow } from '../src/db/schema.js';
 import {
   aRow,
@@ -10,7 +9,7 @@ import {
   fakeReadingMethod,
   type InventedPage,
 } from './support/catalog-reading.js';
-import { fixturePdf } from './support/fixture-pdf.js';
+import { configured, estimated, heldReadingMethod, settled, start } from './support/catalog-run.js';
 import { givenModel, givenTavola } from './support/fixtures.js';
 import { givenAMember, givenAnAdministrator } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
@@ -31,65 +30,6 @@ const PAGES: InventedPage[] = [
   ),
   aTableSheet('2', [aTable([aRow('1', '41.02.001', 'VITE')])], { titleIt: 'VITERIA' }),
 ];
-
-/** A Reading method that can be held at one request, to look at a run while it is going. */
-function heldReadingMethod(pages: InventedPage[]) {
-  const method = fakeReadingMethod(pages);
-  let held: { call: string; release: () => void; reached: () => void } | null = null;
-  let reached: Promise<void> = Promise.resolve();
-  const readTable = method.readTable.bind(method);
-  method.readTable = async (sheet, reading) => {
-    if (held && held.call === `read ${sheet.page} ${reading}`) {
-      const waiting = held;
-      held = null;
-      await new Promise<void>((release) => {
-        waiting.release = release;
-        waiting.reached();
-      });
-    }
-    return readTable(sheet, reading);
-  };
-  return Object.assign(method, {
-    /** Holds the run when it asks for this, until `release` is called. */
-    holdAt(call: string): { reached: Promise<void>; release: () => void } {
-      const hold = { call, release: () => {}, reached: () => {} };
-      reached = new Promise((resolve) => (hold.reached = resolve));
-      held = hold;
-      return { reached, release: () => hold.release() };
-    },
-  });
-}
-
-function configured(method: ReturnType<typeof fakeReadingMethod>): ConfiguredReading {
-  return { kind: 'api-key', method, unavailable: null, invented: false };
-}
-
-async function estimated(agent: TestAgent, model: ModelRow, pages = 2): Promise<CatalogRun> {
-  const response = await agent
-    .post('/api/catalog-runs')
-    .query({ modelId: model.id, firstPage: '1', lastPage: String(pages) })
-    .set('Content-Type', 'application/pdf')
-    .send(fixturePdf(pages))
-    .expect(201);
-  return (response.body as CatalogRunResponse).run;
-}
-
-function start(agent: TestAgent, run: CatalogRun, body: object) {
-  return agent.post(`/api/catalog-runs/${run.id}/start`).send(body);
-}
-
-/** The run as its page shows it, once it is no longer running. */
-async function settled(agent: TestAgent, run: CatalogRun): Promise<CatalogRun> {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const response = await agent.get(`/api/catalog-runs/${run.id}`).expect(200);
-    const current = (response.body as CatalogRunResponse).run;
-    if (current.state !== 'running') {
-      return current;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error(`Catalog run ${run.id} was still running.`);
-}
 
 describe('starting a Catalog run', () => {
   let app: TestApp;

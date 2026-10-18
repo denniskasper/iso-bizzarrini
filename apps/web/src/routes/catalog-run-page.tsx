@@ -1,13 +1,24 @@
-import type { CatalogRun, CatalogRunState, CatalogRunTavola } from '@ricambi/contracts';
+import type {
+  CatalogRun,
+  CatalogRunAction,
+  CatalogRunState,
+  CatalogRunTavola,
+} from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
+import { useState } from 'react';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
+import { Button } from '@/components/ui/button';
+import { Field, Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
-import { useCatalogRun } from '@/lib/readings';
+import { useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from '@/lib/readings';
 
 /**
  * **One Catalog run** (issue #58). The run reads on the server, so this page is somewhere to look
  * rather than something to keep open: what it has spent against its limit, said large, and each
  * Tavola it has found, with what it cost and a way to its Unchecked page as soon as it is there.
+ *
+ * Its one action follows its state (issue #59): Stop while it reads, Continue once it has stopped,
+ * with a higher limit where the limit is what stopped it. Below, who did what to it, and when.
  */
 export function CatalogRunPage() {
   return (
@@ -60,13 +71,156 @@ function RunRecord({ run }: { run: CatalogRun }) {
         role="status"
         data-testid="catalog-run-state"
       >
-        {stateNamed(run.state)}
+        {stopping(run) ? 'Stopping before its next request.' : stateNamed(run.state)}
       </p>
-      {run.failure && <p className="mt-2 text-pretty text-alarm">{run.failure}</p>}
+      {run.failure && (
+        <p className={`mt-2 text-pretty ${run.state === 'failed' ? 'text-alarm' : 'text-muted'}`}>
+          {run.failure}
+        </p>
+      )}
+
+      {run.state === 'running' && !stopping(run) && <Stop run={run} />}
+      {STOPPED.includes(run.state) && <Continue key={String(run.limit)} run={run} />}
 
       <Tavole run={run} />
+      <Actions actions={run.actions} />
     </>
   );
+}
+
+const STOPPED: CatalogRunState[] = [
+  'stopped-at-limit',
+  'stopped-at-usage-limit',
+  'stopped-after-failures',
+  'stopped-by-administrator',
+];
+
+/** Stop has been pressed, and the run has yet to reach its next request. */
+function stopping(run: CatalogRun): boolean {
+  return run.state === 'running' && run.actions.at(-1)?.action === 'stopped';
+}
+
+/**
+ * Stopping is a brake, not progress, so it is a plain button rather than the accent: the run
+ * finishes the request in hand, keeps every Tavola it has read, and can be continued.
+ */
+function Stop({ run }: { run: CatalogRun }) {
+  const stop = useStopCatalogRun();
+  return (
+    <div className="mt-6 flex flex-col gap-3">
+      <div>
+        <Button
+          size="lg"
+          disabled={stop.isPending}
+          onClick={() => {
+            stop.mutate(run.id);
+          }}
+        >
+          {stop.isPending ? 'Stopping…' : 'Stop reading'}
+        </Button>
+      </div>
+      {stop.error && <Refusal>{refusalText(stop.error)}</Refusal>}
+    </div>
+  );
+}
+
+/**
+ * Continuing a stopped run: the screen's one action. Where the limit stopped it, a higher one is
+ * asked for first, and there is still no default.
+ */
+function Continue({ run }: { run: CatalogRun }) {
+  const carryOn = useContinueCatalogRun();
+  const needsRaise = run.state === 'stopped-at-limit';
+  const [limit, setLimit] = useState('');
+  const dollarsGiven = Number(limit);
+  const raising = limit !== '';
+
+  return (
+    <form
+      className="mt-6 flex flex-col gap-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        carryOn.mutate({ runId: run.id, limit: raising ? dollarsGiven : undefined });
+      }}
+    >
+      {needsRaise && (
+        <Field
+          label="New spending limit, in dollars"
+          hint={`Above the present ${dollars(run.limit ?? 0)}. What it has spent counts against it.`}
+          type="number"
+          inputMode="decimal"
+          min={0.01}
+          step={0.01}
+          mono
+          className="sm:max-w-xs"
+          value={limit}
+          onChange={(event) => {
+            carryOn.reset();
+            setLimit(event.target.value);
+          }}
+        />
+      )}
+
+      {carryOn.error && <Refusal>{refusalText(carryOn.error)}</Refusal>}
+
+      <div>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={carryOn.isPending || (needsRaise && !(dollarsGiven > 0))}
+        >
+          {carryOn.isPending
+            ? 'Continuing…'
+            : needsRaise
+              ? 'Raise the limit and continue'
+              : 'Continue reading'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Who started, raised, continued and stopped the run, and when, oldest first. */
+function Actions({ actions }: { actions: CatalogRunAction[] }) {
+  if (actions.length === 0) {
+    return null;
+  }
+  return (
+    <section className="mt-12" aria-labelledby="run-actions">
+      <h2 id="run-actions" className="label">
+        Who did what
+      </h2>
+      <ul className="mt-4 flex flex-col gap-2 text-pretty text-muted" data-testid="run-actions">
+        {actions.map((action, index) => (
+          <li key={index}>
+            <span className="text-text">{actionNamed(action)}</span>{' '}
+            <time className="tabular" dateTime={action.at}>
+              {when(action.at)}
+            </time>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function actionNamed({ action, by, limit }: CatalogRunAction): string {
+  const who = by ? by.name : 'the server, after it restarted';
+  switch (action) {
+    case 'started':
+      return `Started by ${who}, with a limit of ${dollars(limit ?? 0)},`;
+    case 'raised':
+      return `Limit raised to ${dollars(limit ?? 0)} by ${who},`;
+    case 'continued':
+      return `Continued by ${who},`;
+    case 'stopped':
+      return `Stopped by ${who},`;
+  }
+}
+
+function when(at: string): string {
+  return new Date(at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 /** The running total against the limit: the one figure the run is held to. */
@@ -166,7 +320,11 @@ function stateNamed(state: CatalogRunState): string {
     case 'stopped-at-limit':
       return 'Stopped before the next sheet could pass the limit.';
     case 'stopped-at-usage-limit':
-      return 'Stopped at the subscription’s usage limit.';
+      return 'Stopped at the subscription’s usage limit. Continue once the plan reads again.';
+    case 'stopped-after-failures':
+      return 'Stopped: the model failed or declined to answer. The server has logged what it said.';
+    case 'stopped-by-administrator':
+      return 'Stopped. Every Tavola it read is kept.';
     case 'failed':
       return 'Failed.';
   }

@@ -432,13 +432,36 @@ export interface ReadingSetup {
 }
 
 /**
- * Where a Catalog run stands (issues #57, #58). `estimated`: uploaded and priced, nothing read.
- * `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
- * stopped before the next sheet could pass the spending limit, or at the subscription plan's
- * usage limit, or `failed`, with the reason.
+ * Where a Catalog run stands (issues #57, #58, #59). `estimated`: uploaded and priced, nothing
+ * read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
+ * stopped: before the next sheet could pass the spending limit, at the subscription plan's usage
+ * limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
+ * A stopped run can be continued. `failed` is the end of it, with the reason.
  */
 export type CatalogRunState =
-  'estimated' | 'running' | 'finished' | 'stopped-at-limit' | 'stopped-at-usage-limit' | 'failed';
+  | 'estimated'
+  | 'running'
+  | 'finished'
+  | 'stopped-at-limit'
+  | 'stopped-at-usage-limit'
+  | 'stopped-after-failures'
+  | 'stopped-by-administrator'
+  | 'failed';
+
+/** What a person, or the server itself, did to a Catalog run (issue #59). */
+export type CatalogRunActionKind = 'started' | 'raised' | 'continued' | 'stopped';
+
+export interface CatalogRunAction {
+  action: CatalogRunActionKind;
+  /**
+   * The Administrator who did it. `null` where the server carried the run on after a restart, or
+   * where the Account has since been deleted.
+   */
+  by: { id: string; name: string } | null;
+  at: string;
+  /** The limit it was started with, or raised to, in dollars. `null` for the other actions. */
+  limit: number | null;
+}
 
 /** One Tavola of a Catalog run, as the run page lists it. */
 export interface CatalogRunTavola {
@@ -481,10 +504,15 @@ export interface CatalogRun {
   spent: number;
   startedAt: string | null;
   endedAt: string | null;
-  /** Why a `failed` run failed, in words with no credential in them. */
+  /**
+   * Why a `failed` run failed, or why a stopped one stopped where its state does not say it all,
+   * in words with no credential in them.
+   */
   failure: string | null;
   /** Each Tavola the run has found, in the order it reads them. */
   tavole: CatalogRunTavola[];
+  /** Who started, raised, continued and stopped it, and when, oldest first. */
+  actions: CatalogRunAction[];
 }
 
 export interface CatalogRunResponse {
@@ -498,6 +526,17 @@ export interface CatalogRunResponse {
  */
 export interface StartCatalogRunRequest {
   limit: number;
+}
+
+/**
+ * `POST /api/catalog-runs/:runId/continue` — a stopped run read on from where it stopped (issue
+ * #59). `limit` raises its spending limit first, and is needed where the limit is what stopped
+ * it. Answers `CatalogRunResponse` at once.
+ *
+ * `POST /api/catalog-runs/:runId/stop`, with no body, stops a running run before its next request.
+ */
+export interface ContinueCatalogRunRequest {
+  limit?: number;
 }
 
 /** Which way a quarter turn goes, looking at the drawing. */

@@ -29,12 +29,7 @@ export const EXPECTED_TRANSLATION_INPUT = 2000;
 
 export type Effort = 'low' | 'high';
 
-export class ReadingMethodError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ReadingMethodError';
-  }
-}
+export { ReadingMethodError } from './reading-method.js';
 
 export const identitySchema = z.object({
   kind: z.enum(['drawing', 'table', 'other']),

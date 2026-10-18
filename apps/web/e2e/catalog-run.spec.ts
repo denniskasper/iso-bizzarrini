@@ -74,3 +74,47 @@ test('an Administrator starts a run, watches it finish and opens a Tavola it rea
     .click();
   await expect(page.getByTestId('unchecked-band')).toBeVisible();
 });
+
+/**
+ * **A run stopped at its limit, raised and continued** (issue #59). The fake method's requests
+ * cost a cent and could cost at most 2.6 cents, so a limit of $0.12 for pages 2 to 4 reads Tavola
+ * 102 and stops before 103. Raised to a dollar, the run reads 103 and 104 and finishes.
+ */
+test('an Administrator raises the limit of a stopped run and continues it to the end', async ({
+  page,
+}) => {
+  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
+  await signIn(page);
+  await page.getByRole('link', { name: 'Readings' }).click();
+
+  await page.getByTestId('catalog-file').setInputFiles({
+    name: 'catalog.pdf',
+    mimeType: 'application/pdf',
+    buffer: fixturePdf(5),
+  });
+  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
+  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('From page').fill('2');
+  await page.getByLabel('To page').fill('4');
+  await page.getByRole('button', { name: 'Estimate the cost' }).click();
+  await expect(page.getByTestId('catalog-estimate')).toBeVisible();
+
+  await page.getByLabel('Spending limit, in dollars').fill('0.12');
+  await page.getByRole('button', { name: 'Start reading' }).click();
+
+  await expect(page.getByTestId('catalog-run-state')).toContainText('Stopped', {
+    timeout: 30_000,
+  });
+  await expect(
+    page.getByTestId('run-tavola').filter({ hasText: 'Tavola 102' }).getByRole('link'),
+  ).toBeVisible();
+
+  await page.getByLabel('New spending limit, in dollars').fill('1');
+  await page.getByRole('button', { name: 'Raise the limit and continue' }).click();
+
+  await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('link', { name: 'Open, Unchecked' })).toHaveCount(3);
+  await expect(page.getByTestId('run-actions')).toContainText('Limit raised to $1.00');
+});

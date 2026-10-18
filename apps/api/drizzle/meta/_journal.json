@@ -169,6 +169,13 @@
       "when": 1792329805640,
       "tag": "0023_catalog_run_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792330889533,
+      "tag": "0024_catalog_run_continuing",
+      "breakpoints": true
     }
   ]
 }

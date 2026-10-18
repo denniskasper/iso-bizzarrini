@@ -26,7 +26,10 @@ export interface ReadingStore {
   pageFound(page: number, identity: SheetIdentity): Promise<void>;
   /** A Tavola has been read whole. Its cost follows straight after. */
   tavolaFinished(tavola: FinishedTavola): Promise<void>;
-  /** What the run has cost so far: after every finished Tavola, and once more at the end. */
+  /**
+   * What the run has cost so far: after every request it paid for, after every finished Tavola,
+   * and once more at the end. A run cut off part-way has kept what it spent.
+   */
   costed(record: CostRecord): Promise<void>;
   /**
    * The run is over, whether it read everything or stopped: `cost.stopped` says which, and why.

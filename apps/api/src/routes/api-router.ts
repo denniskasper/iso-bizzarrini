@@ -197,6 +197,18 @@ export function createApiRouter(dependencies: {
     gate.hiddenFromAllButAdministrators,
     catalogRunController.start,
   );
+  // Stopped, and continued from where it stopped, with its limit raised first where that is
+  // what stopped it (issue #59).
+  router.post(
+    '/catalog-runs/:runId/continue',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.carryOn,
+  );
+  router.post(
+    '/catalog-runs/:runId/stop',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.stop,
+  );
   router.get(
     '/catalog-runs/:runId/catalog',
     gate.hiddenFromAllButAdministrators,

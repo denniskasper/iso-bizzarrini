@@ -148,7 +148,16 @@ export interface PlatformLocals {
 /** Where the payment provider delivers, as the request itself spells it. */
 const WEBHOOK_ADDRESS = API_MOUNT + WEBHOOK_PATH;
 
-export function createApp(dependencies: AppDependencies): Express {
+/** The application, and what the process that serves it tells it as it goes away. */
+export type RicambiApp = Express & {
+  /**
+   * The process is going away: every Catalog run reading here stops before its next request and
+   * is left running, for the next server to carry on (issue #59).
+   */
+  interruptCatalogRuns(): void;
+};
+
+export function createApp(dependencies: AppDependencies): RicambiApp {
   const { config, clock, db, emailSender, paymentProvider, reading } = dependencies;
 
   // Before anything else. A non-production environment that could reach a real member or a real
@@ -330,18 +339,16 @@ export function createApp(dependencies: AppDependencies): Express {
     reminderService: createReminders({ db, clock, logger, emailSender, paymentProvider, config }),
   });
   const readingController = createReadingController({ reading });
-  const catalogRunController = createCatalogRunController({
-    gate,
-    catalogRunService: createCatalogRunService({
-      reading,
-      catalogRunRepository,
-      modelRepository,
-      fileStore,
-      clock,
-      db,
-      logger,
-    }),
+  const catalogRunService = createCatalogRunService({
+    reading,
+    catalogRunRepository,
+    modelRepository,
+    fileStore,
+    clock,
+    db,
+    logger,
   });
+  const catalogRunController = createCatalogRunController({ gate, catalogRunService });
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
@@ -470,5 +477,13 @@ export function createApp(dependencies: AppDependencies): Express {
   dependencies.attachErrorReporting?.(app);
   app.use(createErrorHandler(logger));
 
-  return app;
+  // **A Catalog run left running by the last server is carried on** (issue #59). Every merge
+  // redeploys the preview, so this is the usual way a run meets a restart, not an accident.
+  catalogRunService.pickUp().catch((error: unknown) => {
+    logger.error({ err: error }, 'Could not carry on the Catalog runs left running');
+  });
+
+  return Object.assign(app, {
+    interruptCatalogRuns: () => catalogRunService.interrupt(),
+  });
 }

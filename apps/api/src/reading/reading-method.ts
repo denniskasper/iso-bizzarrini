@@ -86,6 +86,19 @@ export class UsageLimitReached extends Error {
   }
 }
 
+/**
+ * **The method could not get an answer**: the request failed after the method's own retries, or
+ * the model declined it or answered with something that could not be read. Its message is written
+ * never to carry a request, and so never a credential. A run stops cleanly on one rather than ask
+ * again and pay again (issue #59).
+ */
+export class ReadingMethodError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReadingMethodError';
+  }
+}
+
 /** One page of the catalog as an image, and where in the PDF it was. */
 export interface SheetImage {
   /** The page of the PDF, counting from 1. Provenance only — never which Tavola it belongs to. */
