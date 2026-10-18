@@ -40,7 +40,7 @@ export function PastRuns() {
               </span>
               <span className="ml-auto flex flex-col items-end">
                 <span className="tabular text-lg text-text">
-                  {dollars(run.state === 'estimated' ? run.estimate : run.spent)}
+                  {dollars(beforeReading(run) ? run.estimate : run.spent)}
                 </span>
                 <span className="text-sm text-muted">{methodNamed(run)}</span>
               </span>
@@ -64,12 +64,20 @@ function methodNamed({ readingMethod, charged, state }: CatalogRunListed): strin
       : readingMethod === 'api-key'
         ? 'API key'
         : 'Practice method';
-  const estimate = state === 'estimated' ? ', estimate' : '';
+  const estimate =
+    state === 'estimated' ? ', estimate' : state === 'estimating' ? ', estimate so far' : '';
   return `${what}, ${charged ? 'charged' : 'not charged'}${estimate}`;
+}
+
+/** Not yet started, so its figure is what it is estimated at rather than what it has spent. */
+function beforeReading({ state }: CatalogRunListed): boolean {
+  return state === 'estimating' || state === 'estimated';
 }
 
 function stateNamed(state: CatalogRunState): string {
   switch (state) {
+    case 'estimating':
+      return 'being estimated';
     case 'estimated':
       return 'estimated, not started';
     case 'running':

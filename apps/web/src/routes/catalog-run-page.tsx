@@ -7,6 +7,7 @@ import type {
 } from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
+import { Estimating } from '@/components/readings/estimating';
 import { RunCosts } from '@/components/readings/run-costs';
 import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
@@ -20,13 +21,17 @@ import { dollars, useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from
  * rather than something to keep open: what it has spent against its limit, said large, and each
  * Tavola it has found, with what it cost and a way to its Unchecked page as soon as it is there.
  *
+ * Below the Tavole it has read, what it has not yet read (issue #64): the Tavole it stopped in the
+ * middle of, and the pages it never reached.
+ *
  * Its one action follows its state (issue #59): Stop while it reads, Continue once it has stopped,
  * with a higher limit where the limit is what stopped it. Below, the pages it set aside rather than
  * guess their Tavola (issue #60), its record of what each Tavola, sheet and Reading cost (issue
  * #62), and who did what to it, and when.
  *
  * A run that reads one Unchecked Tavola again (issue #61) is the same page, named for that Tavola,
- * and while it is only estimated, starting it with a limit is the one action.
+ * and while it is only estimated, starting it with a limit is the one action. While its catalog is
+ * still being estimated (issue #65), it says how far the estimate has got, and offers nothing.
  */
 export function CatalogRunPage() {
   return (
@@ -88,11 +93,13 @@ function RunRecord({ run }: { run: CatalogRun }) {
         </p>
       )}
 
+      {run.state === 'estimating' && <Estimating run={run} />}
       {run.state === 'estimated' && <StartRun run={run} />}
       {run.state === 'running' && !stopping(run) && <Stop run={run} />}
       {STOPPED.includes(run.state) && <Continue key={String(run.limit)} run={run} />}
 
       <Tavole run={run} />
+      <Left run={run} />
       <SetAside pages={run.setAside} />
       <RunCosts run={run} />
       <Actions actions={run.actions} />
@@ -280,31 +287,115 @@ function Spending({ run }: { run: CatalogRun }) {
   );
 }
 
+/** The Tavole it has read whole, each opening its Unchecked page as soon as it is there. */
 function Tavole({ run }: { run: CatalogRun }) {
-  if (run.tavole.length === 0) {
+  const finished = run.tavole.filter((tavola) => tavola.finished);
+  if (finished.length === 0) {
+    if (run.startedAt === null) {
+      return null;
+    }
     return (
       <p className="mt-12 text-pretty text-muted">
         {run.state === 'running'
-          ? 'Each Tavola is listed here once its pages have been found, and opens as soon as it is read.'
-          : 'This run found no Tavola to read.'}
+          ? 'Each Tavola is listed here once it is read, and opens straight away.'
+          : run.left.tavole.length > 0 || run.left.pages.length > 0
+            ? 'It has not read a Tavola whole yet.'
+            : 'This run found no Tavola to read.'}
       </p>
     );
   }
   return (
     <section className="mt-12" aria-labelledby="run-tavole">
       <h2 id="run-tavole" className="label">
-        Tavole
+        Tavole read
       </h2>
       <ul className="mt-4 divide-y divide-line border-y border-line">
-        {run.tavole.map((tavola) => (
-          <TavolaLine key={tavola.number} tavola={tavola} running={run.state === 'running'} />
+        {finished.map((tavola) => (
+          <TavolaLine key={tavola.number} tavola={tavola} />
         ))}
       </ul>
     </section>
   );
 }
 
-function TavolaLine({ tavola, running }: { tavola: CatalogRunTavola; running: boolean }) {
+/**
+ * **What it has not yet read** (issue #64): the Tavole it began and did not finish, and the pages
+ * it never reached, which is what raising the limit and continuing would read. Said in one line
+ * once nothing is left, rather than as two empty lists. Before the run starts, everything is left,
+ * and the page says nothing of it.
+ */
+function Left({ run }: { run: CatalogRun }) {
+  if (run.startedAt === null) {
+    return null;
+  }
+  const { tavole, pages } = run.left;
+  const costs = new Map(run.tavole.map((tavola) => [tavola.number, tavola.cost]));
+  return (
+    <section className="mt-12" aria-labelledby="run-left" data-testid="run-left">
+      <h2 id="run-left" className="label">
+        Left to read
+      </h2>
+      {tavole.length === 0 && pages.length === 0 ? (
+        <p className="mt-4 text-pretty text-text">
+          Nothing is left to read: every page went into a Tavola or was set aside.
+        </p>
+      ) : (
+        <dl className="mt-4 divide-y divide-line border-y border-line">
+          {tavole.length > 0 && (
+            <div
+              className="flex flex-col gap-1 py-3 sm:flex-row sm:gap-6"
+              data-testid="run-unfinished"
+            >
+              <dt className="shrink-0 text-muted sm:w-36">Not finished</dt>
+              <dd className="flex flex-col gap-1">
+                {tavole.map((number) => (
+                  <span key={number} className="flex flex-wrap items-baseline gap-x-6">
+                    <span className="text-lg font-medium text-text">Tavola {number}</span>
+                    <span className="tabular text-muted">
+                      {dollars(costs.get(number) ?? 0)} so far
+                    </span>
+                  </span>
+                ))}
+              </dd>
+            </div>
+          )}
+          {pages.length > 0 && (
+            <div
+              className="flex flex-col gap-1 py-3 sm:flex-row sm:gap-6"
+              data-testid="run-unreached"
+            >
+              <dt className="shrink-0 text-muted sm:w-36">Not reached</dt>
+              <dd className="text-lg font-medium text-pretty text-text">
+                {pages.length === 1 ? 'Page' : 'Pages'}{' '}
+                <span className="tabular">{pageRuns(pages)}</span>
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
+    </section>
+  );
+}
+
+/** Pages in order, with each run of three or more said as one: 4, 5, 7 to 9. */
+function pageRuns(pages: number[]): string {
+  const runs: [number, number][] = [];
+  for (const page of pages) {
+    const last = runs.at(-1);
+    if (last && page === last[1] + 1) {
+      last[1] = page;
+    } else {
+      runs.push([page, page]);
+    }
+  }
+  return runs
+    .map(([first, last]) =>
+      last - first >= 2 ? `${first} to ${last}` : first === last ? `${first}` : `${first}, ${last}`,
+    )
+    .join(', ');
+}
+
+function TavolaLine({ tavola }: { tavola: CatalogRunTavola }) {
   return (
     <li
       className="flex min-h-control flex-wrap items-baseline gap-x-6 gap-y-1 py-3"
@@ -324,9 +415,7 @@ function TavolaLine({ tavola, running }: { tavola: CatalogRunTavola; running: bo
         ) : tavola.refused ? (
           <span className="text-muted">Not loaded. {tavola.refused}</span>
         ) : (
-          <span className="text-faint">
-            {tavola.finished ? 'Read' : running ? 'Still to read' : 'Not read'}
-          </span>
+          <span className="text-faint">Read</span>
         )}
       </span>
     </li>
@@ -393,6 +482,8 @@ function SetAsideLine({ page }: { page: CatalogRunSetAsidePage }) {
 
 function stateNamed(state: CatalogRunState): string {
   switch (state) {
+    case 'estimating':
+      return 'Being estimated. Nothing has been read.';
     case 'estimated':
       return 'Estimated. Nothing has been read.';
     case 'running':

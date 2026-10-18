@@ -432,13 +432,14 @@ export interface ReadingSetup {
 }
 
 /**
- * Where a Catalog run stands (issues #57, #58, #59). `estimated`: uploaded and priced, nothing
- * read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
+ * Where a Catalog run stands (issues #57, #58, #59, #65). `estimating`: uploaded, and being
+ * priced page by page on the server. `estimated`: uploaded and priced, nothing read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
  * stopped: before the next sheet could pass the spending limit, at the subscription plan's usage
  * limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
  * A stopped run can be continued. `failed` is the end of it, with the reason.
  */
 export type CatalogRunState =
+  | 'estimating'
   | 'estimated'
   | 'running'
   | 'finished'
@@ -490,8 +491,16 @@ export interface CatalogRun {
   pages: { first: number; last: number };
   /** How many pages the uploaded PDF has. */
   catalogPages: number;
-  /** In dollars, at the price list's prices, for every page in `pages`. */
+  /**
+   * In dollars, at the price list's prices, for every page in `pages`. While it is `estimating`,
+   * for the pages estimated so far.
+   */
   estimate: number;
+  /**
+   * How far its estimate has got, while it is `estimating` (issue #65): how many of the `of` pages
+   * to read have been priced. `null` in every other state.
+   */
+  estimating: { pages: number; of: number } | null;
   readingMethod: ReadingMethodKind;
   /** Whether what it reads is billed per use. Where it is not, `estimate` is what it would cost. */
   charged: boolean;
@@ -511,6 +520,14 @@ export interface CatalogRun {
   failure: string | null;
   /** Each Tavola the run has found, in the order it reads them. */
   tavole: CatalogRunTavola[];
+  /**
+   * **What it has not yet read** (issue #64), worked out from what it has done and so right
+   * across stops, continuing and restarts. Both are empty once it has read everything.
+   * - `tavole`: the Tavole it began reading and did not finish, in the order it reads them.
+   * - `pages`: the pages to read it never reached, in page order. That is a page it has not yet
+   *   identified, or one of a Tavola it has not begun. A page it set aside has been reached.
+   */
+  left: { tavole: string[]; pages: number[] };
   /** Who started, raised, continued and stopped it, and when, oldest first. */
   actions: CatalogRunAction[];
   /**
@@ -582,6 +599,25 @@ export interface CatalogRunCostRecord {
   }[];
   /** Pages asked what they are that went into no Tavola. */
   setAside: { page: number; identification: CatalogRunSpent }[];
+  /**
+   * Requests sent, and so paid for, whose answers were cut off when the server went away (issue
+   * #66). Each is counted at the most it could cost, and is in `total`, which is why the total
+   * can be more than what the answers add up to.
+   */
+  cutOff: CatalogRunCutOffRequest[];
+}
+
+/** A request whose answer never came back, at the most it could cost. */
+export interface CatalogRunCutOffRequest {
+  /** Asking what a page is, one Reading of a Table sheet, a drawing's numbers, or translating. */
+  request: 'identification' | 'reading' | 'numbers' | 'translation';
+  /** `null` for a translation, which is about a Tavola. */
+  page: number | null;
+  /** `null` for asking what a page is. */
+  tavola: string | null;
+  /** Which Reading, for a Reading; otherwise `null`. */
+  reading: 1 | 2 | null;
+  cost: number;
 }
 
 /**

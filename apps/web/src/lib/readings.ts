@@ -12,8 +12,12 @@ export function useReadingSetup() {
   });
 }
 
-/** A catalog uploaded and its whole run estimated. Nothing is read (issue #57). */
+/**
+ * A catalog uploaded, and its run being estimated on the server (issues #57, #65). Nothing is
+ * read. The answer is the run as it was stored; `useCatalogRun` follows its estimate.
+ */
 export function useEstimateCatalogRun() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       catalog,
@@ -24,6 +28,9 @@ export function useEstimateCatalogRun() {
       firstPage: number;
       lastPage: number;
     }) => api.estimateCatalogRun(catalog, run),
+    onSuccess: (data) => {
+      queryClient.setQueryData(catalogRunQueryKey(data.run.id), data);
+    },
   });
 }
 
@@ -40,13 +47,17 @@ export const catalogRunQueryKey = (runId: string) => ['catalog-runs', runId] as 
 
 /**
  * One Catalog run, asked again every few seconds while it reads (issue #58), so its running total
- * and its Tavole arrive without anybody reloading the page.
+ * and its Tavole arrive without anybody reloading the page, and every second while it is being
+ * estimated (issue #65), which is quicker and is waited for.
  */
 export function useCatalogRun(runId: string) {
   return useQuery({
     queryKey: catalogRunQueryKey(runId),
     queryFn: () => api.catalogRun(runId),
-    refetchInterval: (query) => (query.state.data?.run.state === 'running' ? 2_000 : false),
+    refetchInterval: (query) => {
+      const state = query.state.data?.run.state;
+      return state === 'estimating' ? 1_000 : state === 'running' ? 2_000 : false;
+    },
   });
 }
 

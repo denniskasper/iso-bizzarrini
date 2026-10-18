@@ -113,6 +113,7 @@ describe('the record of a Catalog run', () => {
           },
         ],
         setAside: [],
+        cutOff: [],
       },
     ]);
     expect(finished.actions).toEqual([

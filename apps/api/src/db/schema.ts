@@ -538,8 +538,9 @@ export const readingDoubts = pgTable(
   (table) => [index('reading_doubts_tavola_id_index').on(table.tavolaId)],
 );
 
-/** Where a Catalog run stands (issues #57, #58). */
+/** Where a Catalog run stands (issues #57, #58, #65). */
 export const CATALOG_RUN_STATES = [
+  'estimating',
   'estimated',
   'running',
   'finished',
@@ -559,9 +560,9 @@ export const CATALOG_RUN_ACTIONS = [
 
 /**
  * A **Catalog run** (ADR 0018): one Administrator-started pass over one uploaded catalog PDF for
- * one Model. It begins `estimated`: the PDF is in the private file store, as a Scan is, and what
- * reading its pages would cost has been worked out as the read command works it out. Nothing has
- * been sent to a model.
+ * one Model. It begins `estimating`: the PDF is in the private file store, as a Scan is, and what
+ * reading its pages would cost is being worked out on the server, page by page, as the read
+ * command works it out (issue #65). Then it is `estimated`. Nothing has been sent to a model.
  *
  * The Reading method is recorded by its kind, which is all the Readings section ever says about
  * it. The price list is recorded by the model it priced and the date it was checked, because the
@@ -588,8 +589,13 @@ export const catalogRuns = pgTable(
     /** The model the price list was read for, and when its prices were checked. */
     pricedModel: text('priced_model').notNull(),
     pricesCheckedOn: text('prices_checked_on').notNull(),
-    /** In dollars, to a ten-thousandth of a cent. */
+    /** In dollars, to a ten-thousandth of a cent. While estimating, for the pages priced so far. */
     estimate: doublePrecision('estimate').notNull(),
+    /**
+     * While estimating, how many of its pages have been priced, from `firstPage` on. What a server
+     * that went away had priced is kept, and the next one prices on from there.
+     */
+    pagesEstimated: integer('pages_estimated').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     /** Who uploaded it. Deleting the Account keeps the run and drops the name (ADR 0007). */
     createdBy: uuid('created_by').references((): AnyPgColumn => accounts.id, {
@@ -637,14 +643,15 @@ export const catalogRuns = pgTable(
     ),
     check(
       'catalog_runs_started_with_a_limit',
-      sql`${table.state} = 'estimated' or ${table.spendingLimit} > 0`,
+      sql`${table.state} in ('estimating', 'estimated') or ${table.spendingLimit} > 0`,
     ),
     index('catalog_runs_model_id_index').on(table.modelId),
     // **One Catalog run at a time** (issue #58), so two never spend against each other or read the
     // same Tavole. Refused by the database, so two Administrators starting at once cannot both.
-    uniqueIndex('catalog_runs_one_running')
-      .on(table.state)
-      .where(sql`${table.state} = 'running'`),
+    // A catalog being estimated is the one thing being read as much as a run is (issue #65).
+    uniqueIndex('catalog_runs_one_reading')
+      .on(sql`(${table.state} in ('estimating', 'running'))`)
+      .where(sql`${table.state} in ('estimating', 'running')`),
   ],
 );
 

@@ -229,8 +229,17 @@ describe('a Catalog run when the server restarts', () => {
     after = await before.restart({ reading: configured(carriedOn) });
     const again = await after.memberAgent({ email, password });
 
+    // The Reading it was waiting for was sent and paid for, and is counted at the most it could
+    // cost: $0.10, on top of the $0.16 answered before it and the $0.08 read after.
     const finished = await settled(again, run);
-    expect(finished).toMatchObject({ state: 'finished', spent: 0.24 });
+    expect(finished).toMatchObject({ state: 'finished', spent: 0.34 });
+    expect(finished.costs.map(({ total, cutOff }) => ({ total, cutOff }))).toEqual([
+      {
+        total: 0.26,
+        cutOff: [{ request: 'reading', page: 2, tavola: '2', reading: 1, cost: 0.1 }],
+      },
+      { total: 0.08, cutOff: [] },
+    ]);
     expect(interrupted.calls).toEqual(READ_TO_TAVOLA_2);
     expect(carriedOn.calls).toEqual(['read 2 1', 'read 2 2']);
     expect(finished.tavole.map((tavola) => [tavola.number, tavola.finished])).toEqual([
@@ -241,5 +250,35 @@ describe('a Catalog run when the server restarts', () => {
       ['started', false],
       ['continued', true],
     ]);
+  });
+});
+
+describe('a Catalog run cut off in the middle of a request', () => {
+  let before: TestApp;
+  let after: TestApp;
+
+  afterAll(async () => {
+    await after.close();
+  });
+
+  it('counts the request against its limit when it carries on', async () => {
+    const interrupted = heldReadingMethod(PAGES);
+    before = await startTestApp({ reading: configured(interrupted) });
+    const { agent: administrator, email, password } = await givenAnAdministrator(before);
+    const model = await givenModel(before.db, { brand: 'Iso', name: 'Grifo' });
+    const run = await estimated(administrator, model);
+    const hold = interrupted.holdAt('read 2 1');
+    await start(administrator, run, { limit: 0.4 }).expect(202);
+    await hold.reached;
+
+    const carriedOn = fakeReadingMethod(PAGES);
+    after = await before.restart({ reading: configured(carriedOn) });
+    const again = await after.memberAgent({ email, password });
+
+    // $0.16 answered and $0.10 cut off leave $0.14, short of the $0.20 Tavola 2 could cost. Had
+    // the cut-off Reading not been counted, $0.24 would be left and it would have read on.
+    const stopped = await settled(again, run);
+    expect(stopped).toMatchObject({ state: 'stopped-at-limit', limit: 0.4, spent: 0.26 });
+    expect(carriedOn.calls).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 import type {
   CatalogRun,
   CatalogRunCostRecord,
+  CatalogRunCutOffRequest,
   CatalogRunSheetCost,
   CatalogRunSpent,
 } from '@ricambi/contracts';
@@ -14,6 +15,9 @@ import { dollars } from '@/lib/readings';
  *
  * A run continued after a stop read more than once; each time is its own table, as each was its
  * own record, so a Tavola read again whole shows what it cost both times.
+ *
+ * A request whose answer was cut off by a restart was paid for all the same. It has a row of its
+ * own at the most it could cost, which is why a total can be more than its answers (issue #66).
  */
 export function RunCosts({ run }: { run: CatalogRun }) {
   if (run.costs.length === 0) {
@@ -164,6 +168,30 @@ function Time({ record, only }: { record: CatalogRunCostRecord; only: boolean })
               </tr>
             </tbody>
           )}
+          {record.cutOff.length > 0 && (
+            <tbody className="border-b border-line" data-testid="run-cost-cut-off">
+              <tr>
+                <th scope="rowgroup" colSpan={6} className="pt-4 pr-4 pb-1 text-left font-medium">
+                  Cut off
+                  <span className="block font-normal text-pretty text-muted">
+                    Sent, but the server went away before the answer came back. Each is counted at
+                    the most it could cost.
+                  </span>
+                </th>
+              </tr>
+              {record.cutOff.map((request, index) => (
+                <tr key={index} className="text-muted">
+                  <th scope="row" colSpan={5} className="py-1 pr-4 text-left font-normal">
+                    {requestNamed(request)}
+                  </th>
+                  <td className="tabular py-1 pl-3 text-text">{dollars(request.cost)}</td>
+                </tr>
+              ))}
+              <tr aria-hidden="true">
+                <td colSpan={6} className="pb-3" />
+              </tr>
+            </tbody>
+          )}
           <tfoot>
             <tr>
               <th scope="row" colSpan={5} className="py-3 pr-4 text-left font-medium">
@@ -220,6 +248,19 @@ function Cell({ spent }: { spent: CatalogRunSpent | undefined }) {
       {dollars(spent.cost)}
     </td>
   );
+}
+
+function requestNamed({ request, page, tavola, reading }: CatalogRunCutOffRequest): string {
+  switch (request) {
+    case 'identification':
+      return `Page ${page}, asked what it is`;
+    case 'reading':
+      return `Page ${page}, Reading ${reading} of Tavola ${tavola}`;
+    case 'numbers':
+      return `Page ${page}, the drawing’s numbers for Marks`;
+    case 'translation':
+      return `Translating Tavola ${tavola}`;
+  }
 }
 
 function stoppedNamed({ stopped }: CatalogRunCostRecord): string {

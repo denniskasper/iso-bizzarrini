@@ -116,6 +116,45 @@ export interface CostRecord {
   setAside: { page: number; cost: number; identification: Spent }[];
   /** Pages never asked what they are, because the run stopped first. They cost nothing. */
   notIdentified: number[];
+  /**
+   * The request sent and not yet answered, at the most it could cost; `null` between requests.
+   * It is not in `total` until it is cut off. Absent from records kept before issue #66.
+   */
+  awaiting?: SentRequest | null;
+  /**
+   * Requests sent, and so paid for, whose answers never came back because the process went away
+   * (issue #66). Each is counted at the most it could cost, and is in `total`.
+   */
+  cutOff?: SentRequest[];
+}
+
+/** One request to the model, by what it asked, and the most it could cost. */
+export interface SentRequest {
+  request: 'identification' | 'reading' | 'numbers' | 'translation';
+  /** The page it was about. `null` for a translation, which is about a Tavola. */
+  page: number | null;
+  /** The Tavola it was for. `null` for asking what a page is, before that is known. */
+  tavola: string | null;
+  /** Which of a Table sheet's two Readings. `null` for every other request. */
+  reading: 1 | 2 | null;
+  cost: number;
+}
+
+/**
+ * A record whose request was still awaiting its answer when the run was picked up again: the
+ * request is kept at the most it could cost, marked cut off, and counted in the total, so that it
+ * counts against the limit as it did against the bill.
+ */
+export function withCutOff(record: CostRecord): CostRecord {
+  if (!record.awaiting) {
+    return record;
+  }
+  return {
+    ...record,
+    total: rounded(record.total + record.awaiting.cost),
+    cutOff: [...(record.cutOff ?? []), record.awaiting],
+    awaiting: null,
+  };
 }
 
 export function priceListEntry(price: ModelPrice): CostRecord['priceList'] {

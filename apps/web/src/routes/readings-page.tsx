@@ -1,13 +1,14 @@
 import type { CatalogRun, ReadingSetup } from '@ricambi/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
+import { Estimating } from '@/components/readings/estimating';
 import { PastRuns } from '@/components/readings/past-runs';
 import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, Refusal, Select } from '@/components/ui/field';
 import { api, refusalText } from '@/lib/api';
-import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
+import { useCatalogRun, useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
 
 /**
  * **The Readings section** (issue #55, ADR 0018): what this server reads the factory catalog
@@ -18,8 +19,9 @@ import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
  * subscription it is; the API does not know how to say either.
  *
  * Below it, a Catalog run begins (issue #57): the catalog uploaded, its Model and pages chosen,
- * and what reading them would cost. Once there is an estimate, starting it with a spending limit
- * is the screen's one action (issue #58), and estimating steps back.
+ * and what reading them would cost, priced page by page on the server once it is stored (issue
+ * #65). Once there is an estimate, starting it with a spending limit is the screen's one action
+ * (issue #58), and estimating steps back.
  *
  * Last, every run there has been, each opening its record of what it cost (issue #62).
  */
@@ -223,19 +225,46 @@ function NewRun() {
             size="lg"
             disabled={!ready || estimate.isPending}
           >
-            {estimate.isPending ? 'Estimating…' : 'Estimate the cost'}
+            {estimate.isPending ? 'Uploading…' : 'Estimate the cost'}
           </Button>
         </div>
       </form>
 
-      {estimate.data && (
-        <>
-          <Estimate run={estimate.data.run} />
-          <StartRun run={estimate.data.run} />
-        </>
-      )}
+      {estimate.data && <Estimated runId={estimate.data.run.id} />}
     </section>
   );
+}
+
+/**
+ * The uploaded catalog's run, followed while the server prices it, then its estimate and the
+ * limit to start it with. Start is offered only once the whole estimate is there.
+ */
+function Estimated({ runId }: { runId: string }) {
+  const run = useCatalogRun(runId);
+  if (!run.data) {
+    return null;
+  }
+  const { run: current } = run.data;
+  switch (current.state) {
+    case 'estimating':
+      return <Estimating run={current} />;
+    case 'estimated':
+      return (
+        <>
+          <Estimate run={current} />
+          <StartRun run={current} />
+        </>
+      );
+    case 'failed':
+      return (
+        <div className="mt-10">
+          <Refusal>{current.failure ?? 'This catalog could not be estimated.'}</Refusal>
+        </div>
+      );
+    default:
+      // Started: the page is on its way to the run's own, so the estimate stays until it is.
+      return <Estimate run={current} />;
+  }
 }
 
 /** What the run would cost, said once, large, and then what that figure is made of. */

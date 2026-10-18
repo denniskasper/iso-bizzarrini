@@ -202,6 +202,8 @@ describe('the cost of reading a catalog', () => {
       ],
       setAside: [{ page: 3, cost: 0.04, identification }],
       notIdentified: [],
+      awaiting: null,
+      cutOff: [],
     });
   });
 });

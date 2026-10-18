@@ -347,6 +347,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     clock,
     db,
     logger,
+    maxCatalogBytes: config.files.maxCatalogBytes,
   });
   const catalogRunController = createCatalogRunController({ gate, catalogRunService });
   const retentionController = createRetentionController({ gate, retentionService });
@@ -436,7 +437,6 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       uncheckedTavolaGuard,
       maxScanBytes: config.files.maxScanBytes,
       maxPhotographBytes: config.files.maxPhotographBytes,
-      maxCatalogBytes: config.files.maxCatalogBytes,
       statusController,
       sessionController,
       rosterController,

@@ -27,8 +27,9 @@ export interface ReadingStore {
   /** A Tavola has been read whole. Its cost follows straight after. */
   tavolaFinished(tavola: FinishedTavola): Promise<void>;
   /**
-   * What the run has cost so far: after every request it paid for, after every finished Tavola,
-   * and once more at the end. A run cut off part-way has kept what it spent.
+   * What the run has cost so far: before every request it pays for, with that request awaiting
+   * its answer at the most it could cost, after every finished Tavola, and once more at the end.
+   * A run cut off part-way has kept what it spent, and what it sent and never heard back from.
    */
   costed(record: CostRecord): Promise<void>;
   /**

@@ -17,7 +17,7 @@ const READ_INTO = 'Iso Fidia';
 
 /**
  * Beginning a Catalog run, in a real browser (issue #57): the catalog uploaded, a Model and the
- * pages chosen, and the estimate shown. Who may do it, and the figures themselves, are proved at
+ * pages chosen, the estimate worked out on the server (issue #65), and then shown. Who may do it, and the figures themselves, are proved at
  * the API seam.
  *
  * This suite's server reads with the fake method, which counts every request at a cent, so a
@@ -36,7 +36,22 @@ test('an Administrator uploads a catalog and sees what reading it would cost', a
   await page.getByLabel('Model').selectOption({ label: READ_INTO });
   await page.getByLabel('From page').fill('2');
   await page.getByLabel('To page').fill('4');
+
+  // The upload is answered once the catalog is stored, and the pages are priced after it (issue
+  // #65). The fake method prices five blank pages quicker than anybody could look, so the run is
+  // held as the upload answered it until the estimating state has been seen.
+  const estimating = page.getByTestId('catalog-estimating');
+  let seen = false;
+  await page.route(/\/api\/catalog-runs\/[0-9a-f-]{36}$/, async (route) => {
+    if (!seen) {
+      await expect(estimating).toContainText('pages priced');
+      seen = true;
+    }
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
+  await expect(estimating).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start reading' })).toHaveCount(0);
 
   const estimate = page.getByTestId('catalog-estimate');
   await expect(estimate).toContainText('$0.12');
@@ -88,7 +103,8 @@ test('an Administrator starts a run, watches it finish and opens a Tavola it rea
 /**
  * **A run stopped at its limit, raised and continued** (issue #59). The fake method's requests
  * cost a cent and could cost at most 2.6 cents, so a limit of $0.12 for pages 2 to 4 reads Tavola
- * 102 and stops before 103. Raised to a dollar, the run reads 103 and 104 and finishes.
+ * 102 and stops before 103, never reaching pages 3 and 4 (issue #64). Raised to a dollar, the run
+ * reads 103 and 104 and finishes, with nothing left to read.
  */
 test('an Administrator raises the limit of a stopped run and continues it to the end', async ({
   page,
@@ -116,6 +132,7 @@ test('an Administrator raises the limit of a stopped run and continues it to the
   await expect(
     page.getByTestId('run-tavola').filter({ hasText: 'Tavola 102' }).getByRole('link'),
   ).toBeVisible();
+  await expect(page.getByTestId('run-unreached')).toContainText('Pages 3, 4');
 
   await page.getByLabel('New spending limit, in dollars').fill('1');
   await page.getByRole('button', { name: 'Raise the limit and continue' }).click();
@@ -124,6 +141,8 @@ test('an Administrator raises the limit of a stopped run and continues it to the
     timeout: 30_000,
   });
   await expect(page.getByRole('link', { name: 'Open, Unchecked' })).toHaveCount(3);
+  await expect(page.getByTestId('run-unreached')).toHaveCount(0);
+  await expect(page.getByTestId('run-left')).toContainText('Nothing is left to read');
   await expect(page.getByTestId('run-actions')).toContainText('Limit raised to $1.00');
 });
 
