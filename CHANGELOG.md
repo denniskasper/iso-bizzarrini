@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.2.0...v0.3.0) (2026-10-18)
+
+
+### New
+
+* **55:** show an Administrator the Reading method the server reads with ([95d9d73](https://github.com/denniskasper/iso-bizzarrini/commit/95d9d735dc55452b898436b95c58ccedd3dfe2df))
+* **56:** clear or rewrite a doubt, and see Reading notes, on the checking screen ([90c04c0](https://github.com/denniskasper/iso-bizzarrini/commit/90c04c08c5f347d987fb085e1989e8c2fe2c9cab))
+* **57:** upload a catalog and see what reading it would cost ([0c816f6](https://github.com/denniskasper/iso-bizzarrini/commit/0c816f67365dbc6b1aa613ff6aa8416f53b7ca95))
+* **58:** start a Catalog run and see Tavole arrive Unchecked as they finish ([645c137](https://github.com/denniskasper/iso-bizzarrini/commit/645c137a6730c84e66296669150784ed85099896))
+* **59:** stop and continue a Catalog run, across a restart too ([6034a04](https://github.com/denniskasper/iso-bizzarrini/commit/6034a042966c96686c1672383c7e7278b56ca38e))
+* **60:** show the pages a Catalog run set aside ([c24c958](https://github.com/denniskasper/iso-bizzarrini/commit/c24c9587dbbe2cb6e125894ea5a307c034e99446))
+* **61:** read one Unchecked Tavola again ([06fc40c](https://github.com/denniskasper/iso-bizzarrini/commit/06fc40c7c5a98a2cb5b5cee62aaf9952a675f056))
+* **62:** keep the record of every Catalog run ([9941980](https://github.com/denniskasper/iso-bizzarrini/commit/9941980504421e64df9739167fe2fb17e25cd11f))
+* **64:** show what a Catalog run has not yet read ([6228f17](https://github.com/denniskasper/iso-bizzarrini/commit/6228f179b33de5549faede7cf6839ad25857b335))
+
+
+### Fixed
+
+* **65:** upload a full catalog without holding it in memory, and estimate it in the background ([a034263](https://github.com/denniskasper/iso-bizzarrini/commit/a0342630448b1cf3084d48fb6446b7032e48f4b1))
+* **66:** count a paid request cut off by a restart ([72e8c6e](https://github.com/denniskasper/iso-bizzarrini/commit/72e8c6ec5e7c6db24e1c03f5c689fc0331ea67c6))
+
 ## [0.2.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.1.0...v0.2.0) (2026-10-18)
 
 
