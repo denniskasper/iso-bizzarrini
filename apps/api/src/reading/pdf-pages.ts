@@ -12,7 +12,7 @@ const run = promisify(execFile);
  * scans were made at, in greyscale — what the trial read from.
  *
  * A program on the operator's machine rather than a library in the production image, because
- * the read command is run there and nowhere else (ADR 0016). Only the pages asked for are
+ * the read command is run there and nowhere else (ADR 0017). Only the pages asked for are
  * rendered, so the catalog's front matter and technical data are never sent to a model.
  */
 export function pdfPages(

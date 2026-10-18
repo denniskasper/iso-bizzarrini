@@ -772,7 +772,7 @@
 
   /*
    * A drawing **no Member can see yet**, because no Editor has checked it against its sheets
-   * (ADR 0016) — the same broken frame for the same reason. On the band above an Unchecked
+   * (ADR 0017) — the same broken frame for the same reason. On the band above an Unchecked
    * drawing it is the frame itself; on the contact sheet it is drawn around the plate as an
    * outline, so the plate stays exactly where its Published neighbours are.
    */

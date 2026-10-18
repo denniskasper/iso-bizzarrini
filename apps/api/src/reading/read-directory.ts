@@ -21,7 +21,7 @@ import { identitySchema } from './claude-requests.js';
  *   doubts.csv              each Position listed with no Mark, and each Mark listed nowhere
  * ```
  *
- * The directory is the Club's material and stays out of the repository (ADR 0016, `AGENTS.md`).
+ * The directory is the Club's material and stays out of the repository (ADR 0017, `AGENTS.md`).
  */
 export const READING_FILE = 'reading.json';
 export const PAGES_FILE = 'pages.json';

@@ -1,5 +1,5 @@
 /**
- * Reads a scanned factory catalog into a directory of plain files (ADR 0016, issue #31).
+ * Reads a scanned factory catalog into a directory of plain files (ADR 0017, issue #31).
  *
  * ```sh
  * pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \

@@ -17,7 +17,7 @@ import { useRereadListings } from '@/lib/parts';
 import { cn } from '@/lib/utils';
 
 /**
- * **Checking a machine-read Tavola** (issue #34, ADR 0016) — the pieces the Tavola page adds for
+ * **Checking a machine-read Tavola** (issue #34, ADR 0017) — the pieces the Tavola page adds for
  * an Editor while a Tavola is Unchecked. The drawing, its Marks and the marking tool are the
  * page's own; what is here is the evidence beside them: the factory's table sheets with the rows
  * read off each, and what the read command was unsure of.

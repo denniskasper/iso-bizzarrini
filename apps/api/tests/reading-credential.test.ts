@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chooseCredential } from '../src/reading/choose-method.js';
 
 /**
- * **Which credential reads a catalog** (ADR 0016, issue #38). One there is, is used; with both,
+ * **Which credential reads a catalog** (ADR 0017, issue #38). One there is, is used; with both,
  * the operator says which, so a key that happens to be set never takes over a run meant for the
  * subscription.
  */

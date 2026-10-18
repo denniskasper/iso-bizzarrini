@@ -5,7 +5,7 @@ import { givenAMember, givenAnAdministrator } from './support/roster.js';
 import { DEFAULT_TEST_NOW, startTestApp, type TestApp } from './support/test-app.js';
 
 /**
- * **A Tavola is Unchecked until an Editor publishes it** (ADR 0016, issue #30).
+ * **A Tavola is Unchecked until an Editor publishes it** (ADR 0017, issue #30).
  *
  * A machine-read Tavola is shown to nobody but Editors, because a wrong Catalog Number looks
  * exactly like a right one and people order parts by it. So what is asserted here is mostly

@@ -76,7 +76,7 @@ export interface Gate {
    */
   mayEdit(who: SignedIn): boolean;
   /**
-   * Whether the person a handler is serving is shown Unchecked Tavole (ADR 0016). The same
+   * Whether the person a handler is serving is shown Unchecked Tavole (ADR 0017). The same
    * answer as `mayEdit`, asked of the request: what a list holds depends on who reads it.
    */
   seesUnchecked(response: Response): boolean;

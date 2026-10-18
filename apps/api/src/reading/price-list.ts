@@ -1,5 +1,5 @@
 /**
- * **What a token costs, as the provider lists it** (ADR 0016) — the only source the read command
+ * **What a token costs, as the provider lists it** (ADR 0017) — the only source the read command
  * prices a run from. It never asks the provider's billing, which would need a second, more
  * powerful credential. Prices change: whoever changes this list checks them again, at the source
  * below, and moves the date.

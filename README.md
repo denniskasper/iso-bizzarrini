@@ -131,7 +131,7 @@ pnpm archive:load -- --source ../catalog-reading --dry-run
 
 A scanned catalog becomes a directory of files: each Tavola's Scan, its Table sheets and a
 `listings.csv` that opens in Excel. The same loader turns it into **Unchecked** Tavole, which
-only Editors see until they publish them (ADR 0016). See
+only Editors see until they publish them (ADR 0017). See
 [`docs/operations/catalog-reading.md`](docs/operations/catalog-reading.md).
 
 ### The practice archive

@@ -2,7 +2,7 @@ import { PRICE_LIST, type ModelPrice } from './price-list.js';
 import type { RequestEstimate, SheetEstimate, SheetKind, Tokens } from './reading-method.js';
 
 /**
- * **What a run costs, and the limit it may not pass** (ADR 0016, issue #37).
+ * **What a run costs, and the limit it may not pass** (ADR 0017, issue #37).
  *
  * Every figure is the token counts the responses report, multiplied by the price list kept in the
  * repository. Before each sheet is sent, the most that sheet could cost is set against what is

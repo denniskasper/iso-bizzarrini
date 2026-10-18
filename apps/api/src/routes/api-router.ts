@@ -212,7 +212,7 @@ export function createApiRouter(dependencies: {
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);
 
-  // **An Unchecked Tavola is an Editor's until one publishes it** (ADR 0016): every address that
+  // **An Unchecked Tavola is an Editor's until one publishes it** (ADR 0017): every address that
   // names a Tavola, a number on one or its scan answers a Member as if it were not there.
   router.param('tavolaId', uncheckedTavolaGuard.tavolaId);
   router.param('positionId', uncheckedTavolaGuard.positionId);

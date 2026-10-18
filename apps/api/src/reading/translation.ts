@@ -1,5 +1,5 @@
 /**
- * **Machine translation, kept honest** (ADR 0016, issue #32).
+ * **Machine translation, kept honest** (ADR 0017, issue #32).
  *
  * The Italian is the factory's and is stored verbatim; the English beside it is a Machine
  * translation until an Editor vouches for it. Two things are decided here rather than left to the

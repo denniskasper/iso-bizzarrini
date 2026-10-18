@@ -19,7 +19,7 @@ import {
 /**
  * **A catalog, invented, and a Reading method that knows it by heart.**
  *
- * No test calls a model (ADR 0016). The fake answers each page with what the test says is
+ * No test calls a model (ADR 0017). The fake answers each page with what the test says is
  * printed on it, and the same fixed token counts every time, so what is asserted is everything
  * above the seam: which sheet went to which Tavola, what the rows were taken to mean, where the
  * two Readings were compared, and what was written for an Editor to open.

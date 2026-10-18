@@ -9,7 +9,7 @@ import type { FileStore } from '../storage/file-store.js';
 import { toTavolaListing } from './catalog-view.js';
 
 /**
- * **What an Editor checks a machine-read Tavola against** (ADR 0016, issue #34): the rows as the
+ * **What an Editor checks a machine-read Tavola against** (ADR 0017, issue #34): the rows as the
  * read command read them, each beside the Table sheet it came from, and what it was unsure of.
  *
  * Correcting what is wrong uses the tools the archive already has — the marking tool, a Listing's

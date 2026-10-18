@@ -151,7 +151,7 @@ export interface TavolaCategoryRequest {
 /**
  * `PUT /api/tavole/:tavolaId/english-name` and `PUT /api/parts/:partId/english-name` — an Editor
  * vouching for an English name, as it stands or rewritten. Either way it is no longer a Machine
- * translation (ADR 0016). The Tavola answers `{ tavola: TavolaSummary }`; the Part answers
+ * translation (ADR 0017). The Tavola answers `{ tavola: TavolaSummary }`; the Part answers
  * `PartResponse`, as correcting it does.
  */
 export interface EnglishNameRequest {
@@ -185,7 +185,7 @@ export interface TavolaScan {
 }
 
 /**
- * Whether an Editor has compared a Tavola with its sheets (ADR 0016). Only an Editor is ever
+ * Whether an Editor has compared a Tavola with its sheets (ADR 0017). Only an Editor is ever
  * shown an `unchecked` one; to a Member every Tavola there is, is `published`.
  */
 export type TavolaState = 'unchecked' | 'published';
@@ -348,7 +348,7 @@ export interface Sheet {
 
 /**
  * The picture of one of the factory's table fogli for a Tavola, kept as the evidence its Listings
- * were read from (ADR 0016). As private as the Scan: the address is authenticated, and a Member
+ * were read from (ADR 0017). As private as the Scan: the address is authenticated, and a Member
  * reaches it only once the Tavola is Published.
  */
 export interface TableSheet {
@@ -371,7 +371,7 @@ export interface TavolaResponse extends Sheet {
 }
 
 /**
- * Something the read command was unsure of on a Tavola (ADR 0016), and the row or the number it
+ * Something the read command was unsure of on a Tavola (ADR 0017), and the row or the number it
  * concerns — which is where an Editor checking the Tavola is taken.
  */
 export interface ReadingDoubt {

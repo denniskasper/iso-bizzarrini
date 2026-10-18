@@ -160,7 +160,7 @@ export interface PartRepository {
   /**
    * Every other Tavola these Parts are listed on, in one query rather than one a Part — and
    * **only the Published ones, whoever is reading**: a Part's other sheets are where somebody
-   * goes next, and an Unchecked sheet is not yet somewhere to send anybody (ADR 0016).
+   * goes next, and an Unchecked sheet is not yet somewhere to send anybody (ADR 0017).
    */
   listElsewhere(partIds: string[], exceptTavolaId: string): Promise<ElsewhereRow[]>;
   /**

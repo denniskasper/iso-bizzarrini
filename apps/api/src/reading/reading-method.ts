@@ -3,7 +3,7 @@ import type { NumberCrop } from './find-numbers.js';
 export type { NumberCrop };
 
 /**
- * **The one seam between the read command and a model** (ADR 0016). A Reading method is given one
+ * **The one seam between the read command and a model** (ADR 0017). A Reading method is given one
  * sheet of the factory's catalog and told what to read from it, and answers with what it read and
  * the tokens that cost. Everything above it — which sheet is whose, what a dash means, where two
  * Readings disagree, the files an Editor opens — is plain code that never talks to a model, and

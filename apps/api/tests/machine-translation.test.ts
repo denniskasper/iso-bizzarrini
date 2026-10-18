@@ -30,7 +30,7 @@ import { givenAMember, givenAnAdministrator } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
- * **Machine translation: English names labelled until an Editor confirms them** (ADR 0016,
+ * **Machine translation: English names labelled until an Editor confirms them** (ADR 0017,
  * issue #32).
  *
  * The read command is run against a fake Reading method whose English each test chooses, and

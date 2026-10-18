@@ -34,7 +34,7 @@ export interface TavolaService {
   /** Files a sheet under a Category on the list, moves it to another, or takes it out. */
   categorise(tavolaId: string, category: string | null): Promise<TavolaSummary>;
   /**
-   * An Editor's statement that an Unchecked Tavola says what the factory printed (ADR 0016),
+   * An Editor's statement that an Unchecked Tavola says what the factory printed (ADR 0017),
    * recorded with who made it and when. Members see it from then on.
    */
   publish(tavolaId: string, accountId: string): Promise<TavolaPublishedResponse['tavola']>;

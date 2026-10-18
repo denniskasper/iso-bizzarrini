@@ -3,7 +3,7 @@
 The factory catalog exists only as scanned sheets. A command reads them and writes a directory of
 plain files. `archive:load` turns that directory into **Unchecked** Tavole, which only Editors
 see until one of them compares each with its sheets and publishes it. The decision and its
-reasons are in [ADR 0016](../adr/0016-the-catalog-is-read-by-machine-and-published-by-an-editor.md).
+reasons are in [ADR 0017](../adr/0017-the-catalog-is-read-by-machine-and-published-by-an-editor.md).
 
 ## What it needs
 
@@ -14,7 +14,7 @@ reasons are in [ADR 0016](../adr/0016-the-catalog-is-read-by-machine-and-publish
 - Something to read with, either:
   - **a subscription login**: Claude Code (`claude`) installed and signed in with a plan
     (`claude auth login`). It is not charged, and it draws on the plan's usage limits. This is
-    where reading starts (ADR 0016).
+    where reading starts (ADR 0017).
   - **an API key** in `ANTHROPIC_API_KEY`. It is billed per use. It is read from the environment,
     and it is never written to the output or printed.
 

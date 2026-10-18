@@ -35,7 +35,7 @@ import {
 
 /**
  * **Claude, reached with a subscription login** — the Reading method that is not billed per use,
- * and draws on the plan's limits instead (ADR 0016, issue #38).
+ * and draws on the plan's limits instead (ADR 0017, issue #38).
  *
  * It runs Claude Code headless (`claude -p`), signed in with the plan, and asks exactly what the
  * API-key method asks: the same model, instructions, images and schema. Claude Code would rather

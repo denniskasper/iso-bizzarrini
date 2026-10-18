@@ -71,7 +71,7 @@ export const categories = pgTable('categories', {
 });
 
 /**
- * Whether an Editor has compared a Tavola with its sheets (ADR 0016). A machine-read Tavola
+ * Whether an Editor has compared a Tavola with its sheets (ADR 0017). A machine-read Tavola
  * arrives `unchecked` and is shown to nobody but Editors; publishing it is an Editor's statement
  * that it says what the factory printed. A Tavola an Editor records by hand is theirs already,
  * so `published` is where one begins unless it was read by machine.
@@ -103,7 +103,7 @@ export const tavole = pgTable(
     nameIt: text('name_it').notNull(),
     nameEn: text('name_en').notNull(),
     /**
-     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0016).
+     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0017).
      * Cleared when an Editor confirms or rewrites the name, and never by publishing the Tavola.
      */
     nameEnMachineTranslated: boolean('name_en_machine_translated').notNull().default(false),
@@ -136,7 +136,7 @@ export const tavole = pgTable(
       onDelete: 'set null',
     }),
     /**
-     * What read it off the factory's sheets (ADR 0016) — `null` for a Tavola a person recorded.
+     * What read it off the factory's sheets (ADR 0017) — `null` for a Tavola a person recorded.
      * An Editor may see it, to know which Tavole to read again if a method proves bad; a Member
      * never does.
      */
@@ -213,7 +213,7 @@ export const scans = pgTable(
 
 /**
  * A Table sheet is the picture of one of a Tavola's table fogli, kept as the evidence its
- * Listings were read from (ADR 0016). As private as the Scan, and stored the same way: the file
+ * Listings were read from (ADR 0017). As private as the Scan, and stored the same way: the file
  * is in the private store under a key, never at a path anything serves.
  *
  * `sheet` is its place among the Tavola's Table sheets, counting from 1, in the order the
@@ -401,7 +401,7 @@ export const parts = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     nameEn: text('name_en'),
     /**
-     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0016).
+     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0017).
      * Cleared when an Editor confirms or rewrites the name.
      */
     nameEnMachineTranslated: boolean('name_en_machine_translated').notNull().default(false),
@@ -469,7 +469,7 @@ export const listings = pgTable(
     quantityPerCar: integer('quantity_per_car'),
     drawn: boolean('drawn').notNull().default(true),
     /**
-     * Which of the Tavola's Table sheets the read command read this Listing from (ADR 0016), so
+     * Which of the Tavola's Table sheets the read command read this Listing from (ADR 0017), so
      * an Editor checking it sees the row beside the sheet it came from. `null` for a Listing a
      * person recorded.
      */
@@ -502,7 +502,7 @@ export const listings = pgTable(
 );
 
 /**
- * **What the read command was unsure of** on an Unchecked Tavola (ADR 0016): the two Readings
+ * **What the read command was unsure of** on an Unchecked Tavola (ADR 0017): the two Readings
  * disagreed on a row, or a Catalog Number is not shaped like one. Each concerns a Listing or a
  * Position, which is where the Editor checking the Tavola is taken to look. The words are the
  * read command's, or the Editor's if they rewrote them in `listings.csv` before loading.

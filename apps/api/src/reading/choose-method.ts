@@ -1,5 +1,5 @@
 /**
- * **Which credential pays for a run** (ADR 0016, issue #38). Where there is only one, it is used.
+ * **Which credential pays for a run** (ADR 0017, issue #38). Where there is only one, it is used.
  * Where there are both, the operator says which: a key that happens to be set must never take
  * over a run meant for the subscription, and the subscription must never quietly stand in for a
  * key the Club pays for.

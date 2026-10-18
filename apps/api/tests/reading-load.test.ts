@@ -27,7 +27,7 @@ import { givenAMember, givenAnAdministrator } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
- * **Loading what the read command wrote, as Unchecked Tavole** (ADR 0016, issue #31).
+ * **Loading what the read command wrote, as Unchecked Tavole** (ADR 0017, issue #31).
  *
  * Read back over HTTP, as an Editor and as a Member, because "loaded as Unchecked" is a claim
  * about who can open what. The catalog is invented per test and read with a fake Reading method.

@@ -8,7 +8,7 @@ import {
 } from '../db/schema.js';
 
 /**
- * **What the read command left on a Tavola** besides its Listings (ADR 0016): the Table sheets it
+ * **What the read command left on a Tavola** besides its Listings (ADR 0017): the Table sheets it
  * read them from, and what it was unsure of. A Tavola recorded by hand has neither.
  */
 export interface ReadingRepository {

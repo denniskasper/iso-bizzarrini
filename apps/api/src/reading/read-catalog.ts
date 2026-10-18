@@ -57,7 +57,7 @@ import {
 } from './reading-method.js';
 
 /**
- * **The read command** (ADR 0016): a catalog PDF in, a directory of plain files out, which
+ * **The read command** (ADR 0017): a catalog PDF in, a directory of plain files out, which
  * `archive:load` turns into Unchecked Tavole.
  *
  * Every page is first asked what it is and whose. A sheet belongs to the Tavola printed on it and
@@ -761,7 +761,7 @@ function pagesNamed(sheets: { page: number }[]): string {
   return `${sheets.length === 1 ? 'page' : 'pages'} ${sheets.map((sheet) => sheet.page).join(', ')}`;
 }
 
-/** **The Club's scans never land in the repository** (`AGENTS.md`, ADR 0016). */
+/** **The Club's scans never land in the repository** (`AGENTS.md`, ADR 0017). */
 function assertOutside(out: string, repositoryRoot: string): void {
   const inside = relative(repositoryRoot, out);
   if (

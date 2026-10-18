@@ -44,7 +44,7 @@ import { createArchiveWriter, type ArchiveWriter } from './archive-writer.js';
 import { inOneTransaction, type RowLocation, type RowProblem } from './load-archive.js';
 
 /**
- * **Loading what the read command wrote** (ADR 0016) — the directory, as it stands, including
+ * **Loading what the read command wrote** (ADR 0017) — the directory, as it stands, including
  * whatever an Editor corrected in `listings.csv` in the meantime.
  *
  * Every Tavola in it arrives **Unchecked**, which is what makes this a different load from the
