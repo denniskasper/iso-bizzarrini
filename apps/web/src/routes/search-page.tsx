@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearch } from '@tanstack/react-router';
+import { MachineTranslationTag } from '@/components/machine-translation';
 import { SearchField } from '@/components/search/search-field';
 import { Refusal } from '@/components/ui/field';
 import { api, type Equivalent, type SearchListing, type SearchMatch } from '@/lib/api';
@@ -174,7 +175,15 @@ function Found({ match }: { match: SearchMatch }) {
       </div>
 
       <div>
-        <p className="max-w-measure text-xl text-pretty">{part.nameEn ?? part.nameIt}</p>
+        <p className="max-w-measure text-xl text-pretty">
+          {part.nameEn ?? part.nameIt}
+          {part.nameEnMachineTranslated && (
+            <>
+              {' '}
+              <MachineTranslationTag />
+            </>
+          )}
+        </p>
         {/* Both names when there are both, because a member matching a screen against an Italian
             factory document is reading the Italian one (story 55). */}
         {part.nameEn !== null && part.nameIt !== null && (
@@ -267,7 +276,11 @@ function WhereItIs({ listings }: { listings: SearchListing[] }) {
 
 /** Where one of those links goes, said as a sentence rather than as a row of fragments. */
 function whereItLeads(listing: SearchListing): string {
-  const sheet = `${listing.model.brand} ${listing.model.name}, Tavola ${listing.tavolaNumber} — ${listing.nameEn}`;
+  // A Machine translation is never shown without the Italian, and never passes for anyone's word.
+  const name = listing.nameEnMachineTranslated
+    ? `${listing.nameEn} (${listing.nameIt}, machine translation)`
+    : listing.nameEn;
+  const sheet = `${listing.model.brand} ${listing.model.name}, Tavola ${listing.tavolaNumber} — ${name}`;
   return listing.positionNumber === null
     ? sheet
     : `${sheet}, at position ${listing.positionNumber}`;

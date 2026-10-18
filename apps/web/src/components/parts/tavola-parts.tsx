@@ -1,3 +1,4 @@
+import { EnglishName } from '@/components/machine-translation';
 import { Refusal } from '@/components/ui/field';
 import type { Position, TavolaListing } from '@/lib/api';
 import { useTavolaListings } from '@/lib/parts';
@@ -198,7 +199,17 @@ function SheetLine({
 function ListedLine({ listing }: { listing: TavolaListing }) {
   return (
     <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span className="text-pretty">{listing.part.nameEn ?? listing.part.nameIt}</span>
+      <span className="text-pretty">
+        {listing.part.nameEn === null ? (
+          listing.part.nameIt
+        ) : (
+          <EnglishName
+            nameEn={listing.part.nameEn}
+            nameIt={listing.part.nameIt}
+            machineTranslated={listing.part.nameEnMachineTranslated}
+          />
+        )}
+      </span>
       {listing.part.catalogNumber !== null && (
         <span className="tabular text-sm text-muted">{listing.part.catalogNumber}</span>
       )}

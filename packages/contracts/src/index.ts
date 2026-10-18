@@ -149,6 +149,16 @@ export interface TavolaCategoryRequest {
 }
 
 /**
+ * `PUT /api/tavole/:tavolaId/english-name` and `PUT /api/parts/:partId/english-name` — an Editor
+ * vouching for an English name, as it stands or rewritten. Either way it is no longer a Machine
+ * translation (ADR 0016). The Tavola answers `{ tavola: TavolaSummary }`; the Part answers
+ * `PartResponse`, as correcting it does.
+ */
+export interface EnglishNameRequest {
+  nameEn: string;
+}
+
+/**
  * What the address and the filter call a Tavola with no Category. Reserved, so no Category can
  * be given a name that would collide with it.
  *
@@ -187,6 +197,11 @@ export interface TavolaSummary {
   number: string;
   nameIt: string;
   nameEn: string;
+  /**
+   * `nameEn` is a Machine translation nobody has vouched for yet: shown labelled, with the
+   * Italian beside it. An Editor confirming or rewriting it clears this; publishing does not.
+   */
+  nameEnMachineTranslated: boolean;
   /** `null` until an Editor puts it under a system. Like a missing scan, a legitimate state. */
   category: Category | null;
   /** `null` until a scan is uploaded. A Tavola without one is a legitimate state. */
@@ -362,6 +377,11 @@ export interface Part {
   id: string;
   /** What a member reads. At least one of the two is present. */
   nameEn: string | null;
+  /**
+   * `nameEn` is a Machine translation nobody has vouched for yet: shown labelled, with the
+   * Italian beside it, until an Editor confirms or rewrites it.
+   */
+  nameEnMachineTranslated: boolean;
   /** The factory's own words, as the catalog prints them. */
   nameIt: string | null;
   /**
@@ -377,6 +397,11 @@ export interface Part {
   materialFinish: string | null;
   /** Transcribed from the factory catalog, in the factory's words. Evidence, not opinion. */
   catalogNote: string | null;
+  /**
+   * A Machine translation of `catalogNote`, always shown as one and beside it. Codes and numbers
+   * in it are the note's own, unaltered.
+   */
+  catalogNoteEn: string | null;
   /** What the club has established, written by an Editor. Never merged with the above. */
   note: string | null;
 }
@@ -534,8 +559,11 @@ export interface ListedElsewhere {
   tavolaId: string;
   /** As printed on that sheet. */
   tavolaNumber: string;
-  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page. */
+  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page… */
   nameEn: string;
+  /** …unless the English is a Machine translation, which is never shown without the Italian. */
+  nameEnMachineTranslated: boolean;
+  nameIt: string;
   /** A Tavola belongs to one Model (ADR 0002), and the Model may not be the one being read. */
   model: CatalogModel;
   /** `null` where the Part is listed on that Tavola without a Position of its own. */
@@ -553,7 +581,10 @@ export interface ListedElsewhere {
  * would be a drawing's worth of prose nobody has asked to read. The whole Part arrives when a
  * member picks one, at `PositionListingsResponse`.
  */
-export type ListedPart = Pick<Part, 'id' | 'nameEn' | 'nameIt' | 'catalogNumber'>;
+export type ListedPart = Pick<
+  Part,
+  'id' | 'nameEn' | 'nameEnMachineTranslated' | 'nameIt' | 'catalogNumber'
+>;
 
 /**
  * One line of a Tavola's index: what is listed on the sheet, and at which number.
@@ -877,8 +908,11 @@ export interface SearchListing {
   tavolaId: string;
   /** As printed on that sheet. */
   tavolaNumber: string;
-  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page. */
+  /** Ricambi is English; the Italian name of a sheet belongs on the sheet's own page… */
   nameEn: string;
+  /** …unless the English is a Machine translation, which is never shown without the Italian. */
+  nameEnMachineTranslated: boolean;
+  nameIt: string;
   model: CatalogModel;
   /** `null` where the Part is listed on that Tavola without a Position of its own. */
   positionNumber: string | null;

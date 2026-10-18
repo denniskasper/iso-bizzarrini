@@ -47,6 +47,10 @@ import { inOneTransaction, type RowLocation, type RowProblem } from './load-arch
  * Listings, Scan and Table sheets, and every Part that appears nowhere else — rather than merged
  * with. A **Published** one is somebody's checked work, and it is refused (ADR 0005).
  *
+ * **English is a Machine translation while it still says what the machine wrote** (issue #32).
+ * An English name an Editor changed in `listings.csv` or `tavola.json` before loading is their
+ * own, and arrives without the label.
+ *
  * The same rules as the spreadsheet load otherwise: one transaction, a dry run that is the real
  * load rolled back, and nothing dropped without saying so.
  */
@@ -175,10 +179,15 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
         discardedFiles.push(...discarded.fileKeys);
       }
 
+      const machine = new Map(
+        tavola.machineTranslations.map(({ italian, english }) => [italian, english]),
+      );
       if (tavola.titleEn === '') {
         report.warnings.push({
           ...where,
-          reason: 'It has no English title yet, so it carries the Italian one in both places.',
+          reason:
+            'It has no English title yet, so it carries the Italian one in both places, ' +
+            'labelled until an Editor gives it English.',
         });
       }
 
@@ -190,6 +199,9 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
           numberSort: numericPrefixOf(tavola.number),
           nameIt: tavola.titleIt,
           nameEn: tavola.titleEn || tavola.titleIt,
+          // The Italian standing in for a missing English is no more checked than a translation.
+          nameEnMachineTranslated:
+            tavola.titleEn === '' || machine.get(tavola.titleIt) === tavola.titleEn,
           catalogSection: tavola.catalogSection,
           catalogGroup: tavola.catalogGroup,
           catalogSubgroup: tavola.catalogSubgroup,
@@ -199,7 +211,12 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
         .returning({ id: tavole.id });
       const tavolaId = (added as { id: string }).id;
 
-      const loaded = await loadListings(writer, report, sheet, directory, tavolaId, model.id);
+      const loaded = await loadListings(writer, report, sheet, {
+        directory,
+        tavolaId,
+        modelId: model.id,
+        machine,
+      });
       report.tavole.push({
         number: tavola.number,
         outcome: existing ? 'replaced' : 'loaded',
@@ -300,10 +317,15 @@ async function loadListings(
   writer: ArchiveWriter,
   report: ReadingLoadReport,
   sheet: Sheet,
-  directory: string,
-  tavolaId: string,
-  modelId: string,
+  tavola: {
+    directory: string;
+    tavolaId: string;
+    modelId: string;
+    /** What the machine translated each Italian text as. */
+    machine: Map<string, string>;
+  },
 ): Promise<number> {
+  const { directory, tavolaId, modelId, machine } = tavola;
   const c = LISTING_COLUMNS;
   let loaded = 0;
 
@@ -347,11 +369,17 @@ async function loadListings(
     }
 
     const positionId = position ? (await writer.findOrAddPosition(tavolaId, position)).id : null;
+    const nameEn = row.get(c.nameEn);
+    const catalogNote = row.get(c.catalogNote);
     const values: NewPartRow = {
       nameIt,
+      nameEn: nameEn || null,
+      nameEnMachineTranslated: nameEn !== '' && machine.get(nameIt) === nameEn,
       catalogNumber: catalogNumber || null,
       disegnoOrigine: row.get(c.disegnoOrigine) || null,
-      catalogNote: row.get(c.catalogNote) || null,
+      catalogNote: catalogNote || null,
+      // Always shown as a Machine translation, so only ever beside the note it translates.
+      catalogNoteEn: (catalogNote && row.get(c.catalogNoteEn)) || null,
     };
 
     // The identity rule (ADR 0001): a Catalog Number the archive holds is that Part, listed again.

@@ -33,6 +33,15 @@ export interface ReadingMethod {
    * its own that knows nothing of the other — which is the whole of what a disagreement is worth.
    */
   readTable(sheet: SheetImage, reading: 1 | 2): Promise<Answer<TableReading>>;
+  /**
+   * English for Italian the factory printed — *Denominazioni*, Notes and titles — in the same
+   * order, one for each. Every code and number has been taken out of the Italian first and stands
+   * as `{{1}}`, `{{2}}`…, which the English must carry exactly once each, so translation can never
+   * alter one (`translation.ts`). The term list keeps one Italian word one English word.
+   */
+  translate(texts: string[]): Promise<Answer<string[]>>;
+  /** What translating these would take, worked out before it is sent, as `estimate` is. */
+  estimateTranslation(texts: string[]): Promise<RequestEstimate>;
 }
 
 /**
@@ -68,12 +77,14 @@ export interface Tokens {
 /**
  * One page's requests. Which kind of sheet a page is is only known once it has been asked, so
  * every page is estimated as though it were a Table sheet, whose two Readings are by far the
- * larger part.
+ * larger part, and whose rows are then translated.
  */
 export interface SheetEstimate {
   identify: RequestEstimate;
   /** One Reading of it as a Table sheet. */
   reading: RequestEstimate;
+  /** Translating what a Table sheet holds into English. */
+  translation: RequestEstimate;
 }
 
 export interface RequestEstimate {

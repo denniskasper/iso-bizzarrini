@@ -17,6 +17,7 @@ import {
 } from './cost.js';
 import { interpretTable, type ComparedSheet, type ReadListing } from './interpret.js';
 import { PRICE_LIST, priceOf } from './price-list.js';
+import { Translations, maskCodes, type MachineTranslation } from './translation.js';
 import {
   LISTING_COLUMNS,
   LISTINGS_FILE,
@@ -32,6 +33,7 @@ import {
   readingManifestSchema,
   tableSheetFile,
   tavolaDirectory,
+  tavolaManifestSchema,
   type PagesManifest,
   type ReadingManifest,
   type TavolaManifest,
@@ -53,7 +55,8 @@ import {
  * never to the page it follows — the scans are out of order — and one whose number cannot be read
  * is set aside for a person rather than guessed. Each sheet is turned upright the way its headings
  * read. Then every Table sheet is read twice, independently, the two Readings are compared, and
- * what the factory meant by its dashes, repeats and ranges is worked out once, here.
+ * what the factory meant by its dashes, repeats and ranges is worked out once, here. Last, the
+ * Tavola's Italian is put into English, as a Machine translation (`translation.ts`).
  *
  * Nothing is sent to be read before the whole run has been estimated and found within the limit
  * it was given, and nothing is sent that could take it past that limit (`cost.ts`).
@@ -153,6 +156,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     (previous?.pages.pages ?? []).map(({ page, identity }) => [page, identity]),
   );
   const finishedBefore = new Set(previous?.manifest.tavole ?? []);
+  const translations = new Translations(previous?.translations ?? []);
   const readBefore = (number: string) => finishedBefore.has(tavolaDirectory(number));
   const stillToRead = (identity: SheetIdentity) => {
     const number = identity.tavola?.trim();
@@ -174,12 +178,12 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     }
     const sheet = await method.estimate(page);
     estimates.set(page.page, sheet);
-    estimate += identity ? 2 * spending.expected(sheet.reading) : spending.estimateOf(sheet);
+    estimate += identity ? spending.readingOf(sheet) : spending.estimateOf(sheet);
   }
   print(
     `Estimated at ${dollars(estimate)} for ${estimates.size} ${estimates.size === 1 ? 'page' : 'pages'}, ` +
       `at ${method.model} list prices checked on ${PRICE_LIST.checkedOn}. ` +
-      'Every page is counted as a Table sheet read twice; a drawing costs less.',
+      'Every page is counted as a Table sheet read twice and translated; a drawing costs less.',
   );
   if (estimate > limit) {
     throw new ReadCatalogError(
@@ -196,10 +200,10 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     return spending.spend(used);
   };
   let stopped: CostRecord['stopped'] = null;
-  const stopAtLimit = (atMost: number) => {
+  const stopAtLimit = (atMost: number, what = 'the next sheet') => {
     stopped = 'spending-limit';
     print(
-      `Stopped: the next sheet could cost up to ${dollars(atMost)}, which would pass the limit ` +
+      `Stopped: ${what} could cost up to ${dollars(atMost)}, which would pass the limit ` +
         `of ${dollars(limit)} with ${dollars(spending.spent)} spent.`,
     );
   };
@@ -291,6 +295,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
   }
 
   const finished = new Set<string>();
+  const translationCosts = new Map<string, Spent>();
   const costRecord = (): CostRecord => ({
     readingMethod: method.name,
     charged: method.charged,
@@ -308,7 +313,13 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
         return {
           number,
           finished: finished.has(number),
-          cost: rounded(costs.reduce((sum, sheet) => sum + sheet.cost, 0)),
+          cost: rounded(
+            costs.reduce((sum, sheet) => sum + sheet.cost, 0) +
+              (translationCosts.get(number)?.cost ?? 0),
+          ),
+          translation: translationCosts.has(number)
+            ? roundedSpent(translationCosts.get(number) as Spent)
+            : null,
           sheets: costs.map((sheet) => ({
             ...sheet,
             cost: rounded(sheet.cost),
@@ -362,7 +373,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
 
     const compared: ComparedSheet[] = [];
     for (const [index, sheet] of tables.entries()) {
-      const atMost = 2 * spending.atMost((estimates.get(sheet.page) as SheetEstimate).reading);
+      const atMost = spending.readingAtMost(estimates.get(sheet.page) as SheetEstimate);
       if (spending.wouldPass(atMost)) {
         stopAtLimit(atMost);
         break;
@@ -399,17 +410,68 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
       continue;
     }
 
+    const listings = interpretTable(compared);
+    const header = (drawing ?? tables[0])?.identity;
+    const titleIt = header?.titleIt?.trim() ?? '';
+    const italian = [
+      titleIt,
+      ...listings.flatMap((listing) => [listing.nameIt, listing.catalogNote]),
+    ];
+    const toTranslate = translations.missing(italian);
+    if (toTranslate.length > 0) {
+      const masked = toTranslate.map(maskCodes);
+      const texts = masked.map((text) => text.text);
+      const atMost = spending.atMost(await method.estimateTranslation(texts));
+      if (spending.wouldPass(atMost)) {
+        stopAtLimit(atMost, `translating Tavola ${number}`);
+        result.notRead.push(number);
+        continue;
+      }
+      let answer;
+      try {
+        answer = await method.translate(texts);
+      } catch (error) {
+        if (!(error instanceof UsageLimitReached)) {
+          throw error;
+        }
+        stopAtUsageLimit(error);
+        result.notRead.push(number);
+        continue;
+      }
+      const translated = spend(answer.tokens);
+      translationCosts.set(number, translated);
+      if (answer.value.length !== texts.length) {
+        throw new ReadCatalogError(
+          `Asked to translate ${texts.length} texts for Tavola ${number}, ${method.name} ` +
+            `answered with ${answer.value.length}. Nothing of it was kept.`,
+        );
+      }
+      for (const [index, text] of toTranslate.entries()) {
+        translations.record(text, answer.value[index] as string, masked[index]?.codes ?? []);
+      }
+      print(
+        `  Translated ${toTranslate.length} Italian ${toTranslate.length === 1 ? 'text' : 'texts'} ` +
+          `into English. ${soFar(translated.cost)}`,
+      );
+    }
+
     setAside.push(...secondDrawings);
 
-    const listings = interpretTable(compared);
     const directory = tavolaDirectory(number);
-    await writeTavola(join(out, directory), number, method.name, drawing ?? null, tables, listings);
+    await writeTavola(join(out, directory), {
+      number,
+      readingMethod: method.name,
+      drawing: drawing ?? null,
+      tables,
+      listings,
+      translations,
+      machineTranslations: translations.of(italian),
+    });
 
     const inDoubt = listings.filter((listing) => listing.doubts.length > 0).length;
-    const tavolaCost = sheets.reduce(
-      (sum, sheet) => sum + (sheetCosts.get(sheet.page) as SheetCost).cost,
-      0,
-    );
+    const tavolaCost =
+      sheets.reduce((sum, sheet) => sum + (sheetCosts.get(sheet.page) as SheetCost).cost, 0) +
+      (translationCosts.get(number)?.cost ?? 0);
     print(
       `  ${listings.length} Listings, ${inDoubt} in doubt. Tavola ${number} ` +
         `${method.charged ? 'cost' : 'would have cost'} ${dollars(tavolaCost)}.`,
@@ -482,19 +544,25 @@ function inFactoryOrder(sheets: IdentifiedSheet[]): IdentifiedSheet[] {
 
 async function writeTavola(
   directory: string,
-  number: string,
-  readingMethod: string,
-  drawing: IdentifiedSheet | null,
-  tables: IdentifiedSheet[],
-  listings: ReadListing[],
+  tavola: {
+    number: string;
+    readingMethod: string;
+    drawing: IdentifiedSheet | null;
+    tables: IdentifiedSheet[];
+    listings: ReadListing[];
+    translations: Translations;
+    machineTranslations: MachineTranslation[];
+  },
 ): Promise<void> {
+  const { number, readingMethod, drawing, tables, listings, translations } = tavola;
   await mkdir(directory, { recursive: true });
 
   const header = (drawing ?? tables[0])?.identity;
+  const titleIt = header?.titleIt?.trim() ?? '';
   const manifest: TavolaManifest = {
     number,
-    titleIt: header?.titleIt?.trim() ?? '',
-    titleEn: '',
+    titleIt,
+    titleEn: translations.english(titleIt),
     catalogSection: header?.sezione ?? null,
     catalogGroup: header?.gruppo ?? null,
     catalogSubgroup: header?.sottogruppo ?? null,
@@ -505,6 +573,7 @@ async function writeTavola(
       page: sheet.page,
       foglio: sheet.identity.foglio,
     })),
+    machineTranslations: tavola.machineTranslations,
   };
 
   if (drawing) {
@@ -527,7 +596,9 @@ async function writeTavola(
         [c.disegnoOrigine]: listing.disegnoOrigine,
         [c.quantity]: listing.quantity,
         [c.nameIt]: listing.nameIt,
+        [c.nameEn]: translations.english(listing.nameIt),
         [c.catalogNote]: listing.catalogNote,
+        [c.catalogNoteEn]: translations.english(listing.catalogNote),
         [c.fitmentQualifier]: listing.fitmentQualifier,
         [c.tableSheet]: String(listing.tableSheet),
         [c.doubt]: listing.doubts.join('; '),
@@ -595,7 +666,12 @@ async function previousReading(
   out: string,
   pdf: string,
   model: ReadCatalogOptions['model'],
-): Promise<{ manifest: ReadingManifest; pages: PagesManifest; run: number }> {
+): Promise<{
+  manifest: ReadingManifest;
+  pages: PagesManifest;
+  run: number;
+  translations: MachineTranslation[];
+}> {
   const readJson = async (file: string) => {
     try {
       return JSON.parse(await readFile(join(out, file), 'utf8')) as unknown;
@@ -627,7 +703,15 @@ async function previousReading(
   while (files.includes(costFile(run + 1))) {
     run += 1;
   }
-  return { manifest, pages, run };
+  // What the finished Tavole were translated as, so the rest read the same.
+  const translations: MachineTranslation[] = [];
+  for (const directory of manifest.tavole) {
+    const tavola = tavolaManifestSchema.safeParse(
+      await readJson(join(directory, TAVOLA_FILE)).catch(() => null),
+    );
+    translations.push(...(tavola.success ? tavola.data.machineTranslations : []));
+  }
+  return { manifest, pages, run, translations };
 }
 
 /** The directory holding `pnpm-workspace.yaml`, found by walking up from this file. */

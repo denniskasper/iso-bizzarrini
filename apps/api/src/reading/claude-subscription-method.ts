@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
   CLAUDE_MODEL,
   EXPECTED_OUTPUT,
+  EXPECTED_TRANSLATION_INPUT,
   IDENTIFY,
   MAX_TOKENS,
   READ_TABLE,
@@ -12,6 +13,8 @@ import {
   identitySchema,
   stripsOf,
   tableSchema,
+  translateInstruction,
+  translationSchema,
   type Effort,
 } from './claude-requests.js';
 import {
@@ -255,7 +258,25 @@ export function createClaudeSubscriptionReadingMethod(
           await stripsOf(sheet.image),
           EXPECTED_OUTPUT.reading,
         ),
+        translation: await estimated(
+          translationSchema,
+          translateInstruction([]),
+          [],
+          EXPECTED_OUTPUT.translation,
+        ).then((request) => ({
+          ...request,
+          input: request.input + TURNS * EXPECTED_TRANSLATION_INPUT,
+        })),
       };
+    },
+
+    async estimateTranslation(texts: string[]) {
+      return estimated(
+        translationSchema,
+        translateInstruction(texts),
+        [],
+        EXPECTED_OUTPUT.translation,
+      );
     },
 
     async identify(sheet: SheetImage): Promise<Answer<SheetIdentity>> {
@@ -264,6 +285,11 @@ export function createClaudeSubscriptionReadingMethod(
 
     async readTable(sheet: SheetImage): Promise<Answer<TableReading>> {
       return ask(tableSchema, READ_TABLE, await stripsOf(sheet.image), 'high');
+    },
+
+    async translate(texts: string[]): Promise<Answer<string[]>> {
+      const answer = await ask(translationSchema, translateInstruction(texts), [], 'low');
+      return { value: answer.value.english, tokens: answer.tokens };
     },
   };
 }

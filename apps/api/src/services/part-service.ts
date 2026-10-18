@@ -80,6 +80,11 @@ export interface PartService {
   /** The whole Part, and every sheet a correction to it would reach. */
   readPart(partId: string, seesUnchecked: boolean): Promise<PartResponse>;
   correctPart(partId: string, part: NewPart): Promise<PartResponse>;
+  /**
+   * An Editor vouching for the English name, as it stands or rewritten: it stops being a Machine
+   * translation.
+   */
+  nameInEnglish(partId: string, nameEn: string): Promise<PartResponse>;
   /** Refused while anything still lists it — the Listings go first, deliberately. */
   removePart(partId: string): Promise<void>;
   lookUpParts(query: string, seesUnchecked: boolean): Promise<PartLookupResponse>;
@@ -370,6 +375,13 @@ export function createPartService(dependencies: {
         throw new NotFoundError('No such Part.');
       }
       // Correcting is an Editor's, and reaches the Unchecked sheets as well.
+      return wholePart(partId, true);
+    },
+
+    async nameInEnglish(partId, nameEn) {
+      if (!(await partRepository.nameInEnglish(partId, nameEn))) {
+        throw new NotFoundError('No such Part.');
+      }
       return wholePart(partId, true);
     },
 

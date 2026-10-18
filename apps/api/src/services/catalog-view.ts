@@ -68,6 +68,7 @@ export function toTavolaSummary(row: TavolaWithCategoryAndScan): TavolaSummary {
     number: row.number,
     nameIt: row.nameIt,
     nameEn: row.nameEn,
+    nameEnMachineTranslated: row.nameEnMachineTranslated,
     category: row.category ? toCategory(row.category) : null,
     scan: row.scan ? toTavolaScan(row.scan) : null,
     state: row.state,
@@ -128,6 +129,7 @@ export function toPart(row: PartRow): Part {
   return {
     id: row.id,
     nameEn: row.nameEn,
+    nameEnMachineTranslated: row.nameEnMachineTranslated,
     nameIt: row.nameIt,
     catalogNumber: row.catalogNumber,
     disegnoOrigine: row.disegnoOrigine,
@@ -135,6 +137,7 @@ export function toPart(row: PartRow): Part {
     dimensions: row.dimensions,
     materialFinish: row.materialFinish,
     catalogNote: row.catalogNote,
+    catalogNoteEn: row.catalogNoteEn,
     note: row.note,
   };
 }
@@ -231,6 +234,7 @@ export function toTavolaListing(row: ListingOnTavola): TavolaListing {
     part: {
       id: row.part.id,
       nameEn: row.part.nameEn,
+      nameEnMachineTranslated: row.part.nameEnMachineTranslated,
       nameIt: row.part.nameIt,
       catalogNumber: row.part.catalogNumber,
     },
@@ -269,6 +273,8 @@ export function toSearchListing(row: ElsewhereRow): SearchListing {
     tavolaId: row.tavola.id,
     tavolaNumber: row.tavola.number,
     nameEn: row.tavola.nameEn,
+    nameEnMachineTranslated: row.tavola.nameEnMachineTranslated,
+    nameIt: row.tavola.nameIt,
     model: toCatalogModel(row.model),
     positionNumber: row.position?.number ?? null,
   };
@@ -279,6 +285,8 @@ export function toListedElsewhere(row: ElsewhereRow): ListedElsewhere {
     tavolaId: row.tavola.id,
     tavolaNumber: row.tavola.number,
     nameEn: row.tavola.nameEn,
+    nameEnMachineTranslated: row.tavola.nameEnMachineTranslated,
+    nameIt: row.tavola.nameIt,
     model: toCatalogModel(row.model),
     positionNumber: row.position?.number ?? null,
     quantityPerCar: row.listing.quantityPerCar,

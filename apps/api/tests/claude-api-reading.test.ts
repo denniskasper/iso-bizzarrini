@@ -127,22 +127,45 @@ describe('reading with Claude through an API key', () => {
 
     const estimate = await method.estimate(await aPage(1700));
 
-    // One image to identify it; three strips to read it.
+    // One image to identify it; three strips to read it; the translation's instruction, and an
+    // allowance for the Italian a sheet holds.
     expect(estimate).toEqual({
       identify: { input: 1400, output: 1000, outputAtMost: 16000 },
       reading: { input: 3400, output: 8000, outputAtMost: 16000 },
+      translation: { input: 2400, output: 2000, outputAtMost: 16000 },
     });
     expect(api.received.map((request) => request.url)).toEqual([
+      '/v1/messages/count_tokens',
       '/v1/messages/count_tokens',
       '/v1/messages/count_tokens',
     ]);
     expect(api.received.map((request) => request.body.output_config.effort).sort()).toEqual([
       'high',
       'low',
+      'low',
     ]);
     expect(api.received[0]?.body.model).toBe('claude-opus-5-5');
     expect(api.received[0]?.body.output_config.format.type).toBe('json_schema');
     expect(method.model).toBe(CLAUDE_MODEL);
+  });
+
+  it('translates with the term list and the texts, and no image', async () => {
+    const api = await givenTheApi(200, { english: ['Screw', 'RIV {{1}} mounting'] });
+    const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 0 });
+
+    const answer = await method.translate(['VITE', 'RIV {{1}} ATTACCO']);
+
+    expect(answer).toEqual({
+      value: ['Screw', 'RIV {{1}} mounting'],
+      tokens: { input: 1500, output: 300 },
+    });
+    const blocks = api.received[0]?.body.messages[0]?.content ?? [];
+    expect(blocks.map((block) => block.type)).toEqual(['text']);
+    const instruction = (blocks[0] as unknown as { text: string }).text;
+    expect(instruction).toContain('vite: screw');
+    expect(instruction).toContain('rosetta: washer');
+    expect(instruction).toContain('["VITE","RIV {{1}} ATTACCO"]');
+    expect(api.received[0]?.body.output_config.format.type).toBe('json_schema');
   });
 
   it('names itself by the model and the credential, and never by the key', async () => {

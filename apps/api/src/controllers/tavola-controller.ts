@@ -3,7 +3,7 @@ import type { RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { TavolaService } from '../services/tavola-service.js';
-import { blankToNull, required } from './fields.js';
+import { blankToNull, englishNameBody, required } from './fields.js';
 
 const modelIdParams = z.object({ modelId: z.uuid('That is not a Model id.') });
 const tavolaIdParams = z.object({ tavolaId: z.uuid('That is not a Tavola id.') });
@@ -37,6 +37,7 @@ export interface TavolaController {
   create: RequestHandler;
   categorise: RequestHandler;
   publish: RequestHandler;
+  nameInEnglish: RequestHandler;
 }
 
 export function createTavolaController(dependencies: {
@@ -65,6 +66,13 @@ export function createTavolaController(dependencies: {
       const { tavolaId } = tavolaIdParams.parse(request.params);
       const { category } = categoriseBody.parse(request.body);
       const tavola = await tavolaService.categorise(tavolaId, category);
+      response.json({ tavola });
+    },
+
+    nameInEnglish: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+      const { nameEn } = englishNameBody.parse(request.body);
+      const tavola = await tavolaService.nameInEnglish(tavolaId, nameEn);
       response.json({ tavola });
     },
 

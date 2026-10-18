@@ -366,7 +366,7 @@ describe('reading a scanned catalog', () => {
     expect(await manifestOf(out, '84')).toMatchObject({
       number: '84',
       titleIt: 'ASSALE POSTERIORE',
-      titleEn: '',
+      titleEn: '[en] ASSALE POSTERIORE',
       catalogSection: '260',
       catalogGroup: '06',
       catalogSubgroup: '110',

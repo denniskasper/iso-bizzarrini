@@ -50,9 +50,21 @@ export const ESTIMATE_PER_REQUEST: RequestEstimate = {
   outputAtMost: 4000,
 };
 
+/** Translating costs nothing here unless a test says so, so the figures above stay round. */
+export const NO_TOKENS: Tokens = { input: 0, output: 0 };
+export const NO_ESTIMATE: RequestEstimate = { input: 0, output: 0, outputAtMost: 0 };
+
 export interface FakeMethodOptions {
   /** As though it read on a subscription: priced, but not charged. */
   charged?: boolean;
+  /**
+   * What it translates each Italian text as, codes masked as `{{1}}`. Anything not here comes
+   * back as `[en] ` and the Italian, placeholders and all.
+   */
+  english?: Record<string, string>;
+  /** What each translation request takes, and is estimated to. Nothing, unless a test says. */
+  translationTokens?: Tokens;
+  translationEstimate?: RequestEstimate;
   /** How many requests it answers before the plan's usage limit is reached. */
   usageLimitAfter?: number;
 }
@@ -60,8 +72,9 @@ export interface FakeMethodOptions {
 export function fakeReadingMethod(
   pages: InventedPage[],
   options: FakeMethodOptions = {},
-): ReadingMethod & { calls: string[]; estimated: number[] } {
+): ReadingMethod & { calls: string[]; estimated: number[]; translated: string[][] } {
   const calls: string[] = [];
+  const translated: string[][] = [];
   const estimated: number[] = [];
   const pageOf = (page: number): InventedPage => pages[page - 1] ?? {};
   const call = (what: string) => {
@@ -77,11 +90,13 @@ export function fakeReadingMethod(
     charged: options.charged ?? true,
     calls,
     estimated,
+    translated,
     async estimate(sheet) {
       estimated.push(sheet.page);
       return {
         identify: ESTIMATE_PER_REQUEST,
         reading: ESTIMATE_PER_REQUEST,
+        translation: options.translationEstimate ?? NO_ESTIMATE,
         ...pageOf(sheet.page).estimate,
       };
     },
@@ -106,6 +121,16 @@ export function fakeReadingMethod(
       return {
         value: reading === 2 && second ? second : first,
         tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL,
+      };
+    },
+    async estimateTranslation() {
+      return options.translationEstimate ?? NO_ESTIMATE;
+    },
+    async translate(texts) {
+      translated.push(texts);
+      return {
+        value: texts.map((text) => options.english?.[text] ?? `[en] ${text}`),
+        tokens: options.translationTokens ?? NO_TOKENS,
       };
     },
   };

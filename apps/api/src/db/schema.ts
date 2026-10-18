@@ -103,6 +103,11 @@ export const tavole = pgTable(
     nameIt: text('name_it').notNull(),
     nameEn: text('name_en').notNull(),
     /**
+     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0016).
+     * Cleared when an Editor confirms or rewrites the name, and never by publishing the Tavola.
+     */
+    nameEnMachineTranslated: boolean('name_en_machine_translated').notNull().default(false),
+    /**
      * `null` is a Tavola nobody has put under a system yet — a legitimate state, the same way a
      * Tavola with no scan is. It is still on its Model's sheet and is never hidden by a filter.
      */
@@ -383,6 +388,11 @@ export const parts = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     nameEn: text('name_en'),
+    /**
+     * `nameEn` is a Machine translation of `nameIt` that nobody has vouched for yet (ADR 0016).
+     * Cleared when an Editor confirms or rewrites the name.
+     */
+    nameEnMachineTranslated: boolean('name_en_machine_translated').notNull().default(false),
     /** The factory's own words, as the catalog prints them. */
     nameIt: text('name_it'),
     /** The catalog's first column. An opaque string, printed spacing and all. */
@@ -400,6 +410,11 @@ export const parts = pgTable(
      * field would make the distinction unrecoverable no matter what the screens did.
      */
     catalogNote: text('catalog_note'),
+    /**
+     * A Machine translation of `catalogNote`, always shown as one and beside the Italian. The
+     * Italian stays the evidence; this goes when the note it translated is changed.
+     */
+    catalogNoteEn: text('catalog_note_en'),
     /** What the club has established. Distinct from the above, which nobody may improve. */
     note: text('note'),
   },

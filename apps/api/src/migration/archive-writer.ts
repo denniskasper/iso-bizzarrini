@@ -238,14 +238,25 @@ export function createArchiveWriter(session: DbSession): ArchiveWriter {
     },
 
     async fillPart(part, values) {
+      const { nameEnMachineTranslated, ...text } = values;
       const patch: Partial<NewPartRow> = {};
-      for (const [field, value] of Object.entries(values) as [keyof NewPartRow, string | null][]) {
+      for (const [field, value] of Object.entries(text) as [keyof typeof text, string | null][]) {
         if (value !== null && value !== undefined && part[field] === null) {
           patch[field] = value;
         }
       }
+      // English for a Catalog Note is English for that note, and not for one already recorded.
+      if (patch.catalogNoteEn !== undefined && part.catalogNote !== null) {
+        if (part.catalogNote !== text.catalogNote) {
+          delete patch.catalogNoteEn;
+        }
+      }
 
       const filled = Object.keys(patch).length;
+      // A Machine translation is one only where it is the English this filled in.
+      if (patch.nameEn !== undefined) {
+        patch.nameEnMachineTranslated = nameEnMachineTranslated ?? false;
+      }
       if (filled > 0) {
         await session.update(parts).set(patch).where(eq(parts.id, part.id));
       }

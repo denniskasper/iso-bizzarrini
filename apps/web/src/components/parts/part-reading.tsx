@@ -2,9 +2,21 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { MemberContributions } from '@/components/contributions/member-contributions';
 import { CopyLink } from '@/components/copy-link';
+import {
+  ConfirmEnglish,
+  EnglishName,
+  MachineTranslationTag,
+} from '@/components/machine-translation';
 import { PartPhotographs } from '@/components/parts/part-photographs';
 import { Refusal } from '@/components/ui/field';
-import type { CatalogModel, Contribution, PartInFull, PartListing, Position } from '@/lib/api';
+import {
+  api,
+  type CatalogModel,
+  type Contribution,
+  type PartInFull,
+  type PartListing,
+  type Position,
+} from '@/lib/api';
 import { usePositionContributions } from '@/lib/contributions';
 import {
   EQUIVALENT_KIND_LABELS,
@@ -12,7 +24,8 @@ import {
   formatObservedOn,
   formatPrice,
 } from '@/lib/part-record';
-import { usePositionListings } from '@/lib/parts';
+import { useRereadPart, usePositionListings } from '@/lib/parts';
+import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 /**
@@ -269,6 +282,8 @@ function ListedPart({
   contributions: Contribution[];
 }) {
   const { part } = listing;
+  const { isEditor } = useSession();
+  const rereadPart = useRereadPart();
   // A Part always has one of the two names. The Italian is what the catalog printed, so it stays
   // underneath rather than being translated away — but it is not repeated as its own heading.
   const heading = part.nameEn ?? part.nameIt;
@@ -285,7 +300,20 @@ function ListedPart({
           </p>
         )}
       </div>
-      {beneath && <p className="mt-1 text-pretty text-muted">{beneath}</p>}
+      {beneath && (
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-3 text-pretty text-muted">
+          <span lang="it">{beneath}</span>
+          {part.nameEnMachineTranslated && <MachineTranslationTag />}
+        </p>
+      )}
+      {isEditor && part.nameEnMachineTranslated && part.nameEn !== null && (
+        <ConfirmEnglish
+          confirm={async () => {
+            await api.namePartInEnglish(part.id, part.nameEn as string);
+            await rereadPart();
+          }}
+        />
+      )}
 
       {/*
        * **What it looks like, above the numbers you quote** (story 77). A member holding a
@@ -334,7 +362,14 @@ function ListedPart({
       {part.catalogNote !== null && (
         <div className="transcription mt-6" data-testid="catalog-note">
           <h5 className="label">From the factory catalog</h5>
-          <p className="mt-2 text-sm text-pretty">{part.catalogNote}</p>
+          <p lang="it" className="mt-2 text-sm text-pretty">
+            {part.catalogNote}
+          </p>
+          {part.catalogNoteEn !== null && (
+            <p className="mt-1 text-sm text-pretty text-muted">
+              {part.catalogNoteEn} <MachineTranslationTag />
+            </p>
+          )}
         </div>
       )}
       {part.note !== null && (
@@ -568,7 +603,12 @@ function Elsewhere({ listing }: { listing: PartListing }): ReactNode {
               params={{ tavolaId: where.tavolaId }}
               className="text-accent-ink underline-offset-4 hover:underline"
             >
-              <span className="tabular">Tavola {where.tavolaNumber}</span> — {where.nameEn}
+              <span className="tabular">Tavola {where.tavolaNumber}</span> —{' '}
+              <EnglishName
+                nameEn={where.nameEn}
+                nameIt={where.nameIt}
+                machineTranslated={where.nameEnMachineTranslated}
+              />
             </Link>
             <span className="text-faint">
               {' '}

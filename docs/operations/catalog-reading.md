@@ -62,12 +62,16 @@ leaves an honest record.
   Code's own framing, all twice over, since Claude Code asks the model a second time after the
   structured answer. An
   answer cannot be counted before it is written, so each is allowed what it is expected to take
-  (1,000 tokens to say what a page is, 8,000 to read a Table sheet). Which pages are drawings is
-  only known once they have been asked, so every page is estimated as a Table sheet read twice,
-  and a catalog with drawings in it costs less than its estimate.
+  (1,000 tokens to say what a page is, 8,000 to read a Table sheet, 2,000 to translate it). A
+  Table sheet's Italian is unknown until it is read, so its translation is allowed 2,000 tokens of
+  text. Which pages are drawings is only known once they have been asked, so every page is
+  estimated as a Table sheet read twice and translated, and a catalog with drawings in it costs
+  less than its estimate.
 - **It refuses to start without `--limit`, or with an estimate above it**, and says why.
 - **It never passes the limit.** Before each sheet it allows for the most that sheet could cost,
-  which is every answer at its ceiling, and stops if that would pass the limit. So give the limit
+  which is every answer at its ceiling, translation included, and stops if that would pass the
+  limit. Before a Tavola is translated, the translation itself is counted again and held to the
+  limit the same way. So give the limit
   some room above the estimate. The Tavole it finished are written and load as usual. The rest are
   printed as not read. Carry on with `--resume`.
 - **It prints a running total** after every sheet, and the cost of each Tavola as it finishes.
@@ -93,6 +97,14 @@ What it decides, and where it decides it:
 - **Every Table sheet is read twice**, independently. A row is in doubt only where the two
   Readings differ on its Position, Catalog Number or quantity, or where a Catalog Number is not
   shaped like one. Where one Reading hesitated and the other read the same, that is a note.
+- **The Italian is put into English** once a Tavola's sheets are read: its title, every
+  *Denominazione* and every Note. The Italian is kept verbatim, and the English beside it is a
+  **Machine translation** until an Editor confirms or rewrites it in Ricambi. Publishing the Tavola
+  does not remove the label. The term list in `apps/api/src/reading/translation.ts` keeps one
+  Italian word one English word, and within a directory the same Italian is translated once and
+  reused, even across `--resume`. Every code and number is taken out before the Italian is sent,
+  and an English that does not carry each one back unchanged is dropped, so that text is left
+  without English.
 - **A dash** for a position is the Position above: an undrawn Part on the catalogue layout, a drawn
   Part of the other hand on the Ufficio Tecnico layout. **A range** (`16-17`) is the Part at each
   Position. **Different numbers under the Dal–Al columns** are separate Parts, each with the
@@ -108,17 +120,20 @@ catalog-reading/
   cost-2.json …         the same, for each run carried on with --resume
   set-aside.csv         pages not in any Tavola, and why
   tavola-84/
-    tavola.json         number, Italian title, the factory's header, the sheets
+    tavola.json         number, the title in Italian and English, the factory's header, the
+                        sheets, and what the machine translated
     scan.png            the drawing
     table-1.png …       the Table sheets
     listings.csv        one row per Listing
 ```
 
 `listings.csv` opens in Excel. An Editor may correct it there: change a Catalog Number, a
-quantity, `Drawn`, or add and remove rows. Then save it as CSV. The `Doubt` and `Reading note`
-columns are there to read, and the loader ignores them. The English title in `tavola.json` is
-left empty, because English names are a Machine translation of their own. Where it stays empty,
-the Tavola carries its Italian title in both places, and the load report says so.
+quantity, `Drawn`, an English name, or add and remove rows. Then save it as CSV. The `Doubt` and
+`Reading note` columns are there to read, and the loader ignores them. An English name or title
+still as the machine wrote it loads as a Machine translation. One an Editor changed, in
+`listings.csv` or as `titleEn` in `tavola.json`, loads as theirs. The English of a Catalog Note is
+always shown as a Machine translation. Where a Tavola has no English title, it carries its Italian
+title in both places, and the load report says so.
 
 ## Loading
 

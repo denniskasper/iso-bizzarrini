@@ -71,8 +71,8 @@ export const tavolaManifestSchema = z.object({
   number: z.string().trim().min(1),
   titleIt: z.string().trim(),
   /**
-   * Left empty by the read command; English names are a Machine translation of their own. An
-   * Editor may fill it in before loading.
+   * A Machine translation of `titleIt`, or empty where there is none. An Editor may rewrite it
+   * before loading, and then it is theirs rather than the machine's.
    */
   titleEn: z.string().trim(),
   catalogSection: z.string().trim().nullable(),
@@ -84,13 +84,19 @@ export const tavolaManifestSchema = z.object({
   tableSheets: z.array(
     z.object({ file: z.string(), page: z.number().int(), foglio: z.string().nullable() }),
   ),
+  /**
+   * What the machine translated this Tavola's Italian as. An English name in `listings.csv` or
+   * `titleEn` that still says this is a Machine translation; one an Editor changed is their own.
+   */
+  machineTranslations: z.array(z.object({ italian: z.string(), english: z.string() })).default([]),
 });
 
 export type TavolaManifest = z.infer<typeof tavolaManifestSchema>;
 
 /**
  * The columns of `listings.csv`. The last three are for the Editor reading it, and the loader
- * reads none of them.
+ * reads none of them. The two English columns are Machine translations until an Editor changes
+ * them.
  */
 export const LISTING_COLUMNS = {
   position: 'Position',
@@ -99,7 +105,9 @@ export const LISTING_COLUMNS = {
   disegnoOrigine: 'Disegno Origine',
   quantity: 'Quantity',
   nameIt: 'Denominazione',
+  nameEn: 'Name (English)',
   catalogNote: 'Catalog Note',
+  catalogNoteEn: 'Catalog Note (English)',
   fitmentQualifier: 'Fitment qualifier',
   tableSheet: 'Table sheet',
   doubt: 'Doubt',

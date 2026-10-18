@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { z } from 'zod';
 import { TABLE_LAYOUTS } from './reading-method.js';
+import { TERM_LIST } from './translation.js';
 
 /**
  * **What Claude is asked, whichever credential it is reached with** (ADR 0016). The API key and
@@ -17,7 +18,13 @@ export const MAX_TOKENS = 16000;
  * written. Generous on purpose: the identity is a few lines, a Table sheet's rows rarely pass a
  * few thousand tokens. The cost record shows what each request really took.
  */
-export const EXPECTED_OUTPUT = { identify: 1000, reading: 8000 };
+export const EXPECTED_OUTPUT = { identify: 1000, reading: 8000, translation: 2000 };
+
+/**
+ * What one Table sheet's Italian is expected to add to a translation request, before its rows
+ * are known: a hundred short names and notes.
+ */
+export const EXPECTED_TRANSLATION_INPUT = 2000;
 
 export type Effort = 'low' | 'high';
 
@@ -79,6 +86,24 @@ Two layouts exist:
 For "position" give what is printed: a number, a range such as 16-17, "-" where the column holds a dash, or "" where it is empty. Do not work out what a dash means.
 
 Rows in printed order. Skip form lines that are entirely empty; keep a row that has a position and nothing else. Keep the Italian exactly as printed, upper case kept. Do not translate.`;
+
+export const translationSchema = z.object({ english: z.array(z.string()) });
+
+/** The texts go last, as JSON, so nothing in them can be taken for an instruction. */
+export function translateInstruction(texts: string[]): string {
+  const terms = TERM_LIST.map((term) => `${term.italian}: ${term.english}`).join('\n');
+  return `You are translating text from a 1960s Italian factory parts catalogue into English, as a parts counter would say it.
+
+Answer with "english": one translation for each text, in the same order, and exactly as many as there are texts. Names are in sentence case ("Hexagon head screw"), never upper case.
+
+Every {{1}}, {{2}}… stands for a code or a number printed in the catalogue. Carry each one into the English exactly once, unchanged; never add, drop, translate or reorder the characters inside the braces.
+
+Always translate these words, and their other forms (feminine, plural), the same way:
+${terms}
+
+The texts:
+${JSON.stringify(texts)}`;
+}
 
 /**
  * A Table sheet cut into overlapping strips across its full width, so the model reads it at the

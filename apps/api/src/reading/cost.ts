@@ -31,9 +31,19 @@ export class Spending {
     return this.costOf({ input: request.input, output: request.outputAtMost });
   }
 
-  /** Each page as though it were a Table sheet: asked what it is, then read twice. */
+  /** Each page as though it were a Table sheet: asked what it is, read twice, and translated. */
   estimateOf(sheet: SheetEstimate): number {
-    return this.expected(sheet.identify) + 2 * this.expected(sheet.reading);
+    return this.expected(sheet.identify) + this.readingOf(sheet);
+  }
+
+  /** A Table sheet already placed: read twice, and translated. */
+  readingOf(sheet: SheetEstimate): number {
+    return 2 * this.expected(sheet.reading) + this.expected(sheet.translation);
+  }
+
+  /** The most a Table sheet could cost once placed: both Readings and its translation. */
+  readingAtMost(sheet: SheetEstimate): number {
+    return 2 * this.atMost(sheet.reading) + this.atMost(sheet.translation);
   }
 
   wouldPass(atMost: number): boolean {
@@ -80,7 +90,14 @@ export interface CostRecord {
    * spending limit, or the subscription's usage limit was reached. `null` where it did not stop.
    */
   stopped: 'spending-limit' | 'usage-limit' | null;
-  tavole: { number: string; finished: boolean; cost: number; sheets: SheetCost[] }[];
+  tavole: {
+    number: string;
+    finished: boolean;
+    cost: number;
+    sheets: SheetCost[];
+    /** Its Italian put into English, once its sheets were read. `null` where nothing was sent. */
+    translation: Spent | null;
+  }[];
   /**
    * Pages this run asked about that went into no Tavola. They were asked what they are, and that
    * cost something.

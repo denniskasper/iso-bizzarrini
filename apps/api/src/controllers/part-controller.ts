@@ -9,7 +9,7 @@ import type { RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
 import type { PartService } from '../services/part-service.js';
-import { blankToNull, required } from './fields.js';
+import { blankToNull, englishNameBody, required } from './fields.js';
 
 const tavolaIdParams = z.object({ tavolaId: z.uuid('That is not a Tavola id.') });
 const positionIdParams = z.object({ positionId: z.uuid('That is not a Position id.') });
@@ -95,6 +95,7 @@ export interface PartController {
   lookUp: RequestHandler;
   read: RequestHandler;
   correct: RequestHandler;
+  nameInEnglish: RequestHandler;
   remove: RequestHandler;
 }
 
@@ -181,6 +182,13 @@ export function createPartController(dependencies: {
         partId,
         partBody.parse(request.body),
       );
+      response.json(body);
+    },
+
+    nameInEnglish: async (request, response) => {
+      const { partId } = partIdParams.parse(request.params);
+      const { nameEn } = englishNameBody.parse(request.body);
+      const body: PartResponse = await partService.nameInEnglish(partId, nameEn);
       response.json(body);
     },
 

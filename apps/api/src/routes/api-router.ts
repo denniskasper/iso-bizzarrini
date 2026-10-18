@@ -277,6 +277,9 @@ export function createApiRouter(dependencies: {
   // **Publishing is one act and an Editor's** (issue #30). It has an address of its own rather
   // than a field on the Tavola, because it is a statement somebody makes and is recorded as one.
   router.post('/tavole/:tavolaId/publication', tavolaController.publish);
+  // **Vouching for an English name is a judgement of its own** (issue #32): confirmed as it
+  // stands or rewritten, it is no longer a Machine translation. Publishing never does this.
+  router.put('/tavole/:tavolaId/english-name', tavolaController.nameInEnglish);
 
   // **One click is one request**, which is why the Position is named by its printed number here
   // rather than by an id: at the moment an Editor clicks the drawing they know what the factory
@@ -387,6 +390,7 @@ export function createApiRouter(dependencies: {
   router.get('/parts', partController.lookUp);
   router.get('/parts/:partId', partController.read);
   router.patch('/parts/:partId', partController.correct);
+  router.put('/parts/:partId/english-name', partController.nameInEnglish);
   // Refused while anything still lists it. The Listings go first, so nothing here removes an
   // evening's work from a sheet the Editor is not looking at.
   router.delete('/parts/:partId', partController.remove);

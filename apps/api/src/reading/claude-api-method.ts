@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import {
   CLAUDE_MODEL,
   EXPECTED_OUTPUT,
+  EXPECTED_TRANSLATION_INPUT,
   IDENTIFY,
   MAX_TOKENS,
   READ_TABLE,
@@ -11,11 +12,14 @@ import {
   identitySchema,
   stripsOf,
   tableSchema,
+  translateInstruction,
+  translationSchema,
   type Effort,
 } from './claude-requests.js';
 import type {
   Answer,
   ReadingMethod,
+  RequestEstimate,
   SheetEstimate,
   SheetIdentity,
   SheetImage,
@@ -125,13 +129,27 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     charged: true,
 
     async estimate(sheet: SheetImage): Promise<SheetEstimate> {
-      const [identify, reading] = await Promise.all([
+      const [identify, reading, translation] = await Promise.all([
         counted(requestFor(identitySchema, IDENTIFY, [sheet.image], 'low')),
         counted(requestFor(tableSchema, READ_TABLE, await stripsOf(sheet.image), 'high')),
+        counted(requestFor(translationSchema, translateInstruction([]), [], 'low')),
       ]);
       return {
         identify: { input: identify, output: EXPECTED_OUTPUT.identify, outputAtMost: MAX_TOKENS },
         reading: { input: reading, output: EXPECTED_OUTPUT.reading, outputAtMost: MAX_TOKENS },
+        translation: {
+          input: translation + EXPECTED_TRANSLATION_INPUT,
+          output: EXPECTED_OUTPUT.translation,
+          outputAtMost: MAX_TOKENS,
+        },
+      };
+    },
+
+    async estimateTranslation(texts: string[]): Promise<RequestEstimate> {
+      return {
+        input: await counted(requestFor(translationSchema, translateInstruction(texts), [], 'low')),
+        output: EXPECTED_OUTPUT.translation,
+        outputAtMost: MAX_TOKENS,
       };
     },
 
@@ -141,6 +159,11 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
 
     async readTable(sheet: SheetImage): Promise<Answer<TableReading>> {
       return ask(tableSchema, READ_TABLE, await stripsOf(sheet.image), 'high');
+    },
+
+    async translate(texts: string[]): Promise<Answer<string[]>> {
+      const answer = await ask(translationSchema, translateInstruction(texts), [], 'low');
+      return { value: answer.value.english, tokens: answer.tokens };
     },
   };
 }

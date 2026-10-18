@@ -83,7 +83,7 @@ describe('the cost of reading a catalog', () => {
     expect(printed[0]).toBe('Reading with a fake Reading method: billed per use.');
     expect(printed[1]).toBe(
       'Estimated at $0.24 for 2 pages, at claude-opus-5-5 list prices checked on 2026-10-17. ' +
-        'Every page is counted as a Table sheet read twice; a drawing costs less.',
+        'Every page is counted as a Table sheet read twice and translated; a drawing costs less.',
     );
     expect(printed).toContain('Page 1: drawing of Tavola 84. $0.04, $0.04 so far.');
     expect(printed).toContain('Page 2: Table sheet of Tavola 84. $0.04, $0.08 so far.');
@@ -182,6 +182,7 @@ describe('the cost of reading a catalog', () => {
           number: '84',
           finished: true,
           cost: 0.16,
+          translation: { tokens: { input: 0, output: 0 }, cost: 0 },
           sheets: [
             { page: 1, kind: 'drawing', cost: 0.04, identification, readings: [] },
             {
