@@ -11,8 +11,9 @@ import type { CategoryRepository } from '../repositories/category-repository.js'
 import type { CategoryRow } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
+import type { ReadingRepository } from '../repositories/reading-repository.js';
 import type { TavolaInContext, TavolaRepository } from '../repositories/tavola-repository.js';
-import { toCatalogModel, toTavolaSummary } from './catalog-view.js';
+import { toCatalogModel, toTableSheet, toTavolaSummary } from './catalog-view.js';
 import type { PositionService } from './position-service.js';
 
 export interface NewTavola {
@@ -55,10 +56,17 @@ export function createTavolaService(dependencies: {
   modelRepository: ModelRepository;
   categoryRepository: CategoryRepository;
   tavolaRepository: TavolaRepository;
+  readingRepository: ReadingRepository;
   positionService: PositionService;
 }): TavolaService {
-  const { clock, modelRepository, categoryRepository, tavolaRepository, positionService } =
-    dependencies;
+  const {
+    clock,
+    modelRepository,
+    categoryRepository,
+    tavolaRepository,
+    readingRepository,
+    positionService,
+  } = dependencies;
 
   /**
    * **Chosen, never typed into existence.** The list is an Administrator's, so a name that is
@@ -90,7 +98,10 @@ export function createTavolaService(dependencies: {
       // With the drawing and not after it. The circles are part of what a member opened the
       // Tavola to see, and a second request for them is a second chance to arrive late — and so
       // is what belongs with each of them, which arrives on the same sheet.
-      const sheet = await positionService.listForTavola(tavolaId);
+      const [sheet, tableSheets] = await Promise.all([
+        positionService.listForTavola(tavolaId),
+        readingRepository.listTableSheets(tavolaId),
+      ]);
 
       return {
         ...sheet,
@@ -106,6 +117,8 @@ export function createTavolaService(dependencies: {
             subgroup: row.catalogSubgroup,
           },
           publication: publicationOf(row),
+          // The factory's own table pages, as private as the drawing (issue #34).
+          tableSheets: tableSheets.map(toTableSheet),
         },
       };
     },

@@ -128,8 +128,9 @@ catalog-reading/
 ```
 
 `listings.csv` opens in Excel. An Editor may correct it there: change a Catalog Number, a
-quantity, `Drawn`, an English name, or add and remove rows. Then save it as CSV. The `Doubt` and
-`Reading note` columns are there to read, and the loader ignores them. An English name or title
+quantity, `Drawn`, an English name, or add and remove rows. Then save it as CSV. The loader keeps
+each row's `Table sheet` and `Doubt` for the checking screen, so a doubt may be rewritten or
+cleared here. It ignores `Reading note`. An English name or title
 still as the machine wrote it loads as a Machine translation. One an Editor changed, in
 `listings.csv` or as `titleEn` in `tavola.json`, loads as theirs. The English of a Catalog Note is
 always shown as a Machine translation. Where a Tavola has no English title, it carries its Italian
@@ -147,3 +148,18 @@ pnpm archive:load -- --source ../catalog-reading
 - **An Unchecked Tavola already there is discarded and loaded again whole**, together with every
   Part that appears nowhere else. Read again, correct the CSV, and load again as often as needed.
 - **A Published Tavola is refused.** It has been checked, and it is corrected in Ricambi.
+
+## Checking
+
+An Editor opens an Unchecked Tavola in Ricambi as any other. While it is Unchecked, the page also
+shows:
+
+- in the Unchecked band, which Reading method read it and every doubt. A doubt leads to the row
+  it is about, with its number opened on the drawing;
+- each Table sheet beside the rows read from it, where any row can be flipped between drawn and
+  not drawn.
+
+The Marks are corrected with the marking tool, and a Part with its usual panel. A Scan read on its
+side is turned a quarter at a time under the drawing, and its Marks turn with it. Publish is
+allowed while doubts remain. Once the Tavola is Published, Members can open its Table sheets but
+are never told which Reading method read it.

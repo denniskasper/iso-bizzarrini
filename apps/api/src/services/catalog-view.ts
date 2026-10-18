@@ -14,6 +14,7 @@ import type {
   SearchListing,
   Source,
   SubAssembly,
+  TableSheet,
   TavolaListing,
   TavolaProgress,
   TavolaScan,
@@ -28,8 +29,9 @@ import type {
   ScanRow,
   SourceRow,
   SubAssemblyRow,
+  TableSheetRow,
 } from '../db/schema.js';
-import { photographImageUrl, scanImageUrl } from '../images/image-addresses.js';
+import { photographImageUrl, scanImageUrl, tableSheetImageUrl } from '../images/image-addresses.js';
 import type { FitmentWithModel, PartRecordRows } from '../repositories/part-record-repository.js';
 import type {
   ElsewhereRow,
@@ -298,6 +300,15 @@ export function toListedElsewhere(row: ElsewhereRow): ListedElsewhere {
  * lays Marks over. What was uploaded may be larger; that is recorded on the row, for the
  * measurement ADR 0013 waits on, and is nothing a browser needs to know.
  */
+export function toTableSheet(row: TableSheetRow): TableSheet {
+  return {
+    sheet: row.sheet,
+    width: row.width,
+    height: row.height,
+    url: tableSheetImageUrl(row.tavolaId, row.sheet),
+  };
+}
+
 export function toTavolaScan(row: ScanRow): TavolaScan {
   return {
     id: row.id,

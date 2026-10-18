@@ -3,6 +3,13 @@ import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BelongsWithPanel } from '@/components/editor/belongs-with-panel';
 import { BulkPaste } from '@/components/editor/bulk-paste';
+import {
+  CheckingSheets,
+  ReadingDoubts,
+  ScanTurn,
+  TableSheets,
+  useTavolaChecking,
+} from '@/components/editor/checking';
 import { FileUnder } from '@/components/editor/file-under';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
@@ -18,7 +25,13 @@ import { WhatIsLeft } from '@/components/progress/what-is-left';
 import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
 import { MarkLayer } from '@/components/viewer/mark-layer';
-import { api, type CatalogProvenance, type Mark, type Position } from '@/lib/api';
+import {
+  api,
+  type CatalogProvenance,
+  type Mark,
+  type Position,
+  type ReadingDoubt,
+} from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
 import { useSheetProgress } from '@/lib/progress';
@@ -86,6 +99,15 @@ export function TavolaPage() {
   const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
   const tool = useMarkingTool(tavolaId);
+
+  /**
+   * **Checking what the machine read** (issue #34): asked only while an Editor has an Unchecked
+   * Tavola open, because a Member is never told what read it. `followed` is the row a doubt was
+   * followed to, keyed by the Tavola so it does not follow the Editor onto the next sheet.
+   */
+  const checkingOpen = isEditor && data?.tavola.state === 'unchecked';
+  const checking = useTavolaChecking(tavolaId, checkingOpen);
+  const [followed, setFollowed] = useState<{ tavolaId: string; listingId: string } | null>(null);
 
   const positions = useMemo(() => data?.positions ?? [], [data?.positions]);
   const sheet = useMemo(
@@ -222,6 +244,23 @@ export function TavolaPage() {
     [open, selectedPosition?.id, selectedMark?.id],
   );
 
+  /**
+   * A doubt leads to the row it is about, beside the sheet it was read from, with its number
+   * opened so the drawing is already there when the Editor looks back up. A doubt about a number
+   * alone takes the drawing to it.
+   */
+  const followDoubt = (doubt: ReadingDoubt) => {
+    const position = positions.find((candidate) => candidate.id === doubt.positionId) ?? null;
+    if (doubt.listingId !== null) {
+      setFollowed({ tavolaId, listingId: doubt.listingId });
+      if (position) {
+        open(position);
+      }
+    } else if (position) {
+      goTo(position);
+    }
+  };
+
   if (isPending) {
     return <p className="text-lg text-muted">Reading the drawing…</p>;
   }
@@ -295,7 +334,11 @@ export function TavolaPage() {
 
       {tavola.state === 'unchecked' && (
         <div className="mt-8">
-          <UncheckedBand tavolaId={tavola.id} modelId={tavola.model.id} />
+          <UncheckedBand tavolaId={tavola.id} modelId={tavola.model.id}>
+            {checking.data && (
+              <ReadingDoubts checking={checking.data} positions={positions} onDoubt={followDoubt} />
+            )}
+          </UncheckedBand>
         </div>
       )}
 
@@ -377,6 +420,23 @@ export function TavolaPage() {
         </div>
       </div>
 
+      {checkingOpen && checking.data && (
+        <div className="mt-16">
+          <CheckingSheets
+            tavolaId={tavola.id}
+            tableSheets={tavola.tableSheets}
+            checking={checking.data}
+            positions={positions}
+            highlighted={followed?.tavolaId === tavola.id ? followed : null}
+          />
+        </div>
+      )}
+      {!checkingOpen && tavola.tableSheets.length > 0 && (
+        <div className="mt-12">
+          <TableSheets tableSheets={tavola.tableSheets} />
+        </div>
+      )}
+
       {tool.on && (
         <div className="mt-12">
           <MarkingBar
@@ -433,7 +493,11 @@ export function TavolaPage() {
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
         <Provenance provenance={tavola.provenance} />
-        <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
+        <div className="flex flex-col gap-6">
+          <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
+          {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
+          {isEditor && tavola.scan && <ScanTurn tavolaId={tavola.id} />}
+        </div>
         <FileUnder tavolaId={tavola.id} modelId={tavola.model.id} category={tavola.category} />
       </div>
     </div>

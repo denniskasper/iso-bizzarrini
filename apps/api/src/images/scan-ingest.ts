@@ -24,6 +24,7 @@ const SCAN: ImageRecipe = {
   encodeDisplay: (pipeline) => pipeline.webp({ lossless: true }),
 };
 
-export function prepareScan(upload: Buffer): Promise<PreparedUpload> {
-  return prepareImage(upload, SCAN);
+/** `quarterTurns` clockwise, for a sheet an Editor has turned upright (issue #34). */
+export function prepareScan(upload: Buffer, quarterTurns = 0): Promise<PreparedUpload> {
+  return prepareImage(upload, SCAN, quarterTurns);
 }

@@ -736,6 +736,12 @@
     border: 1px dashed var(--line-strong);
   }
 
+  /* A row the read command was unsure of: the dashed edge every Unchecked thing wears (#34). */
+  .checked-row-in-doubt {
+    border-left: 2px dashed var(--line-strong);
+    padding-left: --spacing(3);
+  }
+
   .plate-unchecked {
     outline: 1px dashed var(--line-strong);
     outline-offset: --spacing(2);

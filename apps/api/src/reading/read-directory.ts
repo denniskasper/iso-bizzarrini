@@ -94,9 +94,9 @@ export const tavolaManifestSchema = z.object({
 export type TavolaManifest = z.infer<typeof tavolaManifestSchema>;
 
 /**
- * The columns of `listings.csv`. The last three are for the Editor reading it, and the loader
- * reads none of them. The two English columns are Machine translations until an Editor changes
- * them.
+ * The columns of `listings.csv`. The last three are for the Editor checking it: the loader keeps
+ * the Table sheet and the Doubt, for the checking screen, and does not read the Reading note.
+ * The two English columns are Machine translations until an Editor changes them.
  */
 export const LISTING_COLUMNS = {
   position: 'Position',

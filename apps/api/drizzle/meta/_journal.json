@@ -141,6 +141,13 @@
       "when": 1792280762861,
       "tag": "0019_machine_translation",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792281904550,
+      "tag": "0020_checking_a_reading",
+      "breakpoints": true
     }
   ]
 }

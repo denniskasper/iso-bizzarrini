@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { api, refusalText, type TavolaPublication } from '@/lib/api';
@@ -15,7 +16,16 @@ import { writtenOn } from '@/lib/contributions';
  * Publishing is allowed whenever an Editor decides, with nothing to confirm: it is their
  * statement, and the record of who made it is what the line after it says.
  */
-export function UncheckedBand({ tavolaId, modelId }: { tavolaId: string; modelId: string }) {
+export function UncheckedBand({
+  tavolaId,
+  modelId,
+  children,
+}: {
+  tavolaId: string;
+  modelId: string;
+  /** What the Editor checks it against first: the Reading method and the doubts (issue #34). */
+  children?: ReactNode;
+}) {
   const queryClient = useQueryClient();
 
   const publish = useMutation({
@@ -27,6 +37,7 @@ export function UncheckedBand({ tavolaId, modelId }: { tavolaId: string; modelId
         queryClient.invalidateQueries({ queryKey: ['model-progress', modelId] }),
         queryClient.invalidateQueries({ queryKey: ['categories'] }),
         queryClient.invalidateQueries({ queryKey: ['category'] }),
+        queryClient.invalidateQueries({ queryKey: ['tavola-checking', tavolaId] }),
       ]),
   });
 
@@ -42,6 +53,7 @@ export function UncheckedBand({ tavolaId, modelId }: { tavolaId: string; modelId
         </h2>
         <p className="mt-1 text-pretty text-muted">
           Members can’t see this drawing yet. Compare it with the factory’s sheets, then publish it.
+          Doubts don’t have to be cleared first.
         </p>
       </div>
 
@@ -54,6 +66,8 @@ export function UncheckedBand({ tavolaId, modelId }: { tavolaId: string; modelId
           <Refusal>{refusalText(publish.error)}</Refusal>
         </div>
       )}
+
+      {children && <div className="basis-full">{children}</div>}
     </section>
   );
 }

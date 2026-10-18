@@ -11,6 +11,7 @@ import {
   listings,
   parts,
   positions,
+  readingDoubts,
   scans,
   tableSheets,
   tavole,
@@ -211,7 +212,7 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
         .returning({ id: tavole.id });
       const tavolaId = (added as { id: string }).id;
 
-      const loaded = await loadListings(writer, report, sheet, {
+      const loaded = await loadListings(session, writer, report, sheet, {
         directory,
         tavolaId,
         modelId: model.id,
@@ -312,8 +313,14 @@ async function discardTavola(
   };
 }
 
-/** The rows of `listings.csv`, as they stand. Answers how many Listings it loaded. */
+/**
+ * The rows of `listings.csv`, as they stand. Answers how many Listings it loaded.
+ *
+ * Each Listing keeps the Table sheet it was read from, and a row's Doubt becomes a doubt about
+ * that Listing and its Position, so an Editor checking the Tavola is taken to both (issue #34).
+ */
 async function loadListings(
+  session: DbSession,
   writer: ArchiveWriter,
   report: ReadingLoadReport,
   sheet: Sheet,
@@ -392,13 +399,29 @@ async function loadListings(
       ? (await writer.fillPart(existing, values), existing.id)
       : (await writer.addPart(values)).id;
 
-    await writer.findOrAddListing({
+    const tableSheetCell = row.get(c.tableSheet);
+    const tableSheet = /^[1-9][0-9]*$/.test(tableSheetCell) ? Number(tableSheetCell) : null;
+    if (tableSheetCell !== '' && tableSheet === null) {
+      report.warnings.push({
+        ...where,
+        reason: `“${tableSheetCell}” is not the number of a Table sheet, so the row is not tied to one.`,
+      });
+    }
+
+    const listing = await writer.findOrAddListing({
       partId,
       tavolaId,
       positionId,
       quantityPerCar,
       drawn: drawn.value,
+      tableSheet,
     });
+    const doubt = row.get(c.doubt);
+    if (doubt !== '') {
+      await session
+        .insert(readingDoubts)
+        .values({ tavolaId, listingId: listing.id, positionId, reason: doubt });
+    }
     const qualifier = row.get(c.fitmentQualifier);
     if (qualifier !== '') {
       await writer.findOrAddFitment(partId, modelId, qualifier);

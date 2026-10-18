@@ -69,11 +69,14 @@ import type {
   SearchResponse,
   ServiceStatus,
   SessionResponse,
+  QuarterTurn,
+  TavolaCheckingResponse,
   TavolaListingsResponse,
   TavolaPublishedResponse,
   TavolaResponse,
   TavolaScan,
   TavolaSummary,
+  TurnScanRequest,
 } from '@ricambi/contracts';
 
 /**
@@ -316,6 +319,9 @@ export const api = {
   /** An Editor's statement that an Unchecked Tavola says what the factory printed. */
   publishTavola: (tavolaId: string) =>
     send<TavolaPublishedResponse>('POST', `/tavole/${tavolaId}/publication`, {}),
+  /** What an Editor checks a machine-read Tavola against (issue #34). An Editor's alone. */
+  tavolaChecking: (tavolaId: string) =>
+    request<TavolaCheckingResponse>(`/tavole/${tavolaId}/checking`),
   /** An Editor vouching for an English name, as it stands or rewritten (issue #32). */
   nameTavolaInEnglish: (tavolaId: string, nameEn: string) =>
     send<{ tavola: TavolaSummary }>('PUT', `/tavole/${tavolaId}/english-name`, {
@@ -546,10 +552,20 @@ export const api = {
       headers: { 'Content-Type': file.type },
       body: file,
     }),
+  /** The drawing turned a quarter, its Marks with it. The upload stays as it arrived. */
+  turnScan: (tavolaId: string, direction: QuarterTurn) =>
+    send<{ scan: TavolaScan }>('POST', `/tavole/${tavolaId}/scan/turns`, {
+      direction,
+    } satisfies TurnScanRequest),
 };
 
 export type {
   CatalogModel,
+  CheckedListing,
+  QuarterTurn,
+  ReadingDoubt,
+  TableSheet,
+  TavolaCheckingResponse,
   Contribution,
   ContributionSubject,
   ContributionTarget,

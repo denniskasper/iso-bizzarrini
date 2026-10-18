@@ -167,37 +167,49 @@ export const tavole = pgTable(
  * assumption nobody had verified (ADR 0013); rather than ask a volunteer to measure a dozen
  * files by hand, the archive now measures itself as real scans arrive.
  */
-export const scans = pgTable('scans', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tavolaId: uuid('tavola_id')
-    .notNull()
-    .unique()
-    .references(() => tavole.id, { onDelete: 'cascade' }),
+export const scans = pgTable(
+  'scans',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tavolaId: uuid('tavola_id')
+      .notNull()
+      .unique()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
 
-  /** What the Editor uploaded, kept verbatim: nothing derived is ever the archive's copy. */
-  sourceFormat: text('source_format').notNull(),
-  sourceByteSize: integer('source_byte_size').notNull(),
-  /** The measurement the tiling question turns on. */
-  sourceWidth: integer('source_width').notNull(),
-  sourceHeight: integer('source_height').notNull(),
+    /** What the Editor uploaded, kept verbatim: nothing derived is ever the archive's copy. */
+    sourceFormat: text('source_format').notNull(),
+    sourceByteSize: integer('source_byte_size').notNull(),
+    /** The measurement the tiling question turns on. */
+    sourceWidth: integer('source_width').notNull(),
+    sourceHeight: integer('source_height').notNull(),
 
-  /** What a member's browser is actually sent when they open the drawing. */
-  displayFormat: text('display_format').notNull(),
-  displayByteSize: integer('display_byte_size').notNull(),
-  displayWidth: integer('display_width').notNull(),
-  displayHeight: integer('display_height').notNull(),
+    /** What a member's browser is actually sent when they open the drawing. */
+    displayFormat: text('display_format').notNull(),
+    displayByteSize: integer('display_byte_size').notNull(),
+    displayWidth: integer('display_width').notNull(),
+    displayHeight: integer('display_height').notNull(),
 
-  /** The thumbnail a list of Tavole shows, so listing them never downloads a drawing. */
-  previewByteSize: integer('preview_byte_size').notNull(),
+    /** The thumbnail a list of Tavole shows, so listing them never downloads a drawing. */
+    previewByteSize: integer('preview_byte_size').notNull(),
 
-  /** Keys in the private file store. Not paths, not URLs — nothing here is reachable. */
-  originalKey: text('original_key').notNull(),
-  displayKey: text('display_key').notNull(),
-  previewKey: text('preview_key').notNull(),
+    /** Keys in the private file store. Not paths, not URLs — nothing here is reachable. */
+    originalKey: text('original_key').notNull(),
+    displayKey: text('display_key').notNull(),
+    previewKey: text('preview_key').notNull(),
 
-  /** From the injected clock, never the system's idea of now. */
-  ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull(),
-});
+    /**
+     * How many quarter turns clockwise the display and preview are from the upload (issue #34):
+     * an Editor turns a sheet that was scanned on its side, and the original stays as it arrived.
+     */
+    quarterTurns: integer('quarter_turns').notNull().default(0),
+
+    /** From the injected clock, never the system's idea of now. */
+    ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check('scans_quarter_turns_within_a_turn', sql`${table.quarterTurns} between 0 and 3`),
+  ],
+);
 
 /**
  * A Table sheet is the picture of one of a Tavola's table fogli, kept as the evidence its
@@ -456,6 +468,12 @@ export const listings = pgTable(
     /** How many are fitted per car here. Null where the catalog prints no count. */
     quantityPerCar: integer('quantity_per_car'),
     drawn: boolean('drawn').notNull().default(true),
+    /**
+     * Which of the Tavola's Table sheets the read command read this Listing from (ADR 0016), so
+     * an Editor checking it sees the row beside the sheet it came from. `null` for a Listing a
+     * person recorded.
+     */
+    tableSheet: integer('table_sheet'),
   },
   (table) => [
     // One Part is listed once **at one Position**. Listing it twice there is a slip rather than
@@ -481,6 +499,29 @@ export const listings = pgTable(
       sql`${table.quantityPerCar} is null or ${table.quantityPerCar} > 0`,
     ),
   ],
+);
+
+/**
+ * **What the read command was unsure of** on an Unchecked Tavola (ADR 0016): the two Readings
+ * disagreed on a row, or a Catalog Number is not shaped like one. Each concerns a Listing or a
+ * Position, which is where the Editor checking the Tavola is taken to look. The words are the
+ * read command's, or the Editor's if they rewrote them in `listings.csv` before loading.
+ *
+ * Nothing resolves a doubt: publishing is allowed while doubts remain, and they go with the row
+ * or the number they are about.
+ */
+export const readingDoubts = pgTable(
+  'reading_doubts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tavolaId: uuid('tavola_id')
+      .notNull()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    listingId: uuid('listing_id').references(() => listings.id, { onDelete: 'cascade' }),
+    positionId: uuid('position_id').references(() => positions.id, { onDelete: 'cascade' }),
+    reason: text('reason').notNull(),
+  },
+  (table) => [index('reading_doubts_tavola_id_index').on(table.tavolaId)],
 );
 
 /**
@@ -1275,6 +1316,7 @@ export type TavolaRow = typeof tavole.$inferSelect;
 export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
 export type TableSheetRow = typeof tableSheets.$inferSelect;
+export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
 export type NewScanRow = typeof scans.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
 export type NewPositionRow = typeof positions.$inferInsert;
