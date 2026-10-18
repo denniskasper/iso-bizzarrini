@@ -474,6 +474,12 @@ export const listings = pgTable(
      * person recorded.
      */
     tableSheet: integer('table_sheet'),
+    /**
+     * Where one Reading hesitated over this row and the other read the same (ADR 0017, #29 story
+     * 16): worth a glance, never a doubt. `null` for a row neither hesitated over, and for a
+     * Listing a person recorded.
+     */
+    readingNote: text('reading_note'),
   },
   (table) => [
     // One Part is listed once **at one Position**. Listing it twice there is a slip rather than
@@ -505,10 +511,11 @@ export const listings = pgTable(
  * **What the read command was unsure of** on an Unchecked Tavola (ADR 0017): the two Readings
  * disagreed on a row, or a Catalog Number is not shaped like one. Each concerns a Listing or a
  * Position, which is where the Editor checking the Tavola is taken to look. The words are the
- * read command's, or the Editor's if they rewrote them in `listings.csv` before loading.
+ * read command's, or the Editor's once they have rewritten them on the checking screen (#56).
  *
- * Nothing resolves a doubt: publishing is allowed while doubts remain, and they go with the row
- * or the number they are about.
+ * An Editor who has looked at one clears it, while the Tavola is Unchecked. Nothing else resolves
+ * a doubt: publishing is allowed while doubts remain, and they go with the row or the number they
+ * are about.
  */
 export const readingDoubts = pgTable(
   'reading_doubts',

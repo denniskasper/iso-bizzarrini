@@ -290,6 +290,11 @@ export function createApiRouter(dependencies: {
   // Member reaches them once the Tavola is Published — the guard above sees to the rest.
   router.get('/tavole/:tavolaId/checking', editorsOnly, checkingController.read);
   router.get('/tavole/:tavolaId/table-sheets/:sheet', checkingController.readTableSheet);
+  // **A doubt an Editor has looked at** (issue #56): rewritten in their words, or cleared, so the
+  // band shows only what still needs looking at. Writes, so the guard above keeps them an
+  // Editor's; and only while the Tavola is Unchecked.
+  router.put('/doubts/:doubtId', checkingController.rewriteDoubt);
+  router.delete('/doubts/:doubtId', checkingController.clearDoubt);
 
   // **One click is one request**, which is why the Position is named by its printed number here
   // rather than by an id: at the moment an Editor clicks the drawing they know what the factory

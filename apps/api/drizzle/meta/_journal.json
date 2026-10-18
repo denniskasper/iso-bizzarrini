@@ -148,6 +148,13 @@
       "when": 1792281904550,
       "tag": "0020_checking_a_reading",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792325845044,
+      "tag": "0021_listings_reading_note",
+      "breakpoints": true
     }
   ]
 }

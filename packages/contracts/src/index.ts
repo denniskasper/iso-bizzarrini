@@ -376,15 +376,28 @@ export interface TavolaResponse extends Sheet {
  */
 export interface ReadingDoubt {
   id: string;
-  /** In the read command's words, or the Editor's if they rewrote it before loading. */
+  /** In the read command's words, or the Editor's once they have rewritten it. */
   reason: string;
   listingId: string | null;
   positionId: string | null;
 }
 
+/**
+ * `PUT /api/doubts/:doubtId` — an Editor rewriting a doubt on an Unchecked Tavola in their own
+ * words (issue #56). Answers `{ doubt: ReadingDoubt }`. `DELETE` on the same address clears it.
+ */
+export interface RewriteDoubtRequest {
+  reason: string;
+}
+
 /** A line of the sheet's index, with the Table sheet it was read from — `null` if recorded by hand. */
 export interface CheckedListing extends TavolaListing {
   tableSheet: number | null;
+  /**
+   * Where one Reading hesitated and the other read the same: a quiet note beside the row, never a
+   * doubt. `null` where neither hesitated, and on a row recorded by hand.
+   */
+  readingNote: string | null;
 }
 
 /**

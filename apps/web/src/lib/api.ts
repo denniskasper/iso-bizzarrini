@@ -77,6 +77,8 @@ import type {
   TavolaScan,
   TavolaSummary,
   TurnScanRequest,
+  ReadingDoubt,
+  RewriteDoubtRequest,
 } from '@ricambi/contracts';
 
 /**
@@ -322,6 +324,12 @@ export const api = {
   /** What an Editor checks a machine-read Tavola against (issue #34). An Editor's alone. */
   tavolaChecking: (tavolaId: string) =>
     request<TavolaCheckingResponse>(`/tavole/${tavolaId}/checking`),
+  /** A doubt an Editor has looked at, rewritten in their words or cleared (issue #56). */
+  rewriteDoubt: (doubtId: string, reason: string) =>
+    send<{ doubt: ReadingDoubt }>('PUT', `/doubts/${doubtId}`, {
+      reason,
+    } satisfies RewriteDoubtRequest),
+  clearDoubt: (doubtId: string) => request<void>(`/doubts/${doubtId}`, { method: 'DELETE' }),
   /** An Editor vouching for an English name, as it stands or rewritten (issue #32). */
   nameTavolaInEnglish: (tavolaId: string, nameEn: string) =>
     send<{ tavola: TavolaSummary }>('PUT', `/tavole/${tavolaId}/english-name`, {

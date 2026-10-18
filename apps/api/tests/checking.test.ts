@@ -70,15 +70,15 @@ describe('checking an Unchecked Tavola', () => {
     ),
   ];
 
-  async function givenLoaded(): Promise<string> {
+  async function givenLoaded(pages: InventedPage[] = TAVOLA_84): Promise<string> {
     const out = await givenOutputDirectory();
     opened.push(out);
     await readCatalog({
       pdf: 'catalog.pdf',
       out: out.path,
       model: { brand: 'Iso', name: 'Rivolta' },
-      method: fakeReadingMethod(TAVOLA_84),
-      pages: fakePages(TAVOLA_84),
+      method: fakeReadingMethod(pages),
+      pages: fakePages(pages),
       limit: 100,
       print: () => undefined,
     });
@@ -168,6 +168,114 @@ describe('checking an Unchecked Tavola', () => {
       const image = await editor.get(tavola.tableSheets[1]?.url ?? '').expect(200);
       expect(image.headers['content-type']).toBe('image/png');
       expect((await sharp(image.body as Buffer).metadata()).width).toBe(300);
+    });
+  });
+
+  describe('a row’s Reading note', () => {
+    // Both Readings agree on the quantity at 1, and the first of them hesitated over it.
+    const HESITATED: InventedPage[] = [
+      aDrawing('85', { titleIt: 'FRENI' }),
+      aTableSheet(
+        '85',
+        [
+          aTable([aRow('1', '208601', 'PINZA', { unsure: ['quantity'] })]),
+          aTable([aRow('1', '208601', 'PINZA')]),
+        ],
+        { foglio: '1' },
+      ),
+    ];
+
+    it('is shown with its row, and is not a doubt', async () => {
+      const tavolaId = await givenLoaded(HESITATED);
+      const { listings, doubts } = await checking(tavolaId);
+      const [row] = listings;
+
+      expect(row?.readingNote).toBe(
+        'One Reading hesitated over the quantity; the other read the same',
+      );
+      expect(doubts.filter((doubt) => doubt.listingId === row?.id)).toEqual([]);
+    });
+
+    it('is nothing on a row neither Reading hesitated over', async () => {
+      const tavolaId = await givenLoaded();
+      const { listings } = await checking(tavolaId);
+
+      expect(listings.map((listing) => listing.readingNote)).toEqual([null, null, null]);
+    });
+  });
+
+  describe('a doubt an Editor has looked at', () => {
+    async function theQuantityDoubt(tavolaId: string) {
+      const { doubts } = await checking(tavolaId);
+      const doubt = doubts.find((each) => each.reason.includes('quantity'));
+      expect(doubt).toBeDefined();
+      return doubt as NonNullable<typeof doubt>;
+    }
+
+    it('can be cleared, and is no longer there to look at', async () => {
+      const tavolaId = await givenLoaded();
+      const doubt = await theQuantityDoubt(tavolaId);
+      const before = (await checking(tavolaId)).doubts.length;
+
+      await editor.delete(`/api/doubts/${doubt.id}`).expect(204);
+
+      const { doubts } = await checking(tavolaId);
+      expect(doubts).toHaveLength(before - 1);
+      expect(doubts.map((each) => each.id)).not.toContain(doubt.id);
+    });
+
+    it('can be rewritten in the Editor’s words, still about the same row', async () => {
+      const tavolaId = await givenLoaded();
+      const doubt = await theQuantityDoubt(tavolaId);
+
+      const response = await editor
+        .put(`/api/doubts/${doubt.id}`)
+        .send({ reason: '  The sheet prints 4; ask the Club before publishing.  ' })
+        .expect(200);
+      expect(response.body.doubt).toEqual({
+        ...doubt,
+        reason: 'The sheet prints 4; ask the Club before publishing.',
+      });
+
+      const { doubts } = await checking(tavolaId);
+      expect(doubts.find((each) => each.id === doubt.id)).toEqual(response.body.doubt);
+    });
+
+    it('is not rewritten as nothing: clearing it is how it goes', async () => {
+      const tavolaId = await givenLoaded();
+      const doubt = await theQuantityDoubt(tavolaId);
+
+      await editor.put(`/api/doubts/${doubt.id}`).send({ reason: '   ' }).expect(400);
+      expect(await theQuantityDoubt(tavolaId)).toEqual(doubt);
+    });
+
+    it('is not a Member’s to clear or rewrite', async () => {
+      const tavolaId = await givenLoaded();
+      const doubt = await theQuantityDoubt(tavolaId);
+
+      await member.delete(`/api/doubts/${doubt.id}`).expect(403);
+      await member.put(`/api/doubts/${doubt.id}`).send({ reason: 'Fine.' }).expect(403);
+      expect(await theQuantityDoubt(tavolaId)).toEqual(doubt);
+    });
+
+    it('is left as it was once the Tavola is Published, because checking it is over', async () => {
+      const tavolaId = await givenLoaded();
+      const doubt = await theQuantityDoubt(tavolaId);
+      await editor.post(`/api/tavole/${tavolaId}/publication`).expect(200);
+
+      const cleared = await editor.delete(`/api/doubts/${doubt.id}`).expect(409);
+      expect(cleared.body.error).toMatchObject({ code: 'conflict' });
+      await editor.put(`/api/doubts/${doubt.id}`).send({ reason: 'Fine.' }).expect(409);
+    });
+
+    it('answers no such doubt for one that is not there', async () => {
+      const tavolaId = await givenLoaded();
+      const doubt = await theQuantityDoubt(tavolaId);
+      await editor.delete(`/api/doubts/${doubt.id}`).expect(204);
+
+      await editor.delete(`/api/doubts/${doubt.id}`).expect(404);
+      await editor.put(`/api/doubts/${doubt.id}`).send({ reason: 'Fine.' }).expect(404);
+      await editor.delete('/api/doubts/not-an-id').expect(400);
     });
   });
 

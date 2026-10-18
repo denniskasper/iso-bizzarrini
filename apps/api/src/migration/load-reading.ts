@@ -346,8 +346,9 @@ async function discardTavola(
 /**
  * The rows of `listings.csv`, as they stand. Answers how many Listings it loaded.
  *
- * Each Listing keeps the Table sheet it was read from, and a row's Doubt becomes a doubt about
- * that Listing and its Position, so an Editor checking the Tavola is taken to both (issue #34).
+ * Each Listing keeps the Table sheet it was read from and its Reading note, and a row's Doubt
+ * becomes a doubt about that Listing and its Position, so an Editor checking the Tavola is taken
+ * to both (issues #34, #56).
  */
 async function loadListings(
   session: DbSession,
@@ -445,6 +446,7 @@ async function loadListings(
       quantityPerCar,
       drawn: drawn.value,
       tableSheet,
+      readingNote: row.get(c.readingNote) || null,
     });
     const doubt = row.get(c.doubt);
     if (doubt !== '') {

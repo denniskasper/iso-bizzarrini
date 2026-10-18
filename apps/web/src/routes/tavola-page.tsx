@@ -352,7 +352,12 @@ export function TavolaPage() {
         <div className="mt-8">
           <UncheckedBand tavolaId={tavola.id} modelId={tavola.model.id}>
             {checking.data && (
-              <ReadingDoubts checking={checking.data} positions={positions} onDoubt={followDoubt} />
+              <ReadingDoubts
+                tavolaId={tavola.id}
+                checking={checking.data}
+                positions={positions}
+                onDoubt={followDoubt}
+              />
             )}
           </UncheckedBand>
         </div>
