@@ -8,6 +8,7 @@ import {
   createEmailSender,
   createPaymentProvider,
 } from './composition/platform.js';
+import { configureReading } from './composition/reading.js';
 import { loadConfig } from './config/config.js';
 import { loadEnvFile } from './config/env-file.js';
 import { createDatabase } from './db/client.js';
@@ -76,6 +77,7 @@ const app = createApp({
   emailSender,
   paymentProvider,
   breachedPasswords: createBreachedPasswordCheck(config, logger),
+  reading: configureReading(config.reading),
   fileStore,
   logger,
 });

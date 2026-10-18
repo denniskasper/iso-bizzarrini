@@ -412,6 +412,25 @@ export interface TavolaCheckingResponse {
   doubts: ReadingDoubt[];
 }
 
+/** What a server can be configured to read the factory catalog with (ADR 0018). */
+export type ReadingMethodKind = 'subscription' | 'api-key' | 'fake';
+
+/**
+ * `GET /api/reading-method` — **what this server reads the catalog with** (issue #55), for the
+ * Readings section. An Administrator's alone, and 404 to anybody else. It never names a
+ * credential or whose subscription it is: only the kind, and whether it is charged.
+ */
+export interface ReadingSetup {
+  /** `null` where none is configured. */
+  method: ReadingMethodKind | null;
+  /** Whether what it reads is billed per use; `null` where there is no method. */
+  charged: boolean | null;
+  /** Whether a reading can start. */
+  available: boolean;
+  /** Why no reading can start, or `null` where one can. */
+  unavailable: string | null;
+}
+
 /** Which way a quarter turn goes, looking at the drawing. */
 export type QuarterTurn = 'clockwise' | 'anticlockwise';
 

@@ -16,6 +16,7 @@ import { MembershipPage } from '@/routes/membership-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
 import { PrivacyPage } from '@/routes/privacy-page';
+import { ReadingsPage } from '@/routes/readings-page';
 import { RemindersPage } from '@/routes/reminders-page';
 import { ReviewPage } from '@/routes/review-page';
 import { RosterImportPage } from '@/routes/roster-import-page';
@@ -49,6 +50,7 @@ const OUTSIDE_THE_GATE = [
   '/legal-notice',
   '/membership',
   '/reminders',
+  '/readings',
 ];
 
 function RootLayout() {
@@ -140,6 +142,16 @@ const remindersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reminders',
   component: RemindersPage,
+});
+
+/**
+ * What the server reads the factory catalog with (issue #55). An Administrator's, and outside
+ * the gate with the roster: behind a role, not behind a Membership.
+ */
+const readingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/readings',
+  component: ReadingsPage,
 });
 
 const clubRoute = createRoute({
@@ -267,6 +279,7 @@ export const router = createRouter({
     rosterImportRoute,
     clubRoute,
     remindersRoute,
+    readingsRoute,
     privacyRoute,
     membershipRoute,
     legalNoticeRoute,

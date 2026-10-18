@@ -5,6 +5,7 @@ import { createGate } from './access/gate.js';
 import { createUncheckedTavolaGuard } from './access/unchecked-tavole.js';
 import { createPasswordHasher, type PasswordHasher } from './access/passwords.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
+import type { ConfiguredReading } from './composition/reading.js';
 import { createReminders } from './composition/reminder-run.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
@@ -19,6 +20,7 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createReadingController } from './controllers/reading-controller.js';
 import { createReminderController } from './controllers/reminder-controller.js';
 import { createRetentionController } from './controllers/retention-controller.js';
 import { createRosterController } from './controllers/roster-controller.js';
@@ -99,6 +101,11 @@ export interface AppDependencies {
    * in tests for the same reason the other two are — a seam must not need a third party to be up.
    */
   breachedPasswords: BreachedPasswordCheck;
+  /**
+   * What the factory catalog is read with (issue #55): the one edge that talks to a model. Tests
+   * hand in the method they want reported, or the fake one, as they hand in an e-mail sender.
+   */
+  reading: ConfiguredReading;
   logger?: Logger;
   /**
    * How hard passwords are to store. Defaults to the recommended cost, which is deliberately a
@@ -139,12 +146,12 @@ export interface PlatformLocals {
 const WEBHOOK_ADDRESS = API_MOUNT + WEBHOOK_PATH;
 
 export function createApp(dependencies: AppDependencies): Express {
-  const { config, clock, db, emailSender, paymentProvider } = dependencies;
+  const { config, clock, db, emailSender, paymentProvider, reading } = dependencies;
 
   // Before anything else. A non-production environment that could reach a real member or a real
   // mandate does not get to exist, and neither does a production one that has not been told the
   // address its invitations point at — every way of starting this application comes through here.
-  assertSafeForEnvironment({ config, emailSender, paymentProvider });
+  assertSafeForEnvironment({ config, emailSender, paymentProvider, reading });
 
   const logger = dependencies.logger ?? createLogger(config);
   const fileStore = dependencies.fileStore ?? createFileStore(config.files.storagePath);
@@ -318,6 +325,7 @@ export function createApp(dependencies: AppDependencies): Express {
     // Built the way the nightly run builds it, so the preview and the run are one reading.
     reminderService: createReminders({ db, clock, logger, emailSender, paymentProvider, config }),
   });
+  const readingController = createReadingController({ reading });
   const retentionController = createRetentionController({ gate, retentionService });
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
@@ -410,6 +418,7 @@ export function createApp(dependencies: AppDependencies): Express {
       rosterController,
       subscriptionController,
       reminderController,
+      readingController,
       retentionController,
       rosterImportController,
       clubController,

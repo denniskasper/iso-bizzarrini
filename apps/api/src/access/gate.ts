@@ -1,7 +1,12 @@
 import type { Role } from '@ricambi/contracts';
 import type { CookieOptions, RequestHandler, Response } from 'express';
 import type { AppConfig } from '../config/config.js';
-import { ForbiddenError, MembershipLapsedError, NotSignedInError } from '../http/errors.js';
+import {
+  ForbiddenError,
+  MembershipLapsedError,
+  NotFoundError,
+  NotSignedInError,
+} from '../http/errors.js';
 import type { Clock } from '../platform/clock.js';
 import {
   createSessionSigner,
@@ -66,6 +71,12 @@ export interface Gate {
    * must not be locked out of the one screen that can record the payment.
    */
   requireAdministrator: RequestHandler;
+  /**
+   * Administrators, and **not there at all** for anybody else: an Editor or a Member is answered
+   * as an address that does not exist. For what a Member is never told exists — how the catalog
+   * is read, and what that costs (issue #55) — where a refusal would say there is something.
+   */
+  hiddenFromAllButAdministrators: RequestHandler;
   /** Who this request is, or null. Reads the cookie; makes no promises about what they may do. */
   identify(cookieHeader: string | undefined): Promise<SignedIn | null>;
   /** Who a handler behind one of the `require` middlewares is serving. */
@@ -168,6 +179,12 @@ export function createGate(dependencies: {
     requireAdministrator: requiring((who) => {
       if (who.account.role !== 'administrator') {
         throw new ForbiddenError('The roster is an Administrator’s to keep.');
+      }
+    }),
+
+    hiddenFromAllButAdministrators: requiring((who) => {
+      if (who.account.role !== 'administrator') {
+        throw new NotFoundError();
       }
     }),
 

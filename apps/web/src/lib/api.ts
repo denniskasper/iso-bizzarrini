@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  ReadingSetup,
   EnglishNameRequest,
   ContributionResponse,
   ContributionsResponse,
@@ -259,6 +260,9 @@ export const api = {
    */
   reminderPlan: () => request<ReminderPlan>('/reminders'),
   runReminders: () => send<ReminderRun>('POST', '/reminders/run', {}),
+
+  /** What this server reads the factory catalog with (issue #55). An Administrator's alone. */
+  readingSetup: () => request<ReadingSetup>('/reading-method'),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

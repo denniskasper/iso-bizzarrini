@@ -6,6 +6,7 @@ import supertest from 'supertest';
 import type TestAgent from 'supertest/lib/agent.js';
 import { createApp } from '../../src/app.js';
 import { createPasswordHasher } from '../../src/access/passwords.js';
+import { configureReading, type ConfiguredReading } from '../../src/composition/reading.js';
 import { loadConfig, type AppConfig } from '../../src/config/config.js';
 import type { Db } from '../../src/db/client.js';
 import type { BreachedPasswordCheck } from '../../src/platform/breached-passwords.js';
@@ -67,6 +68,11 @@ export interface TestAppOptions {
    */
   emails?: InMemoryEmailSender;
   paymentProvider?: PaymentProvider;
+  /**
+   * What the catalog is read with. Defaults to whatever `env` configures, which is none unless a
+   * test says `READING_METHOD`.
+   */
+  reading?: ConfiguredReading;
   /** What the server says it was built as. Defaults to what this checkout says it is. */
   build?: Build;
 }
@@ -138,6 +144,7 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       emailSender,
       paymentProvider,
       breachedPasswords: breached,
+      reading: options.reading ?? configureReading(config.reading),
       passwordHasher: createPasswordHasher(TEST_PASSWORD_COST),
       logger,
       build: options.build,

@@ -9,6 +9,7 @@ import type { ClubController } from '../controllers/club-controller.js';
 import type { LegalController } from '../controllers/legal-controller.js';
 import type { ContributionController } from '../controllers/contribution-controller.js';
 import type { ContributionReviewController } from '../controllers/contribution-review-controller.js';
+import type { ReadingController } from '../controllers/reading-controller.js';
 import type { ReminderController } from '../controllers/reminder-controller.js';
 import type { RetentionController } from '../controllers/retention-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
@@ -57,6 +58,7 @@ export function createApiRouter(dependencies: {
   rosterController: RosterController;
   subscriptionController: SubscriptionController;
   reminderController: ReminderController;
+  readingController: ReadingController;
   retentionController: RetentionController;
   rosterImportController: RosterImportController;
   clubController: ClubController;
@@ -83,6 +85,7 @@ export function createApiRouter(dependencies: {
     rosterController,
     subscriptionController,
     reminderController,
+    readingController,
     retentionController,
     rosterImportController,
     clubController,
@@ -160,6 +163,11 @@ export function createApiRouter(dependencies: {
   // on, and the job run by hand. An Administrator's, like the roster both of them read.
   router.get('/reminders', administratorsOnly, reminderController.plan);
   router.post('/reminders/run', administratorsOnly, reminderController.run);
+
+  // **The Readings section** (issue #55): what this server reads the catalog with. Behind the
+  // role like the roster, and not there at all for anybody else: how the catalog is read, and
+  // what it costs, is not something a Member is told exists.
+  router.get('/reading-method', gate.hiddenFromAllButAdministrators, readingController.readMethod);
 
   router.get('/club', administratorsOnly, clubController.read);
   router.patch('/club', administratorsOnly, clubController.correct);
