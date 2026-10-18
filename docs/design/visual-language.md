@@ -29,6 +29,13 @@ class is the whole mechanism.
 **Depth comes from value, not from blur.** Hairline rules and a step in surface lightness, not
 drop shadows. A shadow implies a floating card; this is a printed index.
 
+**The one thing that floats is the card a Mark shows on a pointer** (issue #35), and it is the
+only shadow in the archive (`--shadow-card`), because it alone lies over the artwork. It stands
+beside the circle on whichever side has room, heads itself with the number on the Mark's own blue
+chip, and holds nothing that can be pressed: everything it says, a click also shows. Its type
+scales with the screen (`--text-card`) and never goes below the body size, and its width
+(`--width-card`) makes it a reading card on a small laptop rather than a thumbnail in a corner.
+
 **One accent pair, and it is Ricambi's own** (ADR 0014). Two colours with two jobs, and nothing
 decorative wears either:
 

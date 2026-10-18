@@ -441,6 +441,52 @@
     background-color: transparent;
   }
 
+  /*
+   * **What is at a Mark, on a pointer resting on it** (issue #35) — and the same on keyboard
+   * focus. Laid over the stage rather than inside the sheet, so it does not magnify with the
+   * drawing; it stands beside the circle, on whichever side has room. It holds nothing that can
+   * be pressed, and lets every pointer through: nothing is reachable by hovering alone.
+   *
+   * The number heads it on the Mark's own blue, as it does in the reading beside the drawing,
+   * because the card and the circle under the pointer are one thing being pointed at.
+   */
+  .mark-card {
+    position: absolute;
+    z-index: 5;
+    width: min(var(--width-card), calc(100% - 2 * var(--spacing-card-edge)));
+    padding: --spacing(3.5) --spacing(4.5) --spacing(4);
+    font-size: var(--text-card);
+    line-height: var(--text-card--line-height);
+    color: var(--text);
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    pointer-events: none;
+  }
+
+  .mark-card-number {
+    width: fit-content;
+    padding: --spacing(0.25) --spacing(2);
+    font-size: var(--text-card-number);
+    line-height: var(--text-card-number--line-height);
+    color: var(--mark-contrast);
+    background-color: var(--mark);
+    border-radius: var(--radius-md);
+  }
+
+  .mark-card-part + .mark-card-part {
+    margin-top: --spacing(3);
+    padding-top: --spacing(3);
+    border-top: 1px solid var(--line);
+  }
+
+  /* The archive's own label, at the card's size rather than the page's smallest. */
+  .mark-card .tag {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
   /* The focus ring is the application's, sized to the circle rather than to the touch area —
      otherwise a keyboard lands on a ringed square the size of a thumb. */
   .drawing-mark:focus-visible {

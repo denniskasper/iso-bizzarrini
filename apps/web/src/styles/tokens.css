@@ -125,6 +125,13 @@
   /* Clears 3:1 on the band, like every other non-text mark, even though it carries no
      information the words do not. */
   --demo-hatch: oklch(0.45 0.12 45);
+
+  /*
+   * What lifts the card a Mark shows on a pointer above the drawing it sits on — the one shadow
+   * in the archive, because the card is the one thing that floats over the artwork. Its own
+   * edge is a rule; the shadow only says it is not part of the sheet.
+   */
+  --shadow-card: 0 0.75rem 2rem oklch(0.279 0.015 257 / 0.22);
 }
 
 .dark {
@@ -151,6 +158,8 @@
 
   --focus: oklch(0.97 0.002 264);
   --alarm: oklch(0.76 0.13 25);
+
+  --shadow-card: 0 0.75rem 2rem oklch(0 0 0 / 0.5);
 }
 
 /* ---------------------------------------------------------------------------
@@ -264,6 +273,23 @@ html.dark[data-environment-mode='non-production'] {
   --tracking-wordmark: 0.12em;
   /* A condensed capital set light needs air between its letters to stay legible at a distance. */
   --tracking-display: 0.03em;
+
+  /*
+   * **The card a Mark shows on a pointer** (issue #35) scales with the screen it is read on, and
+   * every size inside it is in `em` of this. It never drops below the body size, which is what
+   * stays legible at arm's length; on a laptop it is a reading card, not a corner thumbnail, and
+   * on a wide desk screen it grows with the drawing.
+   */
+  --text-card: clamp(1rem, 0.7rem + 0.55vw, 1.3rem);
+  --text-card--line-height: 1.45;
+  /* Its one larger size: the Position number, read first, on the Mark's own blue. Nothing in
+     the card is smaller than `--text-card` — a quieter line is muted, not shrunk. */
+  --text-card-number: calc(var(--text-card) * 1.6);
+  --text-card-number--line-height: 1.25;
+  --width-card: clamp(19rem, 22vw + 6rem, 30rem);
+  /* How far it stands off the circle it describes, and off the edges of the stage. */
+  --spacing-card-offset: 1rem;
+  --spacing-card-edge: 0.75rem;
 
   /* ---- Shape -----------------------------------------------------------
    * Small radii. Instruments have edges; only the artwork is allowed to be soft.
