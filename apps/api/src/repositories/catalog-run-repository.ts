@@ -30,6 +30,8 @@ export interface CatalogRunWithModel {
   model: ModelRow;
   /** The Tavole it has finished, in the order it finished them. */
   tavole: CatalogRunTavolaRow[];
+  /** What each page it has asked about was found to be, in page order. */
+  pages: { page: number; identity: SheetIdentity }[];
   /** Who started, raised, continued and stopped it, oldest first. */
   actions: (CatalogRunActionRow & { byName: string | null })[];
 }
@@ -202,6 +204,11 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .from(catalogRunTavole)
         .where(eq(catalogRunTavole.runId, id))
         .orderBy(asc(catalogRunTavole.finishedAt));
+      const pages = await db
+        .select({ page: catalogRunPages.page, identity: catalogRunPages.identity })
+        .from(catalogRunPages)
+        .where(eq(catalogRunPages.runId, id))
+        .orderBy(asc(catalogRunPages.page));
       const actions = await db
         .select({ action: catalogRunActions, byName: accounts.name })
         .from(catalogRunActions)
@@ -211,6 +218,7 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
       return {
         ...row,
         tavole: finished,
+        pages,
         actions: actions.map(({ action, byName }) => ({ ...action, byName })),
       };
     },

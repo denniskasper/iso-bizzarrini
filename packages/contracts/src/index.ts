@@ -520,6 +520,14 @@ export interface CatalogRun {
   failure: string | null;
   /** Each Tavola the run has found, in the order it reads them. */
   tavole: CatalogRunTavola[];
+  /**
+   * **What it has not yet read** (issue #64), worked out from what it has done and so right
+   * across stops, continuing and restarts. Both are empty once it has read everything.
+   * - `tavole`: the Tavole it began reading and did not finish, in the order it reads them.
+   * - `pages`: the pages to read it never reached, in page order. That is a page it has not yet
+   *   identified, or one of a Tavola it has not begun. A page it set aside has been reached.
+   */
+  left: { tavole: string[]; pages: number[] };
   /** Who started, raised, continued and stopped it, and when, oldest first. */
   actions: CatalogRunAction[];
   /**

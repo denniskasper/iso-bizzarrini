@@ -111,6 +111,8 @@ describe('the pages a Catalog run set aside', () => {
       'read 1 2',
     ]);
     expect(stopped.setAside.map(({ page, reason }) => [page, reason])).toEqual([[2, UNREADABLE]]);
+    // Reached, though it went into no Tavola: only Tavola 3's page is left (issue #64).
+    expect(stopped.left).toEqual({ tavole: [], pages: [3] });
 
     method.calls.length = 0;
     await carryOn(administrator, run, { limit: 1 }).expect(202);
@@ -120,5 +122,6 @@ describe('the pages a Catalog run set aside', () => {
     expect(method.calls).toEqual(['read 3 1', 'read 3 2']);
     expect(finished.setAside.map(({ page, reason }) => [page, reason])).toEqual([[2, UNREADABLE]]);
     await administrator.get(finished.setAside[0]!.image).expect(200);
+    expect(finished.left).toEqual({ tavole: [], pages: [] });
   });
 });

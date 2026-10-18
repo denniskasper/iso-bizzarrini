@@ -788,7 +788,7 @@ async function notReadableAsUnsupported<T>(read: () => Promise<T>): Promise<T> {
   }
 }
 
-function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): CatalogRun {
+function toCatalogRun({ run, model, tavole, pages, actions }: CatalogRunWithModel): CatalogRun {
   return {
     id: run.id,
     state: run.state,
@@ -810,6 +810,7 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
     endedAt: run.endedAt?.toISOString() ?? null,
     failure: run.failure,
     tavole: tavoleOf(run.costs, tavole),
+    left: leftOf(run, tavole, pages),
     actions: actions.map((action) => ({
       action: action.action,
       by: action.by && action.byName ? { id: action.by, name: action.byName } : null,
@@ -825,6 +826,65 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
     // A run's records are kept by the time they were read; one never recorded is a gap.
     costs: run.costs.filter(Boolean).map(costRecordOf),
   };
+}
+
+/**
+ * What a run has not yet read (issue #64), from what it found each page to be, the Tavole it
+ * finished, and the requests its records show it sent. A run asks about every page before it reads
+ * a Tavola, so a page of a Tavola it has not begun is as far from read as one it never asked about,
+ * and is left with those. A page that goes into no Tavola is set aside, and so has been reached.
+ */
+function leftOf(
+  run: CatalogRunWithModel['run'],
+  finished: CatalogRunWithModel['tavole'],
+  pages: CatalogRunWithModel['pages'],
+): CatalogRun['left'] {
+  const done = new Set(finished.map((tavola) => tavola.number));
+  const begun = new Set<string>(done);
+  // A run's records are kept by the time they were read; one never recorded is a gap.
+  for (const record of run.costs.filter(Boolean)) {
+    for (const tavola of record.tavole) {
+      const sent = tavola.sheets.some(
+        (sheet) => sheet.readings.length > 0 || sheet.numbers.length > 0,
+      );
+      if (sent || tavola.translation) {
+        begun.add(tavola.number);
+      }
+    }
+    for (const request of [...(record.cutOff ?? []), record.awaiting]) {
+      if (request?.tavola) {
+        begun.add(request.tavola);
+      }
+    }
+  }
+
+  const tavolaOf = new Map(
+    pages.map(({ page, identity }) => [
+      page,
+      identity.kind === 'other' ? null : identity.tavola?.trim() || null,
+    ]),
+  );
+  const toRead =
+    run.readsAgain?.pages ??
+    Array.from({ length: run.lastPage - run.firstPage + 1 }, (_, index) => run.firstPage + index);
+  const tavoleLeft = new Set<string>();
+  const pagesLeft: number[] = [];
+  for (const page of toRead) {
+    if (!tavolaOf.has(page)) {
+      pagesLeft.push(page);
+      continue;
+    }
+    const number = tavolaOf.get(page);
+    if (!number || done.has(number)) {
+      continue;
+    }
+    if (begun.has(number)) {
+      tavoleLeft.add(number);
+    } else {
+      pagesLeft.push(page);
+    }
+  }
+  return { tavole: [...tavoleLeft], pages: pagesLeft };
 }
 
 function modelOf(model: CatalogRunWithModel['model']): CatalogRun['model'] {
