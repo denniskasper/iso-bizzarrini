@@ -81,6 +81,7 @@ system and in production, and differs only by what it is handed.
 | `pnpm db:generate` | a migration from a change to `schema.ts` (then rename it, and strip `"public".`) |
 | `pnpm scans:measure` | what the archive's own scans say about the tiling question (ADR 0013) |
 | `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
+| `pnpm catalog:read -- --pdf … --out … --brand … --model …` | read a scanned factory catalog into files for `archive:load` |
 | `pnpm roster:retention-sweep -- --dry-run` | who the daily retention sweep would delete (ADR 0007) — without the flag, it deletes them |
 
 Taking the fee through the platform is off unless an environment is given Stripe's keys; how to
@@ -119,6 +120,19 @@ did create. Both write a report naming every row it could not take and the line 
 The material itself is never committed here (`AGENTS.md`); the loader and the plan that says
 what the columns mean are. The procedure, the plan format and the one decision only a person can
 make are in [`docs/operations/archive-migration.md`](docs/operations/archive-migration.md).
+
+### Reading the factory catalog
+
+```sh
+ANTHROPIC_API_KEY=… pnpm catalog:read -- --pdf ../catalog.pdf --out ../catalog-reading \
+  --brand Iso --model Rivolta --pages 5-120
+pnpm archive:load -- --source ../catalog-reading --dry-run
+```
+
+A scanned catalog becomes a directory of files: each Tavola's Scan, its Table sheets and a
+`listings.csv` that opens in Excel. The same loader turns it into **Unchecked** Tavole, which
+only Editors see until they publish them (ADR 0016). See
+[`docs/operations/catalog-reading.md`](docs/operations/catalog-reading.md).
 
 ### The practice archive
 

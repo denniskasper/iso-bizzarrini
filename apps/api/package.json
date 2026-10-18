@@ -14,12 +14,14 @@
     "db:seed": "tsx scripts/seed.ts",
     "scans:measure": "tsx scripts/scan-measurements.ts",
     "archive:load": "tsx scripts/load-archive.ts",
+    "catalog:read": "tsx scripts/read-catalog.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "roster:invite-administrator": "tsx src/cli/invite-administrator.ts",
     "roster:retention-sweep": "tsx src/cli/retention-sweep.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@ricambi/contracts": "workspace:*",
     "drizzle-orm": "^0.44.7",
     "express": "^5.1.0",
