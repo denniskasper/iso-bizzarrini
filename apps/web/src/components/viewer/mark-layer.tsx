@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import type { Mark, MarkPoint, Position } from '@/lib/api';
+import { MARK_CARD_ID } from './mark-card';
 import { fraction } from './viewport';
 
 /**
@@ -17,6 +18,13 @@ import { fraction } from './viewport';
  * CSS variables the viewer keeps: `--mark-ring`, fixed to the sheet, and `--mark-touch`, which
  * is whatever the drawing's own pixels have to be to make 44 of the member's.
  */
+
+/** A circle a card is shown for: what it is, and the element to stand the card beside. */
+export interface Pointed {
+  position: Position;
+  mark: Mark;
+  element: HTMLElement;
+}
 
 /** A Mark's place on the sheet while a hand is still holding it. */
 interface Held {
@@ -58,6 +66,14 @@ export interface MarkLayerProps {
   lit?: ReadonlySet<string> | null;
   onSelect: (position: Position, mark: Mark) => void;
   /**
+   * A pointer that can hover came to rest on a circle, or keyboard focus arrived at one — and
+   * `null` when it left. What the page shows for it is the card beside the circle (issue #35).
+   * A touch is a press and never a rest, so a finger only ever selects.
+   */
+  onPoint?: ((pointed: Pointed | null) => void) | undefined;
+  /** The circle a card is being shown for, which says so to a screen reader. */
+  pointedMarkId?: string | null;
+  /**
    * Moving a circle an Editor put in the wrong place. Absent for a member, which is what makes
    * the drawing read-only rather than a control surface with the actions hidden.
    */
@@ -70,6 +86,8 @@ export function MarkLayer({
   selectedMarkId,
   lit = null,
   onSelect,
+  onPoint,
+  pointedMarkId = null,
   onMove,
 }: MarkLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
@@ -173,7 +191,9 @@ export function MarkLayer({
             current={mark.id === selectedMarkId}
             subdued={lit !== null && !lit.has(position.id)}
             movable={onMove !== undefined}
+            described={mark.id === pointedMarkId}
             onSelect={onSelect}
+            onPoint={onPoint}
             onTakeHold={takeHold}
             onDragTo={dragTo}
             onLetGo={letGo}
@@ -195,7 +215,9 @@ const MarkCircle = memo(function MarkCircle({
   current,
   subdued,
   movable,
+  described,
   onSelect,
+  onPoint,
   onTakeHold,
   onDragTo,
   onLetGo,
@@ -207,7 +229,10 @@ const MarkCircle = memo(function MarkCircle({
   /** Not one of the numbers the drawing has been asked about, while it has been asked. */
   subdued: boolean;
   movable: boolean;
+  /** A card beside it is saying what is here. */
+  described: boolean;
   onSelect: (position: Position, mark: Mark) => void;
+  onPoint: MarkLayerProps['onPoint'];
   onTakeHold: (mark: Mark, event: PointerEvent<HTMLButtonElement>) => void;
   onDragTo: (mark: Mark, event: PointerEvent<HTMLButtonElement>) => void;
   onLetGo: (mark: Mark, event: PointerEvent<HTMLButtonElement>) => void;
@@ -226,6 +251,7 @@ const MarkCircle = memo(function MarkCircle({
       data-subdued={subdued}
       aria-label={`Position ${position.number}`}
       aria-pressed={selected}
+      aria-describedby={described ? MARK_CARD_ID : undefined}
       style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%` }}
       /*
        * **Pointing at a circle reads it, and the sheet is still the member's to drag.**
@@ -252,6 +278,24 @@ const MarkCircle = memo(function MarkCircle({
       onPointerCancel={movable ? (event) => onLetGo(mark, event) : undefined}
       // For a keyboard, which produces a click and no press at all.
       onClick={() => onSelect(position, mark)}
+      onPointerEnter={(event) => {
+        if (event.pointerType !== 'touch') {
+          onPoint?.({ position, mark, element: event.currentTarget });
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType !== 'touch' && !event.currentTarget.matches(':focus-visible')) {
+          onPoint?.(null);
+        }
+      }}
+      // Focus the keyboard brought, and not the focus a press leaves behind: a finger that tapped
+      // a circle has selected it, and a card over the reading would be in the way.
+      onFocus={(event) => {
+        if (event.currentTarget.matches(':focus-visible')) {
+          onPoint?.({ position, mark, element: event.currentTarget });
+        }
+      }}
+      onBlur={() => onPoint?.(null)}
     />
   );
 });

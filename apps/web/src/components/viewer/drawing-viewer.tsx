@@ -82,6 +82,12 @@ export interface DrawingViewerProps {
    */
   overlay?: ReactNode;
   /**
+   * What floats over the stage rather than sitting on the sheet — the card beside a Mark a
+   * pointer is resting on (issue #35). Outside the sheet's coordinate space, so it stays the
+   * size it was designed at however far in the member is, and full screen takes it along.
+   */
+  card?: ReactNode;
+  /**
    * A tap on the sheet, in fractional image coordinates — how an Editor places a Mark.
    *
    * A *tap*, not a click: a press that turns into a drag is the member moving the sheet, and
@@ -97,6 +103,7 @@ export function DrawingViewer({
   alt,
   className,
   overlay,
+  card,
   onTapPoint,
   ref,
 }: DrawingViewerProps) {
@@ -116,6 +123,7 @@ export function DrawingViewer({
       alt={alt}
       className={className}
       overlay={overlay}
+      card={card}
       onTapPoint={onTapPoint}
       ref={ref}
     />
@@ -190,6 +198,7 @@ function Viewer({
   alt,
   className,
   overlay,
+  card,
   onTapPoint,
   ref,
 }: DrawingViewerProps & { scan: TavolaScan }) {
@@ -671,6 +680,8 @@ function Viewer({
           {overlay}
         </div>
       </div>
+
+      {card}
 
       <div
         ref={navigatorRef}

@@ -24,7 +24,8 @@ import { PositionList } from '@/components/positions/position-list';
 import { WhatIsLeft } from '@/components/progress/what-is-left';
 import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
-import { MarkLayer } from '@/components/viewer/mark-layer';
+import { MarkCard, PositionCard } from '@/components/viewer/mark-card';
+import { MarkLayer, type Pointed } from '@/components/viewer/mark-layer';
 import {
   api,
   type CatalogProvenance,
@@ -33,6 +34,7 @@ import {
   type ReadingDoubt,
 } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
+import { useTavolaListings } from '@/lib/parts';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
 import { useSheetProgress } from '@/lib/progress';
 import { useSession } from '@/lib/session';
@@ -99,6 +101,20 @@ export function TavolaPage() {
   const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
   const tool = useMarkingTool(tavolaId);
+
+  /**
+   * The circle a pointer is resting on, or keyboard focus is at, and the card beside it says what
+   * is there (issue #35). Keyed by the Tavola like everything else held here, so a card never
+   * follows a member onto the next sheet. What it shows comes from the sheet's index, which the
+   * column beside the drawing reads anyway: hovering costs no request.
+   */
+  const [pointedAt, setPointedAt] = useState<(Pointed & { tavolaId: string }) | null>(null);
+  const point = useCallback(
+    (pointed: Pointed | null) => setPointedAt(pointed && { ...pointed, tavolaId }),
+    [tavolaId],
+  );
+  const pointed = pointedAt?.tavolaId === tavolaId ? pointedAt : null;
+  const index = useTavolaListings(tavolaId);
 
   /**
    * **Checking what the machine read** (issue #34): asked only while an Editor has an Unchecked
@@ -365,8 +381,24 @@ export function TavolaPage() {
               selectedMarkId={selectedMark?.id ?? null}
               lit={lit}
               onSelect={readMark}
+              onPoint={point}
+              pointedMarkId={pointed?.mark.id ?? null}
               onMove={tool.on ? tool.moveMark : undefined}
             />
+          }
+          card={
+            pointed && (
+              <MarkCard anchor={pointed.element}>
+                <PositionCard
+                  position={pointed.position}
+                  listings={
+                    index.data?.listings.filter(
+                      (listing) => listing.positionId === pointed.position.id,
+                    ) ?? null
+                  }
+                />
+              </MarkCard>
+            )
           }
           // The sheet only becomes a tool when an Editor says so. A member's drawing is a
           // drawing, and a stray tap on it records nothing.
