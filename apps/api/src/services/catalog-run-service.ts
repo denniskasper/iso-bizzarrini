@@ -159,6 +159,9 @@ export function createCatalogRunService(dependencies: {
     let directory: string | undefined;
     try {
       directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-run-'));
+      // A request a server before this one sent and never heard back from was paid for all the
+      // same, and counts against what is left of the limit.
+      await catalogRunRepository.cutOff(runId);
       const found = await catalogRunRepository.findById(runId);
       const catalog = found && (await fileStore.open(found.run.catalogKey));
       if (!found || !catalog) {
@@ -695,6 +698,13 @@ function costRecordOf(record: CostRecord): CatalogRunCostRecord {
     setAside: record.setAside.map((sheet) => ({
       page: sheet.page,
       identification: spentOf(sheet.identification),
+    })),
+    cutOff: (record.cutOff ?? []).map(({ request, page, tavola, reading, cost }) => ({
+      request,
+      page,
+      tavola,
+      reading,
+      cost,
     })),
   };
 }

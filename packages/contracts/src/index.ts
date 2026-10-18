@@ -582,6 +582,25 @@ export interface CatalogRunCostRecord {
   }[];
   /** Pages asked what they are that went into no Tavola. */
   setAside: { page: number; identification: CatalogRunSpent }[];
+  /**
+   * Requests sent, and so paid for, whose answers were cut off when the server went away (issue
+   * #66). Each is counted at the most it could cost, and is in `total`, which is why the total
+   * can be more than what the answers add up to.
+   */
+  cutOff: CatalogRunCutOffRequest[];
+}
+
+/** A request whose answer never came back, at the most it could cost. */
+export interface CatalogRunCutOffRequest {
+  /** Asking what a page is, one Reading of a Table sheet, a drawing's numbers, or translating. */
+  request: 'identification' | 'reading' | 'numbers' | 'translation';
+  /** `null` for a translation, which is about a Tavola. */
+  page: number | null;
+  /** `null` for asking what a page is. */
+  tavola: string | null;
+  /** Which Reading, for a Reading; otherwise `null`. */
+  reading: 1 | 2 | null;
+  cost: number;
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   priceListEntry,
   rounded,
   type CostRecord,
+  type SentRequest,
   type SheetCost,
   type Spent,
 } from './cost.js';
@@ -229,6 +230,7 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
   const nothing: Spent = { tokens: { input: 0, output: 0 }, cost: 0 };
   const finished = new Set<string>();
   const translationCosts = new Map<string, Spent>();
+  let awaiting: SentRequest | null = null;
   const costRecord = (): CostRecord => ({
     readingMethod: method.name,
     charged: method.charged,
@@ -271,7 +273,22 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       identification: roundedSpent(sheet.identification),
     })),
     notIdentified,
+    awaiting,
+    cutOff: [],
   });
+  /**
+   * A request sent, the store told first that it awaits its answer and the most it could cost, so
+   * that a run cut off before the answer comes back still counts what it paid for (issue #66).
+   */
+  const send = async <T>(request: SentRequest, ask: () => Promise<T>): Promise<T> => {
+    awaiting = { ...request, cost: rounded(request.cost) };
+    await store.costed(costRecord());
+    try {
+      return await ask();
+    } finally {
+      awaiting = null;
+    }
+  };
 
   for (const page of pages) {
     let identity = known.get(page.page);
@@ -289,7 +306,10 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
 
       let answer;
       try {
-        answer = await method.identify(page);
+        answer = await send(
+          { request: 'identification', page: page.page, tavola: null, reading: null, cost: atMost },
+          () => method.identify(page),
+        );
       } catch (error) {
         stopOn(error);
         notIdentified.push(page.page);
@@ -373,7 +393,8 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
 
     const compared: ComparedSheet[] = [];
     for (const [index, sheet] of tables.entries()) {
-      const atMost = spending.readingAtMost(estimates.get(sheet.page) as SheetEstimate);
+      const sheetEstimate = estimates.get(sheet.page) as SheetEstimate;
+      const atMost = spending.readingAtMost(sheetEstimate);
       if (!mayAsk()) {
         break;
       }
@@ -389,7 +410,16 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
           if (!mayAsk()) {
             break;
           }
-          const answer = await method.readTable(sheet, reading);
+          const answer = await send(
+            {
+              request: 'reading',
+              page: sheet.page,
+              tavola: number,
+              reading,
+              cost: spending.atMost(sheetEstimate.reading),
+            },
+            () => method.readTable(sheet, reading),
+          );
           sheetCost.readings.push({ reading, ...spend(answer.tokens) });
           answers.push(answer);
         }
@@ -436,7 +466,10 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
           break;
         }
         try {
-          const answer = await method.readNumbers(batch);
+          const answer = await send(
+            { request: 'numbers', page: drawing.page, tavola: number, reading: null, cost: atMost },
+            () => method.readNumbers(batch),
+          );
           sheetCost.numbers.push(spend(answer.tokens));
           readings.push(...answer.value);
         } catch (error) {
@@ -485,7 +518,10 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       }
       let answer;
       try {
-        answer = await method.translate(texts);
+        answer = await send(
+          { request: 'translation', page: null, tavola: number, reading: null, cost: atMost },
+          () => method.translate(texts),
+        );
       } catch (error) {
         stopOn(error);
         result.notRead.push(number);
