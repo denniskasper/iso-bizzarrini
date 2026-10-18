@@ -9,6 +9,7 @@ import type { Db, DbSession } from '../db/client.js';
 import {
   contributions,
   listings,
+  marks,
   parts,
   positions,
   readingDoubts,
@@ -20,8 +21,12 @@ import {
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import {
+  DOUBTS_FILE,
+  DOUBT_COLUMNS,
   LISTING_COLUMNS,
   LISTINGS_FILE,
+  MARKS_FILE,
+  MARK_COLUMNS,
   READING_FILE,
   TAVOLA_FILE,
   readingManifestSchema,
@@ -47,6 +52,10 @@ import { inOneTransaction, type RowLocation, type RowProblem } from './load-arch
  * curated work, so one already there is **discarded and loaded again whole** — its Positions,
  * Listings, Scan and Table sheets, and every Part that appears nowhere else — rather than merged
  * with. A **Published** one is somebody's checked work, and it is refused (ADR 0005).
+ *
+ * **The Marks the drawing proposed are loaded with it** (issue #33), from `marks.csv` as it stands,
+ * and each doubt in `doubts.csv` becomes a doubt about its Position. Only ever onto the Unchecked
+ * Tavola this load creates: a Published one is refused whole, its Marks included.
  *
  * **English is a Machine translation while it still says what the machine wrote** (issue #32).
  * An English name an Editor changed in `listings.csv` or `tavola.json` before loading is their
@@ -82,6 +91,8 @@ export interface ReadingLoadReport {
   partsDiscarded: number;
   scans: number;
   tableSheets: number;
+  /** Marks proposed on the drawings, loaded onto their Positions. */
+  marks: number;
   rejected: RowProblem[];
   warnings: RowProblem[];
 }
@@ -106,6 +117,15 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
       directory,
       tavola: await readTavola(source, directory),
       sheet: await readListings(source, directory),
+      marksSheet: await readOptionalSheet(source, directory, MARKS_FILE, [
+        MARK_COLUMNS.position,
+        MARK_COLUMNS.x,
+        MARK_COLUMNS.y,
+      ]),
+      doubtsSheet: await readOptionalSheet(source, directory, DOUBTS_FILE, [
+        DOUBT_COLUMNS.position,
+        DOUBT_COLUMNS.doubt,
+      ]),
     })),
   );
 
@@ -117,6 +137,7 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
     partsDiscarded: 0,
     scans: 0,
     tableSheets: 0,
+    marks: 0,
     rejected: [],
     warnings: [],
   };
@@ -132,7 +153,7 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
       modelYears: null,
     });
 
-    for (const { directory, tavola, sheet } of tavoleRead) {
+    for (const { directory, tavola, sheet, marksSheet, doubtsSheet } of tavoleRead) {
       const where: RowLocation = {
         file: join(directory, TAVOLA_FILE),
         line: 1,
@@ -218,6 +239,15 @@ export async function loadReading(options: ReadingLoadOptions): Promise<ReadingL
         modelId: model.id,
         machine,
       });
+      if (marksSheet) {
+        report.marks += await loadMarks(session, writer, report, marksSheet, {
+          directory,
+          tavolaId,
+        });
+      }
+      if (doubtsSheet) {
+        await loadPositionDoubts(session, writer, report, doubtsSheet, { directory, tavolaId });
+      }
       report.tavole.push({
         number: tavola.number,
         outcome: existing ? 'replaced' : 'loaded',
@@ -432,6 +462,87 @@ async function loadListings(
   return loaded;
 }
 
+/**
+ * The rows of `marks.csv`, as they stand: a Mark at each, on the Position its number names. A
+ * number in no row of the table is a Position with no Listing yet, which its doubt says. Answers
+ * how many Marks it loaded.
+ */
+async function loadMarks(
+  session: DbSession,
+  writer: ArchiveWriter,
+  report: ReadingLoadReport,
+  sheet: Sheet,
+  tavola: { directory: string; tavolaId: string },
+): Promise<number> {
+  const c = MARK_COLUMNS;
+  let loaded = 0;
+  for (const row of sheet.rows) {
+    const position = row.get(c.position);
+    const where: RowLocation = {
+      file: join(tavola.directory, MARKS_FILE),
+      line: row.line,
+      at: position ? `mark ${position}` : 'a mark',
+    };
+    if (position === '') {
+      report.rejected.push({ ...where, reason: 'A Mark needs the number it marks.' });
+      continue;
+    }
+    const x = fractionOf(row.get(c.x));
+    const y = fractionOf(row.get(c.y));
+    if (x === null || y === null) {
+      report.rejected.push({
+        ...where,
+        reason: 'X and Y are fractions of the drawing, from 0 to 1, and this one is not.',
+      });
+      continue;
+    }
+    const { id: positionId } = await writer.findOrAddPosition(tavola.tavolaId, position);
+    await session.insert(marks).values({ positionId, x, y });
+    loaded += 1;
+  }
+  return loaded;
+}
+
+/** The rows of `doubts.csv`: a doubt about a Position as a whole, for the Editor checking it. */
+async function loadPositionDoubts(
+  session: DbSession,
+  writer: ArchiveWriter,
+  report: ReadingLoadReport,
+  sheet: Sheet,
+  tavola: { directory: string; tavolaId: string },
+): Promise<void> {
+  const c = DOUBT_COLUMNS;
+  for (const row of sheet.rows) {
+    const position = row.get(c.position);
+    const reason = row.get(c.doubt);
+    if (reason === '') {
+      continue;
+    }
+    if (position === '') {
+      report.warnings.push({
+        file: join(tavola.directory, DOUBTS_FILE),
+        line: row.line,
+        at: 'a doubt',
+        reason: 'A doubt names no Position, so it was not loaded.',
+      });
+      continue;
+    }
+    const { id: positionId } = await writer.findOrAddPosition(tavola.tavolaId, position);
+    await session
+      .insert(readingDoubts)
+      .values({ tavolaId: tavola.tavolaId, listingId: null, positionId, reason });
+  }
+}
+
+/** `0.4521`, or `0,4521` from Excel where the decimal separator is a comma. */
+function fractionOf(cell: string): number | null {
+  if (!/^\d*[.,]?\d+$/.test(cell)) {
+    return null;
+  }
+  const value = Number(cell.replace(',', '.'));
+  return value >= 0 && value <= 1 ? value : null;
+}
+
 /** The Scan and the Table sheets, after the catalog is committed: files are in no transaction. */
 async function storeFiles(
   options: ReadingLoadOptions,
@@ -537,6 +648,28 @@ async function readListings(source: string, directory: string): Promise<Sheet> {
   const missing = [LISTING_COLUMNS.nameIt, LISTING_COLUMNS.position].filter(
     (column) => !sheet.columns.includes(column),
   );
+  if (missing.length > 0) {
+    throw new Error(
+      `${file} has no column called ${missing.map((column) => `"${column}"`).join(', ')}.`,
+    );
+  }
+  return sheet;
+}
+
+/** A sheet the read command writes beside some Tavole only: `null` where this one has none. */
+async function readOptionalSheet(
+  source: string,
+  directory: string,
+  name: string,
+  columns: string[],
+): Promise<Sheet | null> {
+  const file = join(directory, name);
+  if (!(await isFile(join(source, file)))) {
+    return null;
+  }
+  const text = await readFile(join(source, file), 'utf8');
+  const sheet = readSheet(file, text, delimiterOf(text));
+  const missing = columns.filter((column) => !sheet.columns.includes(column));
   if (missing.length > 0) {
     throw new Error(
       `${file} has no column called ${missing.map((column) => `"${column}"`).join(', ')}.`,

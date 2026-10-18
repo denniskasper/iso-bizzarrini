@@ -1,3 +1,7 @@
+import type { NumberCrop } from './find-numbers.js';
+
+export type { NumberCrop };
+
 /**
  * **The one seam between the read command and a model** (ADR 0016). A Reading method is given one
  * sheet of the factory's catalog and told what to read from it, and answers with what it read and
@@ -42,6 +46,32 @@ export interface ReadingMethod {
   translate(texts: string[]): Promise<Answer<string[]>>;
   /** What translating these would take, worked out before it is sent, as `estimate` is. */
   estimateTranslation(texts: string[]): Promise<RequestEstimate>;
+  /**
+   * What each crop of a drawing says: the position number inside its red box, or `null` where the
+   * box holds something else. *Where* each crop was cut from is found from the ink and is never
+   * sent (`find-numbers.ts`): the model reads, it does not locate. One request holds no more than
+   * `NUMBERS_PER_REQUEST` crops.
+   */
+  readNumbers(crops: NumberCrop[]): Promise<Answer<NumberReading[]>>;
+  /** What reading these crops would take, worked out before it is sent, as `estimate` is. */
+  estimateNumbers(crops: NumberCrop[]): Promise<RequestEstimate>;
+}
+
+/** How many crops of a drawing one request is shown. */
+export const NUMBERS_PER_REQUEST = 40;
+
+/** What one crop of a drawing was read as. */
+export interface NumberReading {
+  id: number;
+  /** The number inside the red box as printed, or `null` where it is not a position number. */
+  number: string | null;
+  /**
+   * The box caught part of a longer number — a neighbouring digit shows outside it. Two such parts
+   * side by side are one number the finder split, and are put back together.
+   */
+  partial: boolean;
+  /** Read as best it could be: 6 or 8, 1 or a line. */
+  unsure: boolean;
 }
 
 /**

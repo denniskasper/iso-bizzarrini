@@ -122,7 +122,8 @@ describe('checking an Unchecked Tavola', () => {
       const { positions } = await drawing(editor, tavolaId);
       const three = listings.find((listing) => listing.part.catalogNumber === '208503');
 
-      expect(doubts).toEqual([
+      // The invented drawing is blank, so every Position is also in doubt for having no Mark.
+      expect(doubts.filter((doubt) => doubt.listingId !== null)).toEqual([
         {
           id: expect.any(String),
           reason: expect.stringContaining('quantity'),

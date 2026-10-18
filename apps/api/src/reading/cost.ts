@@ -31,9 +31,17 @@ export class Spending {
     return this.costOf({ input: request.input, output: request.outputAtMost });
   }
 
-  /** Each page as though it were a Table sheet: asked what it is, read twice, and translated. */
-  estimateOf(sheet: SheetEstimate): number {
-    return this.expected(sheet.identify) + this.readingOf(sheet);
+  /**
+   * Each page as whichever it would cost more as: a Table sheet, asked what it is, read twice and
+   * translated, or a drawing, asked what it is and its numbers read.
+   */
+  estimateOf(sheet: SheetEstimate, numbers: RequestEstimate[]): number {
+    return this.expected(sheet.identify) + Math.max(this.readingOf(sheet), this.numbersOf(numbers));
+  }
+
+  /** A drawing's numbers, read a request at a time. */
+  numbersOf(numbers: RequestEstimate[]): number {
+    return numbers.reduce((sum, request) => sum + this.expected(request), 0);
   }
 
   /** A Table sheet already placed: read twice, and translated. */
@@ -68,6 +76,8 @@ export interface SheetCost {
   cost: number;
   identification: Spent;
   readings: (Spent & { reading: 1 | 2 })[];
+  /** On a drawing, each request that read the numbers on it. Empty on a Table sheet. */
+  numbers: Spent[];
 }
 
 /** What `cost.json` holds: what the Club is shown. Dollars throughout. */

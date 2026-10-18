@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { z } from 'zod';
-import { TABLE_LAYOUTS } from './reading-method.js';
+import type { NumberCrop } from './find-numbers.js';
+import { TABLE_LAYOUTS, type NumberReading } from './reading-method.js';
 import { TERM_LIST } from './translation.js';
 
 /**
@@ -18,7 +19,7 @@ export const MAX_TOKENS = 16000;
  * written. Generous on purpose: the identity is a few lines, a Table sheet's rows rarely pass a
  * few thousand tokens. The cost record shows what each request really took.
  */
-export const EXPECTED_OUTPUT = { identify: 1000, reading: 8000, translation: 2000 };
+export const EXPECTED_OUTPUT = { identify: 1000, reading: 8000, translation: 2000, numbers: 2000 };
 
 /**
  * What one Table sheet's Italian is expected to add to a translation request, before its rows
@@ -86,6 +87,41 @@ Two layouts exist:
 For "position" give what is printed: a number, a range such as 16-17, "-" where the column holds a dash, or "" where it is empty. Do not work out what a dash means.
 
 Rows in printed order. Skip form lines that are entirely empty; keep a row that has a position and nothing else. Keep the Italian exactly as printed, upper case kept. Do not translate.`;
+
+export const numbersSchema = z.object({
+  numbers: z.array(
+    z.object({
+      id: z.number().int(),
+      number: z.string().nullable(),
+      partial: z.boolean(),
+      unsure: z.boolean(),
+    }),
+  ),
+});
+
+export const READ_NUMBERS = `Each image above is a small crop from one exploded-view drawing in a 1960s Italian factory parts catalogue, and the text before it is its id. A red box in each crop surrounds one candidate. Some candidates are printed position numbers (1 to 3 digits); the rest are bits of drawing — a bolt, a washer, a leader line, a letter.
+
+For every id, say what the red box holds: "number" as printed, digits only, or null when it is not a position number.
+
+Read only what is inside the red box. Where a digit just outside it shows the box caught part of a longer number, give the part inside and set "partial". Where you cannot tell (6 or 8, 1 or a line), give your best reading and set "unsure".
+
+Answer for every id, once each.`;
+
+/** Each crop's id, as the text the model reads just before the crop. */
+export function numberLabels(crops: NumberCrop[]): string[] {
+  return crops.map((crop) => `#${crop.id}`);
+}
+
+/** What the model answered, for every crop it was shown: one it left out was read as nothing. */
+export function numberReadingsOf(
+  crops: NumberCrop[],
+  answer: z.infer<typeof numbersSchema>,
+): NumberReading[] {
+  const byId = new Map(answer.numbers.map((reading) => [reading.id, reading]));
+  return crops.map(
+    (crop) => byId.get(crop.id) ?? { id: crop.id, number: null, partial: false, unsure: false },
+  );
+}
 
 export const translationSchema = z.object({ english: z.array(z.string()) });
 

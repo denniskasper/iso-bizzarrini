@@ -2,9 +2,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
+import type { Box } from '../../src/reading/find-numbers.js';
 import type { PageSource } from '../../src/reading/read-catalog.js';
 import {
   UsageLimitReached,
+  type NumberReading,
   type ReadRow,
   type ReadingMethod,
   type RequestEstimate,
@@ -22,8 +24,10 @@ import {
  * above the seam: which sheet went to which Tavola, what the rows were taken to mean, where the
  * two Readings were compared, and what was written for an Editor to open.
  *
- * The pages are blank images of a size each test chooses, because nothing here reads them — the
- * size is what shows a sheet was turned.
+ * The pages are blank images of a size each test chooses — the size is what shows a sheet was
+ * turned — except for what a test prints on a drawing: position numbers, as digits of ink a
+ * finder can find, and ruled boxes. The fake reads a crop as whatever digits are printed inside
+ * the box it was cut round, as a model reading only the red box would.
  */
 export interface InventedPage {
   identity?: Partial<SheetIdentity>;
@@ -37,6 +41,23 @@ export interface InventedPage {
    */
   tokens?: Tokens;
   estimate?: Partial<SheetEstimate>;
+  /** Position numbers printed on the page. */
+  numbers?: PrintedNumber[];
+  /** Ruled boxes drawn on the page, as a title block's cells are. */
+  rules?: Box[];
+  /** Ink filling each of these, as a line of the drawing does. */
+  lines?: Box[];
+}
+
+/** A number printed on a drawing, its first digit's top left corner at `x`, `y`. */
+export interface PrintedNumber {
+  text: string;
+  x: number;
+  y: number;
+  /** Pixels between its digits: 3 unless a test says, 0 where their ink touches. */
+  gap?: number;
+  /** The fake hesitates over it. */
+  unsure?: boolean;
 }
 
 /**
@@ -67,6 +88,9 @@ export interface FakeMethodOptions {
   translationEstimate?: RequestEstimate;
   /** How many requests it answers before the plan's usage limit is reached. */
   usageLimitAfter?: number;
+  /** What each request to read a drawing's numbers takes. As any other request, unless said. */
+  numbersTokens?: Tokens;
+  numbersEstimate?: RequestEstimate;
 }
 
 export function fakeReadingMethod(
@@ -126,6 +150,17 @@ export function fakeReadingMethod(
     async estimateTranslation() {
       return options.translationEstimate ?? NO_ESTIMATE;
     },
+    async estimateNumbers() {
+      return options.numbersEstimate ?? ESTIMATE_PER_REQUEST;
+    },
+    async readNumbers(crops) {
+      call(`numbers ${crops.length}`);
+      const printed = pages.flatMap((page) => page.numbers ?? []);
+      return {
+        value: crops.map((crop) => readCrop(crop.id, crop.at, printed)),
+        tokens: options.numbersTokens ?? TOKENS_PER_CALL,
+      };
+    },
     async translate(texts) {
       translated.push(texts);
       return {
@@ -139,19 +174,94 @@ export function fakeReadingMethod(
 export function fakePages(pages: InventedPage[]): PageSource {
   return async function* () {
     for (const [index, page] of pages.entries()) {
-      const image = await sharp({
-        create: {
-          width: page.width ?? 300,
-          height: page.height ?? 200,
-          channels: 3,
-          background: { r: 255, g: 255, b: 255 },
-        },
-      })
+      const width = page.width ?? 300;
+      const height = page.height ?? 200;
+      const pixels = Buffer.alloc(width * height, 255);
+      const ink = ({ x, y, w, h }: Box) => {
+        for (let row = Math.max(0, y); row < Math.min(height, y + h); row += 1) {
+          pixels.fill(0, row * width + Math.max(0, x), row * width + Math.min(width, x + w));
+        }
+      };
+      for (const number of page.numbers ?? []) {
+        digitsOf(number).forEach((digit) => digit.strokes.forEach(ink));
+      }
+      (page.lines ?? []).forEach(ink);
+      for (const box of page.rules ?? []) {
+        ink({ x: box.x, y: box.y, w: box.w, h: 3 });
+        ink({ x: box.x, y: box.y + box.h - 3, w: box.w, h: 3 });
+        ink({ x: box.x, y: box.y, w: 3, h: box.h });
+        ink({ x: box.x + box.w - 3, y: box.y, w: 3, h: box.h });
+      }
+      const image = await sharp(pixels, { raw: { width, height, channels: 1 } })
         .png()
         .toBuffer();
       yield { page: index + 1, image };
     }
   };
+}
+
+/** A digit 26 pixels tall, as the seven segments of a display: ink a finder can find. */
+const DIGIT_HEIGHT = 26;
+const SEGMENTS: Record<string, Box> = {
+  a: { x: 0, y: 0, w: 14, h: 4 },
+  b: { x: 10, y: 0, w: 4, h: 14 },
+  c: { x: 10, y: 12, w: 4, h: 14 },
+  d: { x: 0, y: 22, w: 14, h: 4 },
+  e: { x: 0, y: 12, w: 4, h: 14 },
+  f: { x: 0, y: 0, w: 4, h: 14 },
+  g: { x: 0, y: 11, w: 14, h: 4 },
+};
+const DIGITS = [
+  'abcdef',
+  'bc',
+  'abged',
+  'abgcd',
+  'fgbc',
+  'afgcd',
+  'afgedc',
+  'abc',
+  'abcdefg',
+  'abcdfg',
+];
+
+/** Each digit of a printed number, where its ink is. */
+function digitsOf(number: PrintedNumber): { digit: string; box: Box; strokes: Box[] }[] {
+  let x = number.x;
+  return [...number.text].map((digit) => {
+    const segments = [...(DIGITS[Number(digit)] ?? '')].map((name) => SEGMENTS[name] as Box);
+    const left = Math.min(...segments.map((segment) => segment.x));
+    const right = Math.max(...segments.map((segment) => segment.x + segment.w));
+    const strokes = segments.map((segment) => ({
+      ...segment,
+      x: x + segment.x - left,
+      y: number.y + segment.y,
+    }));
+    const box = { x, y: number.y, w: right - left, h: DIGIT_HEIGHT };
+    x += right - left + (number.gap ?? 3);
+    return { digit, box, strokes };
+  });
+}
+
+/** The digits printed inside the box, and whether the box caught only part of their number. */
+function readCrop(id: number, at: Box, printed: PrintedNumber[]): NumberReading {
+  const inside = (box: Box) => {
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    return cx >= at.x && cx <= at.x + at.w && cy >= at.y && cy <= at.y + at.h;
+  };
+  for (const number of printed) {
+    const digits = digitsOf(number);
+    const caught = digits.filter((digit) => inside(digit.box));
+    if (caught.length > 0) {
+      return {
+        id,
+        number: caught.map((digit) => digit.digit).join(''),
+        partial: caught.length < digits.length,
+        unsure: number.unsure ?? false,
+      };
+    }
+  }
+  return { id, number: null, partial: false, unsure: false };
 }
 
 export function aDrawing(tavola: string, identity: Partial<SheetIdentity> = {}): InventedPage {

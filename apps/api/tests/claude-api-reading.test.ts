@@ -168,6 +168,38 @@ describe('reading with Claude through an API key', () => {
     expect(api.received[0]?.body.output_config.format.type).toBe('json_schema');
   });
 
+  it('shows each crop of a drawing labelled by its id, and never where it was cut from', async () => {
+    const api = await givenTheApi(200, {
+      numbers: [{ id: 7, number: '12', partial: false, unsure: true }],
+    });
+    const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 0 });
+    const crop = (await aPage(120)).image;
+
+    const answer = await method.readNumbers([
+      { id: 7, image: crop, at: { x: 1234, y: 987, w: 31, h: 26 } },
+      { id: 8, image: crop, at: { x: 2345, y: 876, w: 14, h: 26 } },
+    ]);
+
+    // An id the model said nothing about is read as nothing.
+    expect(answer.value).toEqual([
+      { id: 7, number: '12', partial: false, unsure: true },
+      { id: 8, number: null, partial: false, unsure: false },
+    ]);
+    const blocks = api.received[0]?.body.messages[0]?.content ?? [];
+    expect(blocks.map((block) => block.type)).toEqual(['text', 'image', 'text', 'image', 'text']);
+    expect(blocks.map((block) => (block as unknown as { text?: string }).text)).toEqual([
+      '#7',
+      undefined,
+      '#8',
+      undefined,
+      expect.stringContaining('red box'),
+    ]);
+    const sent = JSON.stringify(api.received[0]?.body);
+    expect(sent).not.toContain('1234');
+    expect(sent).not.toContain('2345');
+    expect(api.received[0]?.body.output_config.format.type).toBe('json_schema');
+  });
+
   it('names itself by the model and the credential, and never by the key', async () => {
     const method = createClaudeApiReadingMethod({ apiKey: KEY });
     expect(method.name).toBe('Claude (claude-opus-5-5) with an API key');

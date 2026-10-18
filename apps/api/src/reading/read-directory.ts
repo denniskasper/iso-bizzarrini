@@ -17,6 +17,8 @@ import { identitySchema } from './claude-requests.js';
  *   scan.png                the drawing, upright the way its headings read
  *   table-1.png …           each Table sheet, upright
  *   listings.csv            one row per Listing, opened and corrected in Excel
+ *   marks.csv               one row per Mark proposed on the drawing, in fractions of it
+ *   doubts.csv              each Position listed with no Mark, and each Mark listed nowhere
  * ```
  *
  * The directory is the Club's material and stays out of the repository (ADR 0016, `AGENTS.md`).
@@ -27,6 +29,8 @@ export const COST_FILE = 'cost.json';
 export const TAVOLA_FILE = 'tavola.json';
 export const LISTINGS_FILE = 'listings.csv';
 export const SCAN_FILE = 'scan.png';
+export const MARKS_FILE = 'marks.csv';
+export const DOUBTS_FILE = 'doubts.csv';
 export const SET_ASIDE_FILE = 'set-aside.csv';
 export const SET_ASIDE_DIRECTORY = 'set-aside';
 
@@ -113,5 +117,20 @@ export const LISTING_COLUMNS = {
   doubt: 'Doubt',
   readingNote: 'Reading note',
 } as const;
+
+/**
+ * The columns of `marks.csv`. X runs across the drawing and Y down it, both from `0` to `1`
+ * (ADR 0013). A row an Editor deletes is a Mark not loaded; a Position an Editor rewrites is the
+ * number the Mark is loaded for.
+ */
+export const MARK_COLUMNS = {
+  position: 'Position',
+  x: 'X',
+  y: 'Y',
+  readingNote: 'Reading note',
+} as const;
+
+/** The columns of `doubts.csv`: a doubt about a Position as a whole, rather than about a row. */
+export const DOUBT_COLUMNS = { position: 'Position', doubt: 'Doubt' } as const;
 
 export const SET_ASIDE_COLUMNS = { page: 'Page', file: 'File', reason: 'Why' } as const;
