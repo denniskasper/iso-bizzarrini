@@ -612,6 +612,13 @@ export const catalogRuns = pgTable(
      */
     setAside: jsonb('set_aside').notNull().$type<{ page: number; reason: string }[]>().default([]),
     /**
+     * Where the run reads one Unchecked Tavola again from an earlier run's catalog (issue #61):
+     * its number, and the pages it was found on, which are the only pages read. The catalog is the
+     * earlier run's, shared rather than copied, and what those pages were found to be is carried
+     * over, so they are not asked about again.
+     */
+    readsAgain: jsonb('reads_again').$type<{ tavola: string; pages: number[] }>(),
+    /**
      * Why a failed run failed, or why a stopped one stopped where its state does not say it all,
      * in words with no credential in them.
      */

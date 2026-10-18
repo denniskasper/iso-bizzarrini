@@ -7,6 +7,7 @@ import type {
 } from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
+import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button } from '@/components/ui/button';
 import { Field, Refusal } from '@/components/ui/field';
@@ -21,6 +22,9 @@ import { useCatalogRun, useContinueCatalogRun, useStopCatalogRun } from '@/lib/r
  * Its one action follows its state (issue #59): Stop while it reads, Continue once it has stopped,
  * with a higher limit where the limit is what stopped it. Below, the pages it set aside rather than
  * guess their Tavola (issue #60), and who did what to it, and when.
+ *
+ * A run that reads one Unchecked Tavola again (issue #61) is the same page, named for that Tavola,
+ * and while it is only estimated, starting it with a limit is the one action.
  */
 export function CatalogRunPage() {
   return (
@@ -53,14 +57,15 @@ function Run() {
 }
 
 function RunRecord({ run }: { run: CatalogRun }) {
-  const pages = run.pages.last - run.pages.first + 1;
   return (
     <>
       <h1 className="display mt-4 text-4xl tracking-display text-balance sm:text-5xl">
-        The {run.model.brand} {run.model.name} catalog
+        {run.readsAgain
+          ? `Tavola ${run.readsAgain.tavola} of the ${run.model.brand} ${run.model.name}, read again`
+          : `The ${run.model.brand} ${run.model.name} catalog`}
       </h1>
       <p className="mt-4 text-lg text-pretty text-muted">
-        {pages} {pages === 1 ? 'page' : 'pages'}, {run.pages.first} to {run.pages.last}.{' '}
+        {pagesRead(run)}{' '}
         {run.charged
           ? 'Billed to the API key.'
           : 'Not charged: its figures are what it would cost at list prices.'}
@@ -81,6 +86,7 @@ function RunRecord({ run }: { run: CatalogRun }) {
         </p>
       )}
 
+      {run.state === 'estimated' && <StartRun run={run} />}
       {run.state === 'running' && !stopping(run) && <Stop run={run} />}
       {STOPPED.includes(run.state) && <Continue key={String(run.limit)} run={run} />}
 
@@ -89,6 +95,18 @@ function RunRecord({ run }: { run: CatalogRun }) {
       <Actions actions={run.actions} />
     </>
   );
+}
+
+/** Which pages it reads: a range of the catalog, or the pages one Tavola was found on. */
+function pagesRead(run: CatalogRun): string {
+  if (run.readsAgain) {
+    const { pages } = run.readsAgain;
+    return pages.length === 1
+      ? `Only its page of the catalog, page ${pages[0]}.`
+      : `Only its pages of the catalog, ${pages.slice(0, -1).join(', ')} and ${pages.at(-1)}.`;
+  }
+  const pages = run.pages.last - run.pages.first + 1;
+  return `${pages} ${pages === 1 ? 'page' : 'pages'}, ${run.pages.first} to ${run.pages.last}.`;
 }
 
 const STOPPED: CatalogRunState[] = [

@@ -159,3 +159,53 @@ test('an Administrator sees a page a run set aside, and opens it', async ({ page
   expect(response.status()).toBe(200);
   expect(response.headers()['content-type']).toBe('image/png');
 });
+
+/**
+ * **One Unchecked Tavola read again** (issue #61). A run over page 3 reads Tavola 103. Read again
+ * from its own page, only that page is read, and the Tavola is replaced whole: it opens at a new
+ * address, Unchecked, and the old one is gone.
+ */
+test('an Administrator reads an Unchecked Tavola again and sees it replaced', async ({ page }) => {
+  test.skip(test.info().project.name !== 'chromium', 'One Catalog run at a time, on one server.');
+  await signIn(page);
+  await page.getByRole('link', { name: 'Readings' }).click();
+
+  await page.getByTestId('catalog-file').setInputFiles({
+    name: 'catalog.pdf',
+    mimeType: 'application/pdf',
+    buffer: fixturePdf(5),
+  });
+  const grifo = await page.locator('option', { hasText: 'Grifo' }).first().getAttribute('value');
+  await page.getByLabel('Model').selectOption(grifo ?? '');
+  await page.getByLabel('From page').fill('3');
+  await page.getByLabel('To page').fill('3');
+  await page.getByRole('button', { name: 'Estimate the cost' }).click();
+  await expect(page.getByTestId('catalog-estimate')).toBeVisible();
+  await page.getByLabel('Spending limit, in dollars').fill('1');
+  await page.getByRole('button', { name: 'Start reading' }).click();
+  await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
+    timeout: 30_000,
+  });
+
+  await page.getByRole('link', { name: 'Open, Unchecked' }).click();
+  await expect(page.getByTestId('unchecked-band')).toBeVisible();
+  const before = page.url();
+
+  await page.getByTestId('read-again').getByRole('button', { name: 'Read again' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Tavola 103');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('read again');
+  await expect(page.getByText('Only its page of the catalog, page 3.')).toBeVisible();
+
+  await page.getByLabel('Spending limit, in dollars').fill('1');
+  await page.getByRole('button', { name: 'Start reading' }).click();
+  await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId('run-tavola')).toHaveCount(1);
+
+  await page.getByRole('link', { name: 'Open, Unchecked' }).click();
+  await expect(page.getByTestId('unchecked-band')).toBeVisible();
+  expect(page.url()).not.toBe(before);
+  await page.goto(before);
+  await expect(page.getByTestId('unchecked-band')).toHaveCount(0);
+});

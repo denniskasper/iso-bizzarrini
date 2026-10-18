@@ -518,6 +518,11 @@ export interface CatalogRun {
    * be read is shown rather than guessed (issue #60). Empty until the run has ended.
    */
   setAside: CatalogRunSetAsidePage[];
+  /**
+   * Where the run reads one Unchecked Tavola again (issue #61): its number, and the pages of the
+   * catalog it was found on, which are all the run reads. `null` for a run of the catalog.
+   */
+  readsAgain: { tavola: string; pages: number[] } | null;
 }
 
 export interface CatalogRunSetAsidePage {
@@ -549,6 +554,25 @@ export interface StartCatalogRunRequest {
  */
 export interface ContinueCatalogRunRequest {
   limit?: number;
+}
+
+/**
+ * `GET /api/catalog-runs/read-again?tavolaId=` — the Catalog run a Tavola would be read again
+ * from: the one that last read it, or `null` where none did (issue #61). An Administrator's alone,
+ * and 404 to anybody else.
+ */
+export interface ReadAgainFromResponse {
+  runId: string | null;
+}
+
+/**
+ * `POST /api/catalog-runs/read-again` — an Unchecked Tavola's own run, estimated for reading only
+ * its pages again from the stored catalog. Answers `CatalogRunResponse`, a run to start as any
+ * other. Refused, with the reason, for a Published Tavola and for one with Contributions on its
+ * Positions.
+ */
+export interface ReadAgainRequest {
+  tavolaId: string;
 }
 
 /** Which way a quarter turn goes, looking at the drawing. */

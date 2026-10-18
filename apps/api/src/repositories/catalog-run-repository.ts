@@ -1,5 +1,5 @@
 import type { CatalogRunActionKind, CatalogRunState } from '@ricambi/contracts';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import { violates } from '../db/constraints.js';
 import {
@@ -8,13 +8,16 @@ import {
   catalogRunPages,
   catalogRunTavole,
   catalogRuns,
+  contributions,
   models,
+  positions,
   tavole,
   type CatalogRunActionRow,
   type CatalogRunRow,
   type CatalogRunTavolaRow,
   type ModelRow,
   type NewCatalogRunRow,
+  type TavolaRow,
 } from '../db/schema.js';
 import type { CostRecord } from '../reading/cost.js';
 import type { SheetIdentity } from '../reading/reading-method.js';
@@ -95,6 +98,23 @@ export interface CatalogRunRepository {
   ended(runId: string, end: CatalogRunEnd, at: Date): Promise<void>;
   /** The pages the run put into no Tavola, and why, in place of any it set aside before. */
   setAside(runId: string, pages: { page: number; reason: string }[]): Promise<void>;
+  /**
+   * A Tavola as reading it again needs it (issue #61): its state, whether its Positions have
+   * Contributions, and the run that last read it, if one did. `null` where there is no such Tavola.
+   */
+  tavolaToReadAgain(
+    where: { tavolaId: string } | { modelId: string; number: string },
+  ): Promise<TavolaToReadAgain | null>;
+}
+
+export interface TavolaToReadAgain {
+  id: string;
+  modelId: string;
+  number: string;
+  state: TavolaRow['state'];
+  hasContributions: boolean;
+  /** The Catalog run whose reading it is, or `null` where it was loaded some other way. */
+  runId: string | null;
 }
 
 export function createCatalogRunRepository(db: DbSession): CatalogRunRepository {
@@ -272,6 +292,39 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .update(catalogRuns)
         .set({ setAside: [...pages].sort((a, b) => a.page - b.page) })
         .where(eq(catalogRuns.id, runId));
+    },
+
+    async tavolaToReadAgain(where) {
+      const [tavola] = await db
+        .select({
+          id: tavole.id,
+          modelId: tavole.modelId,
+          number: tavole.number,
+          state: tavole.state,
+        })
+        .from(tavole)
+        .where(
+          'tavolaId' in where
+            ? eq(tavole.id, where.tavolaId)
+            : and(eq(tavole.modelId, where.modelId), eq(tavole.number, where.number)),
+        )
+        .limit(1);
+      if (!tavola) {
+        return null;
+      }
+      const [contribution] = await db
+        .select({ id: contributions.id })
+        .from(contributions)
+        .innerJoin(positions, eq(positions.id, contributions.positionId))
+        .where(eq(positions.tavolaId, tavola.id))
+        .limit(1);
+      const [read] = await db
+        .select({ runId: catalogRunTavole.runId })
+        .from(catalogRunTavole)
+        .where(eq(catalogRunTavole.tavolaId, tavola.id))
+        .orderBy(desc(catalogRunTavole.finishedAt))
+        .limit(1);
+      return { ...tavola, hasContributions: !!contribution, runId: read?.runId ?? null };
     },
   };
 }

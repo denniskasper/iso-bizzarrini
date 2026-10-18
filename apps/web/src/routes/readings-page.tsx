@@ -1,12 +1,12 @@
 import type { CatalogRun, ReadingSetup } from '@ricambi/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
+import { StartRun } from '@/components/readings/start-run';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, Refusal, Select } from '@/components/ui/field';
 import { api, refusalText } from '@/lib/api';
-import { useEstimateCatalogRun, useReadingSetup, useStartCatalogRun } from '@/lib/readings';
+import { useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
 
 /**
  * **The Readings section** (issue #55, ADR 0018): what this server reads the factory catalog
@@ -226,7 +226,7 @@ function NewRun() {
       {estimate.data && (
         <>
           <Estimate run={estimate.data.run} />
-          <Start run={estimate.data.run} />
+          <StartRun run={estimate.data.run} />
         </>
       )}
     </section>
@@ -254,62 +254,5 @@ function Estimate({ run }: { run: CatalogRun }) {
         whichever costs more: a Table sheet read twice, or a drawing with its numbers read.
       </p>
     </div>
-  );
-}
-
-/**
- * **Starting the run** (issue #58), with a limit the Administrator types: there is no default,
- * so nothing is spent because a box was left as it came. It reads on the server from then on,
- * and the run's own page is where it is watched.
- */
-function Start({ run }: { run: CatalogRun }) {
-  const start = useStartCatalogRun();
-  const navigate = useNavigate();
-  const [limit, setLimit] = useState('');
-  const dollars = Number(limit);
-
-  return (
-    <form
-      className="mt-10 flex flex-col gap-6 border-t border-line pt-10"
-      onSubmit={(event) => {
-        event.preventDefault();
-        start.mutate(
-          { runId: run.id, limit: dollars },
-          {
-            onSuccess: () =>
-              void navigate({ to: '/readings/runs/$runId', params: { runId: run.id } }),
-          },
-        );
-      }}
-    >
-      <Field
-        label="Spending limit, in dollars"
-        hint="The run never passes it. It stops before any sheet that could, and keeps every Tavola it has read."
-        type="number"
-        inputMode="decimal"
-        min={0.01}
-        step={0.01}
-        mono
-        className="sm:max-w-xs"
-        value={limit}
-        onChange={(event) => {
-          start.reset();
-          setLimit(event.target.value);
-        }}
-      />
-
-      {start.error && <Refusal>{refusalText(start.error)}</Refusal>}
-
-      <div>
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          disabled={limit === '' || !(dollars > 0) || start.isPending}
-        >
-          {start.isPending ? 'Starting…' : 'Start reading'}
-        </Button>
-      </div>
-    </form>
   );
 }

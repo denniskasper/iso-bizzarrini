@@ -22,12 +22,14 @@ import {
 } from '../reading/catalog-reading.js';
 import { Spending, dollars, rounded } from '../reading/cost.js';
 import { estimatePage } from '../reading/estimate.js';
-import { PdfNotReadable, pdfPageCount, pdfPages } from '../reading/pdf-pages.js';
+import { PdfNotReadable, pdfPageCount, pdfPages, pdfPagesNamed } from '../reading/pdf-pages.js';
 import { PRICE_LIST, priceOf } from '../reading/price-list.js';
+import type { SheetIdentity } from '../reading/reading-method.js';
 import {
   STOPPED_STATES,
   type CatalogRunRepository,
   type CatalogRunWithModel,
+  type TavolaToReadAgain,
 } from '../repositories/catalog-run-repository.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
 import {
@@ -61,6 +63,10 @@ export interface NewCatalogRun {
  * Stop, and an Administrator continues it, raising its limit first where that is what stopped it.
  * Every merge redeploys the preview, so a server going away mid-run is the normal case: the run
  * is left running, and the next server to start carries it on from its last finished step.
+ *
+ * One Unchecked Tavola read badly can be read again on its own (issue #61): a run of its own,
+ * reading only the pages the run that read it found it on, from that run's catalog, with what
+ * those pages were found to be carried over. The loader replaces the Tavola whole when it finishes.
  */
 export interface CatalogRunService {
   estimate(request: NewCatalogRun): Promise<CatalogRun>;
@@ -81,6 +87,14 @@ export interface CatalogRunService {
   carryOn(runId: string, carryOn: { limit?: number; by: string }): Promise<CatalogRun>;
   /** A running run asked to stop before its next request. Answers before it has stopped. */
   stop(runId: string, stop: { by: string }): Promise<CatalogRun>;
+  /**
+   * An estimated run that reads one Unchecked Tavola again from the catalog it was read from, and
+   * nothing else (issue #61). Started, stopped and continued as any other run. Refused for a
+   * Published Tavola, for one with Contributions on its Positions, and for one no run read.
+   */
+  readAgain(tavolaId: string, readAgain: { by: string }): Promise<CatalogRun>;
+  /** The run that read a Tavola, or `null` where none did. */
+  readBy(tavolaId: string): Promise<string | null>;
   /** Every run left running when the server last went away, carried on. Once, on starting. */
   pickUp(): Promise<void>;
   /**
@@ -154,7 +168,9 @@ export function createCatalogRunService(dependencies: {
 
       await readCatalogInto({
         method,
-        pages: pdfPages({ first: found.run.firstPage, last: found.run.lastPage })(pdf),
+        pages: (found.run.readsAgain
+          ? pdfPagesNamed(found.run.readsAgain.pages)
+          : pdfPages({ first: found.run.firstPage, last: found.run.lastPage }))(pdf),
         limit,
         stopAsked: () => reader.stopAsked,
         interrupted: interrupted.signal,
@@ -203,6 +219,39 @@ export function createCatalogRunService(dependencies: {
     return reading.method;
   }
 
+  /** The method, and its price, without which nothing is estimated. */
+  function pricedMethod() {
+    const { method, kind } = reading;
+    if (!method || !kind) {
+      throw new ConflictError(`Nothing can be read. ${reading.unavailable ?? ''}`.trim());
+    }
+    const price = priceOf(method.model);
+    if (!price) {
+      throw new ConflictError(
+        `The price list has no price for ${method.model}, so what reading costs cannot be known.`,
+      );
+    }
+    return { method, kind, price };
+  }
+
+  /**
+   * Why a Tavola may not be read again, if it may not: the loader would refuse to replace it, so
+   * nothing is paid for that it would throw away.
+   */
+  function refuseToReadAgain(tavola: TavolaToReadAgain | null): void {
+    if (tavola?.state === 'published') {
+      throw new ConflictError(
+        'This Tavola is Published: an Editor has checked it, and it is corrected in Ricambi ' +
+          'rather than read again.',
+      );
+    }
+    if (tavola?.hasContributions) {
+      throw new ConflictError(
+        'Its Positions have Contributions, which reading it again would lose. Review them first.',
+      );
+    }
+  }
+
   async function found(runId: string): Promise<CatalogRunWithModel> {
     const run = await catalogRunRepository.findById(runId);
     if (!run) {
@@ -215,16 +264,7 @@ export function createCatalogRunService(dependencies: {
     find,
 
     async estimate({ modelId, firstPage, lastPage, catalog, by }) {
-      const { method, kind } = reading;
-      if (!method || !kind) {
-        throw new ConflictError(`Nothing can be read. ${reading.unavailable ?? ''}`.trim());
-      }
-      const price = priceOf(method.model);
-      if (!price) {
-        throw new ConflictError(
-          `The price list has no price for ${method.model}, so what reading costs cannot be known.`,
-        );
-      }
+      const { method, kind, price } = pricedMethod();
 
       const model = await modelRepository.findById(modelId);
       if (!model) {
@@ -299,6 +339,14 @@ export function createCatalogRunService(dependencies: {
       const { run } = await found(runId);
       if (run.state !== 'estimated') {
         throw new ConflictError('This Catalog run has been started already.');
+      }
+      if (run.readsAgain) {
+        refuseToReadAgain(
+          await catalogRunRepository.tavolaToReadAgain({
+            modelId: run.modelId,
+            number: run.readsAgain.tavola,
+          }),
+        );
       }
       if (run.estimate > limit) {
         throw new ValidationError(
@@ -380,6 +428,87 @@ export function createCatalogRunService(dependencies: {
         );
       }
       return find(runId);
+    },
+
+    async readAgain(tavolaId, { by }) {
+      const { method, kind, price } = pricedMethod();
+      const tavola = await catalogRunRepository.tavolaToReadAgain({ tavolaId });
+      if (!tavola) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      refuseToReadAgain(tavola);
+      if (!tavola.runId) {
+        throw new ConflictError(
+          'No Catalog run read this Tavola, so there is no catalog to read it again from.',
+        );
+      }
+      const source = await found(tavola.runId);
+      // Its pages are what the run that read it found them to be, and are not asked about again.
+      const known = (await catalogRunRepository.done(source.run.id)).pages.filter(
+        ({ identity }) => identity.kind !== 'other' && identity.tavola?.trim() === tavola.number,
+      );
+      if (known.length === 0) {
+        throw new ConflictError(
+          `The run that read it kept no page of Tavola ${tavola.number}, so there is nothing to ` +
+            'read again.',
+        );
+      }
+      if ((await catalogRunRepository.running()).length > 0) {
+        throw new ConflictError(ANOTHER_IS_READING);
+      }
+      const catalog = await fileStore.open(source.run.catalogKey);
+      if (!catalog) {
+        throw new ConflictError('The catalog it was read from is no longer kept.');
+      }
+
+      const identities = new Map<number, SheetIdentity>(
+        known.map(({ page, identity }) => [page, identity]),
+      );
+      const pages = [...identities.keys()].sort((a, b) => a - b);
+      const directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-'));
+      let estimate = 0;
+      try {
+        const pdf = join(directory, 'catalog.pdf');
+        await pipeline(catalog.stream(), createWriteStream(pdf));
+        const spending = new Spending(Number.POSITIVE_INFINITY, price);
+        for await (const page of pdfPagesNamed(pages)(pdf)) {
+          estimate += (await estimatePage(method, spending, page, identities.get(page.page))).cost;
+        }
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+
+      const id = randomUUID();
+      await catalogRunRepository.add({
+        id,
+        modelId: source.run.modelId,
+        state: 'estimated',
+        catalogKey: source.run.catalogKey,
+        catalogByteSize: source.run.catalogByteSize,
+        catalogPages: source.run.catalogPages,
+        firstPage: pages[0] as number,
+        lastPage: pages.at(-1) as number,
+        readsAgain: { tavola: tavola.number, pages },
+        readingMethod: kind,
+        charged: method.charged,
+        pricedModel: method.model,
+        pricesCheckedOn: PRICE_LIST.checkedOn,
+        estimate: rounded(estimate),
+        createdAt: clock.now(),
+        createdBy: by,
+      });
+      for (const { page, identity } of known) {
+        await catalogRunRepository.pageFound(id, page, identity);
+      }
+      return find(id);
+    },
+
+    async readBy(tavolaId) {
+      const tavola = await catalogRunRepository.tavolaToReadAgain({ tavolaId });
+      if (!tavola) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      return tavola.runId;
     },
 
     async pickUp() {
@@ -486,6 +615,7 @@ function toCatalogRun({ run, model, tavole, actions }: CatalogRunWithModel): Cat
       reason,
       image: `/api/catalog-runs/${run.id}/set-aside/${page}`,
     })),
+    readsAgain: run.readsAgain,
   };
 }
 

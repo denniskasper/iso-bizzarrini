@@ -185,6 +185,22 @@ export function createApiRouter(dependencies: {
     ),
     catalogRunController.estimate,
   );
+  // **One Unchecked Tavola read again** (issue #61), from the catalog the run that read it kept:
+  // the run it would be read from, and a new run estimated, to start as any other. The Tavola is
+  // named in the query and the body rather than the path, because a Tavola in the path is guarded
+  // as the archive is, below; these are as hidden as every other Catalog run address. Above
+  // `/catalog-runs/:runId`, which would otherwise take `read-again` for a run.
+  router.get(
+    '/catalog-runs/read-again',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readAgainFrom,
+  );
+  router.post(
+    '/catalog-runs/read-again',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.readAgain,
+  );
+
   router.get(
     '/catalog-runs/:runId',
     gate.hiddenFromAllButAdministrators,

@@ -2,6 +2,8 @@ import type {
   ApiErrorBody,
   CatalogRunResponse,
   ContinueCatalogRunRequest,
+  ReadAgainFromResponse,
+  ReadAgainRequest,
   StartCatalogRunRequest,
   ReadingSetup,
   EnglishNameRequest,
@@ -289,6 +291,14 @@ export const api = {
     send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/continue`, carryOn),
   stopCatalogRun: (runId: string) =>
     send<CatalogRunResponse>('POST', `/catalog-runs/${runId}/stop`, {}),
+  /** The run an Unchecked Tavola would be read again from, if one read it (issue #61). */
+  readAgainFrom: (tavolaId: string) =>
+    request<ReadAgainFromResponse>(
+      `/catalog-runs/read-again?${new URLSearchParams({ tavolaId }).toString()}`,
+    ),
+  /** One Tavola's own run, estimated for reading only its pages again. Nothing is read yet. */
+  readAgain: (readAgain: ReadAgainRequest) =>
+    send<CatalogRunResponse>('POST', '/catalog-runs/read-again', readAgain),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

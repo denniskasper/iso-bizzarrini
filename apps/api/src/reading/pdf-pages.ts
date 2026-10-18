@@ -50,6 +50,18 @@ export function pdfPages(
 }
 
 /**
+ * Only these pages of a catalog PDF, in page order, rendered as `pdfPages` renders them: the pages
+ * one Tavola was found on, when it is read again (issue #61).
+ */
+export function pdfPagesNamed(pages: number[], options: { dpi?: number } = {}): PageSource {
+  return async function* (pdf: string) {
+    for (const page of [...new Set(pages)].sort((a, b) => a - b)) {
+      yield* pdfPages({ ...options, first: page, last: page })(pdf);
+    }
+  };
+}
+
+/**
  * How many pages a PDF has, by Poppler's `pdfinfo`. Throws `PdfNotReadable` for a file Poppler
  * cannot open, so what is not a catalog is refused before any page of it is rendered.
  */

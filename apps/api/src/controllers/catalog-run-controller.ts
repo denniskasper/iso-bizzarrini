@@ -2,6 +2,8 @@ import type {
   CatalogRunResponse,
   ContinueCatalogRunRequest,
   StartCatalogRunRequest,
+  ReadAgainFromResponse,
+  ReadAgainRequest,
 } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
@@ -27,6 +29,9 @@ const estimateQuery = z
   });
 
 const runParams = z.object({ runId: z.uuid('That is not a Catalog run id.') });
+
+const aTavola = z.object({ tavolaId: z.uuid('Say which Tavola to read again.') });
+const readAgainBody: z.ZodType<ReadAgainRequest> = aTavola;
 
 const setAsideParams = runParams.extend({
   page: z.coerce
@@ -60,6 +65,8 @@ export interface CatalogRunController {
   read: RequestHandler;
   readCatalog: RequestHandler;
   readSetAsidePage: RequestHandler;
+  readAgain: RequestHandler;
+  readAgainFrom: RequestHandler;
 }
 
 /**
@@ -125,6 +132,29 @@ export function createCatalogRunController(dependencies: {
         by: gate.whoIsSignedIn(response).account.id,
       });
       response.status(202).json({ run } satisfies CatalogRunResponse);
+    },
+
+    readAgain: async (request, response) => {
+      const body = readAgainBody.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError(
+          body.error.issues[0]?.message ?? 'Say which Tavola to read again.',
+        );
+      }
+      const run = await catalogRunService.readAgain(body.data.tavolaId, {
+        by: gate.whoIsSignedIn(response).account.id,
+      });
+      response.status(201).json({ run } satisfies CatalogRunResponse);
+    },
+
+    readAgainFrom: async (request, response) => {
+      const query = aTavola.safeParse(request.query);
+      if (!query.success) {
+        throw new ValidationError(query.error.issues[0]?.message ?? 'Say which Tavola.');
+      }
+      response.json({
+        runId: await catalogRunService.readBy(query.data.tavolaId),
+      } satisfies ReadAgainFromResponse);
     },
 
     read: async (request, response) => {

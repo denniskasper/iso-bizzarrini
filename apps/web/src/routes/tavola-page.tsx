@@ -15,6 +15,7 @@ import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
+import { ReadAgain } from '@/components/readings/read-again';
 import { ConfirmEnglish, MachineTranslationTag } from '@/components/machine-translation';
 import { PartReading } from '@/components/parts/part-reading';
 import { TavolaParts } from '@/components/parts/tavola-parts';
@@ -58,7 +59,7 @@ import { useSession } from '@/lib/session';
  */
 export function TavolaPage() {
   const { tavolaId } = useParams({ from: '/tavole/$tavolaId' });
-  const { isEditor } = useSession();
+  const { isEditor, isAdministrator } = useSession();
   const queryClient = useQueryClient();
 
   const { data, isPending, isError, error } = useQuery({
@@ -360,6 +361,11 @@ export function TavolaPage() {
               />
             )}
           </UncheckedBand>
+          {isAdministrator && (
+            <div className="mt-4">
+              <ReadAgain tavolaId={tavola.id} />
+            </div>
+          )}
         </div>
       )}
 

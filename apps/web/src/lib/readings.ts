@@ -75,3 +75,25 @@ export function useStopCatalogRun() {
     },
   });
 }
+
+/**
+ * The run an Unchecked Tavola would be read again from (issue #61). Asked only for an
+ * Administrator, who alone may read it again; `null` where no Catalog run read it.
+ */
+export function useReadAgainFrom(tavolaId: string) {
+  return useQuery({
+    queryKey: ['read-again-from', tavolaId],
+    queryFn: () => api.readAgainFrom(tavolaId),
+  });
+}
+
+/** One Tavola's own run estimated, to be started on its run page. Nothing is read yet. */
+export function useReadAgain() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tavolaId: string) => api.readAgain({ tavolaId }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(catalogRunQueryKey(data.run.id), data);
+    },
+  });
+}
