@@ -1,6 +1,11 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { PositionListingsResponse, SearchResponse, TavolaResponse } from '@ricambi/contracts';
+import type {
+  PositionListingsResponse,
+  SearchResponse,
+  TavolaCheckingResponse,
+  TavolaResponse,
+} from '@ricambi/contracts';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadReading, type ReadingLoadReport } from '../src/migration/load-reading.js';
@@ -326,6 +331,134 @@ describe('a machine-read catalog, loaded', () => {
       expect.arrayContaining(['208501', '208900']),
     );
     expect((await search(editor, '208777')).matches).toEqual([]);
+  });
+
+  describe('with the Marks the drawing proposed', () => {
+    const MARKED: InventedPage[] = [
+      {
+        ...TAVOLA_84[0],
+        width: 1000,
+        height: 800,
+        numbers: [
+          { text: '1', x: 200, y: 200 },
+          { text: '57', x: 600, y: 400 },
+        ],
+      } as InventedPage,
+      TAVOLA_84[1] as InventedPage,
+    ];
+
+    async function drawingOf(tavolaId: string): Promise<TavolaResponse> {
+      return (await editor.get(`/api/tavole/${tavolaId}`).expect(200)).body as TavolaResponse;
+    }
+
+    it('puts each Mark on its Position, in fractions of the drawing', async () => {
+      const report = await load(await givenRead(MARKED));
+      expect(report.marks).toBe(2);
+
+      const tavola = await tavolaNumbered(editor, '84');
+      const { positions } = await drawingOf(tavola?.id as string);
+      const one = positions.find((position) => position.number === '1');
+      expect(one?.marks).toEqual([
+        { id: expect.any(String), x: expect.closeTo(0.2, 2), y: expect.closeTo(0.266, 2) },
+      ]);
+      expect(positions.find((position) => position.number === '2')?.marks).toEqual([]);
+    });
+
+    it('makes a Mark listed in no row a Position with nothing listed at it', async () => {
+      await load(await givenRead(MARKED));
+      const tavola = await tavolaNumbered(editor, '84');
+
+      const fiftySeven = (await drawingOf(tavola?.id as string)).positions.find(
+        (position) => position.number === '57',
+      );
+      expect(fiftySeven?.marks).toHaveLength(1);
+      const { listings } = (
+        await editor.get(`/api/positions/${fiftySeven?.id}/listings`).expect(200)
+      ).body as PositionListingsResponse;
+      expect(listings).toEqual([]);
+    });
+
+    it('shows the Editor every Position with no Mark, and every Mark listed nowhere', async () => {
+      await load(await givenRead(MARKED));
+      const tavola = await tavolaNumbered(editor, '84');
+      const { positions } = await drawingOf(tavola?.id as string);
+      const { doubts } = (await editor.get(`/api/tavole/${tavola?.id}/checking`).expect(200))
+        .body as TavolaCheckingResponse;
+
+      const idOf = (number: string) => positions.find((position) => position.number === number)?.id;
+      expect(doubts).toEqual(
+        expect.arrayContaining([
+          {
+            id: expect.any(String),
+            reason: 'Position 2 is in the table, and no Mark for it was found on the drawing.',
+            listingId: null,
+            positionId: idOf('2'),
+          },
+          {
+            id: expect.any(String),
+            reason: 'A Mark for 57 is on the drawing, and no row of the table has Position 57.',
+            listingId: null,
+            positionId: idOf('57'),
+          },
+        ]),
+      );
+      expect(doubts).toHaveLength(2);
+    });
+
+    it('loads the Marks as an Editor corrected them in Excel', async () => {
+      const source = await givenRead(MARKED);
+      const file = join(source, 'tavola-84', 'marks.csv');
+      // Saved where the decimal separator is a comma, with the misread 57 taken to be the 2 it is.
+      const text = (await readFile(file, 'utf8'))
+        .split('\n')
+        .map((line) =>
+          line
+            .replace(/(\d)\.(\d)/g, '$1|$2')
+            .replaceAll(',', ';')
+            .replaceAll('|', ','),
+        )
+        .map((line) => line.replace(/^57;/, '2;'))
+        .join('\n');
+      await writeFile(file, text);
+
+      const report = await load(source);
+      expect(report.rejected).toEqual([]);
+
+      const tavola = await tavolaNumbered(editor, '84');
+      const { positions } = await drawingOf(tavola?.id as string);
+      expect(positions.find((position) => position.number === '2')?.marks).toEqual([
+        { id: expect.any(String), x: expect.closeTo(0.6, 1), y: expect.closeTo(0.5, 1) },
+      ]);
+    });
+
+    it('refuses a Mark outside the drawing, and says where it is', async () => {
+      const source = await givenRead(MARKED);
+      const file = join(source, 'tavola-84', 'marks.csv');
+      await writeFile(file, (await readFile(file, 'utf8')).replace(/^1,0\.\d+/m, '1,1.5'));
+
+      const report = await load(source);
+
+      expect(report.marks).toBe(1);
+      expect(report.rejected).toEqual([
+        expect.objectContaining({
+          file: join('tavola-84', 'marks.csv'),
+          line: 2,
+          reason: expect.stringContaining('fractions of the drawing'),
+        }),
+      ]);
+    });
+
+    it('never puts one on a Tavola that is Published', async () => {
+      await load(await givenRead());
+      const tavola = await tavolaNumbered(editor, '84');
+      await editor.post(`/api/tavole/${tavola?.id}/publication`).expect(200);
+
+      const report = await load(await givenRead(MARKED));
+
+      expect(report.marks).toBe(0);
+      const { positions } = await drawingOf(tavola?.id as string);
+      expect(positions.flatMap((position) => position.marks)).toEqual([]);
+    });
   });
 
   it('writes nothing on a dry run', async () => {

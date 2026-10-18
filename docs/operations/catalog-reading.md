@@ -55,7 +55,9 @@ leaves an honest record.
 
 ## What it costs
 
-- **It estimates the whole run before it sends anything to be read.** With an API key, each
+- **It estimates the whole run before it sends anything to be read.** Reading a drawing's
+  numbers is counted from the candidates found on it, 40 to a request, each expected to answer in
+  2,000 tokens. With an API key, each
   page's requests are counted with the provider's free token-counting endpoint, exactly as they
   would be sent. A subscription login cannot use that endpoint, so its input is worked out from
   above instead: every image at its full size, the text at three characters a token, and Claude
@@ -105,6 +107,15 @@ What it decides, and where it decides it:
   reused, even across `--resume`. Every code and number is taken out before the Italian is sent,
   and an English that does not carry each one back unchanged is dropped, so that text is left
   without English.
+- **A Mark is proposed for every position number found on the drawing.** Where a number is comes
+  from the ink alone: everything the size and shape of a printed number at 200 dpi, including
+  digits whose ink touches. The model is shown each one as a small crop, boxed in red and labelled
+  only by an id, and says what number it is or that it is none. It is never asked where anything
+  is. A number the finder split in two is put back together. Nothing within the outer 2.5% of the
+  sheet, or closed in by ruled lines on four sides as a title block's cells are, is sent or marked.
+  A number printed sideways is not found, and shows up as a Position with no Mark. A Mark is in fractions of the drawing (ADR 0013).
+- **Where the drawing and the table disagree, it is in doubt**: every Position the table lists
+  with no Mark, and every Mark whose number no row lists, go into `doubts.csv`.
 - **A dash** for a position is the Position above: an undrawn Part on the catalogue layout, a drawn
   Part of the other hand on the Ufficio Tecnico layout. **A range** (`16-17`) is the Part at each
   Position. **Different numbers under the Dal–Al columns** are separate Parts, each with the
@@ -125,15 +136,24 @@ catalog-reading/
     scan.png            the drawing
     table-1.png …       the Table sheets
     listings.csv        one row per Listing
+    marks.csv           one row per Mark proposed on the drawing: its number, X and Y
+    doubts.csv          each Position listed with no Mark, and each Mark listed nowhere
 ```
 
 `listings.csv` opens in Excel. An Editor may correct it there: change a Catalog Number, a
-quantity, `Drawn`, an English name, or add and remove rows. Then save it as CSV. The `Doubt` and
-`Reading note` columns are there to read, and the loader ignores them. An English name or title
+quantity, `Drawn`, an English name, or add and remove rows. Then save it as CSV. The loader keeps
+each row's `Table sheet` and `Doubt` for the checking screen, so a doubt may be rewritten or
+cleared here. It ignores `Reading note`. An English name or title
 still as the machine wrote it loads as a Machine translation. One an Editor changed, in
 `listings.csv` or as `titleEn` in `tavola.json`, loads as theirs. The English of a Catalog Note is
 always shown as a Machine translation. Where a Tavola has no English title, it carries its Italian
 title in both places, and the load report says so.
+
+`marks.csv` opens the same way. A misread number can be rewritten there and a Mark that is not one
+deleted. X and Y are fractions of the drawing, from 0 to 1, and a comma for the decimal point is
+read as one. Moving a Mark is easier on the drawing, with the marking tool. Each row of
+`doubts.csv` becomes a doubt about its Position on the checking screen, so one can be rewritten or
+deleted before loading.
 
 ## Loading
 
@@ -142,8 +162,24 @@ pnpm archive:load -- --source ../catalog-reading --dry-run   # writes nothing
 pnpm archive:load -- --source ../catalog-reading
 ```
 
-- Every Tavola arrives Unchecked, with its Scan, Table sheets, Listings and Catalog Notes, and the
-  Reading method that read it.
+- Every Tavola arrives Unchecked, with its Scan, Table sheets, Listings, Catalog Notes and proposed
+  Marks, and the Reading method that read it. A Mark for a number no row lists arrives as a
+  Position with nothing listed at it.
 - **An Unchecked Tavola already there is discarded and loaded again whole**, together with every
   Part that appears nowhere else. Read again, correct the CSV, and load again as often as needed.
 - **A Published Tavola is refused.** It has been checked, and it is corrected in Ricambi.
+
+## Checking
+
+An Editor opens an Unchecked Tavola in Ricambi as any other. While it is Unchecked, the page also
+shows:
+
+- in the Unchecked band, which Reading method read it and every doubt. A doubt leads to the row
+  it is about, with its number opened on the drawing;
+- each Table sheet beside the rows read from it, where any row can be flipped between drawn and
+  not drawn.
+
+The Marks are corrected with the marking tool, and a Part with its usual panel. A Scan read on its
+side is turned a quarter at a time under the drawing, and its Marks turn with it. Publish is
+allowed while doubts remain. Once the Tavola is Published, Members can open its Table sheets but
+are never told which Reading method read it.

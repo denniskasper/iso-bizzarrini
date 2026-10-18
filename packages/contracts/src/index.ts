@@ -346,13 +346,68 @@ export interface Sheet {
   subAssemblies: SubAssembly[];
 }
 
+/**
+ * The picture of one of the factory's table fogli for a Tavola, kept as the evidence its Listings
+ * were read from (ADR 0016). As private as the Scan: the address is authenticated, and a Member
+ * reaches it only once the Tavola is Published.
+ */
+export interface TableSheet {
+  /** Its place among the Tavola's Table sheets, counting from 1, as the factory printed them. */
+  sheet: number;
+  width: number;
+  height: number;
+  url: string;
+}
+
 /** `GET /api/tavole/:tavolaId` */
 export interface TavolaResponse extends Sheet {
   tavola: TavolaSummary & {
     model: CatalogModel;
     provenance: CatalogProvenance;
     publication: TavolaPublication | null;
+    /** Empty for a Tavola recorded by hand, which nobody read off a table. */
+    tableSheets: TableSheet[];
   };
+}
+
+/**
+ * Something the read command was unsure of on a Tavola (ADR 0016), and the row or the number it
+ * concerns — which is where an Editor checking the Tavola is taken.
+ */
+export interface ReadingDoubt {
+  id: string;
+  /** In the read command's words, or the Editor's if they rewrote it before loading. */
+  reason: string;
+  listingId: string | null;
+  positionId: string | null;
+}
+
+/** A line of the sheet's index, with the Table sheet it was read from — `null` if recorded by hand. */
+export interface CheckedListing extends TavolaListing {
+  tableSheet: number | null;
+}
+
+/**
+ * `GET /api/tavole/:tavolaId/checking` — **what an Editor compares a machine-read Tavola with**
+ * (issue #34): the rows as read, the sheet each came from, and every doubt. An Editor's alone,
+ * because the Reading method is never told to a Member.
+ */
+export interface TavolaCheckingResponse {
+  /** What read it off the factory's sheets, or `null` for a Tavola a person recorded. */
+  readingMethod: string | null;
+  listings: CheckedListing[];
+  doubts: ReadingDoubt[];
+}
+
+/** Which way a quarter turn goes, looking at the drawing. */
+export type QuarterTurn = 'clockwise' | 'anticlockwise';
+
+/**
+ * `POST /api/tavole/:tavolaId/scan/turns` — the Scan turned a quarter, its Marks with it. Answers
+ * `{ scan: TavolaScan }`, at a new address: the drawing at the old one has not changed.
+ */
+export interface TurnScanRequest {
+  direction: QuarterTurn;
 }
 
 /** `POST /api/tavole/:tavolaId/publication` — an Editor publishing an Unchecked Tavola. */

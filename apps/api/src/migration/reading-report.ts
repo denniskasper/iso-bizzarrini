@@ -24,7 +24,7 @@ export function renderReadingReport(report: ReadingLoadReport): string {
         `${tavola.listings} | ${tavola.readingMethod} |`,
     ),
     '',
-    `${report.scans} Scans and ${report.tableSheets} Table sheets. ` +
+    `${report.scans} Scans, ${report.tableSheets} Table sheets and ${report.marks} proposed Marks. ` +
       `${report.partsDiscarded} Parts that appeared only on a discarded Tavola went with it.`,
     '',
   );

@@ -140,6 +140,30 @@ describe('reading with Claude through a subscription login', () => {
     expect(blocks.filter((block) => block.type === 'image')).toHaveLength(3);
   });
 
+  it('shows each crop of a drawing labelled by its id, as the API-key method does', async () => {
+    const claude = givenClaudeCode(
+      init,
+      answered({ numbers: [{ id: 3, number: '57', partial: false, unsure: false }] }),
+    );
+    const method = createClaudeSubscriptionReadingMethod({ cli: claude.cli, env: ENV });
+    const crop = (await aPage(120)).image;
+
+    const answer = await method.readNumbers([
+      { id: 3, image: crop, at: { x: 40, y: 50, w: 31, h: 26 } },
+    ]);
+
+    expect(answer.value).toEqual([{ id: 3, number: '57', partial: false, unsure: false }]);
+    const blocks = JSON.parse((claude.started[0] as Started).input).message.content as {
+      type: string;
+      text?: string;
+    }[];
+    expect(blocks.map((block) => block.text ?? block.type)).toEqual([
+      '#3',
+      'image',
+      expect.stringContaining('red box'),
+    ]);
+  });
+
   it('reads an answer that came back as text rather than structured', async () => {
     const claude = givenClaudeCode(
       init,

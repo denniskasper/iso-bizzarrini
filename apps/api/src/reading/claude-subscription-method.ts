@@ -8,9 +8,13 @@ import {
   EXPECTED_TRANSLATION_INPUT,
   IDENTIFY,
   MAX_TOKENS,
+  READ_NUMBERS,
   READ_TABLE,
   ReadingMethodError,
   identitySchema,
+  numberLabels,
+  numberReadingsOf,
+  numbersSchema,
   stripsOf,
   tableSchema,
   translateInstruction,
@@ -20,6 +24,8 @@ import {
 import {
   UsageLimitReached,
   type Answer,
+  type NumberCrop,
+  type NumberReading,
   type ReadingMethod,
   type RequestEstimate,
   type SheetIdentity,
@@ -122,6 +128,7 @@ export function createClaudeSubscriptionReadingMethod(
     instruction: string,
     images: Buffer[],
     effort: Effort,
+    labels: string[] = [],
   ): Promise<Answer<z.infer<Schema>>> {
     const message = {
       type: 'user',
@@ -129,10 +136,13 @@ export function createClaudeSubscriptionReadingMethod(
       message: {
         role: 'user',
         content: [
-          ...images.map((image) => ({
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/png', data: image.toString('base64') },
-          })),
+          ...images.flatMap((image, index) => [
+            ...(labels[index] ? [{ type: 'text', text: labels[index] }] : []),
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/png', data: image.toString('base64') },
+            },
+          ]),
           { type: 'text', text: instruction },
         ],
       },
@@ -228,13 +238,15 @@ export function createClaudeSubscriptionReadingMethod(
     instruction: string,
     images: Buffer[],
     output: number,
+    labels: string[] = [],
   ): Promise<RequestEstimate> {
     let input = FRAMING_TOKENS;
     for (const image of images) {
       const { width = 0, height = 0 } = await sharp(image).metadata();
       input += Math.ceil((width * height) / 750);
     }
-    const text = SYSTEM_PROMPT + instruction + JSON.stringify(z.toJSONSchema(schema));
+    const text =
+      SYSTEM_PROMPT + instruction + labels.join('') + JSON.stringify(z.toJSONSchema(schema));
     input += Math.ceil(text.length / 3);
     return { input: TURNS * input, output, outputAtMost: TURNS * MAX_TOKENS };
   }
@@ -290,6 +302,22 @@ export function createClaudeSubscriptionReadingMethod(
     async translate(texts: string[]): Promise<Answer<string[]>> {
       const answer = await ask(translationSchema, translateInstruction(texts), [], 'low');
       return { value: answer.value.english, tokens: answer.tokens };
+    },
+
+    async estimateNumbers(crops: NumberCrop[]) {
+      return estimated(
+        numbersSchema,
+        READ_NUMBERS,
+        crops.map((crop) => crop.image),
+        EXPECTED_OUTPUT.numbers,
+        numberLabels(crops),
+      );
+    },
+
+    async readNumbers(crops: NumberCrop[]): Promise<Answer<NumberReading[]>> {
+      const images = crops.map((crop) => crop.image);
+      const answer = await ask(numbersSchema, READ_NUMBERS, images, 'low', numberLabels(crops));
+      return { value: numberReadingsOf(crops, answer.value), tokens: answer.tokens };
     },
   };
 }

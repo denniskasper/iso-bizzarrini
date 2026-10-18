@@ -15,11 +15,17 @@ import {
   type SheetCost,
   type Spent,
 } from './cost.js';
+import { cropsOf, findNumbers, type NumberCrop } from './find-numbers.js';
 import { interpretTable, type ComparedSheet, type ReadListing } from './interpret.js';
+import { markDoubts, proposeMarks, type MarkDoubt, type ProposedMark } from './marks.js';
 import { PRICE_LIST, priceOf } from './price-list.js';
 import { Translations, maskCodes, type MachineTranslation } from './translation.js';
 import {
+  DOUBTS_FILE,
+  DOUBT_COLUMNS,
   LISTING_COLUMNS,
+  MARKS_FILE,
+  MARK_COLUMNS,
   LISTINGS_FILE,
   PAGES_FILE,
   READING_FILE,
@@ -39,8 +45,11 @@ import {
   type TavolaManifest,
 } from './read-directory.js';
 import {
+  NUMBERS_PER_REQUEST,
   UsageLimitReached,
+  type NumberReading,
   type ReadingMethod,
+  type RequestEstimate,
   type SheetEstimate,
   type SheetIdentity,
   type SheetImage,
@@ -55,8 +64,10 @@ import {
  * never to the page it follows — the scans are out of order — and one whose number cannot be read
  * is set aside for a person rather than guessed. Each sheet is turned upright the way its headings
  * read. Then every Table sheet is read twice, independently, the two Readings are compared, and
- * what the factory meant by its dashes, repeats and ranges is worked out once, here. Last, the
- * Tavola's Italian is put into English, as a Machine translation (`translation.ts`).
+ * what the factory meant by its dashes, repeats and ranges is worked out once, here. The numbers on
+ * the drawing are found from its ink and read a crop at a time, and become proposed Marks
+ * (`find-numbers.ts`, `marks.ts`). Last, the Tavola's Italian is put into English, as a Machine
+ * translation (`translation.ts`).
  *
  * Nothing is sent to be read before the whole run has been estimated and found within the limit
  * it was given, and nothing is sent that could take it past that limit (`cost.ts`).
@@ -91,7 +102,15 @@ export interface ReadCatalogOptions {
 export type PageSource = (pdf: string) => AsyncIterable<SheetImage>;
 
 export interface ReadCatalogResult {
-  tavole: { number: string; directory: string; listings: number; inDoubt: number }[];
+  tavole: {
+    number: string;
+    directory: string;
+    listings: number;
+    inDoubt: number;
+    marks: number;
+    /** Positions listed with no Mark, and Marks for a number listed nowhere. */
+    markDoubts: number;
+  }[];
   setAside: { page: number; reason: string }[];
   tokens: Tokens;
   /**
@@ -160,7 +179,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
   const readBefore = (number: string) => finishedBefore.has(tavolaDirectory(number));
   const stillToRead = (identity: SheetIdentity) => {
     const number = identity.tavola?.trim();
-    return identity.kind === 'table' && !!number && !readBefore(number);
+    return identity.kind !== 'other' && !!number && !readBefore(number);
   };
 
   // Before anything is sent to be read: every page still to be asked about, counted, and the whole
@@ -178,12 +197,20 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     }
     const sheet = await method.estimate(page);
     estimates.set(page.page, sheet);
-    estimate += identity ? spending.readingOf(sheet) : spending.estimateOf(sheet);
+    // A page not yet asked about is found numbers on the way it was scanned; once turned upright
+    // it may group a few differently, and each request is counted again before it is sent.
+    const numbers = identity?.kind === 'table' ? [] : await estimateNumbers(method, page.image);
+    estimate += !identity
+      ? spending.estimateOf(sheet, numbers)
+      : identity.kind === 'drawing'
+        ? spending.numbersOf(numbers)
+        : spending.readingOf(sheet);
   }
   print(
     `Estimated at ${dollars(estimate)} for ${estimates.size} ${estimates.size === 1 ? 'page' : 'pages'}, ` +
       `at ${method.model} list prices checked on ${PRICE_LIST.checkedOn}. ` +
-      'Every page is counted as a Table sheet read twice and translated; a drawing costs less.',
+      'Every page is counted as whichever costs more: a Table sheet read twice and translated, ' +
+      'or a drawing with its numbers read.',
   );
   if (estimate > limit) {
     throw new ReadCatalogError(
@@ -287,6 +314,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
       cost: identification.cost,
       identification,
       readings: [],
+      numbers: [],
     });
     const upright = await sharp(page.image).rotate(identity.turn).png().toBuffer();
     const sheets = byTavola.get(number) ?? [];
@@ -328,6 +356,7 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
               ...reading,
               cost: rounded(reading.cost),
             })),
+            numbers: sheet.numbers.map(roundedSpent),
           })),
         };
       }),
@@ -411,6 +440,49 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
     }
 
     const listings = interpretTable(compared);
+
+    let marks: ProposedMark[] = [];
+    let doubts: MarkDoubt[] = [];
+    if (drawing) {
+      const sheetCost = sheetCosts.get(drawing.page) as SheetCost;
+      const readings: NumberReading[] = [];
+      const found = await findNumbers(drawing.image);
+      for (const batch of batchesOf(await cropsOf(drawing.image, found))) {
+        const atMost = spending.atMost(await method.estimateNumbers(batch));
+        if (spending.wouldPass(atMost)) {
+          stopAtLimit(atMost, `reading the numbers on the drawing of Tavola ${number}`);
+          break;
+        }
+        try {
+          const answer = await method.readNumbers(batch);
+          sheetCost.numbers.push(spend(answer.tokens));
+          readings.push(...answer.value);
+        } catch (error) {
+          if (!(error instanceof UsageLimitReached)) {
+            throw error;
+          }
+          stopAtUsageLimit(error);
+          break;
+        } finally {
+          sheetCost.cost =
+            sheetCost.identification.cost +
+            sheetCost.numbers.reduce((sum, request) => sum + request.cost, 0);
+        }
+      }
+      if (stopped !== null) {
+        result.notRead.push(number);
+        continue;
+      }
+      marks = proposeMarks(found, readings);
+      doubts = markDoubts(listings, marks);
+      print(
+        `  Drawing, page ${drawing.page}: ${marks.length} ${marks.length === 1 ? 'Mark' : 'Marks'} ` +
+          `proposed from ${found.candidates.length} ${found.candidates.length === 1 ? 'candidate' : 'candidates'}, ` +
+          `${doubts.length} ${doubts.length === 1 ? 'Position' : 'Positions'} in doubt between ` +
+          `the drawing and the table. ${soFar(sheetCost.cost - sheetCost.identification.cost)}`,
+      );
+    }
+
     const header = (drawing ?? tables[0])?.identity;
     const titleIt = header?.titleIt?.trim() ?? '';
     const italian = [
@@ -464,6 +536,8 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
       drawing: drawing ?? null,
       tables,
       listings,
+      marks,
+      doubts,
       translations,
       machineTranslations: translations.of(italian),
     });
@@ -476,7 +550,14 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
       `  ${listings.length} Listings, ${inDoubt} in doubt. Tavola ${number} ` +
         `${method.charged ? 'cost' : 'would have cost'} ${dollars(tavolaCost)}.`,
     );
-    result.tavole.push({ number, directory, listings: listings.length, inDoubt });
+    result.tavole.push({
+      number,
+      directory,
+      listings: listings.length,
+      inDoubt,
+      marks: marks.length,
+      markDoubts: doubts.length,
+    });
     finished.add(number);
 
     // After every Tavola, so a run that stops part-way leaves a directory that loads what it read.
@@ -523,6 +604,24 @@ export async function readCatalog(options: ReadCatalogOptions): Promise<ReadCata
   return result;
 }
 
+/** The requests a drawing's numbers would take to read, each counted as it would be sent. */
+async function estimateNumbers(method: ReadingMethod, image: Buffer): Promise<RequestEstimate[]> {
+  const crops = await cropsOf(image, await findNumbers(image));
+  const requests: RequestEstimate[] = [];
+  for (const batch of batchesOf(crops)) {
+    requests.push(await method.estimateNumbers(batch));
+  }
+  return requests;
+}
+
+function batchesOf(crops: NumberCrop[]): NumberCrop[][] {
+  const batches: NumberCrop[][] = [];
+  for (let start = 0; start < crops.length; start += NUMBERS_PER_REQUEST) {
+    batches.push(crops.slice(start, start + NUMBERS_PER_REQUEST));
+  }
+  return batches;
+}
+
 function roundedSpent(spent: Spent): Spent {
   return { ...spent, cost: rounded(spent.cost) };
 }
@@ -550,6 +649,8 @@ async function writeTavola(
     drawing: IdentifiedSheet | null;
     tables: IdentifiedSheet[];
     listings: ReadListing[];
+    marks: ProposedMark[];
+    doubts: MarkDoubt[];
     translations: Translations;
     machineTranslations: MachineTranslation[];
   },
@@ -607,6 +708,32 @@ async function writeTavola(
     ),
     'utf8',
   );
+
+  if (drawing) {
+    const m = MARK_COLUMNS;
+    await writeFile(
+      join(directory, MARKS_FILE),
+      writeSheet(
+        Object.values(m),
+        tavola.marks.map((mark) => ({
+          [m.position]: mark.position,
+          [m.x]: mark.x.toFixed(4),
+          [m.y]: mark.y.toFixed(4),
+          [m.readingNote]: mark.unsure ? 'The number was hard to read.' : '',
+        })),
+      ),
+      'utf8',
+    );
+    const d = DOUBT_COLUMNS;
+    await writeFile(
+      join(directory, DOUBTS_FILE),
+      writeSheet(
+        Object.values(d),
+        tavola.doubts.map((doubt) => ({ [d.position]: doubt.position, [d.doubt]: doubt.reason })),
+      ),
+      'utf8',
+    );
+  }
 }
 
 async function writeSetAside(

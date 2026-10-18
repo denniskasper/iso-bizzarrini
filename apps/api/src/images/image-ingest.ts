@@ -58,11 +58,22 @@ export interface PreparedUpload {
   preview: PreparedImage & { format: 'webp' };
 }
 
-export async function prepareImage(upload: Buffer, recipe: ImageRecipe): Promise<PreparedUpload> {
+/**
+ * `quarterTurns` turns both derived images clockwise from the way up the upload was taken, for a
+ * sheet scanned on its side (issue #34). The upload itself is never turned, and its dimensions
+ * are reported as it arrived.
+ */
+export async function prepareImage(
+  upload: Buffer,
+  recipe: ImageRecipe,
+  quarterTurns = 0,
+): Promise<PreparedUpload> {
   // `autoOrient` so a sheet or a part photographed on a phone is stored the way up it was taken,
   // and every dimension reported below is the dimension a member actually sees.
-  const source = sharp(upload, { autoOrient: true });
-  const metadata = await readMetadata(source, recipe.noun);
+  const original = sharp(upload, { autoOrient: true });
+  const metadata = await readMetadata(original, recipe.noun);
+  const source =
+    quarterTurns % 4 === 0 ? original : original.clone().rotate(90 * (quarterTurns % 4));
 
   const [display, preview] = await Promise.all([
     render(

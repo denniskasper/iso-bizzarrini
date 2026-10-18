@@ -7,9 +7,13 @@ import {
   EXPECTED_TRANSLATION_INPUT,
   IDENTIFY,
   MAX_TOKENS,
+  READ_NUMBERS,
   READ_TABLE,
   ReadingMethodError,
   identitySchema,
+  numberLabels,
+  numberReadingsOf,
+  numbersSchema,
   stripsOf,
   tableSchema,
   translateInstruction,
@@ -18,6 +22,8 @@ import {
 } from './claude-requests.js';
 import type {
   Answer,
+  NumberCrop,
+  NumberReading,
   ReadingMethod,
   RequestEstimate,
   SheetEstimate,
@@ -56,6 +62,7 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     instruction: string,
     images: Buffer[],
     effort: Effort,
+    labels: string[] = [],
   ) {
     return {
       model: CLAUDE_MODEL,
@@ -65,14 +72,17 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
         {
           role: 'user' as const,
           content: [
-            ...images.map((image) => ({
-              type: 'image' as const,
-              source: {
-                type: 'base64' as const,
-                media_type: 'image/png' as const,
-                data: image.toString('base64'),
+            ...images.flatMap((image, index) => [
+              ...(labels[index] ? [{ type: 'text' as const, text: labels[index] }] : []),
+              {
+                type: 'image' as const,
+                source: {
+                  type: 'base64' as const,
+                  media_type: 'image/png' as const,
+                  data: image.toString('base64'),
+                },
               },
-            })),
+            ]),
             { type: 'text' as const, text: instruction },
           ],
         },
@@ -85,8 +95,9 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     instruction: string,
     images: Buffer[],
     effort: Effort,
+    labels: string[] = [],
   ): Promise<Answer<z.infer<Schema>>> {
-    const request = requestFor(schema, instruction, images, effort);
+    const request = requestFor(schema, instruction, images, effort, labels);
     let response;
     try {
       response = await client.messages.parse(request);
@@ -164,6 +175,23 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     async translate(texts: string[]): Promise<Answer<string[]>> {
       const answer = await ask(translationSchema, translateInstruction(texts), [], 'low');
       return { value: answer.value.english, tokens: answer.tokens };
+    },
+
+    async estimateNumbers(crops: NumberCrop[]): Promise<RequestEstimate> {
+      const images = crops.map((crop) => crop.image);
+      return {
+        input: await counted(
+          requestFor(numbersSchema, READ_NUMBERS, images, 'low', numberLabels(crops)),
+        ),
+        output: EXPECTED_OUTPUT.numbers,
+        outputAtMost: MAX_TOKENS,
+      };
+    },
+
+    async readNumbers(crops: NumberCrop[]): Promise<Answer<NumberReading[]>> {
+      const images = crops.map((crop) => crop.image);
+      const answer = await ask(numbersSchema, READ_NUMBERS, images, 'low', numberLabels(crops));
+      return { value: numberReadingsOf(crops, answer.value), tokens: answer.tokens };
     },
   };
 }

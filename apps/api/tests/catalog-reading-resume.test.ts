@@ -138,8 +138,10 @@ describe('reading on a subscription', () => {
 
     expect(calls).toEqual(['read 4 1', 'read 4 2']);
     expect(printed).toContain(
-      'Estimated at $0.08 for 1 page, at claude-opus-5-5 list prices checked on 2026-10-17. ' +
-        'Every page is counted as a Table sheet read twice and translated; a drawing costs less.',
+      // Tavola 85's drawing is still to be read too, and with no numbers on it costs nothing.
+      'Estimated at $0.08 for 2 pages, at claude-opus-5-5 list prices checked on 2026-10-17. ' +
+        'Every page is counted as whichever costs more: a Table sheet read twice and translated, ' +
+        'or a drawing with its numbers read.',
     );
     expect(printed).toContain('Read before, and not again: Tavola 84.');
     expect(result.readBefore).toEqual(['84']);

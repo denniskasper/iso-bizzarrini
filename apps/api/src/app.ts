@@ -9,6 +9,7 @@ import { createReminders } from './composition/reminder-run.js';
 import type { AppConfig } from './config/config.js';
 import { createBulkPasteController } from './controllers/bulk-paste-controller.js';
 import { createCatalogController } from './controllers/catalog-controller.js';
+import { createCheckingController } from './controllers/checking-controller.js';
 import { createCategoryController } from './controllers/category-controller.js';
 import { createClubController } from './controllers/club-controller.js';
 import { createLegalController } from './controllers/legal-controller.js';
@@ -49,6 +50,7 @@ import { createPartRecordRepository } from './repositories/part-record-repositor
 import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
+import { createReadingRepository } from './repositories/reading-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
@@ -58,6 +60,7 @@ import { API_MOUNT, createApiRouter, WEBHOOK_PATH } from './routes/api-router.js
 import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
 import { createCatalogService } from './services/catalog-service.js';
+import { createCheckingService } from './services/checking-service.js';
 import { createCategoryService } from './services/category-service.js';
 import { createClubService } from './services/club-service.js';
 import { createLegalService } from './services/legal-service.js';
@@ -157,6 +160,7 @@ export function createApp(dependencies: AppDependencies): Express {
   const modelRepository = createModelRepository(db);
   const categoryRepository = createCategoryRepository(db);
   const tavolaRepository = createTavolaRepository(db);
+  const readingRepository = createReadingRepository(db);
   const positionRepository = createPositionRepository(db);
   const partRepository = createPartRepository(db);
   const partRecordRepository = createPartRecordRepository(db);
@@ -268,6 +272,7 @@ export function createApp(dependencies: AppDependencies): Express {
     modelRepository,
     categoryRepository,
     tavolaRepository,
+    readingRepository,
     positionService,
   });
   const photographService = createPhotographService({
@@ -332,6 +337,15 @@ export function createApp(dependencies: AppDependencies): Express {
     contributionReviewService,
   });
   const scanController = createScanController({ scanService });
+  const checkingController = createCheckingController({
+    checkingService: createCheckingService({
+      tavolaRepository,
+      partRepository,
+      readingRepository,
+      fileStore,
+      logger,
+    }),
+  });
 
   const app = express();
   app.disable('x-powered-by');
@@ -412,6 +426,7 @@ export function createApp(dependencies: AppDependencies): Express {
       contributionController,
       contributionReviewController,
       scanController,
+      checkingController,
     }),
   );
   app.use(API_MOUNT, notFoundHandler);

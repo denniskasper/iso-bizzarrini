@@ -11,8 +11,14 @@ const imageParams = z.object({
   variant: z.enum(IMAGE_VARIANTS),
 });
 
+/** Reads `TurnScanRequest`. */
+const turnBody = z.object({
+  direction: z.enum(['clockwise', 'anticlockwise'], 'Turn it clockwise or anticlockwise.'),
+});
+
 export interface ScanController {
   upload: RequestHandler;
+  turn: RequestHandler;
   readImage: RequestHandler;
 }
 
@@ -41,6 +47,13 @@ export function createScanController(dependencies: { scanService: ScanService })
 
       const scan = await scanService.ingest(tavolaId, request.body);
       response.status(201).json({ scan });
+    },
+
+    turn: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+      const { direction } = turnBody.parse(request.body);
+      const scan = await scanService.turn(tavolaId, direction);
+      response.json({ scan });
     },
 
     readImage: async (request, response, next) => {

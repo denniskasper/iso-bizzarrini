@@ -3,6 +3,7 @@ import type { Gate } from '../access/gate.js';
 import type { UncheckedTavolaGuard } from '../access/unchecked-tavole.js';
 import type { BulkPasteController } from '../controllers/bulk-paste-controller.js';
 import type { CatalogController } from '../controllers/catalog-controller.js';
+import type { CheckingController } from '../controllers/checking-controller.js';
 import type { CategoryController } from '../controllers/category-controller.js';
 import type { ClubController } from '../controllers/club-controller.js';
 import type { LegalController } from '../controllers/legal-controller.js';
@@ -64,6 +65,7 @@ export function createApiRouter(dependencies: {
   catalogController: CatalogController;
   categoryController: CategoryController;
   tavolaController: TavolaController;
+  checkingController: CheckingController;
   positionController: PositionController;
   partController: PartController;
   partRecordController: PartRecordController;
@@ -89,6 +91,7 @@ export function createApiRouter(dependencies: {
     catalogController,
     categoryController,
     tavolaController,
+    checkingController,
     positionController,
     partController,
     partRecordController,
@@ -281,6 +284,13 @@ export function createApiRouter(dependencies: {
   // stands or rewritten, it is no longer a Machine translation. Publishing never does this.
   router.put('/tavole/:tavolaId/english-name', tavolaController.nameInEnglish);
 
+  // **Checking what the machine read** (issue #34): the rows beside the sheets they came from,
+  // the doubts and the Reading method. An Editor's out loud, because the Reading method is never
+  // told to a Member. The sheets themselves are the archive's, as private as the drawing, and a
+  // Member reaches them once the Tavola is Published — the guard above sees to the rest.
+  router.get('/tavole/:tavolaId/checking', editorsOnly, checkingController.read);
+  router.get('/tavole/:tavolaId/table-sheets/:sheet', checkingController.readTableSheet);
+
   // **One click is one request**, which is why the Position is named by its printed number here
   // rather than by an id: at the moment an Editor clicks the drawing they know what the factory
   // printed, and whether the archive has heard of that number yet is the archive's problem. A
@@ -436,6 +446,8 @@ export function createApiRouter(dependencies: {
     express.raw({ type: () => true, limit: dependencies.maxScanBytes }),
     scanController.upload,
   );
+  // A sheet scanned on its side, turned upright a quarter at a time with its Marks (issue #34).
+  router.post('/tavole/:tavolaId/scan/turns', scanController.turn);
 
   router.get('/scans/:scanId/:variant', scanController.readImage);
   router.get('/photographs/:photographId/:variant', photographController.readImage);
