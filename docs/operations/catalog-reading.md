@@ -36,9 +36,13 @@ through.
 
 In **Readings**, under **Read a catalog**:
 
-1. Choose the catalog PDF and the Model it is for.
+1. Choose the catalog PDF and the Model it is for. As soon as the PDF is chosen, Ricambi shows
+   its name, its size and how many pages it has, counted in the browser before anything is
+   uploaded. A PDF that cannot be read, or is protected by a password, is refused there.
 2. Give the first and the last page to read. Leave out the front matter and the technical data,
-   so they are never sent to the model. Both pages are required.
+   so they are never sent to the model. Both pages are required. A range past the last page, or
+   one that runs backwards, is refused on the form; the server checks the range again once the
+   catalog arrives.
 3. Press **Estimate the cost**. Nothing is read yet. Once the catalog is uploaded, the server
    prices it a page at a time, and the screen shows how many pages it has priced. You can leave
    the page: the run is under **Past runs**, being estimated. Then Ricambi shows what reading
