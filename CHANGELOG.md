@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.3.0...v0.4.0) (2026-10-19)
+
+
+### New
+
+* **69:** show a catalog's page count as soon as it is chosen ([30dece7](https://github.com/denniskasper/iso-bizzarrini/commit/30dece76c9a057a6d07ac6be7496d0ffbf948341))
+
+
+### Fixed
+
+* **72, 73:** find position numbers printed sideways, and leave the title block's out ([82f7295](https://github.com/denniskasper/iso-bizzarrini/commit/82f7295ed13ecdc5c0affa1b7c2f8cdd2c64a28e))
+* keep the page where it was when a doubt or a Position is followed ([df40a33](https://github.com/denniskasper/iso-bizzarrini/commit/df40a3345533d3734d4a055e5de16d980631c10c))
+
 ## [0.3.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.2.0...v0.3.0) (2026-10-18)
 
 
