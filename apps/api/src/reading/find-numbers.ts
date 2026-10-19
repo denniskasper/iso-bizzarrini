@@ -6,8 +6,8 @@ import sharp from 'sharp';
  * The split is the point: *where* a number is comes from the ink, which is exact; *what* it says
  * comes from the model, one crop at a time, and the model is never asked for a coordinate. This
  * finds everything the size and shape of a printed position number — most of it is, some of it is
- * a bolt or a washer the model then says is not — and leaves out what lies in the margin or in a
- * ruled cell of the title block, which holds numbers that are not Positions.
+ * a bolt or a washer the model then says is not — and leaves out what lies in the margin or in the
+ * title block, which holds numbers that are not Positions.
  *
  * The sizes are for pages rendered at 200 dpi, as the read command renders them.
  */
@@ -62,6 +62,18 @@ const MARGIN = 0.025;
 const CELL_REACH = { above: 3, across: 10 };
 /** How much of a rule's length may be missing to the scan and still count as one line. */
 const RULE_GAPS = 0.1;
+/**
+ * A rule of the sheet's frame or its title block runs across most of the sheet; no line of a
+ * drawing does without a break.
+ */
+const LONG_RULE = 0.6;
+/** Pixels a long rule may break for, where the scan lost them, and still be one line. */
+const LONG_RULE_GAP = 8;
+/**
+ * A title block is a band between two long rules along one side of the sheet: high enough for a
+ * number, and narrow next to the sheet. Its middle stands within `edge` of that side.
+ */
+const TITLE_BLOCK = { least: 20, most: 0.15, edge: 0.25 };
 
 export async function findNumbers(png: Buffer): Promise<FoundNumbers> {
   const { data, info } = await sharp(png).greyscale().raw().toBuffer({ resolveWithObject: true });
@@ -78,8 +90,12 @@ export async function findNumbers(png: Buffer): Promise<FoundNumbers> {
     (blob) => isMergedDigits(blob) && !grouped.some((group) => overlaps(group, blob)),
   );
   const page = { ink, width, height };
+  const titleBlock = titleBlocksOf(page);
   const kept = [...grouped, ...merged].filter(
-    (box) => !inMargin(box, width, height) && !inRuledCell(page, box),
+    (box) =>
+      !inMargin(box, width, height) &&
+      !titleBlock.some((band) => holds(band, box)) &&
+      !inRuledCell(page, box),
   );
 
   const readingOrder = kept.toSorted(
@@ -124,6 +140,49 @@ export async function cropsOf(png: Buffer, found: FoundNumbers): Promise<NumberC
     crops.push({ id: candidate.id, image, at: boxOf(candidate) });
   }
   return crops;
+}
+
+/**
+ * A few crops in a row as they were found, and the same row turned half round, for the model to
+ * say which reads the right way up (issue #72). Crops as wide as two digits come first: they are
+ * the likeliest to be numbers, and a two-digit number shows its way up more plainly than one.
+ */
+export async function bothWays(
+  crops: NumberCrop[],
+): Promise<{ asFound: Buffer; halfRound: Buffer }> {
+  const SHOWN = 8;
+  const TALL = 80;
+  const SPACE = 20;
+  const twoDigits = (crop: NumberCrop) =>
+    crop.at.w >= 1.1 * crop.at.h && crop.at.w <= 2.6 * crop.at.h;
+  const shown = [...crops.filter(twoDigits), ...crops.filter((crop) => !twoDigits(crop))].slice(
+    0,
+    SHOWN,
+  );
+  const row = async (halfRound: boolean) => {
+    const parts = await Promise.all(
+      shown.map((crop) =>
+        sharp(crop.image)
+          .rotate(halfRound ? 180 : 0)
+          .resize({ height: TALL })
+          .png()
+          .toBuffer({ resolveWithObject: true }),
+      ),
+    );
+    let left = 0;
+    const placed = parts.map(({ data, info }) => {
+      const at = left;
+      left += info.width + SPACE;
+      return { input: data, left: at, top: 0 };
+    });
+    return sharp({
+      create: { width: Math.max(1, left - SPACE), height: TALL, channels: 3, background: 'white' },
+    })
+      .composite(placed)
+      .png()
+      .toBuffer();
+  };
+  return { asFound: await row(false), halfRound: await row(true) };
 }
 
 interface Blob extends Box {
@@ -264,6 +323,126 @@ function inRuledCell(page: Page, box: Box): boolean {
   );
 }
 
+/** A long straight line across the sheet, `at` the row (or column) it runs along. */
+interface Rule {
+  at: number;
+  from: number;
+  to: number;
+}
+
+/**
+ * The title block, as the bands between long rules along a side of the sheet. A number in one of
+ * its cells is left out even where the cell is open on a side — at the sheet's edge, or where its
+ * label stands between the number and the rule — which `inRuledCell` cannot tell from open space.
+ */
+function titleBlocksOf(page: Page): Box[] {
+  const bands: Box[] = [];
+  for (const horizontal of [true, false]) {
+    const across = horizontal ? page.height : page.width;
+    const along = horizontal ? page.width : page.height;
+    const rules = longRules(page, horizontal);
+    for (const [index, first] of rules.entries()) {
+      const second = rules[index + 1];
+      if (!second) {
+        break;
+      }
+      const from = Math.max(first.from, second.from);
+      const to = Math.min(first.to, second.to);
+      const high = second.at - first.at;
+      const middle = (first.at + second.at) / 2 / across;
+      if (
+        to - from >= LONG_RULE * along &&
+        high >= TITLE_BLOCK.least &&
+        high <= TITLE_BLOCK.most * across &&
+        (middle <= TITLE_BLOCK.edge || middle >= 1 - TITLE_BLOCK.edge)
+      ) {
+        bands.push(
+          horizontal
+            ? { x: from, y: first.at, w: to - from, h: high }
+            : { x: first.at, y: from, w: high, h: to - from },
+        );
+      }
+    }
+  }
+  return bands;
+}
+
+/**
+ * Every line of ink running across most of the sheet, in order. A scan is seldom quite square, so
+ * a line may step a pixel aside as it goes, as long as it ends about where it began.
+ */
+function longRules(page: Page, horizontal: boolean): Rule[] {
+  const along = horizontal ? page.width : page.height;
+  const across = horizontal ? page.height : page.width;
+  const inkAt = (a: number, c: number) =>
+    page.ink[horizontal ? c * page.width + a : a * page.width + c] === 1;
+
+  // The longest line ending at each row so far, and the row it began on.
+  let length = new Int32Array(across);
+  let gap = new Int32Array(across);
+  let start = new Int32Array(across);
+  let nextLength = new Int32Array(across);
+  let nextGap = new Int32Array(across);
+  let nextStart = new Int32Array(across);
+  const longest = new Int32Array(across);
+  const ends = new Int32Array(across);
+  const began = new Int32Array(across);
+
+  for (let a = 0; a < along; a += 1) {
+    for (let c = 0; c < across; c += 1) {
+      if (inkAt(a, c)) {
+        let from = -1;
+        for (const step of [0, -1, 1]) {
+          const before = c + step;
+          if (before >= 0 && before < across && (length[before] as number) > 0) {
+            if (from < 0 || (length[before] as number) > (length[from] as number)) {
+              from = before;
+            }
+          }
+        }
+        nextLength[c] = from < 0 ? 1 : (length[from] as number) + 1;
+        nextStart[c] = from < 0 ? c : (start[from] as number);
+        nextGap[c] = 0;
+        if ((nextLength[c] as number) > (longest[c] as number)) {
+          longest[c] = nextLength[c] as number;
+          ends[c] = a;
+          began[c] = nextStart[c] as number;
+        }
+      } else if ((length[c] as number) > 0 && (gap[c] as number) < LONG_RULE_GAP) {
+        nextLength[c] = (length[c] as number) + 1;
+        nextStart[c] = start[c] as number;
+        nextGap[c] = (gap[c] as number) + 1;
+      } else {
+        nextLength[c] = 0;
+        nextGap[c] = 0;
+      }
+    }
+    [length, nextLength] = [nextLength, length];
+    [gap, nextGap] = [nextGap, gap];
+    [start, nextStart] = [nextStart, start];
+  }
+
+  // A rule several pixels thick, or stepping across rows, is found on each of them: one rule.
+  const rules: Rule[] = [];
+  for (let c = 0; c < across; c += 1) {
+    const reach = longest[c] as number;
+    const level = Math.abs(c - (began[c] as number)) <= 0.02 * reach + 2;
+    if (reach < LONG_RULE * along || !level) {
+      continue;
+    }
+    const rule = { at: c, from: (ends[c] as number) - reach + 1, to: ends[c] as number };
+    const last = rules.at(-1);
+    if (last && c - last.at <= 4) {
+      last.at = c;
+      last.from = Math.min(last.from, rule.from);
+      last.to = Math.max(last.to, rule.to);
+    } else {
+      rules.push(rule);
+    }
+  }
+  return rules;
+}
+
 /**
  * A line of ink along row (or column) `line` across the whole span, allowing for a scan's slight
  * skew — a pixel either side — and for a few pixels the scan lost.
@@ -334,6 +513,13 @@ function boundsOf(boxes: Box[]): Box {
 
 function boxOf({ x, y, w, h }: Box): Box {
   return { x, y, w, h };
+}
+
+/** Whether the middle of `box` lies inside `band`. */
+function holds(band: Box, box: Box): boolean {
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  return cx >= band.x && cx <= band.x + band.w && cy >= band.y && cy <= band.y + band.h;
 }
 
 function overlaps(a: Box, b: Box): boolean {

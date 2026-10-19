@@ -7,6 +7,8 @@ import {
   EXPECTED_TRANSLATION_INPUT,
   IDENTIFY,
   MAX_TOKENS,
+  ORIENTATION_LABELS,
+  ORIENT_NUMBERS,
   READ_NUMBERS,
   READ_TABLE,
   ReadingMethodError,
@@ -14,6 +16,7 @@ import {
   numberLabels,
   numberReadingsOf,
   numbersSchema,
+  orientationSchema,
   stripsOf,
   tableSchema,
   translateInstruction,
@@ -24,6 +27,7 @@ import type {
   Answer,
   NumberCrop,
   NumberReading,
+  NumbersBothWays,
   ReadingMethod,
   RequestEstimate,
   SheetEstimate,
@@ -185,6 +189,36 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
         ),
         output: EXPECTED_OUTPUT.numbers,
         outputAtMost: MAX_TOKENS,
+      };
+    },
+
+    async estimateOrientation(rows: NumbersBothWays): Promise<RequestEstimate> {
+      return {
+        input: await counted(
+          requestFor(
+            orientationSchema,
+            ORIENT_NUMBERS,
+            [rows.asFound, rows.halfRound],
+            'low',
+            ORIENTATION_LABELS,
+          ),
+        ),
+        output: EXPECTED_OUTPUT.orientation,
+        outputAtMost: MAX_TOKENS,
+      };
+    },
+
+    async orientNumbers(rows: NumbersBothWays): Promise<Answer<'as-found' | 'half-round'>> {
+      const answer = await ask(
+        orientationSchema,
+        ORIENT_NUMBERS,
+        [rows.asFound, rows.halfRound],
+        'low',
+        ORIENTATION_LABELS,
+      );
+      return {
+        value: answer.value.upright === 'A' ? 'as-found' : 'half-round',
+        tokens: answer.tokens,
       };
     },
 

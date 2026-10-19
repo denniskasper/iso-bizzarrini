@@ -49,7 +49,16 @@ export interface InventedPage {
    */
   tokens?: Tokens;
   estimate?: Partial<SheetEstimate>;
-  /** Position numbers printed on the page. */
+  /**
+   * Which way the fake identification says its numbers read, where it gets them the wrong way
+   * round: it is asked again by showing them both ways, and is right then.
+   */
+  saysNumbersTurn?: SheetIdentity['numbersTurn'];
+  /**
+   * Position numbers printed on the page. A page whose identity gives a `numbersTurn` is
+   * invented the way its numbers read and scanned turned back from that, so `width`, `height` and
+   * every box below are in the frame its numbers are found in.
+   */
   numbers?: PrintedNumber[];
   /** Ruled boxes drawn on the page, as a title block's cells are. */
   rules?: Box[];
@@ -96,6 +105,9 @@ export interface FakeMethodOptions {
   translationEstimate?: RequestEstimate;
   /** How many requests it answers before the plan's usage limit is reached. */
   usageLimitAfter?: number;
+  /** What asking which way a drawing's numbers read takes, and is estimated to. Nothing, unless said. */
+  orientationTokens?: Tokens;
+  orientationEstimate?: RequestEstimate;
   /** What each request to read a drawing's numbers takes. As any other request, unless said. */
   numbersTokens?: Tokens;
   numbersEstimate?: RequestEstimate;
@@ -145,6 +157,8 @@ export function fakeReadingMethod(
         sottogruppo: null,
         ...pageOf(sheet.page).identity,
       };
+      identity.numbersTurn =
+        pageOf(sheet.page).saysNumbersTurn ?? identity.numbersTurn ?? identity.turn;
       return { value: identity, tokens: pageOf(sheet.page).tokens ?? TOKENS_PER_CALL };
     },
     async readTable(sheet, reading) {
@@ -167,6 +181,18 @@ export function fakeReadingMethod(
       return {
         value: crops.map((crop) => readCrop(crop.id, crop.at, printed)),
         tokens: options.numbersTokens ?? TOKENS_PER_CALL,
+      };
+    },
+    async estimateOrientation() {
+      return options.orientationEstimate ?? NO_ESTIMATE;
+    },
+    async orientNumbers(rows) {
+      call(`orient ${rows.page}`);
+      const page = pageOf(rows.page);
+      const said = page.saysNumbersTurn ?? page.identity?.numbersTurn;
+      return {
+        value: said === page.identity?.numbersTurn ? 'as-found' : 'half-round',
+        tokens: options.orientationTokens ?? NO_TOKENS,
       };
     },
     async translate(texts) {
@@ -200,7 +226,10 @@ export function fakePages(pages: InventedPage[]): PageSource {
         ink({ x: box.x, y: box.y, w: 3, h: box.h });
         ink({ x: box.x + box.w - 3, y: box.y, w: 3, h: box.h });
       }
+      // Invented the way its numbers read, and scanned turned back from that.
+      const numbersTurn = page.identity?.numbersTurn ?? 0;
       const image = await sharp(pixels, { raw: { width, height, channels: 1 } })
+        .rotate((360 - numbersTurn) % 360)
         .png()
         .toBuffer();
       yield { page: index + 1, image };

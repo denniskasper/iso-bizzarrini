@@ -1,5 +1,6 @@
+import sharp from 'sharp';
 import type { Spending } from './cost.js';
-import { cropsOf, findNumbers, type NumberCrop } from './find-numbers.js';
+import { bothWays, cropsOf, findNumbers, type NumberCrop } from './find-numbers.js';
 import {
   NUMBERS_PER_REQUEST,
   type ReadingMethod,
@@ -22,12 +23,11 @@ export async function estimatePage(
   method: ReadingMethod,
   spending: Spending,
   page: SheetImage,
-  identity?: SheetIdentity,
+  known?: SheetIdentity,
 ): Promise<{ sheet: SheetEstimate; cost: number }> {
+  const identity = known && needsAsking(known) ? undefined : known;
   const sheet = await method.estimate(page);
-  // A page not yet asked about is found numbers on the way it was scanned; once turned upright
-  // it may group a few differently, and each request is counted again before it is sent.
-  const numbers = identity?.kind === 'table' ? [] : await estimateNumbers(method, page.image);
+  const numbers = identity?.kind === 'table' ? [] : await estimateNumbers(method, page, identity);
   const cost = !identity
     ? spending.estimateOf(sheet, numbers)
     : identity.kind === 'drawing'
@@ -36,10 +36,41 @@ export async function estimatePage(
   return { sheet, cost };
 }
 
-/** The requests a drawing's numbers would take to read, each counted as it would be sent. */
-async function estimateNumbers(method: ReadingMethod, image: Buffer): Promise<RequestEstimate[]> {
-  const crops = await cropsOf(image, await findNumbers(image));
+/**
+ * A drawing identified before it was asked which way its numbers read (issue #72) is asked again,
+ * and counted as a page not yet asked about.
+ */
+export function needsAsking(identity: SheetIdentity): boolean {
+  return identity.kind === 'drawing' && identity.numbersTurn === undefined;
+}
+
+/**
+ * The requests a drawing's numbers would take to read, each counted as it would be sent. Before
+ * the page is asked which way its numbers read, they are found both upright and on their side as
+ * scanned, and counted the way that finds more; turned half round, a page finds the same. Unless
+ * they are known to read the way the headings do, asking which way up they are is counted too.
+ */
+async function estimateNumbers(
+  method: ReadingMethod,
+  page: SheetImage,
+  identity: SheetIdentity | undefined,
+): Promise<RequestEstimate[]> {
+  const turns = identity?.numbersTurn !== undefined ? [identity.numbersTurn] : [0, 90];
+  let crops: NumberCrop[] = [];
+  for (const turn of turns) {
+    const image = turn === 0 ? page.image : await sharp(page.image).rotate(turn).png().toBuffer();
+    const found = await cropsOf(image, await findNumbers(image));
+    if (found.length >= crops.length) {
+      crops = found;
+    }
+  }
   const requests: RequestEstimate[] = [];
+  const turnedFromHeadings = !identity || identity.numbersTurn !== identity.turn;
+  if (turnedFromHeadings && crops.length > 0) {
+    requests.push(
+      await method.estimateOrientation({ page: page.page, ...(await bothWays(crops)) }),
+    );
+  }
   for (const batch of batchesOf(crops)) {
     requests.push(await method.estimateNumbers(batch));
   }

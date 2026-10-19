@@ -139,8 +139,16 @@ and moves its date.
 - **A Mark is proposed for every position number found on the drawing.** Where a number is comes
   from the ink alone. The model is shown each one as a small crop and says what number it is, or
   that it is none. It is never asked where anything is. Nothing near the sheet's edge, or inside
-  a title block's cells, is sent or marked. A number printed sideways is not found, and shows up
-  as a Position with no Mark.
+  the title block, is sent or marked. The title block is found as the band between long rules
+  along one side of the sheet, so a cell open at the sheet's edge is still left out.
+- **A drawing's numbers are found the way they read**, which on some sheets is a quarter turn
+  from the headings. When a drawing is identified, the model also says which way most of its
+  numbers read. Where that is a turn from the headings, the model is also shown a few of the
+  numbers in two rows, as found and turned half round, and says which row is the right way up:
+  which way a sideways number reads is easy to get the wrong way round, and an upside-down 6 is a
+  9. The finder and the crops work on the drawing turned that way, and each Mark is turned back
+  onto the Scan. Numbers printed in a second direction on the same sheet are still
+  not found, and show up as Positions with no Mark.
 - **Where the drawing and the table disagree, it is in doubt**: every Position the table lists
   with no Mark, and every Mark whose number no row lists.
 - **A dash** for a position is the Position above. **A range** (`16-17`) is the Part at each
@@ -169,7 +177,8 @@ its Table sheets, but are never told which Reading method read it.
 
 Where a Tavola was read badly, an Administrator can press **Read again** under its Unchecked band
 instead of reading the catalog again. Its own run is estimated, from only the pages it was found
-on, and started with its own limit like any other. When the run finishes, the Tavola is replaced
+on, and started with its own limit like any other. A drawing identified before the reading asked
+which way its numbers read is asked again for that alone; what it was found to be stands. When the run finishes, the Tavola is replaced
 whole. Reading again is refused, with the reason:
 
 - for a Published Tavola, which is corrected in Ricambi instead;

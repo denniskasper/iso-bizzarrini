@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { readCatalogInto } from '../src/reading/catalog-reading.js';
 import { readCatalog } from '../src/reading/read-catalog.js';
 import { readSheet } from '../src/sheets/csv.js';
 import {
@@ -11,6 +12,7 @@ import {
   fakePages,
   fakeReadingMethod,
   givenOutputDirectory,
+  memoryStore,
   type FakeMethodOptions,
   type InventedPage,
   type OutputDirectory,
@@ -176,6 +178,147 @@ describe('Marks proposed from the drawing', () => {
     expect(method.calls.filter((call) => call.startsWith('numbers'))).toEqual(['numbers 2']);
   });
 
+  it('proposes no Mark in a title block whose cells are open on a side', async () => {
+    // As Tavola 51's: two rows of cells across the top, cut off at the sheet's right edge, a
+    // label between each cell's left rule and its number.
+    const { out } = await read([
+      drawing({
+        numbers: [
+          // Foglio N° 101, in the upper row.
+          { text: '101', x: 850, y: 45 },
+          // Gruppo 1, Sottogruppo 11 and Tavola N° 51, in the lower row.
+          { text: '1', x: 560, y: 82 },
+          { text: '11', x: 740, y: 82 },
+          { text: '51', x: 900, y: 82 },
+          // Position numbers on the drawing, one just below the title block.
+          { text: '7', x: 400, y: 125 },
+          { text: '12', x: 300, y: 400 },
+        ],
+        lines: [
+          // The title block's rules, running off the right of the sheet's frame.
+          { x: 50, y: 40, w: 930, h: 3 },
+          { x: 300, y: 75, w: 680, h: 3 },
+          { x: 50, y: 110, w: 930, h: 3 },
+          // Its cells' sides, and the labels standing before the numbers.
+          { x: 300, y: 40, w: 3, h: 73 },
+          { x: 600, y: 78, w: 3, h: 35 },
+          { x: 800, y: 78, w: 3, h: 35 },
+          { x: 320, y: 92, w: 80, h: 4 },
+          { x: 620, y: 92, w: 80, h: 4 },
+          { x: 820, y: 92, w: 50, h: 4 },
+        ],
+      }),
+      tableListing('1', '7', '11', '12'),
+    ]);
+
+    expect((await marksOf(out)).map((mark) => mark.position)).toEqual(['7', '12']);
+  });
+
+  it('finds numbers printed sideways to the title block, and marks them where they are on the Scan', async () => {
+    // Printed a quarter turn from the headings: the numbers read upright once the sheet is
+    // turned 90° clockwise, and its title block once it is not turned at all.
+    const { out } = await read([
+      {
+        ...aDrawing('84', { turn: 0, numbersTurn: 90 }),
+        width: WIDTH,
+        height: HEIGHT,
+        numbers: [
+          { text: '7', x: 200, y: 100 },
+          { text: '22', x: 600, y: 300 },
+        ],
+      },
+      tableListing('7', '22'),
+    ]);
+
+    const marks = await marksOf(out);
+    expect(marks.map((mark) => mark.position)).toEqual(['22', '7']);
+    const [twentyTwo, seven] = marks;
+    // The Scan is the sheet as its headings read, the numbers' frame turned back a quarter.
+    expect(seven?.x).toBeCloseTo((100 + 13) / HEIGHT, 3);
+    expect(seven?.y).toBeCloseTo(1 - (200 + 7) / WIDTH, 3);
+    expect(twentyTwo?.x).toBeCloseTo((300 + 13) / HEIGHT, 3);
+  });
+
+  it('asks which way up the numbers are, and turns them half round where it was guessed wrong', async () => {
+    const { out, method } = await read([
+      {
+        ...aDrawing('84', { turn: 0, numbersTurn: 90 }),
+        // Identified as reading the other way round, downward.
+        saysNumbersTurn: 270,
+        width: WIDTH,
+        height: HEIGHT,
+        numbers: [
+          { text: '7', x: 200, y: 100 },
+          { text: '22', x: 600, y: 300 },
+        ],
+      },
+      tableListing('7', '22'),
+    ]);
+
+    expect(method.calls).toContain('orient 1');
+    const [twentyTwo, seven] = await marksOf(out);
+    expect([twentyTwo?.position, seven?.position]).toEqual(['22', '7']);
+    expect(seven?.x).toBeCloseTo((100 + 13) / HEIGHT, 3);
+    expect(seven?.y).toBeCloseTo(1 - (200 + 7) / WIDTH, 3);
+  });
+
+  it('does not ask which way up the numbers are where they read as the headings do', async () => {
+    const { method } = await read([
+      drawing({ numbers: [{ text: '7', x: 200, y: 100 }] }),
+      tableListing('7'),
+    ]);
+
+    expect(method.calls.filter((call) => call.startsWith('orient'))).toEqual([]);
+  });
+
+  it('asks a drawing identified before again which way its numbers read, and keeps the rest', async () => {
+    const pages = [
+      {
+        ...aDrawing('84', { turn: 0, numbersTurn: 90, titleIt: 'ASKED AGAIN' }),
+        width: WIDTH,
+        height: HEIGHT,
+        numbers: [{ text: '7', x: 200, y: 100 }],
+      },
+      tableListing('7'),
+    ];
+    const method = fakeReadingMethod(pages);
+    const { numbersTurn: _, ...before } = {
+      kind: 'drawing' as const,
+      tavola: '84',
+      foglio: null,
+      turn: 0 as const,
+      numbersTurn: undefined,
+      titleIt: 'AS FIRST READ',
+      sezione: null,
+      gruppo: null,
+      sottogruppo: null,
+    };
+    const store = memoryStore({
+      run: 2,
+      pages: [
+        { page: 1, identity: before },
+        { page: 2, identity: { ...before, kind: 'table' } },
+      ],
+      tavole: [],
+      translations: [],
+    });
+
+    await readCatalogInto({
+      method,
+      pages: fakePages(pages)('catalog.pdf'),
+      limit: 100,
+      store,
+      print: () => undefined,
+    });
+
+    expect(method.calls.filter((call) => call.startsWith('identify'))).toEqual(['identify 1']);
+    expect(store.pages.at(-1)).toEqual({
+      page: 1,
+      identity: { ...before, numbersTurn: 90 },
+    });
+    expect(store.tavole[0]?.marks.map((mark) => mark.position)).toEqual(['7']);
+  });
+
   it('lists every Position with no Mark, and every Mark listed in no row', async () => {
     const { out, result, printed } = await read([
       drawing({
@@ -231,6 +374,33 @@ describe('Marks proposed from the drawing', () => {
         cost: 0.08,
         numbers: [{ tokens: { input: 5000, output: 1000 }, cost: 0.04 }],
       });
+    });
+
+    it('is estimated for numbers printed sideways, which cannot be found as the page was scanned', async () => {
+      // 81 numbers, three requests of 40 at $0.04: more than the $0.08 of reading it as a
+      // Table sheet, so the drawing is estimated at $0.16 with asking what it is.
+      const numbers = Array.from({ length: 81 }, (_, index) => ({
+        text: String((index % 9) + 1),
+        x: 60 + (index % 9) * 100,
+        y: 60 + Math.floor(index / 9) * 80,
+      }));
+      const { result, method, printed } = await read([
+        {
+          ...aDrawing('84', { turn: 0, numbersTurn: 90 }),
+          width: WIDTH,
+          height: HEIGHT,
+          numbers,
+        },
+        tableListing('1'),
+      ]);
+
+      expect(method.calls.filter((call) => call.startsWith('numbers'))).toEqual([
+        'numbers 40',
+        'numbers 40',
+        'numbers 1',
+      ]);
+      expect(printed).toContain('Estimated at $0.28 for 2 pages');
+      expect(result.cost.total).toBeLessThanOrEqual(result.cost.estimate);
     });
 
     it('is held to the limit: a run that could pass it stops before reading them', async () => {
