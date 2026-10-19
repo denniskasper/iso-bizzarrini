@@ -31,7 +31,7 @@ describe('the renewal a lapsed member is shown', () => {
       .send({
         fee: '45.00',
         currency: 'EUR',
-        bankAccountHolder: 'Iso Bizzarrini Club',
+        bankAccountHolder: 'An Invented Club',
         bankName: 'A Bank',
         iban: 'DE00 0000 0000 0000 0000 00',
         bic: 'ABCDEFGH',
@@ -52,7 +52,7 @@ describe('the renewal a lapsed member is shown', () => {
     expect(response.body.renewal).toMatchObject({
       fee: '45.00',
       currency: 'EUR',
-      bankAccountHolder: 'Iso Bizzarrini Club',
+      bankAccountHolder: 'An Invented Club',
       bankName: 'A Bank',
       iban: 'DE00 0000 0000 0000 0000 00',
       bic: 'ABCDEFGH',
