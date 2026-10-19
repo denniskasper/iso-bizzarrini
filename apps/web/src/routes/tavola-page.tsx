@@ -206,6 +206,8 @@ export function TavolaPage() {
         params: { tavolaId },
         search: position ? { position: position.number } : {},
         replace: true,
+        // The same page, another Position: the reader stays where they were on it.
+        resetScroll: false,
       });
     },
     [navigate, tavolaId],

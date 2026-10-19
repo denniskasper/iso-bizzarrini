@@ -34,3 +34,29 @@ test('an Editor clears a doubt they have looked at, and it is no longer there', 
   // Publishing is still there to press, with doubts left or none.
   await expect(page.getByRole('button', { name: 'Publish' })).toBeEnabled();
 });
+
+test('following a doubt keeps the page where it was', async ({ page }) => {
+  // Short enough that the doubts sit below the fold on either screen.
+  const { width } = page.viewportSize() ?? { width: 1280 };
+  await page.setViewportSize({ width, height: 480 });
+  await signIn(page);
+  await page.getByRole('link', { name: /5300 GT Strada/ }).click();
+  await page
+    .getByTestId('left-to-check')
+    .getByRole('link', { name: /Fuel pump/ })
+    .click();
+
+  // Neither screen clears this one, so it is there for both.
+  const doubt = page
+    .getByTestId('reading-doubt')
+    .filter({ has: page.getByText('4', { exact: true }) });
+  await doubt.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(0);
+
+  await doubt.getByRole('button', { name: /no row of the table lists it/ }).click();
+
+  // It used to be thrown back to the top of the page, a few pixels from 0.
+  await expect(page).toHaveURL(/position=4/);
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(before);
+});
