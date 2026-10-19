@@ -32,6 +32,12 @@ function succeeds(...args: string[]): boolean {
  *
  * "Merged" is read as "an ancestor of `main`", which is true of a pull request merged with a
  * merge commit, as they are here. A squashed one would leave a branch this takes for unfinished.
+ *
+ * A branch with no commits of its own is neither: a run that stopped before the agent wrote
+ * anything (a missing image, a missing credential) leaves one behind, cut from `main` as it then
+ * was. It holds no work, so the local copy is removed and a new one cut, without asking. It is
+ * told apart from a merged one by standing on `main`'s own line of commits, where a merged pull
+ * request's last commit is only reached through its merge.
  */
 export function baseForRun(branch: string): string {
   try {
@@ -47,9 +53,20 @@ export function baseForRun(branch: string): string {
     succeeds('rev-parse', '--verify', '--quiet', ref),
   );
 
+  const local = `refs/heads/${branch}`;
+  if (copies.includes(local) && neverWorkedOn(local)) {
+    try {
+      git('branch', '-D', branch);
+      copies.splice(copies.indexOf(local), 1);
+      console.log(`'${branch}' was left by a run that wrote nothing. Removed; a new one is cut.`);
+    } catch {
+      // Checked out in a worktree, most likely: refused below, with the way out.
+    }
+  }
+
   const stale = copies.filter((ref) => succeeds('merge-base', '--is-ancestor', ref, BASE));
   if (stale.length > 0) {
-    const local = stale.includes(`refs/heads/${branch}`);
+    const localStale = stale.includes(local);
     const remote = stale.includes(`refs/remotes/origin/${branch}`);
     throw new Error(
       [
@@ -57,7 +74,7 @@ export function baseForRun(branch: string): string {
         'Starting on it would give the agent the tree as it was then. Nothing was started.',
         '',
         'Remove it, and run this again:',
-        ...(local ? [`  git branch -d ${branch}`] : []),
+        ...(localStale ? [`  git branch -d ${branch}`] : []),
         ...(remote ? [`  git push origin --delete ${branch}`] : []),
       ].join('\n'),
     );
@@ -70,4 +87,10 @@ export function baseForRun(branch: string): string {
   // Only read when the branch does not exist: a new one is cut from what is on the remote, not
   // from whatever happens to be checked out in the directory the run was started from.
   return BASE;
+}
+
+/** Whether the branch stands on `main`'s own line of commits: cut from it, and never added to. */
+function neverWorkedOn(ref: string): boolean {
+  const tip = git('rev-parse', ref);
+  return git('rev-list', '--first-parent', BASE).split('\n').includes(tip);
 }
