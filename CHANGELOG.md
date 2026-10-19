@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.4.0...v0.5.0) (2026-10-19)
+
+
+### New
+
+* show a Mark's card beside the drawing instead of over it ([0e97d1d](https://github.com/denniskasper/iso-bizzarrini/commit/0e97d1d4f1896fc1d5c034f6a80f3baf075a72ce))
+
 ## [0.4.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.3.0...v0.4.0) (2026-10-19)
 
 
