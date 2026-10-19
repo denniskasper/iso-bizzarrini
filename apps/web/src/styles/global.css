@@ -443,9 +443,9 @@
 
   /*
    * **What is at a Mark, on a pointer resting on it** (issue #35) — and the same on keyboard
-   * focus. Laid over the stage rather than inside the sheet, so it does not magnify with the
-   * drawing; it stands beside the circle, on whichever side has room. It holds nothing that can
-   * be pressed, and lets every pointer through: nothing is reachable by hovering alone.
+   * focus. **Never over the drawing**: in the column beside it where there is one, and otherwise
+   * a strip along the stage's edge, away from the circle. It holds nothing that can be pressed,
+   * and lets every pointer through: nothing is reachable by hovering alone.
    *
    * The number heads it on the Mark's own blue, as it does in the reading beside the drawing,
    * because the card and the circle under the pointer are one thing being pointed at.
@@ -453,7 +453,6 @@
   .mark-card {
     position: absolute;
     z-index: 5;
-    width: min(var(--width-card), calc(100% - 2 * var(--spacing-card-edge)));
     padding: --spacing(3.5) --spacing(4.5) --spacing(4);
     font-size: var(--text-card);
     line-height: var(--text-card--line-height);
@@ -463,6 +462,23 @@
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-card);
     pointer-events: none;
+  }
+
+  /* In the column, the column's width, over what the column was showing until the pointer
+     leaves. Placed from the top by the script, level with the sheet. */
+  .mark-card-beside {
+    inset-inline: 0;
+  }
+
+  /* No column: across the stage at its bottom edge, or its top when the circle is low down. */
+  .mark-card-docked {
+    inset-inline: var(--spacing-card-edge);
+    bottom: var(--spacing-card-edge);
+  }
+
+  .mark-card-docked[data-dock='top'] {
+    top: var(--spacing-card-edge);
+    bottom: auto;
   }
 
   .mark-card-number {
@@ -479,6 +495,20 @@
     margin-top: --spacing(3);
     padding-top: --spacing(3);
     border-top: 1px solid var(--line);
+  }
+
+  /* As a strip, its Parts stand side by side where the stage is wide enough, so the strip is as
+     short as it can be and leaves the most of the drawing showing. */
+  .mark-card-docked ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--width-card)), 1fr));
+    gap: --spacing(3) --spacing(6);
+  }
+
+  .mark-card-docked .mark-card-part + .mark-card-part {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
   }
 
   /* The archive's own label, at the card's size rather than the page's smallest. */

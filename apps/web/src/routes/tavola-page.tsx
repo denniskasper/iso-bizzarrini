@@ -25,7 +25,7 @@ import { PositionList } from '@/components/positions/position-list';
 import { WhatIsLeft } from '@/components/progress/what-is-left';
 import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
-import { MarkCard, PositionCard } from '@/components/viewer/mark-card';
+import { MarkCard, PositionCard, useBeside } from '@/components/viewer/mark-card';
 import { MarkLayer, type Pointed } from '@/components/viewer/mark-layer';
 import {
   api,
@@ -39,6 +39,11 @@ import { useTavolaListings } from '@/lib/parts';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
 import { useSheetProgress } from '@/lib/progress';
 import { useSession } from '@/lib/session';
+
+/** How long a pointer rests on a circle before the card takes over the column. */
+const POINTER_SETTLES_MS = 120;
+/** How long the card stays after the pointer leaves, so the next circle does not blank it. */
+const POINTER_LINGERS_MS = 120;
 
 /**
  * One drawing, with the numbered circles on it and the Part beside it.
@@ -104,17 +109,46 @@ export function TavolaPage() {
   const tool = useMarkingTool(tavolaId);
 
   /**
-   * The circle a pointer is resting on, or keyboard focus is at, and the card beside it says what
-   * is there (issue #35). Keyed by the Tavola like everything else held here, so a card never
-   * follows a member onto the next sheet. What it shows comes from the sheet's index, which the
-   * column beside the drawing reads anyway: hovering costs no request.
+   * The circle a pointer is resting on, or keyboard focus is at, and the card says what is there
+   * (issue #35). Keyed by the Tavola like everything else held here, so a card never follows a
+   * member onto the next sheet. What it shows comes from the sheet's index, which the column
+   * beside the drawing reads anyway: hovering costs no request.
+   *
+   * **Calm, because the card now takes over the column.** A pointer crossing the sheet on its
+   * way somewhere does not flick the reading over and back: the card waits for the pointer to
+   * settle on a circle, and stays a moment after it leaves, so moving from one circle to the next
+   * changes the card without blanking it in between.
    */
   const [pointedAt, setPointedAt] = useState<(Pointed & { tavolaId: string }) | null>(null);
+  const pointing = useRef<{ timer?: number; shown: boolean }>({ shown: false });
   const point = useCallback(
-    (pointed: Pointed | null) => setPointedAt(pointed && { ...pointed, tavolaId }),
+    (pointed: Pointed | null) => {
+      const now = pointing.current;
+      window.clearTimeout(now.timer);
+      if (pointed) {
+        const show = () => {
+          now.shown = true;
+          setPointedAt({ ...pointed, tavolaId });
+        };
+        if (now.shown) {
+          show();
+        } else {
+          now.timer = window.setTimeout(show, POINTER_SETTLES_MS);
+        }
+      } else {
+        now.timer = window.setTimeout(() => {
+          now.shown = false;
+          setPointedAt(null);
+        }, POINTER_LINGERS_MS);
+      }
+    },
     [tavolaId],
   );
+  useEffect(() => () => window.clearTimeout(pointing.current.timer), []);
   const pointed = pointedAt?.tavolaId === tavolaId ? pointedAt : null;
+  /** Where the column keeps the card, once the column is on the page. */
+  const [besideHost, setBesideHost] = useState<HTMLDivElement | null>(null);
+  const beside = useBeside();
   const index = useTavolaListings(tavolaId);
 
   /**
@@ -141,6 +175,10 @@ export function TavolaPage() {
   const selected = selectedPosition
     ? { position: selectedPosition, markId: selectedMark?.id ?? null }
     : null;
+  // Beside the drawing, the column is already reading the selected number: a card for it would
+  // only cover the same words with themselves.
+  const described =
+    pointed && !(beside && pointed.position.id === selectedPosition?.id) ? pointed : null;
 
   /**
    * The circles a shown Sub-assembly holds — **derived rather than remembered**, so that reading
@@ -395,18 +433,18 @@ export function TavolaPage() {
               lit={lit}
               onSelect={readMark}
               onPoint={point}
-              pointedMarkId={pointed?.mark.id ?? null}
+              pointedMarkId={described?.mark.id ?? null}
               onMove={tool.on ? tool.moveMark : undefined}
             />
           }
           card={
-            pointed && (
-              <MarkCard anchor={pointed.element}>
+            described && (
+              <MarkCard anchor={described.element} beside={besideHost}>
                 <PositionCard
-                  position={pointed.position}
+                  position={described.position}
                   listings={
                     index.data?.listings.filter(
-                      (listing) => listing.positionId === pointed.position.id,
+                      (listing) => listing.positionId === described.position.id,
                     ) ?? null
                   }
                 />
@@ -418,7 +456,10 @@ export function TavolaPage() {
           onTapPoint={tool.on ? tool.place : undefined}
         />
 
-        <div className="flex flex-col gap-10">
+        <div className="relative flex flex-col gap-10">
+          {/* Where the card for a pointed-at circle is shown, over the top of this column and
+              level with the sheet, so the drawing itself is never covered. */}
+          <div ref={setBesideHost} className="absolute inset-x-0 top-0 z-5 h-0" />
           {positions.length > 0 && <PositionJump positions={positions} onJump={goTo} />}
 
           <PartReading
