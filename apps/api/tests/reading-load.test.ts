@@ -23,7 +23,12 @@ import {
   type InventedPage,
   type OutputDirectory,
 } from './support/catalog-reading.js';
-import { givenModel, givenScanImage, givenTavola } from './support/fixtures.js';
+import {
+  givenModel,
+  givenPhotographImage,
+  givenScanImage,
+  givenTavola,
+} from './support/fixtures.js';
 import { givenAMember, givenAnAdministrator } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
@@ -288,6 +293,22 @@ describe('a machine-read catalog, loaded', () => {
     expect(drawing.positions.map((position) => position.number)).toEqual(['1']);
     expect(await filesUnder('scans')).toBe(scansBefore);
     expect(await filesUnder('table-sheets')).toBe(sheetsBefore);
+  });
+
+  it('removes the Photographs of a Part that goes with a discarded Tavola, files and all', async () => {
+    await load(await givenRead());
+    const [match] = (await search(editor, '208502')).matches;
+    await editor
+      .post(`/api/parts/${match?.part.id}/photographs`)
+      .set('Content-Type', 'image/jpeg')
+      .send(await givenPhotographImage())
+      .expect(201);
+    expect(await filesUnder('photographs')).toBe(1);
+
+    await load(await givenRead([aTableSheet('84', [aTable([])], { titleIt: 'ASSALE' })]));
+
+    expect((await search(editor, '208502')).matches).toEqual([]);
+    expect(await filesUnder('photographs')).toBe(0);
   });
 
   it('keeps a Part that is also listed on a Published Tavola when it discards one', async () => {
