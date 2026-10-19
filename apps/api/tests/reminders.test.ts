@@ -40,7 +40,7 @@ class DeliveringMailbox extends InMemoryEmailSender {
 const CLUB = {
   fee: '45,00',
   currency: 'EUR',
-  bankAccountHolder: 'Iso Bizzarrini Club e.V.',
+  bankAccountHolder: 'An Invented Club e.V.',
   bankName: 'A Bank',
   iban: 'DE11 1111 1111 1111 1111 11',
   bic: 'ABCDEFGH',
@@ -122,7 +122,7 @@ describe('Renewal reminders', () => {
       'Hello Elena Moretti,',
       'Your membership of the Club is about to run out.',
       '45.00 EUR',
-      'Iso Bizzarrini Club e.V.',
+      'An Invented Club e.V.',
       'DE11 1111 1111 1111 1111 11',
       'ABCDEFGH',
       'Ricambi 2027 Elena Moretti',
