@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh flex-col bg-surface">
       {/* The stamp travels with the chrome: a mark you can scroll away from is a mark you can
           forget. In production nothing is rendered above the header at all. */}
-      <div className="sticky top-0 z-10">
+      <div className="sticky top-0 z-10" data-chrome>
         <EnvironmentBanner />
 
         {/* On the page's own surface, ruled off by a hairline: the chrome is the thinnest thing
