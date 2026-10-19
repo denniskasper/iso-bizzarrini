@@ -89,6 +89,7 @@ describe('reading with Claude through an API key', () => {
       tavola: '84',
       foglio: null,
       turn: 90,
+      numbersTurn: 0,
       titleIt: 'ASSALE POSTERIORE',
       sezione: null,
       gruppo: null,
@@ -198,6 +199,25 @@ describe('reading with Claude through an API key', () => {
     expect(sent).not.toContain('1234');
     expect(sent).not.toContain('2345');
     expect(api.received[0]?.body.output_config.format.type).toBe('json_schema');
+  });
+
+  it('asks which of two rows of crops is the right way up, each row labelled', async () => {
+    const api = await givenTheApi(200, { upright: 'B' });
+    const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 0 });
+    const row = (await aPage(80)).image;
+
+    const answer = await method.orientNumbers({ page: 3, asFound: row, halfRound: row });
+
+    expect(answer.value).toBe('half-round');
+    const blocks = api.received[0]?.body.messages[0]?.content ?? [];
+    expect(blocks.map((block) => (block as unknown as { text?: string }).text)).toEqual([
+      'Row A',
+      undefined,
+      'Row B',
+      undefined,
+      expect.stringContaining('right way up'),
+    ]);
+    expect(api.received[0]?.body.output_config.effort).toBe('low');
   });
 
   it('names itself by the model and the credential, and never by the key', async () => {

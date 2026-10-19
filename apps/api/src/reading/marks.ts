@@ -1,6 +1,6 @@
 import type { Candidate, FoundNumbers } from './find-numbers.js';
 import type { ReadListing } from './interpret.js';
-import type { NumberReading } from './reading-method.js';
+import type { NumberReading, Turn } from './reading-method.js';
 
 /**
  * **The Marks a drawing's numbers propose, and where they and the table disagree** (issue #33).
@@ -23,9 +23,17 @@ export interface MarkDoubt {
   reason: string;
 }
 
-export function proposeMarks(found: FoundNumbers, readings: NumberReading[]): ProposedMark[] {
+/**
+ * `turned` is how far clockwise the drawing was turned from its Scan for the numbers to be found
+ * upright (issue #72): each Mark is turned back, to stand where it does on the Scan.
+ */
+export function proposeMarks(
+  found: FoundNumbers,
+  readings: NumberReading[],
+  turned: Turn = 0,
+): ProposedMark[] {
   const byId = new Map(readings.map((reading) => [reading.id, reading]));
-  const at = (x: number, y: number) => ({ x: x / found.width, y: y / found.height });
+  const at = (x: number, y: number) => onScan(x / found.width, y / found.height, turned);
   const marks: ProposedMark[] = [];
 
   // A box that caught half a number would put a Mark for the wrong Position on the sheet: two
@@ -107,6 +115,20 @@ export function markDoubts(listings: ReadListing[], marks: ProposedMark[]): Mark
         reason: `A Mark for ${position} is on the drawing, and no row of the table has Position ${position}.`,
       })),
   ];
+}
+
+/** A point on the drawing turned `turned` clockwise, where it is on the drawing before the turn. */
+function onScan(x: number, y: number, turned: Turn): { x: number; y: number } {
+  switch (turned) {
+    case 90:
+      return { x: y, y: 1 - x };
+    case 180:
+      return { x: 1 - x, y: 1 - y };
+    case 270:
+      return { x: 1 - y, y: x };
+    default:
+      return { x, y };
+  }
 }
 
 function digitsOf(number: string | null | undefined): string {

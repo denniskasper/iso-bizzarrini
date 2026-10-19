@@ -66,6 +66,7 @@ describe('reading with Claude through a subscription login', () => {
     tavola: '84',
     foglio: null,
     turn: 90,
+    numbersTurn: 0,
     titleIt: 'ASSALE POSTERIORE',
     sezione: null,
     gruppo: null,

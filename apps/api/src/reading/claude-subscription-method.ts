@@ -8,6 +8,8 @@ import {
   EXPECTED_TRANSLATION_INPUT,
   IDENTIFY,
   MAX_TOKENS,
+  ORIENTATION_LABELS,
+  ORIENT_NUMBERS,
   READ_NUMBERS,
   READ_TABLE,
   ReadingMethodError,
@@ -15,6 +17,7 @@ import {
   numberLabels,
   numberReadingsOf,
   numbersSchema,
+  orientationSchema,
   stripsOf,
   tableSchema,
   translateInstruction,
@@ -26,6 +29,7 @@ import {
   type Answer,
   type NumberCrop,
   type NumberReading,
+  type NumbersBothWays,
   type ReadingMethod,
   type RequestEstimate,
   type SheetIdentity,
@@ -312,6 +316,30 @@ export function createClaudeSubscriptionReadingMethod(
         EXPECTED_OUTPUT.numbers,
         numberLabels(crops),
       );
+    },
+
+    async estimateOrientation(rows: NumbersBothWays) {
+      return estimated(
+        orientationSchema,
+        ORIENT_NUMBERS,
+        [rows.asFound, rows.halfRound],
+        EXPECTED_OUTPUT.orientation,
+        ORIENTATION_LABELS,
+      );
+    },
+
+    async orientNumbers(rows: NumbersBothWays): Promise<Answer<'as-found' | 'half-round'>> {
+      const answer = await ask(
+        orientationSchema,
+        ORIENT_NUMBERS,
+        [rows.asFound, rows.halfRound],
+        'low',
+        ORIENTATION_LABELS,
+      );
+      return {
+        value: answer.value.upright === 'A' ? 'as-found' : 'half-round',
+        tokens: answer.tokens,
+      };
     },
 
     async readNumbers(crops: NumberCrop[]): Promise<Answer<NumberReading[]>> {

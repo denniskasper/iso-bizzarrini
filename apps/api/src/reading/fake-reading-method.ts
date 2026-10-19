@@ -43,6 +43,7 @@ export function createFakeReadingMethod(): ReadingMethod {
           tavola: sheet.page === UNREADABLE_PAGE ? null : String(100 + sheet.page),
           foglio: null,
           turn: 0,
+          numbersTurn: 0,
           titleIt: 'TAVOLA DI PROVA',
           sezione: null,
           gruppo: null,
@@ -67,6 +68,12 @@ export function createFakeReadingMethod(): ReadingMethod {
       };
     },
     async estimateNumbers() {
+      return ESTIMATE;
+    },
+    async orientNumbers() {
+      return { value: 'as-found', tokens: TOKENS };
+    },
+    async estimateOrientation() {
       return ESTIMATE;
     },
   };

@@ -11,8 +11,8 @@ import {
   type SheetCost,
   type Spent,
 } from './cost.js';
-import { batchesOf, estimatePage } from './estimate.js';
-import { cropsOf, findNumbers } from './find-numbers.js';
+import { batchesOf, estimatePage, needsAsking } from './estimate.js';
+import { bothWays, cropsOf, findNumbers } from './find-numbers.js';
 import { interpretTable, type ComparedSheet } from './interpret.js';
 import { markDoubts, proposeMarks, type MarkDoubt, type ProposedMark } from './marks.js';
 import { PRICE_LIST, priceOf } from './price-list.js';
@@ -27,6 +27,7 @@ import {
   type SheetImage,
   type TableReading,
   type Tokens,
+  type Turn,
 } from './reading-method.js';
 import type { FinishedTavola, ReadingStore, SetAsidePage } from './reading-store.js';
 import { Translations, maskCodes } from './translation.js';
@@ -291,7 +292,8 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
   };
 
   for (const page of pages) {
-    let identity = known.get(page.page);
+    const before = known.get(page.page);
+    let identity = before && !needsAsking(before) ? before : undefined;
     let identification = nothing;
 
     if (!identity) {
@@ -315,7 +317,8 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
         notIdentified.push(page.page);
         continue;
       }
-      identity = answer.value;
+      // Asked again only for which way its numbers read: what it was found to be stands.
+      identity = before ? { ...before, numbersTurn: answer.value.numbersTurn } : answer.value;
       identification = spend(answer.tokens);
       await store.pageFound(page.page, identity);
     }
@@ -455,8 +458,48 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
     if (drawing) {
       const sheetCost = sheetCosts.get(drawing.page) as SheetCost;
       const readings: NumberReading[] = [];
-      const found = await findNumbers(drawing.image);
-      for (const batch of batchesOf(await cropsOf(drawing.image, found))) {
+      const counted = () => {
+        sheetCost.cost =
+          sheetCost.identification.cost +
+          sheetCost.numbers.reduce((sum, request) => sum + request.cost, 0);
+      };
+      // Found and read turned the way its numbers read, which may be a quarter from its headings.
+      const identity = drawing.identity;
+      let turned = (((identity.numbersTurn ?? identity.turn) - identity.turn + 360) % 360) as Turn;
+      let { found, crops } = await numbersOn(drawing.image, turned);
+      // Which way a turned number reads is easy to get the wrong way round; shown both ways, the
+      // model tells which is upright, and the finder finds the same numbers turned half round.
+      if (turned !== 0 && crops.length > 0 && mayAsk()) {
+        const rows = { page: drawing.page, ...(await bothWays(crops)) };
+        const atMost = spending.atMost(await method.estimateOrientation(rows));
+        if (spending.wouldPass(atMost)) {
+          stopAtLimit(atMost, `reading the numbers on the drawing of Tavola ${number}`);
+        } else {
+          try {
+            const answer = await send(
+              {
+                request: 'numbers',
+                page: drawing.page,
+                tavola: number,
+                reading: null,
+                cost: atMost,
+              },
+              () => method.orientNumbers(rows),
+            );
+            sheetCost.numbers.push(spend(answer.tokens));
+            if (answer.value === 'half-round') {
+              turned = ((turned + 180) % 360) as Turn;
+              ({ found, crops } = await numbersOn(drawing.image, turned));
+            }
+          } catch (error) {
+            stopOn(error);
+          } finally {
+            counted();
+          }
+          await store.costed(costRecord());
+        }
+      }
+      for (const batch of batchesOf(crops)) {
         const atMost = spending.atMost(await method.estimateNumbers(batch));
         if (!mayAsk()) {
           break;
@@ -476,9 +519,7 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
           stopOn(error);
           break;
         } finally {
-          sheetCost.cost =
-            sheetCost.identification.cost +
-            sheetCost.numbers.reduce((sum, request) => sum + request.cost, 0);
+          counted();
         }
         await store.costed(costRecord());
       }
@@ -486,7 +527,7 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
         result.notRead.push(number);
         continue;
       }
-      marks = proposeMarks(found, readings);
+      marks = proposeMarks(found, readings, turned);
       doubts = markDoubts(listings, marks);
       print(
         `  Drawing, page ${drawing.page}: ${marks.length} ${marks.length === 1 ? 'Mark' : 'Marks'} ` +
@@ -637,4 +678,11 @@ function inFactoryOrder(sheets: IdentifiedSheet[]): IdentifiedSheet[] {
 
 function pagesNamed(sheets: { page: number }[]): string {
   return `${sheets.length === 1 ? 'page' : 'pages'} ${sheets.map((sheet) => sheet.page).join(', ')}`;
+}
+
+/** A drawing's numbers, found and cut out with it turned `turned` clockwise. */
+async function numbersOn(image: Buffer, turned: Turn) {
+  const turnedImage = turned === 0 ? image : await sharp(image).rotate(turned).png().toBuffer();
+  const found = await findNumbers(turnedImage);
+  return { found, crops: await cropsOf(turnedImage, found) };
 }

@@ -55,6 +55,25 @@ export interface ReadingMethod {
   readNumbers(crops: NumberCrop[]): Promise<Answer<NumberReading[]>>;
   /** What reading these crops would take, worked out before it is sent, as `estimate` is. */
   estimateNumbers(crops: NumberCrop[]): Promise<RequestEstimate>;
+  /**
+   * Which of two rows of the same crops shows a drawing's numbers the right way up: as found, or
+   * turned half round (issue #72). Asked where the numbers read at a turn from the headings, since
+   * which way a sideways number reads is easy to get the wrong way round, and an upside-down 6 is
+   * a 9; telling two rows apart is not.
+   */
+  orientNumbers(rows: NumbersBothWays): Promise<Answer<'as-found' | 'half-round'>>;
+  /** What asking it would take, worked out before it is sent, as `estimate` is. */
+  estimateOrientation(rows: NumbersBothWays): Promise<RequestEstimate>;
+}
+
+/** A few of a drawing's crops in a row as they were found, and the same row turned half round. */
+export interface NumbersBothWays {
+  /** The page they were cut from. Never sent. */
+  page: number;
+  /** PNG. */
+  asFound: Buffer;
+  /** PNG. */
+  halfRound: Buffer;
 }
 
 /** How many crops of a drawing one request is shown. */
@@ -155,6 +174,13 @@ export interface SheetIdentity {
    * position numbers on a drawing run several ways and cannot decide it.
    */
   turn: Turn;
+  /**
+   * How far a drawing has to be turned clockwise for most of its **position numbers** to read
+   * upright, from the page as scanned: often `turn`, but a quarter from it where the numbers are
+   * printed sideways to the title block (issue #72). Missing for a page identified before it was
+   * asked, which is asked again before its numbers are read.
+   */
+  numbersTurn?: Turn;
   /** The title of the Tavola as printed, in Italian. */
   titleIt: string | null;
   sezione: string | null;

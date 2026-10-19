@@ -19,7 +19,13 @@ export const MAX_TOKENS = 16000;
  * written. Generous on purpose: the identity is a few lines, a Table sheet's rows rarely pass a
  * few thousand tokens. The cost record shows what each request really took.
  */
-export const EXPECTED_OUTPUT = { identify: 1000, reading: 8000, translation: 2000, numbers: 2000 };
+export const EXPECTED_OUTPUT = {
+  identify: 1000,
+  reading: 8000,
+  translation: 2000,
+  numbers: 2000,
+  orientation: 500,
+};
 
 /**
  * What one Table sheet's Italian is expected to add to a translation request, before its rows
@@ -36,6 +42,7 @@ export const identitySchema = z.object({
   tavola: z.string().nullable(),
   foglio: z.string().nullable(),
   turn: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+  numbersTurn: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
   titleIt: z.string().nullable(),
   sezione: z.string().nullable(),
   gruppo: z.string().nullable(),
@@ -69,6 +76,13 @@ Give the Tavola N° and Foglio N° exactly as printed, or null where you cannot 
 
 Give "turn": how many degrees the page must be turned clockwise (0, 90, 180 or 270) for its printed headings and title block to read upright. Decide by the headings only — position numbers on a drawing run in several directions and must not decide it.
 
+Give "numbersTurn": for a drawing, how many degrees the page must be turned clockwise (0, 90, 180 or 270) for most of its position numbers to read upright. Look at which way the tops of their digits face on the page as you see it:
+- tops facing up: 0;
+- tops facing left, so a number reads upward from the bottom: 90;
+- tops facing down: 180;
+- tops facing right, so a number reads downward from the top: 270.
+It is often the same as "turn", but on some drawings the numbers are printed at a quarter turn to the headings. For a table or anything else, give the same as "turn".
+
 Give the title of the Tavola and the Sezione, Gruppo and Sottogruppo as printed, or null.`;
 
 export const READ_TABLE = `You are transcribing one scanned table sheet of a 1960s Italian factory parts catalogue. It has been cut into overlapping horizontal strips, top to bottom; a row near a cut appears on two strips and must be reported once.
@@ -101,6 +115,15 @@ For every id, say what the red box holds: "number" as printed, digits only, or n
 Read only what is inside the red box. Where a digit just outside it shows the box caught part of a longer number, give the part inside and set "partial". Where you cannot tell (6 or 8, 1 or a line), give your best reading and set "unsure".
 
 Answer for every id, once each.`;
+
+export const orientationSchema = z.object({ upright: z.enum(['A', 'B']) });
+
+export const ORIENT_NUMBERS = `Rows A and B show the same small crops from an exploded-view drawing in a 1960s Italian factory parts catalogue, each with a red box round a printed position number. One row is the right way up; the other is the same crops turned half round, upside down.
+
+Say which row, A or B, shows the numbers the right way up.`;
+
+/** The text the model reads before each row. */
+export const ORIENTATION_LABELS = ['Row A', 'Row B'];
 
 /** Each crop's id, as the text the model reads just before the crop. */
 export function numberLabels(crops: NumberCrop[]): string[] {

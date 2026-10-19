@@ -64,7 +64,8 @@ export const pagesManifestSchema = z.object({
   pages: z.array(
     z.object({
       page: z.number().int(),
-      identity: identitySchema,
+      // A page identified before drawings were asked which way their numbers read (issue #72).
+      identity: identitySchema.partial({ numbersTurn: true }),
     }),
   ),
 });
