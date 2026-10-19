@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/denniskasper/iso-bizzarrini/compare/v0.5.0...v0.5.1) (2026-10-19)
+
+
+### Fixed
+
+* show a correction in the rows being checked as soon as it is made ([6c13e13](https://github.com/denniskasper/iso-bizzarrini/commit/6c13e136d8cfb6787f06a7187e63756a1cff9ee7))
+
 ## [0.5.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.4.0...v0.5.0) (2026-10-19)
 
 
