@@ -91,6 +91,8 @@ function CorrectionForm({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['part', partId] }),
         queryClient.invalidateQueries({ queryKey: ['tavola-listings'] }),
+        // And the rows an Editor is checking an Unchecked Tavola against, read on their own.
+        queryClient.invalidateQueries({ queryKey: ['tavola-checking'] }),
         // The lookup too, since a name or a number just changed under whatever it last found.
         queryClient.invalidateQueries({ queryKey: ['part-lookup'] }),
         rereadEveryPosition(),
@@ -104,6 +106,7 @@ function CorrectionForm({
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['tavola-listings'] }),
+        queryClient.invalidateQueries({ queryKey: ['tavola-checking'] }),
         queryClient.invalidateQueries({ queryKey: ['part-lookup'] }),
         rereadEveryPosition(),
       ]);

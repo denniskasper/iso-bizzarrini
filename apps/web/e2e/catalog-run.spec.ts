@@ -101,6 +101,32 @@ test('an Administrator starts a run, watches it finish and opens a Tavola it rea
 });
 
 /**
+ * **A correction reaches the row being checked.** The Part panel and the checking rows are read
+ * separately, so correcting the Part beside an Unchecked Tavola has to refresh both, or the row
+ * still shows what the reading said. The fake method reads one row at Position 1, with no Catalog
+ * Number, onto Tavola 102 of the run above.
+ */
+test('an Editor corrects a Part on an Unchecked Tavola, and its row shows the correction', async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.getByRole('link', { name: /Fidia/ }).click();
+  await page.getByTestId('left-to-check').getByRole('link', { name: /102/ }).click();
+  await expect(page.getByTestId('unchecked-band')).toBeVisible();
+
+  const row = page.getByTestId('checked-row').first();
+  await expect(row).toContainText('No Catalog Number');
+
+  await page.getByLabel('Go to a number').fill('1');
+  await page.getByLabel('Go to a number').press('Enter');
+  await page.getByRole('button', { name: 'Correct the part' }).first().click();
+  await page.getByLabel('Catalog number').fill('999 99 102');
+  await page.getByRole('button', { name: 'Correct this part' }).click();
+
+  await expect(row).toContainText('999 99 102');
+});
+
+/**
  * **A run stopped at its limit, raised and continued** (issue #59). The fake method's requests
  * cost a cent and could cost at most 2.6 cents, so a limit of $0.12 for pages 2 to 4 reads Tavola
  * 102 and stops before 103, never reaching pages 3 and 4 (issue #64). Raised to a dollar, the run

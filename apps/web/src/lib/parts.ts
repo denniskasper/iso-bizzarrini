@@ -36,7 +36,7 @@ export function useTavolaListings(tavolaId: string) {
 /**
  * Re-read what is listed, after recording or removing something.
  *
- * **Both readings, always**, because they are two views of one fact. Recording a Part into the
+ * **Every reading of them, always**, because they are views of one fact. Recording a Part into the
  * panel below the drawing changes the sheet's index beside it, and an index that went on saying
  * "not recorded yet" about a number an Editor had just filled in would be the archive
  * contradicting itself on one screen. The Position is optional: removing a *Position* changes
@@ -49,6 +49,8 @@ export function useRereadListings(tavolaId: string, positionId?: string): () => 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: onTavola(tavolaId) }),
       ...(positionId ? [queryClient.invalidateQueries({ queryKey: atPosition(positionId) })] : []),
+      // A third view of the same rows, while the Tavola is Unchecked: the ones beside its sheets.
+      queryClient.invalidateQueries({ queryKey: ['tavola-checking', tavolaId] }),
     ]);
   }, [queryClient, tavolaId, positionId]);
 }
@@ -71,6 +73,7 @@ export function useRereadMovedListing(tavolaId: string): () => Promise<void> {
       queryClient.invalidateQueries({ queryKey: onTavola(tavolaId) }),
       // The prefix, for the number it left as well as the number it is at now.
       queryClient.invalidateQueries({ queryKey: ['position-listings'] }),
+      queryClient.invalidateQueries({ queryKey: ['tavola-checking', tavolaId] }),
     ]);
   }, [queryClient, tavolaId]);
 }
