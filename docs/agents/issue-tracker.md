@@ -14,6 +14,15 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Specs and their tickets
+
+A spec is broken into tickets, and both may carry `ready-for-agent`, so two things tell them apart:
+
+- **A spec carries the `spec` label as well**, in addition to its state label and never instead of it: `gh issue create --label ready-for-agent --label spec`.
+- **A ticket is a sub-issue of its spec**, besides naming it under `## Parent` (see **Make an issue a sub-issue of a parent** above). Blocking edges between tickets are native issue dependencies (see **Blocking** below), **and** each blocked ticket also names its blockers under a `## Blocked by` heading in its body: Sandcastle reads only issue bodies and labels, so a native edge alone is invisible to it.
+
+Sandcastle leaves out every issue labelled `spec` and builds the spec through its tickets. A spec is closed by hand once its last ticket is closed.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
