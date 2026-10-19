@@ -1,6 +1,6 @@
 import type { CatalogRun, ReadingSetup } from '@ricambi/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Estimating } from '@/components/readings/estimating';
 import { PastRuns } from '@/components/readings/past-runs';
 import { StartRun } from '@/components/readings/start-run';
@@ -8,6 +8,7 @@ import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, Refusal, Select } from '@/components/ui/field';
 import { api, refusalText } from '@/lib/api';
+import { countPages, type PageCount } from '@/lib/pdf-pages';
 import { useCatalogRun, useEstimateCatalogRun, useReadingSetup } from '@/lib/readings';
 
 /**
@@ -120,24 +121,48 @@ function whatItMeans({ method }: ReadingSetup): string {
  * **A new Catalog run, as far as its estimate.** The catalog, the car it is for and the pages to
  * read, then one press: nothing is read, and what it would cost is shown where the press was.
  * The pages are asked for rather than defaulted, so the front matter and the technical data are
- * never sent because nobody thought to leave them out.
+ * never sent because nobody thought to leave them out. How many there are is shown the moment the
+ * PDF is chosen, and a range past them is refused there and then (issue #69).
  */
 function NewRun() {
   const models = useQuery({ queryKey: ['models'], queryFn: api.models });
   const estimate = useEstimateCatalogRun();
   const pickerId = useId();
   const [catalog, setCatalog] = useState<File | null>(null);
+  const [count, setCount] = useState<PageCount | null>(null);
+  const counting = useRef<File | null>(null);
   const [modelId, setModelId] = useState('');
   const [firstPage, setFirstPage] = useState('');
   const [lastPage, setLastPage] = useState('');
 
-  const ready = catalog !== null && modelId !== '' && firstPage !== '' && lastPage !== '';
+  const pages = count && 'pages' in count ? count.pages : null;
+  const rangeRefused = pages === null ? null : refusedRange(firstPage, lastPage, pages);
+  const ready =
+    catalog !== null &&
+    pages !== null &&
+    rangeRefused === null &&
+    modelId !== '' &&
+    firstPage !== '' &&
+    lastPage !== '';
   const changed =
     <T,>(set: (value: T) => void) =>
     (value: T) => {
       estimate.reset();
       set(value);
     };
+  const chosen = (file: File | null) => {
+    changed(setCatalog)(file);
+    setCount(null);
+    counting.current = file;
+    if (file) {
+      void countPages(file).then((counted) => {
+        // Only the PDF still chosen: one chosen after it may already have its count.
+        if (counting.current === file) {
+          setCount(counted);
+        }
+      });
+    }
+  };
 
   return (
     <section aria-labelledby="new-run" className="editor-panel registration-mark mt-16">
@@ -173,10 +198,30 @@ function NewRun() {
             accept=".pdf,application/pdf"
             className="sr-only"
             data-testid="catalog-file"
-            onChange={(event) => changed(setCatalog)(event.target.files?.[0] ?? null)}
+            onChange={(event) => chosen(event.target.files?.[0] ?? null)}
           />
-          {catalog && <span className="tabular text-sm text-muted">{catalog.name}</span>}
+          {catalog && (
+            <div className="flex flex-col gap-1" data-testid="catalog-chosen">
+              <span className="text-sm text-pretty break-all text-muted">{catalog.name}</span>
+              <span className="text-base text-text" aria-live="polite">
+                {count === null ? (
+                  <span className="text-muted">Counting its pages…</span>
+                ) : pages !== null ? (
+                  <>
+                    <span className="font-semibold">
+                      {pages} {pages === 1 ? 'page' : 'pages'}
+                    </span>
+                    <span className="text-muted">, {sizeOf(catalog.size)}</span>
+                  </>
+                ) : null}
+              </span>
+            </div>
+          )}
         </div>
+
+        {count && 'refused' in count && (
+          <Refusal>{`${catalog?.name ?? 'This file'} cannot be read. ${count.refused}`}</Refusal>
+        )}
 
         <Select
           label="Model"
@@ -201,6 +246,7 @@ function NewRun() {
             type="number"
             inputMode="numeric"
             min={1}
+            max={pages ?? undefined}
             mono
             value={firstPage}
             onChange={(event) => changed(setFirstPage)(event.target.value)}
@@ -210,11 +256,14 @@ function NewRun() {
             type="number"
             inputMode="numeric"
             min={1}
+            max={pages ?? undefined}
             mono
             value={lastPage}
             onChange={(event) => changed(setLastPage)(event.target.value)}
           />
         </fieldset>
+
+        {rangeRefused && <Refusal>{rangeRefused}</Refusal>}
 
         {estimate.error && <Refusal>{refusalText(estimate.error)}</Refusal>}
 
@@ -233,6 +282,27 @@ function NewRun() {
       {estimate.data && <Estimated runId={estimate.data.run.id} />}
     </section>
   );
+}
+
+/** Why these pages cannot be read from a catalog of `pages`, or `null` where they can. */
+function refusedRange(firstPage: string, lastPage: string, pages: number): string | null {
+  const first = firstPage === '' ? null : Number(firstPage);
+  const last = lastPage === '' ? null : Number(lastPage);
+  const counted = `The catalog has ${pages} ${pages === 1 ? 'page' : 'pages'}`;
+  if ((first !== null && first > pages) || (last !== null && last > pages)) {
+    return `${counted}, so there is no page after ${pages} to read.`;
+  }
+  if (first !== null && last !== null && first > last) {
+    return `${counted}. From page has to come before To page.`;
+  }
+  return null;
+}
+
+/** A file's size as a person reads it: kilobytes below a megabyte, megabytes above. */
+function sizeOf(bytes: number): string {
+  return bytes < 1_000_000
+    ? `${Math.max(1, Math.round(bytes / 1000))} KB`
+    : `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
 /**
