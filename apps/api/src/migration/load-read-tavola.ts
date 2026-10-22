@@ -1,28 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { and, eq, inArray, notExists } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import sharp from 'sharp';
+import { discardTavola, removeDiscardedFiles } from '../catalog/discard-tavola.js';
 import { numericPrefixOf } from '../catalog/naming.js';
 import type { Db, DbSession } from '../db/client.js';
-import {
-  contributions,
-  listings,
-  marks,
-  parts,
-  positions,
-  readingDoubts,
-  scans,
-  tableSheets,
-  tavole,
-  type NewPartRow,
-} from '../db/schema.js';
+import { marks, readingDoubts, tableSheets, tavole, type NewPartRow } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { createScanRepository } from '../repositories/scan-repository.js';
 import { createTavolaRepository } from '../repositories/tavola-repository.js';
 import { createScanService } from '../services/scan-service.js';
 import { readDrawn, readQuantity } from '../sheets/cells.js';
-import { scanKeyPrefix, type FileStore } from '../storage/file-store.js';
+import { tableSheetKeyPrefix, type FileStore } from '../storage/file-store.js';
 import { createArchiveWriter, type ArchiveWriter } from './archive-writer.js';
 import { inOneTransaction, type RowLocation, type RowProblem } from './load-archive.js';
 
@@ -232,7 +221,7 @@ export async function loadReadTavole(options: ReadTavoleLoadOptions): Promise<Re
           );
           continue;
         }
-        report.partsDiscarded += discarded.parts;
+        report.partsDiscarded += discarded.parts.length;
         discardedFiles.push(...discarded.fileKeys);
       }
 
@@ -297,11 +286,7 @@ export async function loadReadTavole(options: ReadTavoleLoadOptions): Promise<Re
     report.tableSheets += file.tavola.tableSheets.length;
   }
   if (!dryRun) {
-    for (const key of discardedFiles) {
-      await options.fileStore.remove(key).catch((error: unknown) => {
-        options.logger.warn({ err: error, key }, 'Could not remove a discarded Tavola’s files');
-      });
-    }
+    await removeDiscardedFiles(options.fileStore, options.logger, discardedFiles);
     await storeFiles(options, pending, report);
   }
 
@@ -318,75 +303,6 @@ function sourceOf(tavola: ReadTavola): ReadTavolaSource {
       doubts: `${named}, doubts`,
     }
   );
-}
-
-/**
- * Takes an Unchecked Tavola out whole, and every Part that was listed on it and nowhere else.
- * Answers with the file prefixes its Scan and Table sheets were under, to be removed once the
- * load has committed.
- */
-async function discardTavola(
-  session: DbSession,
-  tavolaId: string,
-): Promise<{ parts: number; fileKeys: string[] } | 'has contributions'> {
-  const listed = await session
-    .select({ partId: listings.partId })
-    .from(listings)
-    .where(eq(listings.tavolaId, tavolaId));
-  const partIds = [...new Set(listed.map((row) => row.partId))];
-
-  const onIt = session
-    .select({ id: positions.id })
-    .from(positions)
-    .where(eq(positions.tavolaId, tavolaId));
-  const [waiting] = await session
-    .select({ id: contributions.id })
-    .from(contributions)
-    .where(inArray(contributions.positionId, onIt))
-    .limit(1);
-  if (waiting) {
-    return 'has contributions';
-  }
-
-  const [scan] = await session
-    .select({ id: scans.id })
-    .from(scans)
-    .where(eq(scans.tavolaId, tavolaId));
-  const sheets = await session
-    .select({ id: tableSheets.id })
-    .from(tableSheets)
-    .where(eq(tableSheets.tavolaId, tavolaId));
-
-  await session.delete(tavole).where(eq(tavole.id, tavolaId));
-
-  let removed: { id: string }[] = [];
-  if (partIds.length > 0) {
-    removed = await session
-      .delete(parts)
-      .where(
-        and(
-          inArray(parts.id, partIds),
-          notExists(
-            session.select({ id: listings.id }).from(listings).where(eq(listings.partId, parts.id)),
-          ),
-          notExists(
-            session
-              .select({ id: contributions.id })
-              .from(contributions)
-              .where(eq(contributions.partId, parts.id)),
-          ),
-        ),
-      )
-      .returning({ id: parts.id });
-  }
-
-  return {
-    parts: removed.length,
-    fileKeys: [
-      ...(scan ? [scanKeyPrefix(scan.id)] : []),
-      ...sheets.map((sheet) => tableSheetKeyPrefix(sheet.id)),
-    ],
-  };
 }
 
 /**
@@ -646,9 +562,4 @@ async function storeTableSheet(
     await options.fileStore.remove(tableSheetKeyPrefix(id)).catch(() => undefined);
     throw error;
   }
-}
-
-/** Where one Table sheet's file lives. */
-export function tableSheetKeyPrefix(tableSheetId: string): string {
-  return join('table-sheets', tableSheetId);
 }

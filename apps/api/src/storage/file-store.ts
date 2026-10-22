@@ -114,6 +114,11 @@ export function scanKeyPrefix(scanId: string): string {
   return join('scans', scanId);
 }
 
+/** Where one Table sheet's file lives. */
+export function tableSheetKeyPrefix(tableSheetId: string): string {
+  return join('table-sheets', tableSheetId);
+}
+
 /**
  * And where one Photograph's live. **Its own top-level prefix, not a Part's subdirectory**: a
  * Photograph is removed on its own far more often than a Part is, and a key built from the Part
