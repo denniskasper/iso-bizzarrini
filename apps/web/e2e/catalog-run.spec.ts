@@ -260,9 +260,10 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
 });
 
 /**
- * **Removing an Unchecked Tavola** (issue #83). A run over page 5 reads Tavola 105, which an
- * Administrator removes, in two steps, and lands on the Fidia without it. What goes with it, and
- * when it is refused, are proved at the API seam.
+ * **Removing an Unchecked Tavola** (issue #83). A run over page 6, which no other run here reads
+ * (the fake method sets page 5 aside), reads Tavola 106. An Administrator removes it, in two
+ * steps, and lands on the Fidia without it. What goes with it, and when it is refused, are proved
+ * at the API seam.
  */
 test('an Administrator removes a Tavola a run read, and its Model is without it', async ({
   page,
@@ -273,11 +274,11 @@ test('an Administrator removes a Tavola a run read, and its Model is without it'
   await page.getByTestId('catalog-file').setInputFiles({
     name: 'catalog.pdf',
     mimeType: 'application/pdf',
-    buffer: fixturePdf(5),
+    buffer: fixturePdf(6),
   });
   await page.getByLabel('Model').selectOption({ label: READ_INTO });
-  await page.getByLabel('From page').fill('5');
-  await page.getByLabel('To page').fill('5');
+  await page.getByLabel('From page').fill('6');
+  await page.getByLabel('To page').fill('6');
   await page.getByRole('button', { name: 'Estimate the cost' }).click();
   await expect(page.getByTestId('catalog-estimate')).toBeVisible();
   await page.getByLabel('Spending limit, in dollars').fill('1');
@@ -293,8 +294,8 @@ test('an Administrator removes a Tavola a run read, and its Model is without it'
   await removal.getByRole('button', { name: 'Yes, remove it' }).click();
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Fidia');
-  await expect(page.getByTestId('left-to-check-tavola').filter({ hasText: '105' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /105/ })).toHaveCount(0);
+  await expect(page.getByTestId('left-to-check-tavola').filter({ hasText: '106' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /106/ })).toHaveCount(0);
 });
 
 /**
