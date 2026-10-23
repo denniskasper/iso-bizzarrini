@@ -194,6 +194,16 @@ export function createApiRouter(dependencies: {
     gate.hiddenFromAllButAdministrators,
     catalogRunController.readAgain,
   );
+  // **Removing an Unchecked Tavola** (issue #83), a run's mistake taken out whole: as hidden as
+  // Read again, and up here with it, above the Membership a lapsed Administrator lacks and the
+  // Editors' rule for writes. Its Tavola is `:removing`, not `:tavolaId`: the Unchecked guard
+  // below asks who is signed in, which nothing here has found yet, and an Administrator is shown
+  // every Tavola anyway.
+  router.delete(
+    '/tavole/:removing',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.removeTavola,
+  );
 
   router.get(
     '/catalog-runs/:runId',

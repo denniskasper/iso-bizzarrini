@@ -693,6 +693,17 @@ export interface ReadAgainRequest {
   tavolaId: string;
 }
 
+/**
+ * `DELETE /api/tavole/:tavolaId` — an Unchecked Tavola removed, with its Positions, Marks,
+ * Listings, doubts, Scan and Table sheets, and the Parts listed nowhere else (issue #83). Answers
+ * with the Model it belonged to. Refused, with the reason, for a Published Tavola, for one with
+ * Contributions on its Positions, and while a Catalog run is reading or being estimated. An
+ * Administrator's alone, and 404 to anybody else.
+ */
+export interface RemovedTavolaResponse {
+  modelId: string;
+}
+
 /** Which way a quarter turn goes, looking at the drawing. */
 export type QuarterTurn = 'clockwise' | 'anticlockwise';
 

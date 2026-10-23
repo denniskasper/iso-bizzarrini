@@ -5,6 +5,7 @@ import type {
   ContinueCatalogRunRequest,
   ReadAgainFromResponse,
   ReadAgainRequest,
+  RemovedTavolaResponse,
   StartCatalogRunRequest,
   ReadingSetup,
   EnglishNameRequest,
@@ -302,6 +303,9 @@ export const api = {
   /** One Tavola's own run, estimated for reading only its pages again. Nothing is read yet. */
   readAgain: (readAgain: ReadAgainRequest) =>
     send<CatalogRunResponse>('POST', '/catalog-runs/read-again', readAgain),
+  /** An Unchecked Tavola removed whole, answered with the Model it was on (issue #83). */
+  removeTavola: (tavolaId: string) =>
+    request<RemovedTavolaResponse>(`/tavole/${tavolaId}`, { method: 'DELETE' }),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),
