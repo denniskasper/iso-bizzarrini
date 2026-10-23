@@ -12,6 +12,7 @@ import type {
   CatalogRunSpent,
   CatalogRunTavola,
 } from '@ricambi/contracts';
+import { discardTavola, removeDiscardedFiles } from '../catalog/discard-tavola.js';
 import type { ConfiguredReading } from '../composition/reading.js';
 import type { Db } from '../db/client.js';
 import {
@@ -117,6 +118,12 @@ export interface CatalogRunService {
    * Published Tavola, for one with Contributions on its Positions, and for one no run read.
    */
   readAgain(tavolaId: string, readAgain: { by: string }): Promise<CatalogRun>;
+  /**
+   * An Unchecked Tavola removed whole (issue #83), by the rule reading it again replaces it by
+   * (`discardTavola`), answering with the Model it belonged to. Refused for a Published Tavola,
+   * for one with Contributions on its Positions, and while any run is read or estimated.
+   */
+  removeTavola(tavolaId: string): Promise<{ modelId: string }>;
   /** The run that read a Tavola, or `null` where none did. */
   readBy(tavolaId: string): Promise<string | null>;
   /**
@@ -675,6 +682,36 @@ export function createCatalogRunService(dependencies: {
         await catalogRunRepository.pageFound(id, page, identity);
       }
       return find(id);
+    },
+
+    async removeTavola(tavolaId) {
+      const tavola = await catalogRunRepository.tavolaToReadAgain({ tavolaId });
+      if (!tavola) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      if (tavola.state === 'published') {
+        throw new ConflictError(
+          'This Tavola is Published: an Editor has checked it, and it is corrected in Ricambi ' +
+            'rather than removed.',
+        );
+      }
+      const HAS_CONTRIBUTIONS =
+        'Its Positions have Contributions, which removing it would lose. Review them first.';
+      if (tavola.hasContributions) {
+        throw new ConflictError(HAS_CONTRIBUTIONS);
+      }
+      // A run reading now could load or replace the Tavola just removed.
+      if (await catalogRunRepository.busy()) {
+        throw new ConflictError(ANOTHER_IS_READING);
+      }
+      const discarded = await dependencies.db.transaction((session) =>
+        discardTavola(session, tavola.id),
+      );
+      if (discarded === 'has contributions') {
+        throw new ConflictError(HAS_CONTRIBUTIONS);
+      }
+      await removeDiscardedFiles(fileStore, logger, discarded.fileKeys);
+      return { modelId: discarded.modelId };
     },
 
     async readBy(tavolaId) {

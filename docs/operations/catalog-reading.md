@@ -189,6 +189,23 @@ whole. Reading again is refused, with the reason:
 - for one with Contributions on its Positions;
 - while another run is reading.
 
+### Removing a Tavola read by mistake
+
+Where a run read something that should not be in the archive, such as a practice run with the
+fake Reading method, a run into the wrong Model, or a page that is not a Tavola, an Administrator
+can press **Remove this Tavola** under its Unchecked band, beside **Read again**, and then **Yes,
+remove it**. The Tavola goes with its Positions, Marks, Listings, doubts, Scan and Table sheets,
+and so do the Parts listed on it and nowhere else, with their Photographs. Parts also listed on
+other Tavole stay. Ricambi then shows the Model's page, without it. A Tavola loaded with
+`archive:load` is removed the same way.
+
+There is no undo. The way back is a new Catalog run over its pages. Removing is refused, with the
+reason:
+
+- for a Published Tavola;
+- for one with Contributions on its Positions, decided or not;
+- while any run is reading or being estimated. Try again once it has finished.
+
 ## The read command, for developers
 
 The reading also runs from the command line. It is for developing and testing the reading

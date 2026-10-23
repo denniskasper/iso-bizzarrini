@@ -16,6 +16,7 @@ import { MarkingBar } from '@/components/editor/marking-bar';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
 import { ReadAgain } from '@/components/readings/read-again';
+import { RemoveTavola } from '@/components/readings/remove-tavola';
 import { ConfirmEnglish, MachineTranslationTag } from '@/components/machine-translation';
 import { PartReading } from '@/components/parts/part-reading';
 import { TavolaParts } from '@/components/parts/tavola-parts';
@@ -402,8 +403,9 @@ export function TavolaPage() {
             )}
           </UncheckedBand>
           {isAdministrator && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col gap-4">
               <ReadAgain tavolaId={tavola.id} />
+              <RemoveTavola tavolaId={tavola.id} />
             </div>
           )}
         </div>

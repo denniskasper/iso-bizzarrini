@@ -5,6 +5,7 @@ import type {
   StartCatalogRunRequest,
   ReadAgainFromResponse,
   ReadAgainRequest,
+  RemovedTavolaResponse,
 } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
@@ -33,6 +34,7 @@ const runParams = z.object({ runId: z.uuid('That is not a Catalog run id.') });
 
 const aTavola = z.object({ tavolaId: z.uuid('Say which Tavola to read again.') });
 const readAgainBody: z.ZodType<ReadAgainRequest> = aTavola;
+const removingParams = z.object({ removing: z.uuid('That is not a Tavola id.') });
 
 const setAsideParams = runParams.extend({
   page: z.coerce
@@ -69,6 +71,7 @@ export interface CatalogRunController {
   readSetAsidePage: RequestHandler;
   readAgain: RequestHandler;
   readAgainFrom: RequestHandler;
+  removeTavola: RequestHandler;
 }
 
 /**
@@ -158,6 +161,13 @@ export function createCatalogRunController(dependencies: {
       response.json({
         runId: await catalogRunService.readBy(query.data.tavolaId),
       } satisfies ReadAgainFromResponse);
+    },
+
+    removeTavola: async (request, response) => {
+      const { removing } = removingParams.parse(request.params);
+      response.json(
+        (await catalogRunService.removeTavola(removing)) satisfies RemovedTavolaResponse,
+      );
     },
 
     read: async (request, response) => {

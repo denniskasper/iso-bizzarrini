@@ -118,6 +118,18 @@ export function useReadAgain() {
   });
 }
 
+/**
+ * An Unchecked Tavola removed (issue #83). Its Model is asked again, so the Model page it leads
+ * to, and its Left to check, are without it.
+ */
+export function useRemoveTavola() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tavolaId: string) => api.removeTavola(tavolaId),
+    onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ['model', data.modelId] }),
+  });
+}
+
 /** Dollars to the cent, as every figure of a Catalog run is shown. */
 export function dollars(amount: number): string {
   return `$${amount.toFixed(2)}`;
