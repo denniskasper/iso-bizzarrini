@@ -37,7 +37,7 @@ ENV PATH="/home/agent/.local/bin:$PATH"
 USER root
 RUN corepack enable
 USER ${AGENT_UID}:${AGENT_GID}
-RUN corepack prepare pnpm@11.5.2 --activate
+RUN corepack prepare pnpm@12.15.0 --activate
 # Never stop to ask: there is no terminal in a sandbox to answer.
 ENV CI=true
 
