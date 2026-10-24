@@ -168,7 +168,9 @@ export function createCatalogRunController(dependencies: {
     removeTavola: async (request, response) => {
       const { removing } = removingParams.parse(request.params);
       response.json(
-        (await catalogRunService.removeTavola(removing)) satisfies RemovedTavolaResponse,
+        (await catalogRunService.removeTavola(removing, {
+          by: gate.whoIsSignedIn(response).account.id,
+        })) satisfies RemovedTavolaResponse,
       );
     },
 

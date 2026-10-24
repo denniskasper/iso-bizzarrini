@@ -287,6 +287,7 @@ test('an Administrator removes a Tavola a run read, and its Model is without it'
   await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
     timeout: 30_000,
   });
+  const run = page.url();
 
   await page.getByRole('link', { name: 'Open, Unchecked' }).click();
   await expect(page.getByTestId('unchecked-band')).toBeVisible();
@@ -301,6 +302,13 @@ test('an Administrator removes a Tavola a run read, and its Model is without it'
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Fidia');
   await expect(page.getByTestId('left-to-check-tavola').filter({ hasText: '106' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /106/ })).toHaveCount(0);
+
+  // The run keeps its record, and says the Tavola was removed rather than offering to open it.
+  await page.goto(run);
+  const line = page.getByTestId('run-tavola').filter({ hasText: 'Tavola 106' });
+  await expect(line).toContainText('Removed by');
+  await expect(line.getByRole('link')).toHaveCount(0);
+  await expect(page.getByTestId('run-actions')).toContainText('Tavola 106 removed by');
 });
 
 /**

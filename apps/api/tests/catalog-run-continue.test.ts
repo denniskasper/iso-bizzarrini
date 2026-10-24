@@ -114,9 +114,9 @@ describe('a Catalog run that stops', () => {
     // Who did each, and when.
     const by = { id: expect.any(String), name: 'Ada Admin' };
     expect(finished.actions).toEqual([
-      { action: 'started', by, at: '2026-01-15T09:00:00.000Z', limit: 0.3 },
-      { action: 'raised', by, at: '2026-01-16T10:00:00.000Z', limit: 1 },
-      { action: 'continued', by, at: '2026-01-16T10:00:00.000Z', limit: null },
+      { action: 'started', by, at: '2026-01-15T09:00:00.000Z', limit: 0.3, tavola: null },
+      { action: 'raised', by, at: '2026-01-16T10:00:00.000Z', limit: 1, tavola: null },
+      { action: 'continued', by, at: '2026-01-16T10:00:00.000Z', limit: null, tavola: null },
     ]);
   });
 

@@ -212,7 +212,10 @@ function Continue({ run }: { run: CatalogRun }) {
   );
 }
 
-/** Who started, raised, continued and stopped the run, and when, oldest first. */
+/**
+ * Who started, raised, continued and stopped the run, and removed a Tavola it read (issue #85),
+ * and when, oldest first.
+ */
 function Actions({ actions }: { actions: CatalogRunAction[] }) {
   if (actions.length === 0) {
     return null;
@@ -236,7 +239,7 @@ function Actions({ actions }: { actions: CatalogRunAction[] }) {
   );
 }
 
-function actionNamed({ action, by, limit }: CatalogRunAction): string {
+function actionNamed({ action, by, limit, tavola }: CatalogRunAction): string {
   const who = by ? by.name : 'the server, after it restarted';
   switch (action) {
     case 'started':
@@ -247,6 +250,8 @@ function actionNamed({ action, by, limit }: CatalogRunAction): string {
       return `Continued by ${who},`;
     case 'stopped':
       return `Stopped by ${who},`;
+    case 'removed':
+      return `Tavola ${tavola ?? ''} removed by ${by ? by.name : 'an Administrator'},`;
   }
 }
 
@@ -404,7 +409,14 @@ function TavolaLine({ tavola }: { tavola: CatalogRunTavola }) {
       <span className="text-lg font-medium text-text">Tavola {tavola.number}</span>
       <span className="tabular text-muted">{dollars(tavola.cost)}</span>
       <span className="ml-auto text-pretty">
-        {tavola.tavolaId ? (
+        {tavola.removed ? (
+          <span className="text-muted">
+            Removed by {tavola.removed.by?.name ?? 'an Administrator'},{' '}
+            <time className="tabular" dateTime={tavola.removed.at}>
+              {when(tavola.removed.at)}
+            </time>
+          </span>
+        ) : tavola.tavolaId ? (
           <Link
             to="/tavole/$tavolaId"
             params={{ tavolaId: tavola.tavolaId }}

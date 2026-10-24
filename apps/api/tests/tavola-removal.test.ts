@@ -13,7 +13,7 @@ import type {
 } from '@ricambi/contracts';
 import { eq, inArray } from 'drizzle-orm';
 import type TestAgent from 'supertest/lib/agent.js';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   contributions,
   listings,
@@ -38,6 +38,7 @@ import {
   type OutputDirectory,
 } from './support/catalog-reading.js';
 import {
+  carryOn,
   configured,
   estimateSettled,
   estimated,
@@ -348,6 +349,25 @@ describe('removing an Unchecked Tavola', () => {
     }
   });
 
+  it('writes its removal to the log, as no Catalog run read it', async () => {
+    const { modelId, tavola } = await givenLoaded();
+    const { account } = (await administrator.get('/api/session').expect(200)).body as {
+      account: { id: string };
+    };
+    const info = vi.spyOn(app.logger, 'info');
+
+    try {
+      await remove(administrator, tavola('84')).expect(200);
+
+      expect(info).toHaveBeenCalledWith(
+        { by: account.id, modelId, tavola: '84' },
+        'An Administrator removed a Tavola no Catalog run read',
+      );
+    } finally {
+      info.mockRestore();
+    }
+  });
+
   it('is a 404 for a Tavola that is not there', async () => {
     const { tavola } = await givenLoaded();
     await remove(administrator, tavola('84')).expect(200);
@@ -387,9 +407,17 @@ describe('removing a Tavola a Catalog run read', () => {
   beforeEach(async () => {
     await app.reset();
     pages.splice(0, pages.length, ...catalog());
-    administrator = (await givenAnAdministrator(app)).agent;
+    administrator = (await givenAnAdministrator(app, { name: 'Ada Admin' })).agent;
     model = await givenModel(app.db, { brand: 'Iso', name: 'Rivolta', series: 'GT' });
+    method.calls.length = 0;
   });
+
+  async function current(run: CatalogRun): Promise<CatalogRun> {
+    return (
+      (await administrator.get(`/api/catalog-runs/${run.id}`).expect(200))
+        .body as CatalogRunResponse
+    ).run;
+  }
 
   async function readBoth(): Promise<{ run: CatalogRun; tavolaId: string }> {
     const run = await estimated(administrator, model);
@@ -408,6 +436,62 @@ describe('removing a Tavola a Catalog run read', () => {
     await administrator.delete(`/api/tavole/${tavolaId}`).expect(200, { modelId: model.id });
 
     await administrator.get(`/api/tavole/${tavolaId}`).expect(404);
+    const { tavole: onModel } = (await administrator.get(`/api/models/${model.id}`).expect(200))
+      .body as { tavole: { number: string }[] };
+    expect(onModel.map((one) => one.number)).toEqual(['2']);
+  });
+
+  it('keeps the run’s cost and record, and its line and Who did what say it was removed', async () => {
+    const { run, tavolaId } = await readBoth();
+    app.clock.setTo(new Date('2026-01-16T10:00:00.000Z'));
+
+    await administrator.delete(`/api/tavole/${tavolaId}`).expect(200);
+
+    const after = await current(run);
+    const by = { id: expect.any(String), name: 'Ada Admin' };
+    expect(after).toMatchObject({
+      state: run.state,
+      spent: run.spent,
+      estimate: run.estimate,
+      limit: run.limit,
+      costs: run.costs,
+    });
+    expect(after.tavole).toEqual([
+      {
+        ...run.tavole[0],
+        tavolaId: null,
+        removed: { by, at: '2026-01-16T10:00:00.000Z' },
+      },
+      run.tavole[1],
+    ]);
+    expect(run.tavole[1]?.removed).toBeNull();
+    expect(after.actions).toEqual([
+      ...run.actions,
+      { action: 'removed', by, at: '2026-01-16T10:00:00.000Z', limit: null, tavola: '1' },
+    ]);
+    expect(run.actions[0]?.tavola).toBeNull();
+  });
+
+  it('is not read again by the run continued after it was removed', async () => {
+    const run = await estimated(administrator, model);
+    // $0.30 reads Tavola 1 and stops before Tavola 2 (`catalog-run-continue.test.ts`).
+    await start(administrator, run, { limit: 0.3 }).expect(202);
+    const stopped = await settled(administrator, run);
+    expect(stopped.state).toBe('stopped-at-limit');
+    const tavolaId = stopped.tavole[0]?.tavolaId as string;
+    await administrator.delete(`/api/tavole/${tavolaId}`).expect(200);
+
+    method.calls.length = 0;
+    await carryOn(administrator, run, { limit: 1 }).expect(202);
+    const finished = await settled(administrator, run);
+
+    expect(finished.state).toBe('finished');
+    expect(method.calls).toEqual(['read 2 1', 'read 2 2']);
+    expect(finished.tavole[0]).toMatchObject({ number: '1', tavolaId: null });
+    expect(finished.tavole[0]?.removed).toEqual({
+      by: { id: expect.any(String), name: 'Ada Admin' },
+      at: expect.any(String),
+    });
     const { tavole: onModel } = (await administrator.get(`/api/models/${model.id}`).expect(200))
       .body as { tavole: { number: string }[] };
     expect(onModel.map((one) => one.number)).toEqual(['2']);
