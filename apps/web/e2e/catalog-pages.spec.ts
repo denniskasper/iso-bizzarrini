@@ -50,3 +50,26 @@ test('a file that is not a PDF that can be read is refused when it is chosen', a
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Estimate the cost' })).toBeDisabled();
 });
+
+test('a page is a whole number, and nothing else can be typed for one', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: 'Readings' }).click();
+
+  await page.getByTestId('catalog-file').setInputFiles({
+    name: 'catalog.pdf',
+    mimeType: 'application/pdf',
+    buffer: fixturePdf(5),
+  });
+  await expect(page.getByTestId('catalog-chosen')).toContainText('5 pages');
+
+  const from = page.getByLabel('From page');
+  await from.fill('4.4');
+  await expect(from).toHaveValue('');
+  await from.pressSequentially('4.4');
+  await expect(from).toHaveValue('44');
+  await from.fill('0');
+  await expect(page.getByText('The catalog has 5 pages, counted from 1.')).toBeVisible();
+  await from.fill('3');
+  await expect(from).toHaveValue('3');
+  await expect(page.getByText('The catalog has 5 pages')).toHaveCount(0);
+});

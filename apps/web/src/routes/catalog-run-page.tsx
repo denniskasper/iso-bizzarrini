@@ -6,10 +6,11 @@ import type {
   CatalogRunTavola,
 } from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Estimating } from '@/components/readings/estimating';
 import { RunCosts } from '@/components/readings/run-costs';
 import { StartRun } from '@/components/readings/start-run';
+import { Working } from '@/components/readings/working';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button } from '@/components/ui/button';
 import { Field, Refusal } from '@/components/ui/field';
@@ -95,7 +96,12 @@ function RunRecord({ run }: { run: CatalogRun }) {
 
       {run.state === 'estimating' && <Estimating run={run} />}
       {run.state === 'estimated' && <StartRun run={run} />}
-      {run.state === 'running' && !stopping(run) && <Stop run={run} />}
+      {run.state === 'running' && !stopping(run) && (
+        <>
+          <NowReading run={run} />
+          <Stop run={run} />
+        </>
+      )}
       {STOPPED.includes(run.state) && <Continue key={String(run.limit)} run={run} />}
 
       <Tavole run={run} />
@@ -129,6 +135,56 @@ const STOPPED: CatalogRunState[] = [
 /** Stop has been pressed, and the run has yet to reach its next request. */
 function stopping(run: CatalogRun): boolean {
   return run.state === 'running' && run.actions.at(-1)?.action === 'stopped';
+}
+
+/**
+ * **What the run is on now, and for how long**, while it reads. A page takes the model a minute or
+ * more, and nothing else on the page changes until a Tavola is finished, so the clock is what
+ * says the run is alive between one answer and the next.
+ */
+function NowReading({ run }: { run: CatalogRun }) {
+  const since = run.actions.findLast(
+    (action) => action.action === 'started' || action.action === 'continued',
+  )?.at;
+  const now = useNow();
+  const [tavola] = run.left.tavole;
+  const [page] = run.left.pages;
+  return (
+    <Working label="Reading">
+      {tavola !== undefined
+        ? `Now on Tavola ${tavola}.`
+        : page !== undefined
+          ? `Now on page ${page}.`
+          : 'Finishing the last Tavola.'}{' '}
+      {since && (
+        <span className="text-muted">
+          Reading for <span className="tabular">{elapsed(since, now)}</span>.
+        </span>
+      )}
+    </Working>
+  );
+}
+
+/** The time, once a second, for a clock on the screen. */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setNow(Date.now());
+    }, 1_000);
+    return () => {
+      clearInterval(tick);
+    };
+  }, []);
+  return now;
+}
+
+/** How long since `at`, in minutes and seconds: 0 s, 45 s, 3 min 05 s. */
+function elapsed(at: string, now: number): string {
+  const seconds = Math.max(0, Math.floor((now - new Date(at).getTime()) / 1_000));
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return minutes === 0 ? `${rest} s` : `${minutes} min ${String(rest).padStart(2, '0')} s`;
 }
 
 /**
@@ -333,19 +389,52 @@ function Left({ run }: { run: CatalogRun }) {
   if (run.startedAt === null) {
     return null;
   }
-  const { tavole, pages } = run.left;
   const costs = new Map(run.tavole.map((tavola) => [tavola.number, tavola.cost]));
+  // While it reads, the first of what is left is what it is on: a Tavola it began, or else the
+  // next page. Said as that, rather than as a page it has not reached.
+  const reading = run.state === 'running';
+  const nowTavola = reading ? run.left.tavole[0] : undefined;
+  const nowPage = reading && nowTavola === undefined ? run.left.pages[0] : undefined;
+  const tavole = nowTavola === undefined ? run.left.tavole : run.left.tavole.slice(1);
+  const pages = nowPage === undefined ? run.left.pages : run.left.pages.slice(1);
   return (
     <section className="mt-12" aria-labelledby="run-left" data-testid="run-left">
       <h2 id="run-left" className="label">
         Left to read
       </h2>
-      {tavole.length === 0 && pages.length === 0 ? (
-        <p className="mt-4 text-pretty text-text">
-          Nothing is left to read: every page went into a Tavola or was set aside.
-        </p>
+      {nowTavola === undefined &&
+      nowPage === undefined &&
+      tavole.length === 0 &&
+      pages.length === 0 ? (
+        reading ? null : (
+          <p className="mt-4 text-pretty text-text">
+            Nothing is left to read: every page went into a Tavola or was set aside.
+          </p>
+        )
       ) : (
         <dl className="mt-4 divide-y divide-line border-y border-line">
+          {(nowTavola !== undefined || nowPage !== undefined) && (
+            <div
+              className="flex flex-col gap-1 py-3 sm:flex-row sm:gap-6"
+              data-testid="run-reading-now"
+            >
+              <dt className="shrink-0 text-muted sm:w-36">Reading now</dt>
+              <dd className="flex flex-wrap items-baseline gap-x-6 text-lg font-medium text-text">
+                {nowTavola !== undefined ? (
+                  <>
+                    <span>Tavola {nowTavola}</span>
+                    <span className="tabular text-base font-normal text-muted">
+                      {dollars(costs.get(nowTavola) ?? 0)} so far
+                    </span>
+                  </>
+                ) : (
+                  <span>
+                    Page <span className="tabular">{nowPage}</span>
+                  </span>
+                )}
+              </dd>
+            </div>
+          )}
           {tavole.length > 0 && (
             <div
               className="flex flex-col gap-1 py-3 sm:flex-row sm:gap-6"
