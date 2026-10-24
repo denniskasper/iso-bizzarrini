@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.5.1...v0.6.0) (2026-10-24)
+
+
+### New
+
+* **83:** an Administrator removes an Unchecked Tavola ([f1c8b5b](https://github.com/denniskasper/iso-bizzarrini/commit/f1c8b5b6aa624ba7d091ac3ef3254e13d65f8b3f))
+* **84:** the confirmation says what removing a Tavola takes with it ([a49f0bc](https://github.com/denniskasper/iso-bizzarrini/commit/a49f0bc27b26af0556a040c9076c6ba5f8141102))
+* **85:** a Catalog run's record shows a Tavola it read was removed ([9622665](https://github.com/denniskasper/iso-bizzarrini/commit/962266533e72f46d22c9ddbc7fdcab9a7dec8b03))
+
 ## [0.5.1](https://github.com/denniskasper/iso-bizzarrini/compare/v0.5.0...v0.5.1) (2026-10-19)
 
 
