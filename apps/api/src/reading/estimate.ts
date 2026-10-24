@@ -46,8 +46,9 @@ export function needsAsking(identity: SheetIdentity): boolean {
 
 /**
  * The requests a drawing's numbers would take to read, each counted as it would be sent. Before
- * the page is asked which way its numbers read, they are found both upright and on their side as
- * scanned, and counted the way that finds more; turned half round, a page finds the same. Unless
+ * the page is asked which way its numbers read, and after, they are found both on the axis it said
+ * and a quarter from it, and counted the way that finds more; turned half round, a page finds the
+ * same. Unless
  * they are known to read the way the headings do, asking which way up they are is counted too.
  */
 async function estimateNumbers(
@@ -55,7 +56,10 @@ async function estimateNumbers(
   page: SheetImage,
   identity: SheetIdentity | undefined,
 ): Promise<RequestEstimate[]> {
-  const turns = identity?.numbersTurn !== undefined ? [identity.numbersTurn] : [0, 90];
+  // The reading finds them a quarter further round where that finds far more, whatever the
+  // identification said, so both axes are counted either way.
+  const known = identity?.numbersTurn;
+  const turns = known !== undefined ? [known, (known + 90) % 360] : [0, 90];
   let crops: NumberCrop[] = [];
   for (const turn of turns) {
     const image = turn === 0 ? page.image : await sharp(page.image).rotate(turn).png().toBuffer();
