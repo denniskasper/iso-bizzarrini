@@ -130,6 +130,22 @@ export function useRemoveTavola() {
   });
 }
 
+/**
+ * What removing an Unchecked Tavola would take with it (issue #84), asked once an Administrator
+ * has pressed Remove this Tavola, and afresh each time: an Editor may have listed one of its
+ * Parts elsewhere meanwhile. A refusal is the answer's error.
+ */
+export function useTavolaRemoval(tavolaId: string, asked: boolean) {
+  return useQuery({
+    queryKey: ['tavola-removal', tavolaId],
+    queryFn: () => api.tavolaRemoval(tavolaId),
+    enabled: asked,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+}
+
 /** Dollars to the cent, as every figure of a Catalog run is shown. */
 export function dollars(amount: number): string {
   return `$${amount.toFixed(2)}`;

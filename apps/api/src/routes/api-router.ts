@@ -204,6 +204,12 @@ export function createApiRouter(dependencies: {
     gate.hiddenFromAllButAdministrators,
     catalogRunController.removeTavola,
   );
+  // What removing it would take, asked before the removal is confirmed (issue #84).
+  router.get(
+    '/tavole/:removing/removal',
+    gate.hiddenFromAllButAdministrators,
+    catalogRunController.tavolaRemoval,
+  );
 
   router.get(
     '/catalog-runs/:runId',

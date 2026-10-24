@@ -11,8 +11,9 @@ import type {
   CatalogRunListed,
   CatalogRunSpent,
   CatalogRunTavola,
+  TavolaRemoval,
 } from '@ricambi/contracts';
-import { discardTavola, removeDiscardedFiles } from '../catalog/discard-tavola.js';
+import { discardTavola, reckonDiscard, removeDiscardedFiles } from '../catalog/discard-tavola.js';
 import type { ConfiguredReading } from '../composition/reading.js';
 import type { Db } from '../db/client.js';
 import {
@@ -35,6 +36,7 @@ import { PdfNotReadable, pdfPageCount, pdfPages, pdfPagesNamed } from '../readin
 import { PRICE_LIST, priceOf } from '../reading/price-list.js';
 import type { SheetIdentity } from '../reading/reading-method.js';
 import {
+  createCatalogRunRepository,
   STOPPED_STATES,
   type CatalogRunRepository,
   type CatalogRunWithModel,
@@ -121,9 +123,15 @@ export interface CatalogRunService {
   /**
    * An Unchecked Tavola removed whole (issue #83), by the rule reading it again replaces it by
    * (`discardTavola`), answering with the Model it belonged to. Refused for a Published Tavola,
-   * for one with Contributions on its Positions, and while any run is read or estimated.
+   * for one with Contributions on its Positions, and while any run is read or estimated. Recorded
+   * on the run that read it (issue #85), or in the log where none did.
    */
-  removeTavola(tavolaId: string): Promise<{ modelId: string }>;
+  removeTavola(tavolaId: string, remove: { by: string }): Promise<{ modelId: string }>;
+  /**
+   * What removing an Unchecked Tavola would take with it (issue #84), worked out by the reckoning
+   * `removeTavola` applies and nothing changed. Refused as `removeTavola` would be.
+   */
+  tavolaRemoval(tavolaId: string): Promise<TavolaRemoval>;
   /** The run that read a Tavola, or `null` where none did. */
   readBy(tavolaId: string): Promise<string | null>;
   /**
@@ -143,6 +151,9 @@ const PDF_SIGNATURE = '%PDF-';
 const ANOTHER_IS_READING =
   'Another Catalog run is being estimated or is reading. Runs go one at a time: try again once ' +
   'it has finished.';
+
+const HAS_CONTRIBUTIONS =
+  'Its Positions have Contributions, which removing it would lose. Review them first.';
 
 export function createCatalogRunService(dependencies: {
   reading: ConfiguredReading;
@@ -410,6 +421,30 @@ export function createCatalogRunService(dependencies: {
         'Its Positions have Contributions, which reading it again would lose. Review them first.',
       );
     }
+  }
+
+  /**
+   * The Tavola to remove, or what refuses it: Published, Contributions on its Positions, or a run
+   * reading now, which could load or replace the Tavola just removed.
+   */
+  async function removable(tavolaId: string): Promise<TavolaToReadAgain> {
+    const tavola = await catalogRunRepository.tavolaToReadAgain({ tavolaId });
+    if (!tavola) {
+      throw new NotFoundError('No such Tavola.');
+    }
+    if (tavola.state === 'published') {
+      throw new ConflictError(
+        'This Tavola is Published: an Editor has checked it, and it is corrected in Ricambi ' +
+          'rather than removed.',
+      );
+    }
+    if (tavola.hasContributions) {
+      throw new ConflictError(HAS_CONTRIBUTIONS);
+    }
+    if (await catalogRunRepository.busy()) {
+      throw new ConflictError(ANOTHER_IS_READING);
+    }
+    return tavola;
   }
 
   async function found(runId: string): Promise<CatalogRunWithModel> {
@@ -684,34 +719,40 @@ export function createCatalogRunService(dependencies: {
       return find(id);
     },
 
-    async removeTavola(tavolaId) {
-      const tavola = await catalogRunRepository.tavolaToReadAgain({ tavolaId });
-      if (!tavola) {
-        throw new NotFoundError('No such Tavola.');
-      }
-      if (tavola.state === 'published') {
-        throw new ConflictError(
-          'This Tavola is Published: an Editor has checked it, and it is corrected in Ricambi ' +
-            'rather than removed.',
+    async removeTavola(tavolaId, { by }) {
+      const tavola = await removable(tavolaId);
+      const discarded = await dependencies.db.transaction(async (session) => {
+        const recordedOn = await createCatalogRunRepository(session).tavolaRemoved(tavola.id, {
+          by,
+          at: clock.now(),
+        });
+        const taken = await discardTavola(session, tavola.id);
+        if (taken === 'has contributions') {
+          // Undoes the run's record of it too.
+          throw new ConflictError(HAS_CONTRIBUTIONS);
+        }
+        return { ...taken, recordedOn };
+      });
+      if (!discarded.recordedOn) {
+        logger.info(
+          { by, modelId: discarded.modelId, tavola: tavola.number },
+          'An Administrator removed a Tavola no Catalog run read',
         );
-      }
-      const HAS_CONTRIBUTIONS =
-        'Its Positions have Contributions, which removing it would lose. Review them first.';
-      if (tavola.hasContributions) {
-        throw new ConflictError(HAS_CONTRIBUTIONS);
-      }
-      // A run reading now could load or replace the Tavola just removed.
-      if (await catalogRunRepository.busy()) {
-        throw new ConflictError(ANOTHER_IS_READING);
-      }
-      const discarded = await dependencies.db.transaction((session) =>
-        discardTavola(session, tavola.id),
-      );
-      if (discarded === 'has contributions') {
-        throw new ConflictError(HAS_CONTRIBUTIONS);
       }
       await removeDiscardedFiles(fileStore, logger, discarded.fileKeys);
       return { modelId: discarded.modelId };
+    },
+
+    async tavolaRemoval(tavolaId) {
+      const tavola = await removable(tavolaId);
+      const reckoned = await dependencies.db.transaction((session) =>
+        reckonDiscard(session, tavola.id),
+      );
+      if (reckoned === 'has contributions') {
+        throw new ConflictError(HAS_CONTRIBUTIONS);
+      }
+      const { positions, marks, listings, tableSheets, scan, parts } = reckoned;
+      return { positions, marks, listings, tableSheets, scan, parts };
     },
 
     async readBy(tavolaId) {
@@ -853,6 +894,7 @@ function toCatalogRun({ run, model, tavole, pages, actions }: CatalogRunWithMode
       by: action.by && action.byName ? { id: action.by, name: action.byName } : null,
       at: action.at.toISOString(),
       limit: action.spendingLimit,
+      tavola: action.tavola,
     })),
     setAside: run.setAside.map(({ page, reason }) => ({
       page,
@@ -999,7 +1041,24 @@ function tavoleOf(
       cost: rounded(cost + (before?.cost ?? 0)),
       tavolaId: byNumber.get(number)?.tavolaId ?? null,
       refused: byNumber.get(number)?.refused ?? null,
+      removed: removedOf(byNumber.get(number)),
     });
   }
   return [...read.values()];
+}
+
+/** When the Tavola a run's line became was removed, and by whom (issue #85). */
+function removedOf(
+  line: CatalogRunWithModel['tavole'][number] | undefined,
+): CatalogRunTavola['removed'] {
+  if (!line?.removedAt) {
+    return null;
+  }
+  return {
+    by:
+      line.removedBy && line.removedByName
+        ? { id: line.removedBy, name: line.removedByName }
+        : null,
+    at: line.removedAt.toISOString(),
+  };
 }

@@ -197,6 +197,13 @@
       "when": 1792340042809,
       "tag": "0027_catalog_run_estimating",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792845482193,
+      "tag": "0028_catalog_run_removed_tavola",
+      "breakpoints": true
     }
   ]
 }

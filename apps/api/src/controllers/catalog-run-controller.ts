@@ -6,6 +6,7 @@ import type {
   ReadAgainFromResponse,
   ReadAgainRequest,
   RemovedTavolaResponse,
+  TavolaRemovalResponse,
 } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
@@ -72,6 +73,7 @@ export interface CatalogRunController {
   readAgain: RequestHandler;
   readAgainFrom: RequestHandler;
   removeTavola: RequestHandler;
+  tavolaRemoval: RequestHandler;
 }
 
 /**
@@ -166,8 +168,17 @@ export function createCatalogRunController(dependencies: {
     removeTavola: async (request, response) => {
       const { removing } = removingParams.parse(request.params);
       response.json(
-        (await catalogRunService.removeTavola(removing)) satisfies RemovedTavolaResponse,
+        (await catalogRunService.removeTavola(removing, {
+          by: gate.whoIsSignedIn(response).account.id,
+        })) satisfies RemovedTavolaResponse,
       );
+    },
+
+    tavolaRemoval: async (request, response) => {
+      const { removing } = removingParams.parse(request.params);
+      response.json({
+        removal: await catalogRunService.tavolaRemoval(removing),
+      } satisfies TavolaRemovalResponse);
     },
 
     read: async (request, response) => {

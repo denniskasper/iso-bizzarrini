@@ -117,7 +117,7 @@ state, total and Reading method. Each opens its run page. The run's **Record** s
 - the pages set aside, and what asking about them cost.
 
 A continued run has a record for each time it read. **Who did what** lists who started, raised,
-continued or stopped it, and when. Runs, their costs and their Reading method are shown to
+continued or stopped it, or removed a Tavola it read, and when. Runs, their costs and their Reading method are shown to
 Administrators only.
 
 The cost is the token counts each response reports, multiplied by the price list in
@@ -198,6 +198,12 @@ remove it**. The Tavola goes with its Positions, Marks, Listings, doubts, Scan a
 and so do the Parts listed on it and nowhere else, with their Photographs. Parts also listed on
 other Tavole stay. Ricambi then shows the Model's page, without it. A Tavola loaded with
 `archive:load` is removed the same way.
+
+The run that read it keeps its cost and its record. Its line for the Tavola says **Removed**, by
+whom and when, and **Who did what** lists the removal with the Tavola's number. A continued run
+does not read a removed Tavola again. A Tavola loaded with `archive:load` has no run, so its
+removal is written to the server's log instead, with the Administrator, the Model and the Tavola
+number.
 
 There is no undo. The way back is a new Catalog run over its pages. Removing is refused, with the
 reason:

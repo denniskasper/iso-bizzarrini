@@ -449,8 +449,11 @@ export type CatalogRunState =
   | 'stopped-by-administrator'
   | 'failed';
 
-/** What a person, or the server itself, did to a Catalog run (issue #59). */
-export type CatalogRunActionKind = 'started' | 'raised' | 'continued' | 'stopped';
+/**
+ * What a person, or the server itself, did to a Catalog run (issue #59), or to a Tavola it read:
+ * `removed` it (issue #85).
+ */
+export type CatalogRunActionKind = 'started' | 'raised' | 'continued' | 'stopped' | 'removed';
 
 export interface CatalogRunAction {
   action: CatalogRunActionKind;
@@ -462,6 +465,8 @@ export interface CatalogRunAction {
   at: string;
   /** The limit it was started with, or raised to, in dollars. `null` for the other actions. */
   limit: number | null;
+  /** The number of the Tavola `removed`. `null` for the other actions. */
+  tavola: string | null;
 }
 
 /** One Tavola of a Catalog run, as the run page lists it. */
@@ -475,6 +480,11 @@ export interface CatalogRunTavola {
   tavolaId: string | null;
   /** Why it was not loaded into the archive, where it was not: it is Published, say. */
   refused: string | null;
+  /**
+   * When an Administrator removed the Tavola it became, and who (issue #85), or `null` where
+   * nobody did. `by` is `null` where the Account has since been deleted.
+   */
+  removed: { by: { id: string; name: string } | null; at: string } | null;
 }
 
 /**
@@ -702,6 +712,30 @@ export interface ReadAgainRequest {
  */
 export interface RemovedTavolaResponse {
   modelId: string;
+}
+
+/**
+ * `GET /api/tavole/:tavolaId/removal` — what removing an Unchecked Tavola would take with it,
+ * before anything is removed (issue #84), by the same reckoning the removal then applies. Refused
+ * with the reason, as the removal would be. An Administrator's alone, and 404 to anybody else.
+ */
+export interface TavolaRemovalResponse {
+  removal: TavolaRemoval;
+}
+
+export interface TavolaRemoval {
+  positions: number;
+  marks: number;
+  listings: number;
+  tableSheets: number;
+  scan: boolean;
+  /** The Parts listed on it and nowhere else, which go with it. Parts listed elsewhere stay. */
+  parts: {
+    id: string;
+    catalogNumber: string | null;
+    nameIt: string | null;
+    nameEn: string | null;
+  }[];
 }
 
 /** Which way a quarter turn goes, looking at the drawing. */

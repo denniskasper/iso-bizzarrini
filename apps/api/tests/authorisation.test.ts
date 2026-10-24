@@ -113,6 +113,8 @@ const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
   'GET /api/catalog-runs',
   // Removing an Unchecked Tavola (issue #83).
   'DELETE /api/tavole/:removing',
+  // What removing it would take (issue #84).
+  'GET /api/tavole/:removing/removal',
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */

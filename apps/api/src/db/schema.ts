@@ -556,6 +556,7 @@ export const CATALOG_RUN_ACTIONS = [
   'raised',
   'continued',
   'stopped',
+  'removed',
 ] as const satisfies readonly CatalogRunActionKind[];
 
 /**
@@ -684,6 +685,15 @@ export const catalogRunTavole = pgTable(
     /** `null` where it was refused, or where it has since been replaced or deleted. */
     tavolaId: uuid('tavola_id').references(() => tavole.id, { onDelete: 'set null' }),
     refused: text('refused'),
+    /**
+     * When an Administrator removed the Tavola it became (issue #85), and who. Kept on the line of
+     * the latest run that produced it, so the run says why its Tavola is gone. Deleting the
+     * Account keeps when and drops who (ADR 0007).
+     */
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    removedBy: uuid('removed_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
     /** What its Italian was translated as, so the Tavole read after a stop read the same. */
     machineTranslations: jsonb('machine_translations')
       .notNull()
@@ -695,9 +705,9 @@ export const catalogRunTavole = pgTable(
 );
 
 /**
- * **Who started, raised, continued or stopped a Catalog run, and when** (issue #59). `by` is the
- * Administrator; it is empty where the server carried the run on after a restart, and where the
- * Account has since been deleted (ADR 0007).
+ * **Who started, raised, continued or stopped a Catalog run, or removed a Tavola it read, and
+ * when** (issues #59, #85). `by` is the Administrator; it is empty where the server carried the
+ * run on after a restart, and where the Account has since been deleted (ADR 0007).
  */
 export const catalogRunActions = pgTable(
   'catalog_run_actions',
@@ -711,6 +721,8 @@ export const catalogRunActions = pgTable(
     at: timestamp('at', { withTimezone: true }).notNull(),
     /** The limit started with or raised to, in dollars. */
     spendingLimit: doublePrecision('spending_limit'),
+    /** The number of the Tavola removed, for a `removed` action. */
+    tavola: text('tavola'),
     /** The order they were recorded in, which two in the same instant cannot take from `at`. */
     sequence: integer('sequence').generatedAlwaysAsIdentity(),
   },

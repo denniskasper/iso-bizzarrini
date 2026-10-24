@@ -28,11 +28,14 @@ import type { MachineTranslation } from '../reading/translation.js';
 export interface CatalogRunWithModel {
   run: CatalogRunRow;
   model: ModelRow;
-  /** The Tavole it has finished, in the order it finished them. */
-  tavole: CatalogRunTavolaRow[];
+  /**
+   * The Tavole it has finished, in the order it finished them, with the name of whoever removed
+   * the Tavola one became.
+   */
+  tavole: (CatalogRunTavolaRow & { removedByName: string | null })[];
   /** What each page it has asked about was found to be, in page order. */
   pages: { page: number; identity: SheetIdentity }[];
-  /** Who started, raised, continued and stopped it, oldest first. */
+  /** Who started, raised, continued and stopped it, and removed a Tavola it read, oldest first. */
   actions: (CatalogRunActionRow & { byName: string | null })[];
 }
 
@@ -126,6 +129,12 @@ export interface CatalogRunRepository {
   /** The pages the run put into no Tavola, and why, in place of any it set aside before. */
   setAside(runId: string, pages: { page: number; reason: string }[]): Promise<void>;
   /**
+   * A Tavola an Administrator is removing, recorded on the line of the latest run that produced it,
+   * with a `removed` action carrying its number (issue #85). Asked before the Tavola is deleted,
+   * which empties that line's `tavolaId`. The run it was recorded on, or `null` where no run read it.
+   */
+  tavolaRemoved(tavolaId: string, removal: { by: string; at: Date }): Promise<string | null>;
+  /**
    * A Tavola as reading it again needs it (issue #61): its state, whether its Positions have
    * Contributions, and the run that last read it, if one did. `null` where there is no such Tavola.
    */
@@ -200,8 +209,9 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         return null;
       }
       const finished = await db
-        .select()
+        .select({ tavola: catalogRunTavole, removedByName: accounts.name })
         .from(catalogRunTavole)
+        .leftJoin(accounts, eq(accounts.id, catalogRunTavole.removedBy))
         .where(eq(catalogRunTavole.runId, id))
         .orderBy(asc(catalogRunTavole.finishedAt));
       const pages = await db
@@ -217,7 +227,7 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .orderBy(asc(catalogRunActions.sequence));
       return {
         ...row,
-        tavole: finished,
+        tavole: finished.map(({ tavola, removedByName }) => ({ ...tavola, removedByName })),
         pages,
         actions: actions.map(({ action, byName }) => ({ ...action, byName })),
       };
@@ -406,6 +416,30 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .update(catalogRuns)
         .set({ setAside: [...pages].sort((a, b) => a.page - b.page) })
         .where(eq(catalogRuns.id, runId));
+    },
+
+    async tavolaRemoved(tavolaId, { by, at }) {
+      const [line] = await db
+        .select({
+          id: catalogRunTavole.id,
+          runId: catalogRunTavole.runId,
+          number: catalogRunTavole.number,
+        })
+        .from(catalogRunTavole)
+        .where(eq(catalogRunTavole.tavolaId, tavolaId))
+        .orderBy(desc(catalogRunTavole.finishedAt))
+        .limit(1);
+      if (!line) {
+        return null;
+      }
+      await db
+        .update(catalogRunTavole)
+        .set({ removedAt: at, removedBy: by })
+        .where(eq(catalogRunTavole.id, line.id));
+      await db
+        .insert(catalogRunActions)
+        .values({ runId: line.runId, action: 'removed', by, at, tavola: line.number });
+      return line.runId;
     },
 
     async tavolaToReadAgain(where) {
