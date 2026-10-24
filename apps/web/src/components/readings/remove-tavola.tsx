@@ -38,7 +38,7 @@ export function RemoveTavola({ tavolaId }: { tavolaId: string }) {
           </p>
           <Button
             type="button"
-            variant="ghost"
+            variant="danger"
             onClick={() => setAsked(true)}
             title="See what removing it would take with it. Nothing is removed until you confirm"
           >
@@ -57,7 +57,7 @@ export function RemoveTavola({ tavolaId }: { tavolaId: string }) {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="danger"
               disabled={removeTavola.isPending}
               onClick={() =>
                 removeTavola.mutate(tavolaId, {
