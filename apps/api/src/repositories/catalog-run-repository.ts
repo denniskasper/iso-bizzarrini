@@ -1,5 +1,5 @@
 import type { CatalogRunActionKind, CatalogRunState } from '@ricambi/contracts';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import { violates } from '../db/constraints.js';
 import {
@@ -30,9 +30,9 @@ export interface CatalogRunWithModel {
   model: ModelRow;
   /**
    * The Tavole it has finished, in the order it finished them, with the name of whoever removed
-   * the Tavola one became.
+   * the Tavola one became, and the later run that read it again and so replaced it.
    */
-  tavole: (CatalogRunTavolaRow & { removedByName: string | null })[];
+  tavole: (CatalogRunTavolaRow & { removedByName: string | null; replacedBy: string | null })[];
   /** What each page it has asked about was found to be, in page order. */
   pages: { page: number; identity: SheetIdentity }[];
   /** Who started, raised, continued and stopped it, and removed a Tavola it read, oldest first. */
@@ -67,7 +67,8 @@ export interface CatalogRunRepository {
   add(run: NewCatalogRunRow): Promise<CatalogRunRow | 'another is reading'>;
   findById(id: string): Promise<CatalogRunWithModel | null>;
   /** Every run with the Model it is for, the latest first (issue #62). */
-  list(): Promise<{ run: CatalogRunRow; model: ModelRow }[]>;
+  /** Every run, the latest first, with how many of the Tavole it read have been removed. */
+  list(): Promise<{ run: CatalogRunRow; model: ModelRow; removed: number }[]>;
   /**
    * An estimated run set running. `'another is running'` where one already is: the database
    * keeps it to one at a time. `'not estimated'` where this one has been started before.
@@ -214,6 +215,35 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .leftJoin(accounts, eq(accounts.id, catalogRunTavole.removedBy))
         .where(eq(catalogRunTavole.runId, id))
         .orderBy(asc(catalogRunTavole.finishedAt));
+      // The runs into the same Model that read one of these numbers later and loaded it: the
+      // first of them replaced the Tavola this run's line became.
+      const numbers = finished.map(({ tavola }) => tavola.number);
+      const later =
+        numbers.length === 0
+          ? []
+          : await db
+              .select({
+                runId: catalogRunTavole.runId,
+                number: catalogRunTavole.number,
+                finishedAt: catalogRunTavole.finishedAt,
+              })
+              .from(catalogRunTavole)
+              .innerJoin(catalogRuns, eq(catalogRuns.id, catalogRunTavole.runId))
+              .where(
+                and(
+                  eq(catalogRuns.modelId, row.run.modelId),
+                  inArray(catalogRunTavole.number, numbers),
+                  ne(catalogRunTavole.runId, id),
+                  isNull(catalogRunTavole.refused),
+                ),
+              )
+              .orderBy(asc(catalogRunTavole.finishedAt));
+      const replacedBy = ({ tavola }: (typeof finished)[number]): string | null =>
+        tavola.tavolaId !== null || tavola.removedAt !== null || tavola.refused !== null
+          ? null
+          : (later.find(
+              (other) => other.number === tavola.number && other.finishedAt > tavola.finishedAt,
+            )?.runId ?? null);
       const pages = await db
         .select({ page: catalogRunPages.page, identity: catalogRunPages.identity })
         .from(catalogRunPages)
@@ -227,18 +257,29 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         .orderBy(asc(catalogRunActions.sequence));
       return {
         ...row,
-        tavole: finished.map(({ tavola, removedByName }) => ({ ...tavola, removedByName })),
+        tavole: finished.map((line) => ({
+          ...line.tavola,
+          removedByName: line.removedByName,
+          replacedBy: replacedBy(line),
+        })),
         pages,
         actions: actions.map(({ action, byName }) => ({ ...action, byName })),
       };
     },
 
     async list() {
-      return db
+      const runs = await db
         .select({ run: catalogRuns, model: models })
         .from(catalogRuns)
         .innerJoin(models, eq(models.id, catalogRuns.modelId))
         .orderBy(desc(catalogRuns.createdAt), desc(catalogRuns.id));
+      const removed = await db
+        .select({ runId: catalogRunTavole.runId, removed: count() })
+        .from(catalogRunTavole)
+        .where(isNotNull(catalogRunTavole.removedAt))
+        .groupBy(catalogRunTavole.runId);
+      const removedBy = new Map(removed.map((one) => [one.runId, one.removed]));
+      return runs.map((one) => ({ ...one, removed: removedBy.get(one.run.id) ?? 0 }));
     },
 
     async start(id, { limit, at, by }) {

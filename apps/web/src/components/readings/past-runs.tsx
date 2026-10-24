@@ -36,6 +36,11 @@ export function PastRuns() {
                     })}
                   </time>
                   , {stateNamed(run.state)}
+                  {run.removed > 0 && (
+                    <>
+                      , {run.removed} {run.removed === 1 ? 'Tavola' : 'Tavole'} removed since
+                    </>
+                  )}
                 </span>
               </span>
               <span className="ml-auto flex flex-col items-end">
