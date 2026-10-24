@@ -4,6 +4,7 @@ import type {
   CatalogModelResponse,
   CatalogRun,
   CatalogRunResponse,
+  CatalogRunsResponse,
   RemovedTavolaResponse,
   SearchResponse,
   TavolaRemoval,
@@ -470,6 +471,35 @@ describe('removing a Tavola a Catalog run read', () => {
       { action: 'removed', by, at: '2026-01-16T10:00:00.000Z', limit: null, tavola: '1' },
     ]);
     expect(run.actions[0]?.tavola).toBeNull();
+  });
+
+  it('says on the earlier run that a later one replaced its Tavola, and counts removals per run', async () => {
+    app.clock.setTo(new Date('2026-01-16T09:00:00.000Z'));
+    const first = await readBoth();
+    app.clock.setTo(new Date('2026-01-16T09:30:00.000Z'));
+    const second = await readBoth();
+    await administrator.delete(`/api/tavole/${second.tavolaId}`).expect(200);
+
+    const earlier = await current(first.run);
+    expect(earlier.tavole.find((tavola) => tavola.number === '1')).toMatchObject({
+      tavolaId: null,
+      removed: null,
+      replacedBy: { runId: second.run.id },
+    });
+    const later = await current(second.run);
+    expect(later.tavole.find((tavola) => tavola.number === '1')).toMatchObject({
+      tavolaId: null,
+      removed: { by: { name: 'Ada Admin' } },
+      replacedBy: null,
+    });
+    expect(later.tavole.find((tavola) => tavola.number === '2')?.replacedBy).toBeNull();
+
+    const { runs } = (await administrator.get('/api/catalog-runs').expect(200))
+      .body as CatalogRunsResponse;
+    expect(runs.map((run) => [run.id, run.removed])).toEqual([
+      [second.run.id, 1],
+      [first.run.id, 0],
+    ]);
   });
 
   it('is not read again by the run continued after it was removed', async () => {

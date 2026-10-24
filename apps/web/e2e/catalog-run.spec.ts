@@ -236,6 +236,7 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
     timeout: 30_000,
   });
 
+  const firstRun = page.url();
   await page.getByRole('link', { name: 'Open, Unchecked' }).click();
   await expect(page.getByTestId('unchecked-band')).toBeVisible();
   const before = page.url();
@@ -257,6 +258,13 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
   expect(page.url()).not.toBe(before);
   await page.goto(before);
   await expect(page.getByTestId('unchecked-band')).toHaveCount(0);
+
+  // And the run that read it first says which run replaced it, rather than only that it read it.
+  await page.goto(firstRun);
+  const line = page.getByTestId('run-tavola').filter({ hasText: 'Tavola 103' });
+  await line.getByRole('link', { name: 'Replaced by a later run' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Tavola 103');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('read again');
 });
 
 /**

@@ -144,6 +144,7 @@ describe('the record of a Catalog run', () => {
         readingMethod: 'api-key',
         charged: true,
         readsAgain: null,
+        removed: 0,
       },
       expect.objectContaining({
         id: first.id,

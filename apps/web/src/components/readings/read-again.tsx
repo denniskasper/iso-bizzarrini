@@ -33,6 +33,7 @@ export function ReadAgain({ tavolaId }: { tavolaId: string }) {
       </p>
       <Button
         disabled={readAgain.isPending}
+        title="Estimate reading its pages again. Nothing is read until you start the run"
         onClick={() =>
           readAgain.mutate(tavolaId, {
             onSuccess: (data) =>

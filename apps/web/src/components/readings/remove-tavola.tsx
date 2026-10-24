@@ -36,7 +36,12 @@ export function RemoveTavola({ tavolaId }: { tavolaId: string }) {
             Read by mistake? Remove it, with its Positions, Listings and files, and the Parts listed
             nowhere else.
           </p>
-          <Button type="button" variant="ghost" onClick={() => setAsked(true)}>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => setAsked(true)}
+            title="See what removing it would take with it. Nothing is removed until you confirm"
+          >
             Remove this Tavola
           </Button>
         </div>
@@ -52,7 +57,7 @@ export function RemoveTavola({ tavolaId }: { tavolaId: string }) {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="danger"
               disabled={removeTavola.isPending}
               onClick={() =>
                 removeTavola.mutate(tavolaId, {

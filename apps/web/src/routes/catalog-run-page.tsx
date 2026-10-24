@@ -515,6 +515,14 @@ function TavolaLine({ tavola }: { tavola: CatalogRunTavola }) {
           </Link>
         ) : tavola.refused ? (
           <span className="text-muted">Not loaded. {tavola.refused}</span>
+        ) : tavola.replacedBy ? (
+          <Link
+            to="/readings/runs/$runId"
+            params={{ runId: tavola.replacedBy.runId }}
+            className="-my-2 inline-flex min-h-control items-center text-muted underline underline-offset-4 hover:text-text"
+          >
+            Replaced by a later run
+          </Link>
         ) : (
           <span className="text-faint">Read</span>
         )}

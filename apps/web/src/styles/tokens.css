@@ -107,7 +107,8 @@
 
   /*
    * Something went wrong and the member has to notice. **A red that means nothing else**: it is
-   * never a fill, never decoration, and never the colour of an action. 5.9:1 or better on every
+   * never a fill at rest, never decoration, and the colour of one kind of action only, the kind
+   * that cannot be undone (the `danger` button), so it warns there as it does everywhere else. 5.9:1 or better on every
    * light surface; the dark value clears 6.6:1 on the chrome.
    */
   --alarm: oklch(0.5 0.17 27);

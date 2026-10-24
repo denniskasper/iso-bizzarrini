@@ -459,7 +459,7 @@ export function createCatalogRunService(dependencies: {
     find,
 
     async list() {
-      return (await catalogRunRepository.list()).map(({ run, model }) => ({
+      return (await catalogRunRepository.list()).map(({ run, model, removed }) => ({
         id: run.id,
         model: modelOf(model),
         state: run.state,
@@ -470,6 +470,7 @@ export function createCatalogRunService(dependencies: {
         readingMethod: run.readingMethod,
         charged: run.charged,
         readsAgain: run.readsAgain,
+        removed,
       }));
     },
 
@@ -1042,9 +1043,17 @@ function tavoleOf(
       tavolaId: byNumber.get(number)?.tavolaId ?? null,
       refused: byNumber.get(number)?.refused ?? null,
       removed: removedOf(byNumber.get(number)),
+      replacedBy: replacedOf(byNumber.get(number)),
     });
   }
   return [...read.values()];
+}
+
+/** The later run that read the Tavola a run's line became again, replacing it. */
+function replacedOf(
+  line: CatalogRunWithModel['tavole'][number] | undefined,
+): CatalogRunTavola['replacedBy'] {
+  return line?.replacedBy ? { runId: line.replacedBy } : null;
 }
 
 /** When the Tavola a run's line became was removed, and by whom (issue #85). */

@@ -485,6 +485,12 @@ export interface CatalogRunTavola {
    * nobody did. `by` is `null` where the Account has since been deleted.
    */
   removed: { by: { id: string; name: string } | null; at: string } | null;
+  /**
+   * The later Catalog run that read this Tavola again and replaced the one this run made, or
+   * `null` where none did. Said instead of a bare "read", which is all a line whose Tavola has
+   * gone could say before.
+   */
+  replacedBy: { runId: string } | null;
 }
 
 /**
@@ -651,6 +657,8 @@ export interface CatalogRunListed {
   readingMethod: ReadingMethodKind;
   charged: boolean;
   readsAgain: CatalogRun['readsAgain'];
+  /** How many of the Tavole it read an Administrator has since removed (issue #85). */
+  removed: number;
 }
 
 export interface CatalogRunSetAsidePage {

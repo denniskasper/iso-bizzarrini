@@ -20,6 +20,11 @@ const buttonVariants = cva(
         primary: 'bg-accent text-accent-contrast hover:bg-accent-hover',
         outline: 'border border-line-strong bg-surface-raised text-text hover:bg-surface-sunken',
         ghost: 'text-muted hover:bg-surface-sunken hover:text-text',
+        // Only for what cannot be undone, such as removing a Tavola: the one action the alarm red
+        // is ever the colour of. Outlined at rest, so it never outshouts the screen's one action;
+        // filled only under the pointer, as the last thing seen before it is pressed.
+        danger:
+          'border border-alarm bg-surface-raised text-alarm hover:bg-alarm hover:text-surface',
         link: 'text-accent-ink underline-offset-4 hover:underline',
       },
       size: {
