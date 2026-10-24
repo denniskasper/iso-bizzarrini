@@ -425,6 +425,7 @@ export function TavolaPage() {
       <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <DrawingViewer
           ref={view}
+          className="drawing-beside"
           scan={tavola.scan}
           alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
           overlay={

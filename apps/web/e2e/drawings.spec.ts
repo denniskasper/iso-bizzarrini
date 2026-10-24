@@ -92,3 +92,31 @@ test.describe('a link into the archive', () => {
     await expect(page.getByTestId('selected-position')).toHaveText('3');
   });
 });
+
+test('beside its parts, the drawing stays in view below the chrome as the page scrolls', async ({
+  page,
+}) => {
+  test.skip(
+    test.info().project.name !== 'chromium',
+    'Only a wide screen puts the parts beside it.',
+  );
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await signIn(page);
+  await page.getByRole('link', { name: /5300 GT Strada/ }).click();
+  await page
+    .getByTestId('left-to-check')
+    .getByRole('link', { name: /Fuel pump/ })
+    .click();
+  const stage = page.getByTestId('drawing-stage');
+  await expect(stage).toBeVisible();
+
+  await page.evaluate(() => window.scrollBy(0, 700));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  const chrome = await page
+    .locator('[data-chrome]')
+    .evaluate((element) => element.getBoundingClientRect().bottom);
+  const box = await stage.boundingBox();
+  expect(box?.y).toBeGreaterThanOrEqual(chrome);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(800);
+});

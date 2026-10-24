@@ -245,7 +245,7 @@ export function CheckingSheets({
           data-testid="checking-sheet"
           data-sheet={sheet.sheet}
         >
-          <figure className="lg:sticky lg:top-6">
+          <figure className="lg:sticky lg:top-[calc(var(--chrome-height,0px)+1.5rem)]">
             <a href={sheet.url} target="_blank" rel="noreferrer" className="block">
               <img
                 src={sheet.url}
