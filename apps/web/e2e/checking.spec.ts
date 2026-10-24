@@ -60,3 +60,18 @@ test('following a doubt keeps the page where it was', async ({ page }) => {
   await expect(page).toHaveURL(/position=4/);
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(before);
 });
+
+test('the Unchecked band says how to check a Tavola, when asked', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: /5300 GT Strada/ }).click();
+  await page
+    .getByTestId('left-to-check')
+    .getByRole('link', { name: /Fuel pump/ })
+    .click();
+
+  const guide = page.getByTestId('checking-guide');
+  await expect(guide.getByText('Go through the doubts.')).toBeHidden();
+  await guide.getByText('How to check this Tavola').click();
+  await expect(guide.getByText('Go through the doubts.')).toBeVisible();
+  await expect(guide).toContainText('Record a part here');
+});

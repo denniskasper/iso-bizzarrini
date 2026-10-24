@@ -73,6 +73,10 @@ export function ReadingDoubts({
           <h3 className="text-base font-semibold">
             {doubts.length === 1 ? '1 doubt' : `${doubts.length} doubts`}
           </h3>
+          <p className="mt-1 text-sm text-pretty text-muted">
+            Select one to go to it. Clear it once you have looked; rewrite it to leave a note for
+            the next Editor.
+          </p>
           <ul className="mt-2 border-t border-line">
             {doubts.map((doubt) => (
               <DoubtRow
@@ -161,15 +165,25 @@ function DoubtRow({
             type="button"
             className="grid min-h-control min-w-0 flex-1 grid-cols-[4rem_minmax(0,1fr)] items-baseline gap-4 py-2 text-left hover:bg-surface-raised"
             onClick={onFollow}
+            title="Go to this number on the drawing, and its row below"
           >
             <span className="tabular text-lg">{number ?? '–'}</span>
             <span className="text-sm text-pretty">{doubt.reason}</span>
           </button>
           <span className="flex">
-            <Button variant="ghost" onClick={() => setRewriting(true)}>
+            <Button
+              variant="ghost"
+              onClick={() => setRewriting(true)}
+              title="Say in your own words what is still open here, for the next Editor"
+            >
               Rewrite
             </Button>
-            <Button variant="ghost" disabled={clear.isPending} onClick={() => clear.mutate()}>
+            <Button
+              variant="ghost"
+              disabled={clear.isPending}
+              onClick={() => clear.mutate()}
+              title="You have looked at it: take it off the list. Nothing else changes"
+            >
               {clear.isPending ? 'Clearing…' : 'Clear'}
             </Button>
           </span>
@@ -388,7 +402,11 @@ function CheckedRow({
         aria-pressed={listing.drawn}
         disabled={flip.isPending}
         onClick={() => flip.mutate()}
-        title={listing.drawn ? 'Mark it not drawn' : 'Mark it drawn'}
+        title={
+          listing.drawn
+            ? 'Drawn: the drawing shows this part at its number. Press if it does not'
+            : 'Not drawn: listed, but not shown on the drawing. Press if it is'
+        }
       >
         {listing.drawn ? 'Drawn' : 'Not drawn'}
       </Button>

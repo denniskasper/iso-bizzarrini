@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { CheckingGuide } from '@/components/editor/checking-guide';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { api, refusalText, type TavolaPublication } from '@/lib/api';
@@ -44,7 +45,7 @@ export function UncheckedBand({
   return (
     <section
       aria-labelledby="unchecked"
-      className="tavola-unchecked flex flex-wrap items-center justify-between gap-x-8 gap-y-4"
+      className="tavola-unchecked flex flex-wrap items-start justify-between gap-x-8 gap-y-4"
       data-testid="unchecked-band"
     >
       <div className="max-w-measure">
@@ -55,9 +56,15 @@ export function UncheckedBand({
           Members can’t see this drawing yet. Compare it with the factory’s sheets, then publish it.
           Doubts don’t have to be cleared first.
         </p>
+        <CheckingGuide />
       </div>
 
-      <Button variant="primary" disabled={publish.isPending} onClick={() => publish.mutate()}>
+      <Button
+        variant="primary"
+        disabled={publish.isPending}
+        onClick={() => publish.mutate()}
+        title="Show this drawing to members. It can still be corrected afterwards."
+      >
         {publish.isPending ? 'Publishing…' : 'Publish'}
       </Button>
 
