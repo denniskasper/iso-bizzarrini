@@ -262,6 +262,55 @@ describe('Marks proposed from the drawing', () => {
     expect(seven?.y).toBeCloseTo(1 - (200 + 7) / WIDTH, 3);
   });
 
+  const SIDEWAYS = [
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12',
+    '13',
+    '14',
+    '15',
+    '16',
+    '17',
+    '18',
+  ];
+
+  it('finds sideways numbers where the identification took them for upside down', async () => {
+    // Read on Tavola 51: the numbers are a quarter from the headings, and the identification said
+    // half round. Found that way, there are only a few stray candidates; found a quarter further
+    // round, there are the numbers, and which way up they are is asked as before.
+    const { out } = await read([
+      {
+        ...aDrawing('84', { turn: 0, numbersTurn: 90 }),
+        saysNumbersTurn: 180,
+        width: WIDTH,
+        height: HEIGHT,
+        // As many as a real drawing has: the axis is told by how many more one way finds.
+        numbers: SIDEWAYS.map((text, index) => ({
+          text,
+          x: 120 + (index % 6) * 130,
+          y: 100 + Math.floor(index / 6) * 150,
+        })),
+      },
+      tableListing(...SIDEWAYS),
+    ]);
+
+    const marks = await marksOf(out);
+    expect(marks.map((mark) => mark.position).sort()).toEqual([...SIDEWAYS].sort());
+    const first = marks.find((mark) => mark.position === SIDEWAYS[0]);
+    expect(first?.x).toBeCloseTo((100 + 13) / HEIGHT, 3);
+    // Its middle: a "1" is narrower than the "7" the other tests place, so 2 in rather than 7.
+    expect(first?.y).toBeCloseTo(1 - (120 + 2) / WIDTH, 3);
+  });
+
   it('does not ask which way up the numbers are where they read as the headings do', async () => {
     const { method } = await read([
       drawing({ numbers: [{ text: '7', x: 200, y: 100 }] }),

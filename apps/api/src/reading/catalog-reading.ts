@@ -467,9 +467,19 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
       const identity = drawing.identity;
       let turned = (((identity.numbersTurn ?? identity.turn) - identity.turn + 360) % 360) as Turn;
       let { found, crops } = await numbersOn(drawing.image, turned);
+      // Which axis the numbers lie on is the finder's to say, not the identification's: digits
+      // only look like digits along their own, so a quarter further round finds far more of them
+      // where the identification had the axis wrong, as it did with Tavola 51's sideways numbers.
+      const across = ((turned + 90) % 360) as Turn;
+      const otherAxis = await numbersOn(drawing.image, across);
+      const switched = foundFarMore(otherAxis.found, found);
+      if (switched) {
+        turned = across;
+        ({ found, crops } = otherAxis);
+      }
       // Which way a turned number reads is easy to get the wrong way round; shown both ways, the
       // model tells which is upright, and the finder finds the same numbers turned half round.
-      if (turned !== 0 && crops.length > 0 && mayAsk()) {
+      if ((turned !== 0 || switched) && crops.length > 0 && mayAsk()) {
         const rows = { page: drawing.page, ...(await bothWays(crops)) };
         const atMost = spending.atMost(await method.estimateOrientation(rows));
         if (spending.wouldPass(atMost)) {
@@ -681,6 +691,16 @@ function pagesNamed(sheets: { page: number }[]): string {
 }
 
 /** A drawing's numbers, found and cut out with it turned `turned` clockwise. */
+/**
+ * Whether one axis found far more candidates than the other: twice as many and ten more. On the
+ * wrong axis the finder still picks up a few strays, such as the title block's figures, so a
+ * difference of a handful decides nothing.
+ */
+function foundFarMore(one: { candidates: unknown[] }, other: { candidates: unknown[] }): boolean {
+  const [more, fewer] = [one.candidates.length, other.candidates.length];
+  return more >= 2 * fewer && more - fewer >= 10;
+}
+
 async function numbersOn(image: Buffer, turned: Turn) {
   const turnedImage = turned === 0 ? image : await sharp(image).rotate(turned).png().toBuffer();
   const found = await findNumbers(turnedImage);
