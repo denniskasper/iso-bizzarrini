@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { EnvironmentBanner } from '@/components/environment-banner';
 import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -16,12 +16,13 @@ import { cn } from '@/lib/utils';
 export function AppShell({ children }: { children: ReactNode }) {
   const { isAdministrator, isEditor, mayRead, signedIn } = useSession();
   const waiting = useWaitingCount();
+  const chrome = useChromeHeight();
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
       {/* The stamp travels with the chrome: a mark you can scroll away from is a mark you can
           forget. In production nothing is rendered above the header at all. */}
-      <div className="sticky top-0 z-10" data-chrome>
+      <div ref={chrome} className="sticky top-0 z-10" data-chrome>
         <EnvironmentBanner />
 
         {/* On the page's own surface, ruled off by a hairline: the chrome is the thinnest thing
@@ -160,3 +161,28 @@ export function AppShell({ children }: { children: ReactNode }) {
  */
 const chromeLink =
   'flex h-control items-center rounded-md px-3 text-sm text-muted transition-colors duration-150 ease-[var(--ease-out-quick)] hover:bg-surface-sunken hover:text-text';
+
+/**
+ * **How tall the chrome is, as `--chrome-height` on the page**, for whatever stays in view below
+ * it as the page scrolls: a drawing beside its parts, a table sheet beside its rows. It is not one
+ * figure: the banner of a practice system is above it, and an Administrator's row wraps.
+ */
+function useChromeHeight() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => {
+      root.style.setProperty('--chrome-height', `${element.offsetHeight}px`);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--chrome-height');
+    };
+  }, []);
+  return ref;
+}

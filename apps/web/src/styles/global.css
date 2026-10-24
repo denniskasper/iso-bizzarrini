@@ -261,6 +261,19 @@
   }
 
   /*
+   * Beside its facing page, the drawing stays in view below the chrome while the parts beside it
+   * are scrolled, so a number read in the column can be found on the sheet without scrolling back
+   * up to it. No taller than the window then leaves room for, or its foot would be out of reach.
+   */
+  @media (width >= 64rem) {
+    .drawing-stage.drawing-beside {
+      position: sticky;
+      top: calc(var(--chrome-height, 0px) + 1.5rem);
+      height: clamp(20rem, calc(100dvh - var(--chrome-height, 0px) - 3rem), 56rem);
+    }
+  }
+
+  /*
    * Full screen, and this is the whole of it where a browser has no element fullscreen — iOS
    * Safari — so a phone still gets every pixel it has. Where the real API exists it is asked for
    * as well and this simply fills what it opens.
