@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.6.0...v0.7.0) (2026-10-24)
+
+
+### New
+
+* **checking:** the Unchecked page says how to check a Tavola, and what each action does ([9fa9a6f](https://github.com/denniskasper/iso-bizzarrini/commit/9fa9a6f6cfb3111df90716220c607d2ce76b50a1))
+* **readings:** a run says when a later one replaced its Tavola, and the list counts removals ([089bd79](https://github.com/denniskasper/iso-bizzarrini/commit/089bd79a37df0671029bc01af0f175ff7c7ff4ea))
+* **readings:** removing a Tavola looks like what it is ([8e380db](https://github.com/denniskasper/iso-bizzarrini/commit/8e380db1076987b5daaa6085b001c8038b3311ab))
+
+
+### Fixed
+
+* **reading:** find a drawing's numbers on their own axis when the identification got it wrong ([6774748](https://github.com/denniskasper/iso-bizzarrini/commit/6774748912f54a25f22a775cc5a9b2d0dcca63b5))
+* **readings:** pages are whole numbers, and uploading and reading show they are under way ([0b60162](https://github.com/denniskasper/iso-bizzarrini/commit/0b6016281d4b0cb642c325b022da008b6e86d507))
+* **tavola:** the drawing stays in view beside its parts as the page scrolls ([6f063bf](https://github.com/denniskasper/iso-bizzarrini/commit/6f063bfbbc5144f25fad924ec3d6c352df6b92c4))
+
 ## [0.6.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.5.1...v0.6.0) (2026-10-24)
 
 
