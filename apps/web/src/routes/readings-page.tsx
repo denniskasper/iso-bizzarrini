@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { Estimating } from '@/components/readings/estimating';
 import { PastRuns } from '@/components/readings/past-runs';
 import { StartRun } from '@/components/readings/start-run';
+import { Working } from '@/components/readings/working';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, Refusal, Select } from '@/components/ui/field';
@@ -122,7 +123,8 @@ function whatItMeans({ method }: ReadingSetup): string {
  * read, then one press: nothing is read, and what it would cost is shown where the press was.
  * The pages are asked for rather than defaulted, so the front matter and the technical data are
  * never sent because nobody thought to leave them out. How many there are is shown the moment the
- * PDF is chosen, and a range past them is refused there and then (issue #69).
+ * PDF is chosen, and a range past them is refused there and then (issue #69). A page is a whole
+ * number, so nothing else can be typed into either box.
  */
 function NewRun() {
   const models = useQuery({ queryKey: ['models'], queryFn: api.models });
@@ -150,6 +152,12 @@ function NewRun() {
       estimate.reset();
       set(value);
     };
+  // A page is a whole number: anything else typed or pasted is not taken, rather than rounded.
+  const wholePage = (set: (value: string) => void) => (value: string) => {
+    if (/^\d*$/.test(value)) {
+      set(value);
+    }
+  };
   const chosen = (file: File | null) => {
     changed(setCatalog)(file);
     setCount(null);
@@ -243,23 +251,21 @@ function NewRun() {
           <legend className="sr-only">Pages to read</legend>
           <Field
             label="From page"
-            type="number"
             inputMode="numeric"
-            min={1}
-            max={pages ?? undefined}
+            pattern="[0-9]*"
+            autoComplete="off"
             mono
             value={firstPage}
-            onChange={(event) => changed(setFirstPage)(event.target.value)}
+            onChange={(event) => wholePage(changed(setFirstPage))(event.target.value)}
           />
           <Field
             label="To page"
-            type="number"
             inputMode="numeric"
-            min={1}
-            max={pages ?? undefined}
+            pattern="[0-9]*"
+            autoComplete="off"
             mono
             value={lastPage}
-            onChange={(event) => changed(setLastPage)(event.target.value)}
+            onChange={(event) => wholePage(changed(setLastPage))(event.target.value)}
           />
         </fieldset>
 
@@ -277,6 +283,13 @@ function NewRun() {
             {estimate.isPending ? 'Uploading…' : 'Estimate the cost'}
           </Button>
         </div>
+
+        {estimate.isPending && catalog && (
+          <Working label="Uploading the catalog">
+            Uploading {catalog.name}, {sizeOf(catalog.size)}. Ricambi prices its pages as soon as it
+            has the whole file.
+          </Working>
+        )}
       </form>
 
       {estimate.data && <Estimated runId={estimate.data.run.id} />}
@@ -289,6 +302,9 @@ function refusedRange(firstPage: string, lastPage: string, pages: number): strin
   const first = firstPage === '' ? null : Number(firstPage);
   const last = lastPage === '' ? null : Number(lastPage);
   const counted = `The catalog has ${pages} ${pages === 1 ? 'page' : 'pages'}`;
+  if (first === 0 || last === 0) {
+    return `${counted}, counted from 1.`;
+  }
   if ((first !== null && first > pages) || (last !== null && last > pages)) {
     return `${counted}, so there is no page after ${pages} to read.`;
   }
