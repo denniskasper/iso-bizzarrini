@@ -704,6 +704,30 @@ export interface RemovedTavolaResponse {
   modelId: string;
 }
 
+/**
+ * `GET /api/tavole/:tavolaId/removal` — what removing an Unchecked Tavola would take with it,
+ * before anything is removed (issue #84), by the same reckoning the removal then applies. Refused
+ * with the reason, as the removal would be. An Administrator's alone, and 404 to anybody else.
+ */
+export interface TavolaRemovalResponse {
+  removal: TavolaRemoval;
+}
+
+export interface TavolaRemoval {
+  positions: number;
+  marks: number;
+  listings: number;
+  tableSheets: number;
+  scan: boolean;
+  /** The Parts listed on it and nowhere else, which go with it. Parts listed elsewhere stay. */
+  parts: {
+    id: string;
+    catalogNumber: string | null;
+    nameIt: string | null;
+    nameEn: string | null;
+  }[];
+}
+
 /** Which way a quarter turn goes, looking at the drawing. */
 export type QuarterTurn = 'clockwise' | 'anticlockwise';
 

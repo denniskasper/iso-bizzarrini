@@ -6,15 +6,18 @@ import type {
   CatalogRunResponse,
   RemovedTavolaResponse,
   SearchResponse,
+  TavolaRemoval,
+  TavolaRemovalResponse,
   TavolaCheckingResponse,
   TavolaResponse,
 } from '@ricambi/contracts';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   contributions,
   listings,
+  marks,
   positions,
   readingDoubts,
   tavole,
@@ -124,6 +127,13 @@ describe('removing an Unchecked Tavola', () => {
 
   function remove(agent: TestAgent, tavolaId: string) {
     return agent.delete(`/api/tavole/${tavolaId}`);
+  }
+
+  async function whatRemovalTakes(tavolaId: string): Promise<TavolaRemoval> {
+    return (
+      (await administrator.get(`/api/tavole/${tavolaId}/removal`).expect(200))
+        .body as TavolaRemovalResponse
+    ).removal;
   }
 
   async function filesUnder(prefix: string): Promise<number> {
@@ -256,6 +266,88 @@ describe('removing an Unchecked Tavola', () => {
     await editor.get(`/api/tavole/${tavola('84')}`).expect(200);
   });
 
+  it('says what removing it would take, which is what the removal then takes', async () => {
+    const { tavola } = await givenLoaded();
+    const removing = tavola('84');
+    const onIt = await app.db.select().from(positions).where(eq(positions.tavolaId, removing));
+    const marked = await app.db
+      .select()
+      .from(marks)
+      .where(
+        inArray(
+          marks.positionId,
+          onIt.map((position) => position.id),
+        ),
+      );
+    const listed = await app.db.select().from(listings).where(eq(listings.tavolaId, removing));
+
+    const removal = await whatRemovalTakes(removing);
+
+    expect(removal).toMatchObject({
+      positions: onIt.length,
+      marks: marked.length,
+      listings: listed.length,
+      tableSheets: 1,
+      scan: true,
+      // The screw is listed on 85 as well, and stays.
+      parts: [
+        {
+          id: await partNumbered('208501'),
+          catalogNumber: '208501',
+          nameIt: 'SCATOLA DIFFERENZIALE',
+        },
+      ],
+    });
+    expect(removal.parts).toHaveLength(1);
+    expect(removal.positions).toBeGreaterThan(0);
+    expect(removal.listings).toBe(2);
+
+    await remove(administrator, removing).expect(200);
+
+    expect((await search('208501')).matches).toEqual([]);
+    expect((await search('208900')).matches).toHaveLength(1);
+  });
+
+  it('changes nothing by saying what removing it would take', async () => {
+    const { modelId, tavola } = await givenLoaded();
+    const scans = await filesUnder('scans');
+
+    await whatRemovalTakes(tavola('84'));
+
+    expect(await leftToCheck(modelId)).toEqual(['84', '85']);
+    expect(await filesUnder('scans')).toBe(scans);
+    expect((await search('208501')).matches).toHaveLength(1);
+    expect(await whatRemovalTakes(tavola('84'))).toMatchObject({ listings: 2 });
+  });
+
+  it('says why removing it would be refused, instead of what it would take', async () => {
+    const { tavola } = await givenLoaded();
+    await editor.post(`/api/tavole/${tavola('85')}/publication`).expect(200);
+    const [position] = await app.db
+      .select()
+      .from(positions)
+      .where(eq(positions.tavolaId, tavola('84')));
+    await app.db.insert(contributions).values({
+      positionId: position?.id,
+      body: 'Mine has a brass one.',
+      writtenAt: new Date(),
+    });
+
+    const published = await administrator.get(`/api/tavole/${tavola('85')}/removal`).expect(409);
+    expect(published.body.error.message).toMatch(/Published/);
+    const contributed = await administrator.get(`/api/tavole/${tavola('84')}/removal`).expect(409);
+    expect(contributed.body.error.message).toMatch(/Contributions/);
+  });
+
+  it('does not say what removing it would take to an Editor or a Member', async () => {
+    const { tavola } = await givenLoaded();
+    const member = (await givenAMember(app, administrator, { paidThrough: '2027-12-31' })).agent;
+
+    for (const agent of [editor, member]) {
+      await agent.get(`/api/tavole/${tavola('84')}/removal`).expect(404);
+    }
+  });
+
   it('is a 404 for a Tavola that is not there', async () => {
     const { tavola } = await givenLoaded();
     await remove(administrator, tavola('84')).expect(200);
@@ -330,6 +422,10 @@ describe('removing a Tavola a Catalog run read', () => {
     await holdReading.reached;
     const whileReading = await administrator.delete(`/api/tavole/${loaded.id}`).expect(409);
     expect(whileReading.body.error.message).toMatch(/one at a time/i);
+    const askedWhileReading = await administrator
+      .get(`/api/tavole/${loaded.id}/removal`)
+      .expect(409);
+    expect(askedWhileReading.body.error.message).toMatch(/one at a time/i);
     holdReading.release();
     await settled(administrator, reading);
 

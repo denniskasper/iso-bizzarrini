@@ -6,6 +6,7 @@ import type {
   ReadAgainFromResponse,
   ReadAgainRequest,
   RemovedTavolaResponse,
+  TavolaRemovalResponse,
   StartCatalogRunRequest,
   ReadingSetup,
   EnglishNameRequest,
@@ -306,6 +307,9 @@ export const api = {
   /** An Unchecked Tavola removed whole, answered with the Model it was on (issue #83). */
   removeTavola: (tavolaId: string) =>
     request<RemovedTavolaResponse>(`/tavole/${tavolaId}`, { method: 'DELETE' }),
+  /** What removing that Tavola would take with it, or why it would be refused (issue #84). */
+  tavolaRemoval: (tavolaId: string) =>
+    request<TavolaRemovalResponse>(`/tavole/${tavolaId}/removal`),
 
   /** The Club's own record, so a change of bank is an afternoon rather than a deployment. */
   club: () => request<ClubResponse>('/club'),

@@ -262,8 +262,9 @@ test('an Administrator reads an Unchecked Tavola again and sees it replaced', as
 /**
  * **Removing an Unchecked Tavola** (issue #83). A run over page 6, which no other run here reads
  * (the fake method sets page 5 aside), reads Tavola 106. An Administrator removes it, in two
- * steps, and lands on the Fidia without it. What goes with it, and when it is refused, are proved
- * at the API seam.
+ * steps, after the confirmation names its one invented Part, which nothing else lists (issue #84),
+ * and lands on the Fidia without it. The figures, and when it is refused, are proved at the API
+ * seam.
  */
 test('an Administrator removes a Tavola a run read, and its Model is without it', async ({
   page,
@@ -291,6 +292,10 @@ test('an Administrator removes a Tavola a run read, and its Model is without it'
   await expect(page.getByTestId('unchecked-band')).toBeVisible();
   const removal = page.getByTestId('remove-tavola');
   await removal.getByRole('button', { name: 'Remove this Tavola' }).click();
+  const whatGoes = removal.getByTestId('what-removal-takes');
+  await expect(whatGoes).toContainText('1 Table sheet');
+  await expect(whatGoes.getByRole('listitem')).toHaveText([/PEZZO DI PROVA/]);
+  await expect(whatGoes).toContainText('Parts also listed on other Tavole stay');
   await removal.getByRole('button', { name: 'Yes, remove it' }).click();
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Fidia');

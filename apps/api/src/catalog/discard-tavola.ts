@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, notExists } from 'drizzle-orm';
+import { and, count, eq, inArray, ne, notExists } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
   contributions,
@@ -19,7 +19,7 @@ import {
   type FileStore,
 } from '../storage/file-store.js';
 
-/** What discarding a Tavola took with it. */
+/** What discarding a Tavola takes with it, or took. */
 export interface DiscardedTavola {
   /** The Model the Tavola belonged to. */
   modelId: string;
@@ -28,7 +28,7 @@ export interface DiscardedTavola {
   listings: number;
   tableSheets: number;
   scan: boolean;
-  /** The Parts listed on it and nowhere else, which went with it. */
+  /** The Parts listed on it and nowhere else, which go with it. */
   parts: {
     id: string;
     catalogNumber: string | null;
@@ -40,20 +40,11 @@ export interface DiscardedTavola {
 }
 
 /**
- * **Discarding an Unchecked Tavola** (issue #82): the one rule for taking a Tavola out whole, which
- * reading it again and removing it both follow.
- *
- * The Tavola goes, and with it its Positions, Sub-assemblies, Marks, Listings, Table sheets, Scan
- * and reading doubts. So does every Part it listed that is now listed nowhere and carries no
- * Contribution, with its Fitments, Equivalents, Sources and Photographs. A Tavola with a
- * Contribution on any of its Positions, decided or not, is left as it is: a Member's words are
- * never lost as a side effect.
- *
- * The caller has found the Tavola, and decided it may go. This runs in the caller's transaction
- * and touches no file. Once that has committed, the caller
- * hands the answer's `fileKeys` to `removeDiscardedFiles`.
+ * **What discarding a Tavola would take** (issue #84), worked out and nothing changed: the
+ * reckoning `discardTavola` then applies, so what an Administrator is told would go is what goes.
+ * `'has contributions'` where a Contribution on any of its Positions, decided or not, keeps it.
  */
-export async function discardTavola(
+export async function reckonDiscard(
   session: DbSession,
   tavolaId: string,
 ): Promise<DiscardedTavola | 'has contributions'> {
@@ -100,8 +91,8 @@ export async function discardTavola(
     .from(tableSheets)
     .where(eq(tableSheets.tavolaId, tavolaId));
 
-  await session.delete(tavole).where(eq(tavole.id, tavolaId));
-
+  // Listed on no other Tavola, and carrying no Contribution: once its Listings here go with the
+  // Tavola, nothing keeps it.
   const going =
     partIds.length === 0
       ? []
@@ -120,7 +111,7 @@ export async function discardTavola(
                 session
                   .select({ id: listings.id })
                   .from(listings)
-                  .where(eq(listings.partId, parts.id)),
+                  .where(and(eq(listings.partId, parts.id), ne(listings.tavolaId, tavolaId))),
               ),
               notExists(
                 session
@@ -139,9 +130,6 @@ export async function discardTavola(
           .select({ id: photographs.id })
           .from(photographs)
           .where(inArray(photographs.partId, goingIds));
-  if (goingIds.length > 0) {
-    await session.delete(parts).where(inArray(parts.id, goingIds));
-  }
 
   return {
     modelId: tavola.modelId,
@@ -157,6 +145,36 @@ export async function discardTavola(
       ...photographed.map((photograph) => photographKeyPrefix(photograph.id)),
     ],
   };
+}
+
+/**
+ * **Discarding an Unchecked Tavola** (issue #82): the one rule for taking a Tavola out whole, which
+ * reading it again and removing it both follow, by the reckoning of `reckonDiscard`.
+ *
+ * The Tavola goes, and with it its Positions, Sub-assemblies, Marks, Listings, Table sheets, Scan
+ * and reading doubts. So does every Part it listed that is now listed nowhere and carries no
+ * Contribution, with its Fitments, Equivalents, Sources and Photographs. A Tavola with a
+ * Contribution on any of its Positions, decided or not, is left as it is: a Member's words are
+ * never lost as a side effect.
+ *
+ * The caller has found the Tavola, and decided it may go. This runs in the caller's transaction
+ * and touches no file. Once that has committed, the caller
+ * hands the answer's `fileKeys` to `removeDiscardedFiles`.
+ */
+export async function discardTavola(
+  session: DbSession,
+  tavolaId: string,
+): Promise<DiscardedTavola | 'has contributions'> {
+  const reckoned = await reckonDiscard(session, tavolaId);
+  if (reckoned === 'has contributions') {
+    return reckoned;
+  }
+  await session.delete(tavole).where(eq(tavole.id, tavolaId));
+  const goingIds = reckoned.parts.map((part) => part.id);
+  if (goingIds.length > 0) {
+    await session.delete(parts).where(inArray(parts.id, goingIds));
+  }
+  return reckoned;
 }
 
 /**
