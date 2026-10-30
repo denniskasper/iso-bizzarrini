@@ -423,7 +423,7 @@ export function TavolaPage() {
        * too small to read a number off and a column too narrow to read a sentence in. The
        * reading is simply the next thing down, which is where a hand scrolls to anyway.
        */}
-      <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_var(--width-part-panel)]">
         {/* The drawing and the tools that change the sheet itself — its scan, which way up it
             is — travel together, so turning a sheet shows what it did without scrolling to it. */}
         <div className="drawing-column">
@@ -469,7 +469,7 @@ export function TavolaPage() {
           </div>
         </div>
 
-        <div className="relative flex flex-col gap-10">
+        <div className="relative flex flex-col gap-10" data-testid="part-panel">
           {/* Where the card for a pointed-at circle is shown, over the top of this column and
               level with the sheet, so the drawing itself is never covered. */}
           <div ref={setBesideHost} className="absolute inset-x-0 top-0 z-5 h-0" />
