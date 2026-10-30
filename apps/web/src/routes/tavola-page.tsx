@@ -538,15 +538,7 @@ export function TavolaPage() {
             }
             // The sheet only becomes a tool when an Editor says so. A member's drawing is a
             // drawing, and a stray tap on it records nothing.
-            onTapPoint={
-              outlining.drawing
-                ? outlining.add
-                : tool.on
-                  ? (at) => {
-                      tool.place(at);
-                    }
-                  : undefined
-            }
+            onTapPoint={outlining.drawing ? outlining.add : tool.on ? tool.place : undefined}
             tapHint={outlining.drawing ? 'Click to add a corner to the outline.' : undefined}
           />
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">

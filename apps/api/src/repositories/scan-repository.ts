@@ -23,7 +23,8 @@ export interface ScanRepository {
   findByTavola(tavolaId: string): Promise<ScanRow | null>;
   /**
    * Puts the same drawing, turned a quarter, in place of `turned`, and turns every Mark and every
-   * Sub-assembly's outline on the Tavola with it — in one transaction, so no Mark is ever on the drawing the wrong way round.
+   * Sub-assembly's outline on the Tavola with it — in one transaction, so no Mark and no outline
+   * is ever on the drawing the wrong way round.
    * `null` when `turned` is no longer the Tavola's scan: somebody turned or replaced it meanwhile.
    */
   turn(turned: ScanRow, direction: QuarterTurn, scan: NewScanRow): Promise<ScanRow | null>;
