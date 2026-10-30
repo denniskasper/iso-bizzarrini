@@ -3,8 +3,9 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { EnvironmentBanner } from '@/components/environment-banner';
 import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Wordmark } from '@/components/wordmark';
+import { Wordmark, wordmarkName } from '@/components/wordmark';
 import { ServiceStatusStrip } from '@/components/service-status-strip';
+import { useLegalNotice } from '@/lib/legal';
 import { useWaitingCount } from '@/lib/review';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isAdministrator, isEditor, mayRead, signedIn } = useSession();
   const waiting = useWaitingCount();
   const chrome = useChromeHeight();
+  // The Legal notice's registered name, which is public: the header names the Club for whoever
+  // lands here, signed in or not. A record that could not be read is a record with no name.
+  const notice = useLegalNotice();
+  const clubName = notice.isPending ? undefined : (notice.data?.legalNotice.name ?? null);
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
@@ -49,17 +54,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <a
               href="/"
-              className="-mx-2 flex h-control items-center rounded-sm px-2 text-text transition-opacity hover:opacity-70"
-              aria-label="Ricambi — the Club's parts reference"
+              className="-mx-2 flex h-control min-w-0 items-center rounded-sm px-2 text-text transition-opacity hover:opacity-70"
+              aria-label={wordmarkName(clubName)}
             >
-              <Wordmark />
+              <Wordmark clubName={clubName} />
             </a>
             {/* Its links wrap too, for an Administrator only: with Readings beside Roster and
                 Club they are wider than a phone on their own, and the row wrapping is no help. */}
             <div
               className={cn(
                 'ml-auto flex items-center gap-1',
-                isAdministrator && 'flex-wrap justify-end',
+                // Anybody else's links keep their width, and the Club's name gives way to them.
+                isAdministrator ? 'flex-wrap justify-end' : 'shrink-0',
               )}
             >
               {/*

@@ -109,15 +109,12 @@ phone is set. Its hue is one the Club uses nowhere — that is what makes it leg
 "not the real thing" — and it is orange where a failure is red, and a band rather than a
 line of text, so it reads as a caution label and not as something that went wrong.
 
-**And the surfaces go warm with it.** In a non-production system `surface`, `surface-raised`,
-`surface-sunken` and the rules take a warm cast, so no screenshot of any part of any screen can
-pass for the archive. Production wears the Club's own cool graphite, or its white paper; a
-practice system deliberately does not wear the Club's colour. **Hue and chroma carry the
-difference; lightness is production's**, which is what keeps it safe: contrast is carried by
-lightness, so every ratio measured for production holds here and no token had to be re-argued.
-Two values in the light theme are forced exceptions — paper already sits at the top of the
-lightness scale and white cannot be warm, so `surface` drops 0.007 and `surface-raised` 0.012,
-the least that leaves them in gamut. Both were re-measured.
+**And nothing else changes.** A practice system wears production's surfaces and rules exactly,
+in both themes, because it is what the Club judges Ricambi by and it has to look like the Club's
+own. The band travels with the sticky chrome, so it is at the top of every page however far the
+page is scrolled. A drawing filling the screen covers the chrome, so it carries the same stamp
+cut down to one word, `DEMO`, in the corner nothing else uses; it lets every pointer through to
+the sheet. Production shows neither.
 
 ## Type
 
@@ -128,6 +125,12 @@ Two faces and the numbers.
 | Display and the wordmark | Barlow Condensed | The nearest open face to the tall, light, condensed capital the Club sets its own lockup in. Light, uppercase and only at size, through the `.display` class: a car's name, a front door. Never for anything read in a sentence. |
 | Headings, body and interface | Open Sans Variable | The Club's own body face. Humanist, tall x-height, unfussy at small sizes and at arm's length. |
 | Every factory number | IBM Plex Mono | **Ours, and additive.** Tabular figures and a slashed zero, so two catalog numbers can be told apart by eye. The Club site has no numbers to compare and therefore no opinion. |
+
+**Two type steps, and the garage keeps its own.** Below the breakpoint at which a drawing sits
+beside its parts (64rem) every size is what a phone at arm's length needs. From it up, a laptop
+reads a step denser (`--type-*` in the tokens), so the archive shows more at once on a desk. Only
+type moves: controls, touch targets and contrast are the same at every width, and nothing read as
+a sentence goes below 14px.
 
 All three are self-hosted, Latin subsets only. No request ever leaves for a
 font, so no consent is owed for one — the same rule the club website is being rebuilt to

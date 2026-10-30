@@ -140,6 +140,126 @@ export interface CategoryWrittenResponse {
 }
 
 /**
+ * A Unit: what a Specification's quantity is counted in, written one way only — *g*, *mm*, *Nm*.
+ * Kept by an Administrator; fixed by a Specification name and never typed by an Editor.
+ */
+export interface Unit {
+  id: string;
+  /** As it is printed beside a value. Case is part of it: *mm* and *Mm* are different Units. */
+  symbol: string;
+}
+
+/** A Unit as the list reports it, with how many Specification names count in it. */
+export interface UnitListing extends Unit {
+  /** A Unit with any is refused removal. */
+  names: number;
+}
+
+/** `GET /api/units` — the whole list, by symbol. */
+export interface UnitsResponse {
+  units: UnitListing[];
+}
+
+/** `POST /api/units` and `PATCH /api/units/:unitId` — an Administrator adding or respelling one. */
+export interface UnitSymbolRequest {
+  symbol: string;
+}
+
+/** What both of those answer. */
+export interface UnitWrittenResponse {
+  unit: Unit;
+}
+
+/**
+ * A Specification name: what a Part's Specification is recorded under — *Material*, *Weight* —
+ * and the Unit its values are counted in, if any. A name without one takes words.
+ */
+export interface SpecificationName {
+  id: string;
+  name: string;
+  /** What decides whether two names are the same, as a Category's slug does. */
+  slug: string;
+  unit: Unit | null;
+}
+
+/** A name as the list reports it, with how many Parts have a value for it. */
+export interface SpecificationNameListing extends SpecificationName {
+  /** A name with any can neither change its Unit nor be removed. */
+  parts: number;
+}
+
+/** `GET /api/specification-names` — the whole list, in the order a Part's Specifications read in. */
+export interface SpecificationNamesResponse {
+  specificationNames: SpecificationNameListing[];
+}
+
+/** `POST /api/specification-names` — added at the end of the list. */
+export interface AddSpecificationNameRequest {
+  name: string;
+  /** A Unit on the list, or `null` for a name that takes words. */
+  unitId: string | null;
+}
+
+/**
+ * `PATCH /api/specification-names/:nameId` — renaming one, or changing its Unit while no Part has
+ * a value for it. An absent field is left as it is.
+ */
+export interface CorrectSpecificationNameRequest {
+  name?: string;
+  unitId?: string | null;
+}
+
+/** What adding and correcting answer. */
+export interface SpecificationNameWrittenResponse {
+  specificationName: SpecificationName;
+}
+
+/**
+ * `PUT /api/specification-names/order` — the whole list in its new order, every name once. It
+ * answers `SpecificationNamesResponse`.
+ */
+export interface SpecificationNameOrderRequest {
+  nameIds: string[];
+}
+
+/**
+ * A Specification: one Part's value under one name — *Material: Chromed brass*, *Weight: 412 g*.
+ * At most one per Part per name.
+ */
+export interface Specification {
+  id: string;
+  nameId: string;
+  name: string;
+  /**
+   * As it is read. A number under a name with a Unit, written with a point whatever was typed;
+   * words, as the Editor wrote them, under a name without one.
+   */
+  value: string;
+  /** The name's Unit, read from the name and never stored with the value. `null` for words. */
+  unit: string | null;
+}
+
+/** `POST /api/parts/:partId/specifications` — a value under a name the Part has none for yet. */
+export interface SpecificationRequest {
+  nameId: string;
+  /** A number, with a point or a comma, for a name with a Unit; words for one without. */
+  value: string;
+}
+
+/** `PATCH /api/specifications/:specificationId` — the value corrected. The name stays. */
+export interface CorrectSpecificationRequest {
+  value: string;
+}
+
+/**
+ * `GET /api/specification-names/:nameId/suggestions?q=` — the values already recorded under a
+ * name that contain what has been typed, ignoring case, most used first. Offered, not imposed.
+ */
+export interface SpecificationSuggestionsResponse {
+  suggestions: string[];
+}
+
+/**
  * `PUT /api/tavole/:tavolaId/category` — an Editor putting a drawing under a system, moving it
  * to another, or taking it out again.
  */
@@ -271,6 +391,15 @@ export interface SubAssembly {
   id: string;
   /** As whoever named it wrote it. This is what members read. */
   name: string;
+  /**
+   * Where it is on the drawing, as an Editor drew round it (issue #113): at least three corners,
+   * in order, in the same fractions of the drawing a Mark is placed in. `null` until somebody
+   * draws one, which leaves the Sub-assembly exactly as valid. Outlines may overlap.
+   *
+   * On the sheet rather than only on the Sub-assembly's page, because it is the drawing that
+   * shows it: a member pointing at a name beside the sheet is shown where it is without asking.
+   */
+  outline: MarkPoint[] | null;
 }
 
 /**
@@ -917,13 +1046,16 @@ export interface Photograph {
 /**
  * A Part with everything the archive holds about it — **what a member reads at a circle**.
  *
- * The four collections are the Part's and not the Listing's: which cars it fits, what can be
- * bought instead of it, where it has been available and what it looks like are true of the
- * component wherever it is listed, which is ADR 0001 showing up in a response shape. They hang
+ * The five collections are the Part's and not the Listing's: what it is made of and weighs,
+ * which cars it fits, what can be bought instead of it, where it has been available and what it
+ * looks like are true of the component wherever it is listed, which is ADR 0001 showing up in a
+ * response shape. They hang
  * off this rather than off `Part` so that the bare identity — what a refused Catalog Number
  * hands back, what a Tavola's index prints — stays the small thing it is.
  */
 export interface PartInFull extends Part {
+  /** In the order of the Administrator's list of names. Empty for a Part with none. */
+  specifications: Specification[];
   fitments: Fitment[];
   equivalents: Equivalent[];
   sources: Source[];
@@ -1147,6 +1279,67 @@ export interface NewSubAssemblyRequest {
   name: string;
   /** At least one. One with no numbers in it is a name for nothing, and is refused. */
   positionIds: string[];
+}
+
+/**
+ * `GET /api/tavole/:tavolaId/sub-assemblies/:subAssemblyId` — **a Sub-assembly read as one
+ * thing** (issue #110): its name, what the club has written about it, and its numbers with what
+ * sits at each.
+ *
+ * Addressed under its Tavola because that is the only place it exists, which is also what puts it
+ * behind everything a Tavola is behind. The sheet itself still carries only the name
+ * (`SubAssembly`): a Note is prose, and a drawing's worth of it is nobody's to ship to draw a list.
+ */
+export interface SubAssemblyResponse {
+  subAssembly: SubAssemblyInFull;
+  /** Its numbers, in the order the factory printed them. */
+  positions: SubAssemblyPosition[];
+}
+
+export interface SubAssemblyInFull extends SubAssembly {
+  /** What the club has established about the assembly as a whole, written by an Editor. */
+  note: string | null;
+  /**
+   * The assembly as restorers photograph it (issue #114), in the order an Editor put them in. The
+   * first is the one that identifies it. As private as a Part's, at the same addresses.
+   */
+  photographs: Photograph[];
+}
+
+/**
+ * One of a Sub-assembly's numbers, with the Parts listed at it — named as the sheet's own index
+ * names them, drawn ones first. A number nobody has recorded anything at yet has none.
+ */
+export interface SubAssemblyPosition {
+  id: string;
+  /** As printed. What a link to it on the drawing is built from. */
+  number: string;
+  parts: ListedPart[];
+}
+
+/**
+ * `PUT /api/sub-assemblies/:subAssemblyId/note` — an Editor writing, changing or clearing a
+ * Sub-assembly's Note. Blank or `null` clears it, as it does a Part's. Answers with the page.
+ */
+export interface SubAssemblyNoteRequest {
+  note: string | null;
+}
+
+/*
+ * `POST /api/sub-assemblies/:subAssemblyId/photographs` — the photograph is the body, as it is for
+ * a Part's. `PATCH` the same address with a `ReorderPhotographsRequest` to name the whole order,
+ * and `DELETE /api/sub-assemblies/:subAssemblyId/photographs/:photographId` to remove one. Each
+ * answers with the page, `SubAssemblyResponse`, re-read.
+ */
+
+/**
+ * `PUT /api/sub-assemblies/:subAssemblyId/outline` — an Editor drawing a Sub-assembly's outline,
+ * or replacing the one it has: a Sub-assembly has at most one. At least three corners, each on
+ * the drawing (`0`–`1` both ways). Answers with the sheet; `DELETE` on the same address removes
+ * the outline and leaves the Sub-assembly.
+ */
+export interface SubAssemblyOutlineRequest {
+  corners: MarkPoint[];
 }
 
 /**

@@ -41,6 +41,14 @@ Issues and specs live as GitHub issues in this repository, worked through the `g
 
 The Security rules above still apply to issue titles, bodies and comments: use placeholders such as `<CLIENT>` rather than real names.
 
+### Sandcastle
+
+The runner copies its own output to `.sandcastle/logs/run.log`, next to each agent's log, and
+appends to it on every run. Follow a run started in the background with
+`tail -F .sandcastle/logs/run.log`. Never redirect its output to a shared path such as
+`/tmp/sandcastle-run.log`: other repositories' runners on the same machine pick the same name and
+overwrite it.
+
 ### Triage labels
 
 The five canonical triage roles, each a GitHub label of the same name. See `docs/agents/triage-labels.md`.

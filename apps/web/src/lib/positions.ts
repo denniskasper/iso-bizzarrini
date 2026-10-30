@@ -131,7 +131,20 @@ export function useRecordSheet(tavolaId: string): (sheet: Sheet) => void {
       queryClient.setQueryData<TavolaResponse>(['tavola', tavolaId], (current) =>
         current ? { ...current, ...sheet } : current,
       );
+      // A Sub-assembly's page lists its numbers, which this write may just have changed — and
+      // the sheet that came back does not carry what sits at them, so those pages are re-read.
+      void queryClient.invalidateQueries({ queryKey: subAssemblyKey(tavolaId) });
     },
     [queryClient, tavolaId],
   );
+}
+
+/**
+ * The cache key of a Sub-assembly's page, or of every one on a sheet when the id is left out —
+ * which is what a write to the sheet's numbers has to re-read.
+ */
+export function subAssemblyKey(tavolaId: string, subAssemblyId?: string): string[] {
+  return subAssemblyId === undefined
+    ? ['sub-assembly', tavolaId]
+    : ['sub-assembly', tavolaId, subAssemblyId];
 }

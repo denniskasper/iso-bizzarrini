@@ -105,6 +105,7 @@ export function createPartService(dependencies: {
   const { tavolaRepository, positionRepository, partRepository, partRecordService } = dependencies;
 
   const nothingRecorded: PartRecordRows = {
+    specifications: [],
     fitments: [],
     equivalents: [],
     sources: [],

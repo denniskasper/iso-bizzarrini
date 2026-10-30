@@ -23,6 +23,8 @@ import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
 import type { StatusController } from '../controllers/status-controller.js';
+import type { SpecificationListController } from '../controllers/specification-list-controller.js';
+import type { SubAssemblyController } from '../controllers/sub-assembly-controller.js';
 import type { SubscriptionController } from '../controllers/subscription-controller.js';
 import type { TavolaController } from '../controllers/tavola-controller.js';
 
@@ -68,9 +70,11 @@ export function createApiRouter(dependencies: {
   searchController: SearchController;
   catalogController: CatalogController;
   categoryController: CategoryController;
+  specificationListController: SpecificationListController;
   tavolaController: TavolaController;
   checkingController: CheckingController;
   positionController: PositionController;
+  subAssemblyController: SubAssemblyController;
   partController: PartController;
   partRecordController: PartRecordController;
   bulkPasteController: BulkPasteController;
@@ -96,9 +100,11 @@ export function createApiRouter(dependencies: {
     searchController,
     catalogController,
     categoryController,
+    specificationListController,
     tavolaController,
     checkingController,
     positionController,
+    subAssemblyController,
     partController,
     partRecordController,
     bulkPasteController,
@@ -264,6 +270,30 @@ export function createApiRouter(dependencies: {
   router.post('/categories', administratorsOnly, categoryController.add);
   router.patch('/categories/:categoryId', administratorsOnly, categoryController.rename);
 
+  // **Keeping the Units and the Specification names** (issue #109), behind the role for the same
+  // reason: an Editor chooses a name from the list and never adds to it. Reading both is the
+  // archive's, below.
+  router.post('/units', administratorsOnly, specificationListController.addUnit);
+  router.patch('/units/:unitId', administratorsOnly, specificationListController.renameUnit);
+  router.delete('/units/:unitId', administratorsOnly, specificationListController.removeUnit);
+  router.post('/specification-names', administratorsOnly, specificationListController.addName);
+  // The whole order, like a Part's photographs: an order is a statement about the list.
+  router.put(
+    '/specification-names/order',
+    administratorsOnly,
+    specificationListController.orderNames,
+  );
+  router.patch(
+    '/specification-names/:nameId',
+    administratorsOnly,
+    specificationListController.correctName,
+  );
+  router.delete(
+    '/specification-names/:nameId',
+    administratorsOnly,
+    specificationListController.removeName,
+  );
+
   // **What a lapsed member is shown instead of the archive** (ticket 15). Behind the gate,
   // because it carries the Club's bank details; deliberately *not* behind a live Membership,
   // because the person who needs it is precisely the person whose Membership has run out.
@@ -358,6 +388,10 @@ export function createApiRouter(dependencies: {
   router.get('/categories', categoryController.list);
   router.get('/categories/:slug', categoryController.read);
 
+  // What a Part's Specifications are recorded under, and counted in (issue #109).
+  router.get('/units', specificationListController.listUnits);
+  router.get('/specification-names', specificationListController.listNames);
+
   router.get('/tavole/:tavolaId', tavolaController.read);
   router.post('/models/:modelId/tavole', tavolaController.create);
   // Filing a sheet under a system, moving it, or taking it out — the one thing about a Tavola
@@ -406,6 +440,33 @@ export function createApiRouter(dependencies: {
   router.delete('/positions/:positionId/sub-assembly', positionController.takeOutOfSubAssembly);
   // Dissolving the name. The numbers that were in it stay on the sheet.
   router.delete('/sub-assemblies/:subAssemblyId', positionController.dissolveSubAssembly);
+  // **A Sub-assembly read as one thing** (issue #110), under its Tavola: that is the only place
+  // it exists, and it puts the page behind whatever its Tavola is behind. Its Note is an Editor's
+  // to write, by the rule above.
+  router.get('/tavole/:tavolaId/sub-assemblies/:subAssemblyId', subAssemblyController.read);
+  router.put('/sub-assemblies/:subAssemblyId/note', subAssemblyController.writeNote);
+  // **Where it is on the drawing** (issue #113): one outline, drawn or replaced whole, and taken
+  // off without taking the Sub-assembly with it. Answered with the sheet, which is what shows it.
+  router.put('/sub-assemblies/:subAssemblyId/outline', positionController.outlineSubAssembly);
+  router.delete(
+    '/sub-assemblies/:subAssemblyId/outline',
+    positionController.removeSubAssemblyOutline,
+  );
+  // Its Photographs (issue #114): uploaded, ordered and removed as a Part's are, and served at
+  // the same authenticated addresses below.
+  router.post(
+    '/sub-assemblies/:subAssemblyId/photographs',
+    express.raw({ type: () => true, limit: dependencies.maxPhotographBytes }),
+    subAssemblyController.addPhotograph,
+  );
+  router.patch(
+    '/sub-assemblies/:subAssemblyId/photographs',
+    subAssemblyController.reorderPhotographs,
+  );
+  router.delete(
+    '/sub-assemblies/:subAssemblyId/photographs/:photographId',
+    subAssemblyController.removePhotograph,
+  );
 
   router.post('/tavole/:tavolaId/related-positions', positionController.relate);
   // By the **link's** id and not by a pair, which is the symmetry made reachable: there is one
@@ -495,6 +556,18 @@ export function createApiRouter(dependencies: {
   // Refused while anything still lists it. The Listings go first, so nothing here removes an
   // evening's work from a sheet the Editor is not looking at.
   router.delete('/parts/:partId', partController.remove);
+
+  // **What the Part is made of, measures and weighs** (issue #112), under a name from the
+  // Administrator's list. Hung off the Part for the reason the three below are. What an Editor
+  // has typed before under a name is an Editor's tool, so it is behind the role.
+  router.post('/parts/:partId/specifications', partRecordController.addSpecification);
+  router.patch('/specifications/:specificationId', partRecordController.correctSpecification);
+  router.delete('/specifications/:specificationId', partRecordController.removeSpecification);
+  router.get(
+    '/specification-names/:nameId/suggestions',
+    editorsOnly,
+    partRecordController.suggestSpecificationValues,
+  );
 
   // **What fits the Part, what replaces it and where it has been available** — hung off the Part
   // and not off a Tavola, because all three are true of the component wherever it is listed

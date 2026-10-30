@@ -25,6 +25,21 @@ export function categorySlug(name: string): string {
 }
 
 /**
+ * What decides whether two Specification names are the same name: the same rule as a Category's,
+ * so *Weight*, *weight* and *Weight.* are one entry on the list.
+ */
+export const specificationNameSlug = categorySlug;
+
+/**
+ * What decides whether two Units are the same Unit: the symbol with its spacing taken out and
+ * nothing else, because case is the meaning (*mm* and *Mm*). Compatibility forms are folded, so
+ * the Ohm sign and the Greek capital omega a keyboard gives are one Unit.
+ */
+export function unitKey(symbol: string): string {
+  return symbol.normalize('NFKC').replace(/\s+/g, '');
+}
+
+/**
  * What a filter and an address call a Tavola with no Category. No Category may reduce to it, or
  * "everything filed under Uncategorised" and "everything not filed" would be one address.
  */

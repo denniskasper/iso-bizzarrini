@@ -21,6 +21,17 @@ import type {
   CategoryNameRequest,
   CategoryResponse,
   CategoryWrittenResponse,
+  AddSpecificationNameRequest,
+  CorrectSpecificationNameRequest,
+  SpecificationNameOrderRequest,
+  SpecificationNamesResponse,
+  SpecificationNameWrittenResponse,
+  SpecificationRequest,
+  CorrectSpecificationRequest,
+  SpecificationSuggestionsResponse,
+  UnitsResponse,
+  UnitSymbolRequest,
+  UnitWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
   ReminderPlan,
@@ -68,6 +79,9 @@ import type {
   NewModelRequest,
   NewPositionRequest,
   NewSubAssemblyRequest,
+  SubAssemblyNoteRequest,
+  SubAssemblyOutlineRequest,
+  SubAssemblyResponse,
   NewTavolaRequest,
   PastePlanResponse,
   PasteRequest,
@@ -363,6 +377,30 @@ export const api = {
   renameCategory: (categoryId: string, category: CategoryNameRequest) =>
     send<CategoryWrittenResponse>('PATCH', `/categories/${categoryId}`, category),
 
+  /**
+   * The Units and the Specification names (issue #109): read by anyone in the archive, kept by an
+   * Administrator. The names are put in order whole, as a Part's photographs are.
+   */
+  units: () => request<UnitsResponse>('/units'),
+  addUnit: (unit: UnitSymbolRequest) => send<UnitWrittenResponse>('POST', '/units', unit),
+  renameUnit: (unitId: string, unit: UnitSymbolRequest) =>
+    send<UnitWrittenResponse>('PATCH', `/units/${unitId}`, unit),
+  removeUnit: (unitId: string) => request<void>(`/units/${unitId}`, { method: 'DELETE' }),
+  specificationNames: () => request<SpecificationNamesResponse>('/specification-names'),
+  addSpecificationName: (name: AddSpecificationNameRequest) =>
+    send<SpecificationNameWrittenResponse>('POST', '/specification-names', name),
+  correctSpecificationName: (nameId: string, name: CorrectSpecificationNameRequest) =>
+    send<SpecificationNameWrittenResponse>('PATCH', `/specification-names/${nameId}`, name),
+  orderSpecificationNames: (order: SpecificationNameOrderRequest) =>
+    send<SpecificationNamesResponse>('PUT', '/specification-names/order', order),
+  removeSpecificationName: (nameId: string) =>
+    request<void>(`/specification-names/${nameId}`, { method: 'DELETE' }),
+  /** What has been written under a name before, most used first. An Editor's to read. */
+  specificationSuggestions: (nameId: string, typed: string) =>
+    request<SpecificationSuggestionsResponse>(
+      `/specification-names/${nameId}/suggestions?q=${encodeURIComponent(typed)}`,
+    ),
+
   tavola: (tavolaId: string) => request<TavolaResponse>(`/tavole/${tavolaId}`),
   createTavola: (modelId: string, tavola: NewTavolaRequest) =>
     send<{ tavola: TavolaSummary }>('POST', `/models/${modelId}/tavole`, tavola),
@@ -425,6 +463,35 @@ export const api = {
     request<PositionsResponse>(`/positions/${positionId}/sub-assembly`, { method: 'DELETE' }),
   dissolveSubAssembly: (subAssemblyId: string) =>
     request<PositionsResponse>(`/sub-assemblies/${subAssemblyId}`, { method: 'DELETE' }),
+  /**
+   * **A Sub-assembly read as one thing** (issue #110), under the Tavola it is on: its Note, and
+   * its numbers with what sits at each. Writing the Note answers with the same page.
+   */
+  subAssembly: (tavolaId: string, subAssemblyId: string) =>
+    request<SubAssemblyResponse>(`/tavole/${tavolaId}/sub-assemblies/${subAssemblyId}`),
+  writeSubAssemblyNote: (subAssemblyId: string, note: SubAssemblyNoteRequest) =>
+    send<SubAssemblyResponse>('PUT', `/sub-assemblies/${subAssemblyId}/note`, note),
+  /** Where it is on the drawing (issue #113): drawn or replaced whole, and answered with the sheet. */
+  outlineSubAssembly: (subAssemblyId: string, outline: SubAssemblyOutlineRequest) =>
+    send<PositionsResponse>('PUT', `/sub-assemblies/${subAssemblyId}/outline`, outline),
+  removeSubAssemblyOutline: (subAssemblyId: string) =>
+    request<PositionsResponse>(`/sub-assemblies/${subAssemblyId}/outline`, { method: 'DELETE' }),
+  /**
+   * A Sub-assembly's Photographs (issue #114), uploaded, ordered and removed as a Part's are, and
+   * answered with the page re-read.
+   */
+  addSubAssemblyPhotograph: (subAssemblyId: string, file: File) =>
+    request<SubAssemblyResponse>(`/sub-assemblies/${subAssemblyId}/photographs`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  reorderSubAssemblyPhotographs: (subAssemblyId: string, order: ReorderPhotographsRequest) =>
+    send<SubAssemblyResponse>('PATCH', `/sub-assemblies/${subAssemblyId}/photographs`, order),
+  removeSubAssemblyPhotograph: (subAssemblyId: string, photographId: string) =>
+    request<SubAssemblyResponse>(`/sub-assemblies/${subAssemblyId}/photographs/${photographId}`, {
+      method: 'DELETE',
+    }),
 
   relatePositions: (tavolaId: string, pair: RelatePositionsRequest) =>
     send<PositionsResponse>('POST', `/tavole/${tavolaId}/related-positions`, pair),
@@ -509,7 +576,16 @@ export const api = {
    * ordered list and the order is the archive's — the cars in the catalog's order, the
    * equivalents from the original supplier outwards, the sources with the most recently seen
    * price first — so nothing here ever has to work out where a new row belongs.
+   *
+   * A Part's Specifications are hung off it in the same way (issue #112), and answer the same.
    */
+  addSpecification: (partId: string, specification: SpecificationRequest) =>
+    send<PartRecordResponse>('POST', `/parts/${partId}/specifications`, specification),
+  correctSpecification: (specificationId: string, specification: CorrectSpecificationRequest) =>
+    send<PartRecordResponse>('PATCH', `/specifications/${specificationId}`, specification),
+  removeSpecification: (specificationId: string) =>
+    request<PartRecordResponse>(`/specifications/${specificationId}`, { method: 'DELETE' }),
+
   addFitment: (partId: string, fitment: FitmentRequest) =>
     send<PartRecordResponse>('POST', `/parts/${partId}/fitments`, fitment),
   correctFitment: (fitmentId: string, fitment: FitmentRequest) =>
@@ -620,6 +696,11 @@ export const api = {
 
 export type {
   CatalogModel,
+  Specification,
+  SpecificationName,
+  SpecificationNameListing,
+  Unit,
+  UnitListing,
   CatalogRun,
   CheckedListing,
   QuarterTurn,
@@ -696,6 +777,9 @@ export type {
   SourceCondition,
   ServiceStatus,
   SubAssembly,
+  SubAssemblyInFull,
+  SubAssemblyPosition,
+  SubAssemblyResponse,
   TavolaListing,
   TavolaProgress,
   TavolaPublishedResponse,

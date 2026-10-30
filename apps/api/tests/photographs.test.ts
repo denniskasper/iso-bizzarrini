@@ -1,10 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { photographs } from '../src/db/schema.js';
+import { violates } from '../src/db/constraints.js';
+import { photographs, subAssemblies } from '../src/db/schema.js';
 import { givenModel, givenPhotographImage, givenTavola } from './support/fixtures.js';
 import { givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
@@ -493,5 +495,86 @@ describe('a photograph larger than this archive accepts', () => {
       .expect(413);
 
     expect(response.body.error).toMatchObject({ code: 'payload_too_large' });
+  });
+});
+
+describe('whose a Photograph is', () => {
+  let app: TestApp;
+  let partId: string;
+  let subAssemblyId: string;
+
+  beforeAll(async () => {
+    app = await startTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await app.reset();
+    const editor = await givenAnEditor(app);
+    const model = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
+    const tavola = await givenTavola(app.db, model.id, { number: '2' });
+    const recorded = await editor
+      .post(`/api/tavole/${tavola.id}/listings`)
+      .send({ positionId: null, drawn: true, part: aPart() })
+      .expect(201);
+    partId = recorded.body.listing.part.id;
+    const [group] = await app.db
+      .insert(subAssemblies)
+      .values({ tavolaId: tavola.id, name: 'Window Slider' })
+      .returning();
+    subAssemblyId = group?.id as string;
+  });
+
+  /** A row as ingest would write one, owned as `owner` says. */
+  function aPhotograph(owner: { partId?: string; subAssemblyId?: string }) {
+    const id = randomUUID();
+    return {
+      id,
+      ...owner,
+      sequence: 0,
+      sourceFormat: 'jpeg',
+      sourceByteSize: 1,
+      sourceWidth: 1,
+      sourceHeight: 1,
+      displayFormat: 'webp',
+      displayByteSize: 1,
+      displayWidth: 1,
+      displayHeight: 1,
+      previewByteSize: 1,
+      originalKey: `photographs/${id}/original`,
+      displayKey: `photographs/${id}/display`,
+      previewKey: `photographs/${id}/preview`,
+      uploadedAt: new Date(),
+    };
+  }
+
+  async function refusal(owner: { partId?: string; subAssemblyId?: string }): Promise<unknown> {
+    return app.db
+      .insert(photographs)
+      .values(aPhotograph(owner))
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+  }
+
+  it('may be a Part’s or a Sub-assembly’s', async () => {
+    await app.db.insert(photographs).values(aPhotograph({ partId }));
+    await app.db.insert(photographs).values(aPhotograph({ subAssemblyId }));
+
+    expect(await app.db.select().from(photographs)).toHaveLength(2);
+  });
+
+  it('is refused by the database when it would be both', async () => {
+    expect(
+      violates(await refusal({ partId, subAssemblyId }), 'photographs_belong_to_one_owner'),
+    ).toBe(true);
+  });
+
+  it('is refused by the database when it would be nobody’s', async () => {
+    expect(violates(await refusal({}), 'photographs_belong_to_one_owner')).toBe(true);
   });
 });

@@ -13,6 +13,7 @@ import type {
   RelatedPosition,
   SearchListing,
   Source,
+  Specification,
   SubAssembly,
   TableSheet,
   TavolaListing,
@@ -32,7 +33,11 @@ import type {
   TableSheetRow,
 } from '../db/schema.js';
 import { photographImageUrl, scanImageUrl, tableSheetImageUrl } from '../images/image-addresses.js';
-import type { FitmentWithModel, PartRecordRows } from '../repositories/part-record-repository.js';
+import type {
+  FitmentWithModel,
+  PartRecordRows,
+  SpecificationWithName,
+} from '../repositories/part-record-repository.js';
 import type {
   ElsewhereRow,
   ListedOnRow,
@@ -115,7 +120,7 @@ export function toPosition(row: PositionWithMarks, related: RelatedPosition[]): 
 
 /** A name and nothing else — no number, and nothing to order it by (spec, Out of Scope). */
 export function toSubAssembly(row: SubAssemblyRow): SubAssembly {
-  return { id: row.id, name: row.name };
+  return { id: row.id, name: row.name, outline: row.outline };
 }
 
 /**
@@ -141,6 +146,20 @@ export function toPart(row: PartRow): Part {
     catalogNote: row.catalogNote,
     catalogNoteEn: row.catalogNoteEn,
     note: row.note,
+  };
+}
+
+/**
+ * A Specification, with **the value in the one form it is read in**: the number or the words,
+ * whichever the name took, and the Unit beside it from the name.
+ */
+export function toSpecification(row: SpecificationWithName): Specification {
+  return {
+    id: row.id,
+    nameId: row.nameId,
+    name: row.name,
+    value: row.valueNumber ?? row.valueText ?? '',
+    unit: row.unit,
   };
 }
 
@@ -200,6 +219,7 @@ export function toPhotograph(row: PhotographRow): Photograph {
 export function toPartInFull(row: PartRow, record: PartRecordRows): PartInFull {
   return {
     ...toPart(row),
+    specifications: record.specifications.map(toSpecification),
     fitments: record.fitments.map(toFitment),
     equivalents: record.equivalents.map(toEquivalent),
     sources: record.sources.map(toSource),

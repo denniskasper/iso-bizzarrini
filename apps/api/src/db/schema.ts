@@ -3,6 +3,7 @@ import type {
   CatalogRunState,
   Currency,
   EquivalentKind,
+  MarkPoint,
   MembershipGrant,
   ProcessorRole,
   ReadingMethodKind,
@@ -20,6 +21,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -317,6 +319,21 @@ export const subAssemblies = pgTable(
       .references(() => tavole.id, { onDelete: 'cascade' }),
     /** As whoever grouped them wrote it. This is what members read. */
     name: text('name').notNull(),
+    /**
+     * What the club has established about the assembly as a whole, written by an Editor — like a
+     * Part's Note, and written once here rather than on each of its screws (issue #110).
+     */
+    note: text('note'),
+    /**
+     * Where it is on the Scan, drawn round by an Editor (issue #113): an ordered list of at least
+     * three corners, in the same fractions of the drawing a Mark is placed in (ADR 0013), so it
+     * survives a re-scan and turns with the sheet. `null` is a Sub-assembly nobody has outlined,
+     * which is as valid as one somebody has.
+     *
+     * One column rather than a table of corners, because an outline is only ever read, written
+     * and replaced whole: nothing asks for its third corner.
+     */
+    outline: jsonb('outline').$type<MarkPoint[]>(),
   },
   (table) => [
     unique('sub_assemblies_tavola_id_name_unique').on(table.tavolaId, table.name),
@@ -891,11 +908,14 @@ export const sources = pgTable(
 );
 
 /**
- * A photograph of a Part — the thing a member holds a bracket up against (story 77).
+ * A photograph of a Part — the thing a member holds a bracket up against (story 77) — or of a
+ * Sub-assembly, the window slider as it looks put together (issue #111).
  *
- * **It hangs off the Part and off nothing else**, which is ADR 0001 again: the same washer
+ * **It hangs off the Part and off no Listing**, which is ADR 0001 again: the same washer
  * photographed once is the same washer on every sheet it is listed on, and a photograph attached
- * to a Listing would be the same picture uploaded six times and corrected in five of them.
+ * to a Listing would be the same picture uploaded six times and corrected in five of them. A
+ * Sub-assembly is on one Tavola only, so its photographs go with that Tavola. **One owner, never
+ * both and never neither**, which the check constraint holds; the order is each owner's own.
  *
  * `sequence` is what makes the list an *order* rather than an accident of insertion. The first
  * photograph is the one that identifies the Part — the one a grid shows first and a member sees
@@ -911,11 +931,12 @@ export const photographs = pgTable(
   'photographs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    partId: uuid('part_id')
-      .notNull()
-      .references(() => parts.id, { onDelete: 'cascade' }),
+    partId: uuid('part_id').references(() => parts.id, { onDelete: 'cascade' }),
+    subAssemblyId: uuid('sub_assembly_id').references(() => subAssemblies.id, {
+      onDelete: 'cascade',
+    }),
 
-    /** Where it sits in the Part's own order, from `0`. Ties break on `id`, so the list is total. */
+    /** Where it sits in its owner's order, from `0`. Ties break on `id`, so the list is total. */
     sequence: integer('sequence').notNull(),
 
     /** What the Editor uploaded, kept verbatim: nothing derived is ever the archive's copy. */
@@ -944,7 +965,82 @@ export const photographs = pgTable(
   (table) => [
     // Named for both columns, because it is on both: the Part's photographs, already in order.
     index('photographs_part_id_sequence_index').on(table.partId, table.sequence),
+    index('photographs_sub_assembly_id_sequence_index').on(table.subAssemblyId, table.sequence),
     check('photographs_sequence_is_a_place', sql`${table.sequence} >= 0`),
+    check(
+      'photographs_belong_to_one_owner',
+      sql`num_nonnulls(${table.partId}, ${table.subAssemblyId}) = 1`,
+    ),
+  ],
+);
+
+/**
+ * A Unit is what a Specification's quantity is counted in — *g*, *mm*, *Nm* — written one way
+ * only. **The list is an Administrator's**, like the Categories, and a Specification name fixes
+ * which Unit its values are counted in, so an Editor never types one.
+ *
+ * Case is the meaning (*mm* and *Mm* are different things), so the key that decides sameness
+ * ignores only spacing.
+ */
+export const units = pgTable('units', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** As it is printed beside a value. */
+  symbol: text('symbol').notNull(),
+  /** The symbol with every space taken out. What decides whether two Units are the same. */
+  key: text('key').notNull().unique(),
+});
+
+/**
+ * The names a Part's Specifications are recorded under — *Material*, *Length*, *Weight* — kept
+ * by an Administrator in the order a Part's Specifications read in.
+ *
+ * The slug decides whether two names are the same, as a Category's does, so *Weight*, *weight*
+ * and *weight.* are one name. The Unit is the name's and never the value's: a name without one
+ * takes words.
+ */
+export const specificationNames = pgTable(
+  'specification_names',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** As the Administrator wrote it — this is what members read. */
+    name: text('name').notNull(),
+    slug: text('slug').notNull().unique(),
+    /** Refused removal while a name counts in it: no value is left counted in nothing. */
+    unitId: uuid('unit_id').references(() => units.id, { onDelete: 'restrict' }),
+    /** Where it sits in the list, from `0`. Ties break on `id`, so the order is total. */
+    sequence: integer('sequence').notNull(),
+  },
+  (table) => [check('specification_names_sequence_is_a_place', sql`${table.sequence} >= 0`)],
+);
+
+/**
+ * A Specification: one Part's value for one name, at most one per Part per name.
+ *
+ * A name with a Unit is a number and one without is words, so exactly one of the two values is
+ * held. The Unit is not stored here; it is read from the name, which is what makes changing a
+ * name's Unit refusable once anything is counted in it.
+ */
+export const specifications = pgTable(
+  'specifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+    /** Refused removal while a Part has a value for it. */
+    nameId: uuid('name_id')
+      .notNull()
+      .references(() => specificationNames.id, { onDelete: 'restrict' }),
+    valueNumber: numeric('value_number'),
+    valueText: text('value_text'),
+  },
+  (table) => [
+    unique('specifications_one_per_part_and_name').on(table.partId, table.nameId),
+    index('specifications_name_id_index').on(table.nameId),
+    check(
+      'specifications_one_value',
+      sql`(${table.valueNumber} is null) <> (${table.valueText} is null)`,
+    ),
   ],
 );
 
@@ -1470,6 +1566,7 @@ export const positionsRelations = relations(positions, ({ one, many }) => ({
 export const subAssembliesRelations = relations(subAssemblies, ({ one, many }) => ({
   tavola: one(tavole, { fields: [subAssemblies.tavolaId], references: [tavole.id] }),
   positions: many(positions),
+  photographs: many(photographs),
 }));
 
 export const partsRelations = relations(parts, ({ many }) => ({
@@ -1482,6 +1579,10 @@ export const partsRelations = relations(parts, ({ many }) => ({
 
 export const photographsRelations = relations(photographs, ({ one }) => ({
   part: one(parts, { fields: [photographs.partId], references: [parts.id] }),
+  subAssembly: one(subAssemblies, {
+    fields: [photographs.subAssemblyId],
+    references: [subAssemblies.id],
+  }),
 }));
 
 export const fitmentsRelations = relations(fitments, ({ one }) => ({
@@ -1559,6 +1660,10 @@ export type MembershipRow = typeof memberships.$inferSelect;
 export type NewMembershipRow = typeof memberships.$inferInsert;
 export type ClubRow = typeof club.$inferSelect;
 export type NewClubRow = typeof club.$inferInsert;
+export type UnitRow = typeof units.$inferSelect;
+export type SpecificationNameRow = typeof specificationNames.$inferSelect;
+export type SpecificationRow = typeof specifications.$inferSelect;
+export type NewSpecificationRow = typeof specifications.$inferInsert;
 export type ProcessorRow = typeof processors.$inferSelect;
 export type NewProcessorRow = typeof processors.$inferInsert;
 export type AccountTokenRow = typeof accountTokens.$inferSelect;

@@ -204,6 +204,34 @@
       "when": 1792845482193,
       "tag": "0028_catalog_run_removed_tavola",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793366303140,
+      "tag": "0029_sub_assembly_note",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793375317310,
+      "tag": "0030_units_and_specification_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793377894091,
+      "tag": "0031_photographs_of_a_part_or_a_sub_assembly",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793389534486,
+      "tag": "0032_sub_assembly_outline",
+      "breakpoints": true
     }
   ]
 }

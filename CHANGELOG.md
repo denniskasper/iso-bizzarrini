@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.7.1...v0.8.0) (2026-10-30)
+
+
+### New
+
+* **106:** the practice system wears production's colours ([34fc766](https://github.com/denniskasper/iso-bizzarrini/commit/34fc766977adfeaace12854918f6628abf1b60f5))
+* **107:** the header names the Club, with Parts Database beside it ([a3196f9](https://github.com/denniskasper/iso-bizzarrini/commit/a3196f9e30a117a2f112f7f9e66afb69c55442bc))
+* **108:** a laptop shows more of the archive, in a denser type step ([f9cb570](https://github.com/denniskasper/iso-bizzarrini/commit/f9cb5700d67ff968f64d5cc2912890658c0fe0f3))
+* **109:** Administrators keep the Units and Specification names ([e8443da](https://github.com/denniskasper/iso-bizzarrini/commit/e8443da87c84746c3121a7b98152ff376daf7279))
+* **110:** a Sub-assembly has its own page, with a Note an Editor writes ([d6d0d1f](https://github.com/denniskasper/iso-bizzarrini/commit/d6d0d1fa1b61b0e4fb9fe1a8cffafb3126cbe6e0))
+* **112:** Editors record a Part's Specifications, and Members read them ([fc400e5](https://github.com/denniskasper/iso-bizzarrini/commit/fc400e5bb4de575c19df0641bacd827d62024fa5))
+* **113:** Editors outline a Sub-assembly on the drawing, and Members see it when they ask ([d6b9574](https://github.com/denniskasper/iso-bizzarrini/commit/d6b95747207e5cdb298874e50e09c973c37bd4fc))
+* **114:** Editors add, order and remove a Sub-assembly's Photographs, and members see them on its page ([5c5f09c](https://github.com/denniskasper/iso-bizzarrini/commit/5c5f09cf1113961e854661522867254c88e47f99))
+
 ## [0.7.1](https://github.com/denniskasper/iso-bizzarrini/compare/v0.7.0...v0.7.1) (2026-10-30)
 
 

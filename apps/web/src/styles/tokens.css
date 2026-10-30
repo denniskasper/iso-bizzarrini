@@ -38,18 +38,18 @@
   --line-strong: oklch(0.76 0.008 264);
 
   /*
-   * Paper. **The one token that is identical in both themes and in a practice system**, because
-   * a factory drawing is black lines on white and the sheet it was printed on does not care what
-   * the reader's phone is set to. Every scan sits on this, so the drawing is the brightest thing
-   * on a dark screen — which is the whole argument for dark chrome, made literal.
+   * Paper. **The one surface that is identical in both themes**, because a factory drawing is
+   * black lines on white and the sheet it was printed on does not care what the reader's phone
+   * is set to. Every scan sits on this, so the drawing is the brightest thing on a dark screen —
+   * which is the whole argument for dark chrome, made literal.
    */
   --paper: oklch(1 0 0);
 
   /*
    * What dims the part of a drawing that is not in view, in the navigator. Paper's companion,
-   * and like paper it is the same in both themes and in a practice system, because it only ever
-   * sits on paper. Ink at just over half strength: enough that the part in view is obviously the
-   * bright one, light enough that the rest of the sheet is still a drawing rather than a hole.
+   * and like paper it is the same in both themes, because it only ever sits on paper. Ink at
+   * just over half strength: enough that the part in view is obviously the bright one, light
+   * enough that the rest of the sheet is still a drawing rather than a hole.
    */
   --scrim: oklch(0.279 0.015 257 / 0.55);
 
@@ -77,6 +77,12 @@
    * it is still there, still hittable at its full touch size, and one press brings it back.
    */
   --mark-receded: color-mix(in oklch, var(--mark) 30%, transparent);
+  /*
+   * Inside a Sub-assembly's outline (issue #113): the Mark's blue at a tenth, lighter than the
+   * wash in a circle, because an outline can cover a quarter of a sheet and the factory's print
+   * has to read straight through it. The line round it is `--mark` itself.
+   */
+  --outline-fill: color-mix(in oklch, var(--mark) 10%, transparent);
 
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);
@@ -114,9 +120,10 @@
   --alarm: oklch(0.5 0.17 27);
 
   /*
-   * The stamp a non-production system wears. Deliberately **not** themed: it is the same
-   * orange in light and dark, because it is a mark printed on top of the archive rather than
-   * part of it, and it must look identical in a screenshot however the reader's phone is set.
+   * The stamp a non-production system wears, as the band over the chrome and as the mark on a
+   * drawing filling the screen. Deliberately **not** themed: it is the same orange in light and
+   * dark, because it is a mark printed on top of the archive rather than part of it, and it must
+   * look identical in a screenshot however the reader's phone is set.
    *
    * The hue is one the Club uses nowhere — that is the point. It is orange where a failure is
    * red (55° against 27°), and a band rather than a line of text. The ink sits on it at 6.6:1.
@@ -164,45 +171,79 @@
 }
 
 /* ---------------------------------------------------------------------------
- * The non-production surfaces
+ * The type step
  *
- * A practice system must be unmistakable from any part of any screen, not only from the band
- * at the top — so the surfaces themselves change: production is the Club's cool graphite (or
- * its white paper), and the non-production system is warm throughout. It is the plainest
- * possible statement of the difference, because a demo is precisely *not* wearing the Club's
- * chrome.
+ * **Two steps, and the breakpoint between them is the one at which the drawing sits beside its
+ * parts** (64rem, Tailwind's `lg`). Below it is the garage: a phone at arm's length, and the
+ * sizes it has always had. At and above it is a desk, where the Club reads the archive on a
+ * laptop and asked for more of it on the screen at once.
  *
- * **Hue and chroma carry the difference; lightness is production's.** That is what keeps this
- * safe: contrast is carried by lightness, so every text, rule and focus ratio measured for
- * production holds here and no token had to be re-argued.
- *
- * There are two exceptions, both in the light theme, both forced: paper already sits at the top
- * of the lightness scale, and white cannot be warm. `surface` drops 0.007 and `surface-raised`
- * 0.012 — the least that leaves them in gamut at all. Re-measured: the faintest token clears
- * 4.93:1 and 4.99:1 on them. Every other value, and the whole dark theme, is exact.
- *
- * The attribute is written by whatever serves the document, and is *absent* in `vite dev` —
- * which the pre-paint script settles as non-production, because an app served by something
- * that has not been taught to declare itself gets marked rather than trusted.
+ * **What gets denser is type, and only type.** Controls, touch targets and contrast are tokens
+ * of their own and do not move: a laptop is still used with a pointer that misses. And **nothing
+ * read as a sentence goes below 14px** — `sm` is already there, so it keeps its size and only
+ * tightens its leading; `xs` is a tag beside something else, never body text, and is unchanged.
  * ------------------------------------------------------------------------ */
 
-html[data-environment-mode='non-production'] {
-  --surface: oklch(0.978 0.017 75);
-  --surface-raised: oklch(0.988 0.01 80);
-  --surface-sunken: oklch(0.965 0.022 75);
-
-  --line: oklch(0.917 0.014 70);
-  --line-strong: oklch(0.76 0.016 70);
+:root {
+  --type-xs: 0.75rem;
+  --type-xs--line-height: 1.125rem;
+  --type-sm: 0.875rem;
+  --type-sm--line-height: 1.375rem;
+  --type-base: 1rem;
+  --type-base--line-height: 1.625rem;
+  --type-lg: 1.125rem;
+  --type-lg--line-height: 1.75rem;
+  --type-xl: 1.375rem;
+  --type-xl--line-height: 1.875rem;
+  --type-2xl: 1.75rem;
+  --type-2xl--line-height: 2.125rem;
+  --type-3xl: 2.25rem;
+  --type-3xl--line-height: 2.5rem;
+  --type-4xl: 3rem;
+  --type-4xl--line-height: 3.25rem;
+  --type-5xl: 4rem;
+  --type-5xl--line-height: 4.125rem;
+  --type-display: clamp(3.5rem, 11vw, 10rem);
 }
 
-html.dark[data-environment-mode='non-production'] {
-  --surface: oklch(0.205 0.019 60);
-  --surface-raised: oklch(0.272 0.024 58);
-  --surface-sunken: oklch(0.168 0.016 60);
-
-  --line: oklch(0.345 0.018 60);
-  --line-strong: oklch(0.47 0.02 60);
+@media (width >= 64rem) {
+  :root {
+    --type-sm--line-height: 1.25rem;
+    --type-base: 0.9375rem;
+    --type-base--line-height: 1.4375rem;
+    --type-lg: 1rem;
+    --type-lg--line-height: 1.5rem;
+    --type-xl: 1.1875rem;
+    --type-xl--line-height: 1.625rem;
+    --type-2xl: 1.5rem;
+    --type-2xl--line-height: 1.875rem;
+    --type-3xl: 1.875rem;
+    --type-3xl--line-height: 2.25rem;
+    --type-4xl: 2.5rem;
+    --type-4xl--line-height: 2.75rem;
+    --type-5xl: 3.25rem;
+    --type-5xl--line-height: 3.5rem;
+    /* A car's name is still the poster on a desk, but a poster per wall rather than per screen:
+       at 11vw a laptop showed one car at a time. */
+    --type-display: clamp(3.5rem, 4.5vw, 5.5rem);
+  }
 }
+
+/* ---------------------------------------------------------------------------
+ * The non-production surfaces
+ *
+ * There are none. A practice system wears production's surfaces and rules exactly, in both
+ * themes, because what the Club judges Ricambi by is the practice system, and it has to look
+ * like the Club's own website to be judged fairly.
+ *
+ * **The band is the mark.** The DEMO band is part of the sticky chrome, so it is at the top of
+ * every page and stays there while scrolling; the full-screen drawing hides the chrome, so it
+ * carries a DEMO stamp of its own. Both wear `demo-band`, above, and production shows neither.
+ *
+ * The attribute that decides it is written by whatever serves the document, and is *absent* in
+ * `vite dev` — which the pre-paint script settles as non-production, because an app served by
+ * something that has not been taught to declare itself gets marked rather than trusted.
+ * ------------------------------------------------------------------------ */
 
 @theme inline {
   /* ---- Colour ---------------------------------------------------------- */
@@ -243,31 +284,32 @@ html.dark[data-environment-mode='non-production'] {
   --font-display: 'Barlow Condensed', 'Open Sans Variable', ui-sans-serif, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
 
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1.125rem;
-  --text-sm: 0.875rem;
-  --text-sm--line-height: 1.375rem;
-  --text-base: 1rem;
-  --text-base--line-height: 1.625rem;
-  --text-lg: 1.125rem;
-  --text-lg--line-height: 1.75rem;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.875rem;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 2.125rem;
+  /* The step itself is in `:root` and its wide-screen companion, above: these only name it. */
+  --text-xs: var(--type-xs);
+  --text-xs--line-height: var(--type-xs--line-height);
+  --text-sm: var(--type-sm);
+  --text-sm--line-height: var(--type-sm--line-height);
+  --text-base: var(--type-base);
+  --text-base--line-height: var(--type-base--line-height);
+  --text-lg: var(--type-lg);
+  --text-lg--line-height: var(--type-lg--line-height);
+  --text-xl: var(--type-xl);
+  --text-xl--line-height: var(--type-xl--line-height);
+  --text-2xl: var(--type-2xl);
+  --text-2xl--line-height: var(--type-2xl--line-height);
   --text-2xl--letter-spacing: -0.015em;
-  --text-3xl: 2.25rem;
-  --text-3xl--line-height: 2.5rem;
+  --text-3xl: var(--type-3xl);
+  --text-3xl--line-height: var(--type-3xl--line-height);
   --text-3xl--letter-spacing: -0.02em;
-  --text-4xl: 3rem;
-  --text-4xl--line-height: 3.25rem;
+  --text-4xl: var(--type-4xl);
+  --text-4xl--line-height: var(--type-4xl--line-height);
   --text-4xl--letter-spacing: -0.025em;
-  --text-5xl: 4rem;
-  --text-5xl--line-height: 4.125rem;
+  --text-5xl: var(--type-5xl);
+  --text-5xl--line-height: var(--type-5xl--line-height);
   --text-5xl--letter-spacing: -0.03em;
   /* The display face at poster size: a car's name, a front door. Fluid, because a phone and a
      desk both deserve the name to fill the line. Only ever set through `.display`. */
-  --text-display: clamp(3.5rem, 11vw, 10rem);
+  --text-display: var(--type-display);
   --text-display--line-height: 0.9;
 
   /* The wordmark's tracking, so the one piece of lettering that is a logo is not a literal. */
@@ -288,6 +330,14 @@ html.dark[data-environment-mode='non-production'] {
   --text-card-number: calc(var(--text-card) * 1.6);
   --text-card-number--line-height: 1.25;
   --width-card: clamp(19rem, 22vw + 6rem, 30rem);
+
+  /*
+   * **The facing page beside a drawing** — a Position's part, the sheet's list, what is left to
+   * check. Only beside from `lg` up; below that it is the next thing down and has the full width.
+   * Its floor is what a part's name, its numbers and its sources need without wrapping into a
+   * column of single words on a laptop; the drawing keeps everything else.
+   */
+  --width-part-panel: 28rem;
   /* How far it stands off the circle it describes, and off the edges of the stage. */
   --spacing-card-offset: 1rem;
   --spacing-card-edge: 0.75rem;

@@ -21,6 +21,8 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createSpecificationListController } from './controllers/specification-list-controller.js';
+import { createSubAssemblyController } from './controllers/sub-assembly-controller.js';
 import { createReadingController } from './controllers/reading-controller.js';
 import { createReminderController } from './controllers/reminder-controller.js';
 import { createRetentionController } from './controllers/retention-controller.js';
@@ -59,6 +61,7 @@ import { createRetentionRepository } from './repositories/retention-repository.j
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
+import { createSpecificationListRepository } from './repositories/specification-list-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
 import { API_MOUNT, createApiRouter, WEBHOOK_PATH } from './routes/api-router.js';
 import { createAccountService } from './services/account-service.js';
@@ -74,6 +77,8 @@ import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createSpecificationListService } from './services/specification-list-service.js';
+import { createSubAssemblyService } from './services/sub-assembly-service.js';
 import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
@@ -178,6 +183,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const processorRepository = createProcessorRepository(db);
   const modelRepository = createModelRepository(db);
   const categoryRepository = createCategoryRepository(db);
+  const specificationListRepository = createSpecificationListRepository(db);
   const tavolaRepository = createTavolaRepository(db);
   const readingRepository = createReadingRepository(db);
   const catalogRunRepository = createCatalogRunRepository(db);
@@ -279,12 +285,21 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   // member then reads about one arrives when they open it on a drawing.
   const searchService = createSearchService({ partRepository, partRecordRepository });
   const positionService = createPositionService({ tavolaRepository, positionRepository });
+  const subAssemblyService = createSubAssemblyService({
+    positionRepository,
+    partRepository,
+    photographRepository,
+    fileStore,
+    clock,
+    logger,
+  });
   const partRecordService = createPartRecordService({
     clock,
     modelRepository,
     partRepository,
     partRecordRepository,
     photographRepository,
+    specificationListRepository,
   });
   const partService = createPartService({
     tavolaRepository,
@@ -299,6 +314,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   // repositories cannot be decided here.
   const bulkPasteService = createBulkPasteService({ db });
   const categoryService = createCategoryService({ categoryRepository, tavolaRepository });
+  const specificationListService = createSpecificationListService({ specificationListRepository });
   const tavolaService = createTavolaService({
     clock,
     modelRepository,
@@ -369,8 +385,12 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const searchController = createSearchController({ gate, searchService });
   const catalogController = createCatalogController({ gate, catalogService });
   const categoryController = createCategoryController({ gate, categoryService });
+  const specificationListController = createSpecificationListController({
+    specificationListService,
+  });
   const tavolaController = createTavolaController({ gate, tavolaService });
   const positionController = createPositionController({ positionService });
+  const subAssemblyController = createSubAssemblyController({ subAssemblyService });
   const partController = createPartController({ gate, partService });
   const partRecordController = createPartRecordController({ partRecordService });
   const bulkPasteController = createBulkPasteController({ bulkPasteService });
@@ -463,8 +483,10 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       searchController,
       catalogController,
       categoryController,
+      specificationListController,
       tavolaController,
       positionController,
+      subAssemblyController,
       partController,
       partRecordController,
       bulkPasteController,

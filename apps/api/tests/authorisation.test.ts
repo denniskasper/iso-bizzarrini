@@ -86,6 +86,14 @@ const ADMINISTRATORS_ONLY = new Set([
   // and is refused here like anybody else who is not one.
   'POST /api/categories',
   'PATCH /api/categories/:categoryId',
+  // So are the Units and the Specification names (issue #109), for the same reason.
+  'POST /api/units',
+  'PATCH /api/units/:unitId',
+  'DELETE /api/units/:unitId',
+  'POST /api/specification-names',
+  'PUT /api/specification-names/order',
+  'PATCH /api/specification-names/:nameId',
+  'DELETE /api/specification-names/:nameId',
 ]);
 
 /**
@@ -150,6 +158,9 @@ const A_MEMBERS_TO_WRITE = new Set([
 const AN_EDITORS_TO_READ = new Set([
   'GET /api/contributions/waiting',
   'GET /api/contributions/waiting/count',
+  // What has been typed under a Specification name before (issue #112): an Editor's tool for
+  // writing a value the way the archive already does. Members read the values on the Part.
+  'GET /api/specification-names/:nameId/suggestions',
 ]);
 
 describe('who may reach what', () => {
