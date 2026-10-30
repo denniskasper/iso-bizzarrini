@@ -23,7 +23,8 @@ in `.env` move it elsewhere.
 | | |
 | --- | --- |
 | Banner | Permanent, non-dismissible, on every page, travelling with the header so it cannot be scrolled away. It carries no control of any kind — there is nothing to close and nothing to remember having closed. |
-| Colour | The surfaces are warm throughout. Production wears the Club's own cool graphite (or its white paper); a practice system deliberately does not wear the Club's colour at all. Hue and chroma carry the difference, so every contrast ratio holds — bar two forced exceptions in the light theme, where white cannot be warm, both re-measured. |
+| Colour | Production's, exactly, in both themes: a practice system looks as the archive will, which is what the Club judges it by. The band is the mark. |
+| Full screen | A drawing filling the screen covers the chrome, and with it the band, so it carries a small `DEMO` stamp of its own in its top-left corner. |
 | Title | `DEMO — Ricambi`, stamped into the served document, so a browser tab is identifiable at a glance and DEMO survives truncation. |
 | Indexing | `noindex, nofollow` in the markup and as `X-Robots-Tag` on every response, in every environment. Nothing here is for a search engine. |
 

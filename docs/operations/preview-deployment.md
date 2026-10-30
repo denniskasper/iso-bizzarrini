@@ -15,8 +15,9 @@ Traefik, automatic TLS and the domain routing. The stack itself is
 **It runs as a non-production system, and it will say so on every page.** That is not a
 limitation to work around — it is the point:
 
-- Everything is stamped with the DEMO band, the warm chrome and `DEMO` in the browser tab, so
-  no screenshot of it can be mistaken for the Club's archive.
+- Every page is stamped with the DEMO band (a drawing filling the screen with a DEMO stamp of
+  its own) and `DEMO` in the browser tab, so no page of it can be mistaken for the Club's
+  archive.
 - It has no payment provider, so nobody is offered a way to pay online; the renewal reminders
   are refused outright, and its e-mail is written to the log rather than sent. It cannot reach a
   real person or a real mandate, and it will not start if it is handed something that could —
