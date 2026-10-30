@@ -5,6 +5,9 @@ archive. A single public image URL breaks that promise for the whole scanned col
 search engines index what they find. So the original scans, the generated deep-zoom tiles and
 member photographs are never on a public path.
 
+**Amended by [ADR 0019](0019-a-sample-is-the-one-public-part-of-the-archive.md):** a Sample's
+drawing is shown to Visitors as a smaller public copy. The Scan itself stays private.
+
 Image data is served through an authenticated route — Caddy's `forward_auth` asks the
 application to validate the session and a live Membership before any file is served — with
 long, immutable cache headers so that panning around a drawing re-requests almost nothing. At
