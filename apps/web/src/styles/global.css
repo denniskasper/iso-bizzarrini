@@ -413,6 +413,81 @@
   }
 
   /*
+   * **A Sub-assembly's outline** (issue #113), above the Scan and below the Marks. The layer is
+   * scenery like the one above it; only the shape inside it can be pressed, and a circle over
+   * the shape still takes the press first.
+   *
+   * Every width here is a count of `--drawing-px` — one of the member's pixels, in the drawing's
+   * own — so the line is the same weight however far in the member is.
+   */
+  .drawing-outlines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .outline-shape {
+    fill: var(--outline-fill);
+    stroke: var(--mark);
+    stroke-width: calc(var(--drawing-px, 1px) * 2);
+    stroke-linejoin: round;
+    pointer-events: visiblePainted;
+    cursor: pointer;
+    animation: outline-in 140ms var(--ease-out-quick);
+  }
+
+  @keyframes outline-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* An outline being drawn: the same blue, dashed until it is closed. */
+  .outline-draft-fill {
+    fill: var(--outline-fill);
+  }
+
+  .outline-draft-line {
+    fill: none;
+    stroke: var(--mark);
+    stroke-width: calc(var(--drawing-px, 1px) * 2);
+    stroke-linejoin: round;
+    stroke-dasharray: calc(var(--drawing-px, 1px) * 6) calc(var(--drawing-px, 1px) * 4);
+  }
+
+  /* A corner is a dot and not a ring: rings on this sheet are Marks. */
+  .outline-corner {
+    r: calc(var(--drawing-px, 1px) * 4);
+    fill: var(--mark);
+    stroke: var(--paper);
+    stroke-width: calc(var(--drawing-px, 1px) * 1.5);
+  }
+
+  /* The corner that closes it, once it can be closed: larger, so the finishing press lands. */
+  .outline-corner[data-first='true'] {
+    r: calc(var(--drawing-px, 1px) * 6);
+  }
+
+  /* What can be hit to close it is a thumb's width, whatever the zoom. */
+  .outline-close {
+    r: calc(var(--drawing-px, 1px) * 22);
+    fill: transparent;
+    pointer-events: all;
+    cursor: pointer;
+  }
+
+  /*
+   * While an outline is being drawn, a press on a circle is a corner placed there — so the
+   * circles stand out of the way of the press, and stay on the sheet to be drawn round.
+   */
+  .drawing-marks[data-quiet='true'] .drawing-mark {
+    pointer-events: none;
+  }
+
+  /*
    * One circle, at two sizes at once — which is the whole design of it.
    *
    * What is **seen** is `--mark-ring`: a fixed fraction of the sheet, so the ring sits on the

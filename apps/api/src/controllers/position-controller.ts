@@ -42,6 +42,21 @@ const newSubAssemblyBody = z.object({
 });
 
 /**
+ * Reads `SubAssemblyOutlineRequest`. Each corner is a point on the drawing, refused off it as a
+ * Mark is, and it takes three of them to enclose anything.
+ */
+const outlineBody = z.object({
+  corners: z
+    .array(
+      z.object({
+        x: z.number().min(0, 'Every corner is somewhere on the drawing').max(1),
+        y: z.number().min(0, 'Every corner is somewhere on the drawing').max(1),
+      }),
+    )
+    .min(3, 'An outline needs at least three corners to enclose anything.'),
+});
+
+/**
  * Reads `RelatePositionsRequest`. The two ids are interchangeable — the pair is the link, and
  * which of them was typed first is nothing about the two parts.
  */
@@ -59,6 +74,8 @@ export interface PositionController {
   putInSubAssembly: RequestHandler;
   takeOutOfSubAssembly: RequestHandler;
   dissolveSubAssembly: RequestHandler;
+  outlineSubAssembly: RequestHandler;
+  removeSubAssemblyOutline: RequestHandler;
   relate: RequestHandler;
   unrelate: RequestHandler;
 }
@@ -132,6 +149,22 @@ export function createPositionController(dependencies: {
     dissolveSubAssembly: async (request, response) => {
       const { subAssemblyId } = subAssemblyIdParams.parse(request.params);
       const body: PositionsResponse = await positionService.dissolveSubAssembly(subAssemblyId);
+      response.json(body);
+    },
+
+    outlineSubAssembly: async (request, response) => {
+      const { subAssemblyId } = subAssemblyIdParams.parse(request.params);
+      const { corners } = outlineBody.parse(request.body);
+      const body: PositionsResponse = await positionService.outlineSubAssembly(
+        subAssemblyId,
+        corners,
+      );
+      response.json(body);
+    },
+
+    removeSubAssemblyOutline: async (request, response) => {
+      const { subAssemblyId } = subAssemblyIdParams.parse(request.params);
+      const body: PositionsResponse = await positionService.outlineSubAssembly(subAssemblyId, null);
       response.json(body);
     },
 

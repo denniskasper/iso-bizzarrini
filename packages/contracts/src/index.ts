@@ -391,6 +391,15 @@ export interface SubAssembly {
   id: string;
   /** As whoever named it wrote it. This is what members read. */
   name: string;
+  /**
+   * Where it is on the drawing, as an Editor drew round it (issue #113): at least three corners,
+   * in order, in the same fractions of the drawing a Mark is placed in. `null` until somebody
+   * draws one, which leaves the Sub-assembly exactly as valid. Outlines may overlap.
+   *
+   * On the sheet rather than only on the Sub-assembly's page, because it is the drawing that
+   * shows it: a member pointing at a name beside the sheet is shown where it is without asking.
+   */
+  outline: MarkPoint[] | null;
 }
 
 /**
@@ -1309,6 +1318,16 @@ export interface SubAssemblyPosition {
  */
 export interface SubAssemblyNoteRequest {
   note: string | null;
+}
+
+/**
+ * `PUT /api/sub-assemblies/:subAssemblyId/outline` — an Editor drawing a Sub-assembly's outline,
+ * or replacing the one it has: a Sub-assembly has at most one. At least three corners, each on
+ * the drawing (`0`–`1` both ways). Answers with the sheet; `DELETE` on the same address removes
+ * the outline and leaves the Sub-assembly.
+ */
+export interface SubAssemblyOutlineRequest {
+  corners: MarkPoint[];
 }
 
 /**

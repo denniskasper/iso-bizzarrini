@@ -77,6 +77,12 @@
    * it is still there, still hittable at its full touch size, and one press brings it back.
    */
   --mark-receded: color-mix(in oklch, var(--mark) 30%, transparent);
+  /*
+   * Inside a Sub-assembly's outline (issue #113): the Mark's blue at a tenth, lighter than the
+   * wash in a circle, because an outline can cover a quarter of a sheet and the factory's print
+   * has to read straight through it. The line round it is `--mark` itself.
+   */
+  --outline-fill: color-mix(in oklch, var(--mark) 10%, transparent);
 
   /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
   --text: oklch(0.279 0.015 257);

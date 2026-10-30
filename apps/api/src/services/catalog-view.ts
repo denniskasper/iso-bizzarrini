@@ -120,7 +120,7 @@ export function toPosition(row: PositionWithMarks, related: RelatedPosition[]): 
 
 /** A name and nothing else — no number, and nothing to order it by (spec, Out of Scope). */
 export function toSubAssembly(row: SubAssemblyRow): SubAssembly {
-  return { id: row.id, name: row.name };
+  return { id: row.id, name: row.name, outline: row.outline };
 }
 
 /**

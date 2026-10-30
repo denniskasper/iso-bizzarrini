@@ -78,6 +78,11 @@ export interface MarkLayerProps {
    * the drawing read-only rather than a control surface with the actions hidden.
    */
   onMove?: ((markId: string, to: MarkPoint) => Promise<unknown>) | undefined;
+  /**
+   * The circles stay on the sheet but take no press — while an Editor is drawing an outline,
+   * where a press on a circle is a corner placed on it (issue #113).
+   */
+  quiet?: boolean;
 }
 
 export function MarkLayer({
@@ -89,6 +94,7 @@ export function MarkLayer({
   onPoint,
   pointedMarkId = null,
   onMove,
+  quiet = false,
 }: MarkLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
@@ -180,7 +186,7 @@ export function MarkLayer({
   );
 
   return (
-    <div ref={layerRef} className="drawing-marks" data-testid="drawing-marks">
+    <div ref={layerRef} className="drawing-marks" data-testid="drawing-marks" data-quiet={quiet}>
       {positions.map((position) =>
         position.marks.map((mark) => (
           <MarkCircle

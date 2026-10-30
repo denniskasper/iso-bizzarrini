@@ -1,7 +1,14 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { QuarterTurn } from '@ricambi/contracts';
 import type { DbSession } from '../db/client.js';
-import { marks, positions, scans, type NewScanRow, type ScanRow } from '../db/schema.js';
+import {
+  marks,
+  positions,
+  scans,
+  subAssemblies,
+  type NewScanRow,
+  type ScanRow,
+} from '../db/schema.js';
 
 export interface ScanRepository {
   findById(id: string): Promise<ScanRow | null>;
@@ -15,8 +22,8 @@ export interface ScanRepository {
   replaceForTavola(scan: NewScanRow): Promise<{ current: ScanRow; replaced: ScanRow | null }>;
   findByTavola(tavolaId: string): Promise<ScanRow | null>;
   /**
-   * Puts the same drawing, turned a quarter, in place of `turned`, and turns every Mark on the
-   * Tavola with it — in one transaction, so no Mark is ever on the drawing the wrong way round.
+   * Puts the same drawing, turned a quarter, in place of `turned`, and turns every Mark and every
+   * Sub-assembly's outline on the Tavola with it — in one transaction, so no Mark is ever on the drawing the wrong way round.
    * `null` when `turned` is no longer the Tavola's scan: somebody turned or replaced it meanwhile.
    */
   turn(turned: ScanRow, direction: QuarterTurn, scan: NewScanRow): Promise<ScanRow | null>;
@@ -30,6 +37,21 @@ const TURNED = {
   clockwise: { x: sql`1 - ${marks.y}`, y: sql`${marks.x}` },
   anticlockwise: { x: sql`${marks.y}`, y: sql`1 - ${marks.x}` },
 } as const;
+
+/**
+ * The same turn for an outline's corners, which are a list in one column rather than a row each:
+ * every corner is rebuilt in place, and `with ordinality` keeps them in the order they were drawn.
+ */
+function turnedOutline(direction: QuarterTurn) {
+  const [x, y] =
+    direction === 'clockwise'
+      ? [sql`1 - (corner->>'y')::float8`, sql`(corner->>'x')::float8`]
+      : [sql`(corner->>'y')::float8`, sql`1 - (corner->>'x')::float8`];
+  return sql`(
+    select jsonb_agg(jsonb_build_object('x', ${x}, 'y', ${y}) order by place)
+    from jsonb_array_elements(${subAssemblies.outline}) with ordinality as corners(corner, place)
+  )`;
+}
 
 export function createScanRepository(db: DbSession): ScanRepository {
   return {
@@ -86,6 +108,11 @@ export function createScanRepository(db: DbSession): ScanRepository {
                 .where(eq(positions.tavolaId, scan.tavolaId)),
             ),
           );
+
+        await tx
+          .update(subAssemblies)
+          .set({ outline: turnedOutline(direction) })
+          .where(and(eq(subAssemblies.tavolaId, scan.tavolaId), isNotNull(subAssemblies.outline)));
 
         return current;
       });

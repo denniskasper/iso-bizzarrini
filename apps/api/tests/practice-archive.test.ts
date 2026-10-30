@@ -349,7 +349,7 @@ describe('a practice system writing itself a catalog', () => {
     };
 
     expect(sheet.body.subAssemblies).toEqual([
-      { id: expect.any(String), name: 'Front caliper assembly' },
+      { id: expect.any(String), name: 'Front caliper assembly', outline: null },
     ]);
     const group = sheet.body.subAssemblies[0].id;
     expect(

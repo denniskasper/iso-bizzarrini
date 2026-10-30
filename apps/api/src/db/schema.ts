@@ -3,6 +3,7 @@ import type {
   CatalogRunState,
   Currency,
   EquivalentKind,
+  MarkPoint,
   MembershipGrant,
   ProcessorRole,
   ReadingMethodKind,
@@ -323,6 +324,16 @@ export const subAssemblies = pgTable(
      * Part's Note, and written once here rather than on each of its screws (issue #110).
      */
     note: text('note'),
+    /**
+     * Where it is on the Scan, drawn round by an Editor (issue #113): an ordered list of at least
+     * three corners, in the same fractions of the drawing a Mark is placed in (ADR 0013), so it
+     * survives a re-scan and turns with the sheet. `null` is a Sub-assembly nobody has outlined,
+     * which is as valid as one somebody has.
+     *
+     * One column rather than a table of corners, because an outline is only ever read, written
+     * and replaced whole: nothing asks for its third corner.
+     */
+    outline: jsonb('outline').$type<MarkPoint[]>(),
   },
   (table) => [
     unique('sub_assemblies_tavola_id_name_unique').on(table.tavolaId, table.name),

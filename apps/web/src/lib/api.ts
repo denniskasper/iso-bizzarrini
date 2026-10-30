@@ -80,6 +80,7 @@ import type {
   NewPositionRequest,
   NewSubAssemblyRequest,
   SubAssemblyNoteRequest,
+  SubAssemblyOutlineRequest,
   SubAssemblyResponse,
   NewTavolaRequest,
   PastePlanResponse,
@@ -470,6 +471,11 @@ export const api = {
     request<SubAssemblyResponse>(`/tavole/${tavolaId}/sub-assemblies/${subAssemblyId}`),
   writeSubAssemblyNote: (subAssemblyId: string, note: SubAssemblyNoteRequest) =>
     send<SubAssemblyResponse>('PUT', `/sub-assemblies/${subAssemblyId}/note`, note),
+  /** Where it is on the drawing (issue #113): drawn or replaced whole, and answered with the sheet. */
+  outlineSubAssembly: (subAssemblyId: string, outline: SubAssemblyOutlineRequest) =>
+    send<PositionsResponse>('PUT', `/sub-assemblies/${subAssemblyId}/outline`, outline),
+  removeSubAssemblyOutline: (subAssemblyId: string) =>
+    request<PositionsResponse>(`/sub-assemblies/${subAssemblyId}/outline`, { method: 'DELETE' }),
 
   relatePositions: (tavolaId: string, pair: RelatePositionsRequest) =>
     send<PositionsResponse>('POST', `/tavole/${tavolaId}/related-positions`, pair),

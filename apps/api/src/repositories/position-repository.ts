@@ -1,3 +1,4 @@
+import type { MarkPoint } from '@ricambi/contracts';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { numericPrefixOf } from '../catalog/naming.js';
 import type { DbSession } from '../db/client.js';
@@ -69,6 +70,8 @@ export interface PositionRepository {
   findSubAssembly(id: string): Promise<SubAssemblyRow | null>;
   /** The Note as an Editor wrote it, or `null` to clear it. `null` back for no such one. */
   writeSubAssemblyNote(id: string, note: string | null): Promise<SubAssemblyRow | null>;
+  /** Draws, replaces or (with `null`) removes the outline. `null` back for no such Sub-assembly. */
+  writeSubAssemblyOutline(id: string, outline: MarkPoint[] | null): Promise<SubAssemblyRow | null>;
   /**
    * **A Sub-assembly with nothing in it is not one.** Run after every membership change, so a
    * name left pointing at no numbers never survives the write that emptied it.
@@ -245,6 +248,15 @@ export function createPositionRepository(db: DbSession): PositionRepository {
       const [updated] = await db
         .update(subAssemblies)
         .set({ note })
+        .where(eq(subAssemblies.id, id))
+        .returning();
+      return updated ?? null;
+    },
+
+    async writeSubAssemblyOutline(id, outline) {
+      const [updated] = await db
+        .update(subAssemblies)
+        .set({ outline })
         .where(eq(subAssemblies.id, id))
         .returning();
       return updated ?? null;

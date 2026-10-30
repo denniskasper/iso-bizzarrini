@@ -40,6 +40,11 @@ export interface PositionService {
   putInSubAssembly(tavolaId: string, name: string, positionIds: string[]): Promise<Sheet>;
   takeOutOfSubAssembly(positionId: string): Promise<Sheet>;
   dissolveSubAssembly(subAssemblyId: string): Promise<Sheet>;
+  /**
+   * Where a Sub-assembly is on the drawing: drawn, replaced, or removed with `null`. The corners
+   * are checked on the way in; this only writes them.
+   */
+  outlineSubAssembly(subAssemblyId: string, corners: MarkPoint[] | null): Promise<Sheet>;
 
   /** The narrow pointer: two numbers on one sheet, recorded once and read from both ends. */
   relate(tavolaId: string, positionId: string, otherPositionId: string): Promise<Sheet>;
@@ -233,6 +238,14 @@ export function createPositionService(dependencies: {
       // The numbers stay where they are, in no Sub-assembly. Dissolving a name is not deleting
       // what it was a name for.
       return sheet(removed.tavolaId);
+    },
+
+    async outlineSubAssembly(subAssemblyId, corners) {
+      const written = await positionRepository.writeSubAssemblyOutline(subAssemblyId, corners);
+      if (!written) {
+        throw new NotFoundError('No such Sub-assembly.');
+      }
+      return sheet(written.tavolaId);
     },
 
     async relate(tavolaId, positionId, otherPositionId) {
