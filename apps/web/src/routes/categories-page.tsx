@@ -38,6 +38,15 @@ export function CategoriesPage() {
         The systems of a car. Choose one to see its drawings on every car in the archive, side by
         side.
       </p>
+      <p className="mt-2 max-w-measure text-lg text-pretty">
+        <Link
+          to="/specifications"
+          className="text-accent-ink underline-offset-4 hover:underline"
+          data-testid="specifications-from-categories"
+        >
+          What a Part’s Specifications are recorded under
+        </Link>
+      </p>
 
       {/* An Administrator's, and only an Administrator's. The archive enforces the role;
           leaving the button off for everybody else is so nobody is offered a refusal. */}

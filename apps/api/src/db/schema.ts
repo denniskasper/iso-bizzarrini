@@ -20,6 +20,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -954,6 +955,76 @@ export const photographs = pgTable(
 );
 
 /**
+ * A Unit is what a Specification's quantity is counted in — *g*, *mm*, *Nm* — written one way
+ * only. **The list is an Administrator's**, like the Categories, and a Specification name fixes
+ * which Unit its values are counted in, so an Editor never types one.
+ *
+ * Case is the meaning (*mm* and *Mm* are different things), so the key that decides sameness
+ * ignores only spacing.
+ */
+export const units = pgTable('units', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** As it is printed beside a value. */
+  symbol: text('symbol').notNull(),
+  /** The symbol with every space taken out. What decides whether two Units are the same. */
+  key: text('key').notNull().unique(),
+});
+
+/**
+ * The names a Part's Specifications are recorded under — *Material*, *Length*, *Weight* — kept
+ * by an Administrator in the order a Part's Specifications read in.
+ *
+ * The slug decides whether two names are the same, as a Category's does, so *Weight*, *weight*
+ * and *weight.* are one name. The Unit is the name's and never the value's: a name without one
+ * takes words.
+ */
+export const specificationNames = pgTable(
+  'specification_names',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** As the Administrator wrote it — this is what members read. */
+    name: text('name').notNull(),
+    slug: text('slug').notNull().unique(),
+    /** Refused removal while a name counts in it: no value is left counted in nothing. */
+    unitId: uuid('unit_id').references(() => units.id, { onDelete: 'restrict' }),
+    /** Where it sits in the list, from `0`. Ties break on `id`, so the order is total. */
+    sequence: integer('sequence').notNull(),
+  },
+  (table) => [check('specification_names_sequence_is_a_place', sql`${table.sequence} >= 0`)],
+);
+
+/**
+ * A Specification: one Part's value for one name, at most one per Part per name.
+ *
+ * A name with a Unit is a number and one without is words, so exactly one of the two values is
+ * held. The Unit is not stored here; it is read from the name, which is what makes changing a
+ * name's Unit refusable once anything is counted in it.
+ */
+export const specifications = pgTable(
+  'specifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partId: uuid('part_id')
+      .notNull()
+      .references(() => parts.id, { onDelete: 'cascade' }),
+    /** Refused removal while a Part has a value for it. */
+    nameId: uuid('name_id')
+      .notNull()
+      .references(() => specificationNames.id, { onDelete: 'restrict' }),
+    valueNumber: numeric('value_number'),
+    valueText: text('value_text'),
+  },
+  (table) => [
+    unique('specifications_one_per_part_and_name').on(table.partId, table.nameId),
+    index('specifications_name_id_index').on(table.nameId),
+    check(
+      'specifications_one_value',
+      sql`(${table.valueNumber} is null) <> (${table.valueText} is null)`,
+    ),
+  ],
+);
+
+/**
  * The three roles, in the order of what they may do. Club Officer is deliberately folded into
  * Administrator while there is one Club.
  */
@@ -1564,6 +1635,8 @@ export type MembershipRow = typeof memberships.$inferSelect;
 export type NewMembershipRow = typeof memberships.$inferInsert;
 export type ClubRow = typeof club.$inferSelect;
 export type NewClubRow = typeof club.$inferInsert;
+export type UnitRow = typeof units.$inferSelect;
+export type SpecificationNameRow = typeof specificationNames.$inferSelect;
 export type ProcessorRow = typeof processors.$inferSelect;
 export type NewProcessorRow = typeof processors.$inferInsert;
 export type AccountTokenRow = typeof accountTokens.$inferSelect;
