@@ -37,6 +37,7 @@ import {
   type RawBodied,
 } from './controllers/subscription-controller.js';
 import { createTavolaController } from './controllers/tavola-controller.js';
+import { createVisitorController } from './controllers/visitor-controller.js';
 import type { Db } from './db/client.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { BreachedPasswordCheck } from './platform/breached-passwords.js';
@@ -91,6 +92,7 @@ import {
   createSubscriptionService,
 } from './services/subscription-service.js';
 import { createTavolaService } from './services/tavola-service.js';
+import { createVisitorService } from './services/visitor-service.js';
 import { createFileStore, type FileStore } from './storage/file-store.js';
 import { createStaticSiteHandler } from './http/static-site.js';
 
@@ -259,6 +261,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     clubService,
     processorRepository,
   });
+  const visitorService = createVisitorService({ modelRepository, clubService });
   const subscriptionService = createSubscriptionService({
     db,
     clock,
@@ -382,6 +385,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
   const legalController = createLegalController({ legalService });
+  const visitorController = createVisitorController({ visitorService });
   const searchController = createSearchController({ gate, searchService });
   const catalogController = createCatalogController({ gate, catalogService });
   const categoryController = createCategoryController({ gate, categoryService });
@@ -480,6 +484,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       rosterImportController,
       clubController,
       legalController,
+      visitorController,
       searchController,
       catalogController,
       categoryController,

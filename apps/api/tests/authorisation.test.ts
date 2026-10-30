@@ -52,6 +52,9 @@ const OPEN = new Set([
   'GET /api/privacy',
   // Who is behind the platform (issue #9). Addressed to whoever lands here, member or not.
   'GET /api/legal-notice',
+  // What a Visitor is shown (issue #128): the Models with their Published Tavola counts and the
+  // fee, and nothing else of the archive, which `landing.test.ts` proves.
+  'GET /api/landing',
   // Where the payment provider delivers (issue #4). Nobody is signed in at it; what it is
   // behind is the provider's signature over the bytes, which `subscriptions.test.ts` proves.
   'POST /api/payments/webhook',
