@@ -265,8 +265,11 @@
    * are scrolled, so a number read in the column can be found on the sheet without scrolling back
    * up to it. No taller than the window then leaves room for, or its foot would be out of reach.
    */
+  /* `min-width: 0` because this is the grid item now, not the drawing: without it a sheet zoomed
+     past the frame would widen the column it is meant to be cropped by. */
   .drawing-column {
     display: flex;
+    min-width: 0;
     flex-direction: column;
     gap: 1rem;
   }
