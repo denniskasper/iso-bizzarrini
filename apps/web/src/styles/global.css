@@ -265,11 +265,25 @@
    * are scrolled, so a number read in the column can be found on the sheet without scrolling back
    * up to it. No taller than the window then leaves room for, or its foot would be out of reach.
    */
+  .drawing-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* The column sticks rather than the drawing, so the tools under the sheet stay with it; the
+     drawing takes whatever height they leave. */
   @media (width >= 64rem) {
-    .drawing-stage.drawing-beside {
+    .drawing-column {
       position: sticky;
       top: calc(var(--chrome-height, 0px) + 1.5rem);
       height: clamp(20rem, calc(100dvh - var(--chrome-height, 0px) - 3rem), 56rem);
+    }
+
+    .drawing-column > .drawing-stage.drawing-beside {
+      flex: 1;
+      min-height: 0;
+      height: auto;
     }
   }
 

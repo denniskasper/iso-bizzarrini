@@ -423,41 +423,50 @@ export function TavolaPage() {
        * reading is simply the next thing down, which is where a hand scrolls to anyway.
        */}
       <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <DrawingViewer
-          ref={view}
-          className="drawing-beside"
-          scan={tavola.scan}
-          alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
-          overlay={
-            <MarkLayer
-              positions={positions}
-              selectedPositionId={selectedPosition?.id ?? null}
-              selectedMarkId={selectedMark?.id ?? null}
-              lit={lit}
-              onSelect={readMark}
-              onPoint={point}
-              pointedMarkId={described?.mark.id ?? null}
-              onMove={tool.on ? tool.moveMark : undefined}
-            />
-          }
-          card={
-            described && (
-              <MarkCard anchor={described.element} beside={besideHost}>
-                <PositionCard
-                  position={described.position}
-                  listings={
-                    index.data?.listings.filter(
-                      (listing) => listing.positionId === described.position.id,
-                    ) ?? null
-                  }
-                />
-              </MarkCard>
-            )
-          }
-          // The sheet only becomes a tool when an Editor says so. A member's drawing is a
-          // drawing, and a stray tap on it records nothing.
-          onTapPoint={tool.on ? tool.place : undefined}
-        />
+        {/* The drawing and the tools that change the sheet itself — its scan, which way up it
+            is — travel together, so turning a sheet shows what it did without scrolling to it. */}
+        <div className="drawing-column">
+          <DrawingViewer
+            ref={view}
+            className="drawing-beside"
+            scan={tavola.scan}
+            alt={`Tavola ${tavola.number} — ${tavola.nameEn}`}
+            overlay={
+              <MarkLayer
+                positions={positions}
+                selectedPositionId={selectedPosition?.id ?? null}
+                selectedMarkId={selectedMark?.id ?? null}
+                lit={lit}
+                onSelect={readMark}
+                onPoint={point}
+                pointedMarkId={described?.mark.id ?? null}
+                onMove={tool.on ? tool.moveMark : undefined}
+              />
+            }
+            card={
+              described && (
+                <MarkCard anchor={described.element} beside={besideHost}>
+                  <PositionCard
+                    position={described.position}
+                    listings={
+                      index.data?.listings.filter(
+                        (listing) => listing.positionId === described.position.id,
+                      ) ?? null
+                    }
+                  />
+                </MarkCard>
+              )
+            }
+            // The sheet only becomes a tool when an Editor says so. A member's drawing is a
+            // drawing, and a stray tap on it records nothing.
+            onTapPoint={tool.on ? tool.place : undefined}
+          />
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+            {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
+            {isEditor && tavola.scan ? <ScanTurn tavolaId={tavola.id} /> : <span />}
+            <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
+          </div>
+        </div>
 
         <div className="relative flex flex-col gap-10">
           {/* Where the card for a pointed-at circle is shown, over the top of this column and
@@ -582,11 +591,6 @@ export function TavolaPage() {
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
         <Provenance provenance={tavola.provenance} />
-        <div className="flex flex-col gap-6">
-          <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
-          {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
-          {isEditor && tavola.scan && <ScanTurn tavolaId={tavola.id} />}
-        </div>
         <FileUnder tavolaId={tavola.id} modelId={tavola.model.id} category={tavola.category} />
       </div>
     </div>
