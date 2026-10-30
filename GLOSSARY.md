@@ -38,6 +38,11 @@ machine and is shown to nobody but Editors; publishing it is an Editor's stateme
 says what the factory printed.
 _Avoid_: Draft, pending, imported, verified
 
+**Sample**:
+A Published Tavola an Administrator has chosen to show to Visitors, with one of its Positions
+open. Shows what the factory printed and nothing the club added to it.
+_Avoid_: Showcase, public Tavola, teaser, preview
+
 **Reading**:
 One pass over one Table sheet, turning what is printed there into rows. Every Table sheet is
 read twice, independently; where the two Readings differ on a Position, a Catalog Number or a
@@ -184,6 +189,11 @@ _Avoid_: Comment, post, submission, suggestion, edit
 **Club**:
 The association whose roster decides who may read the archive. Eligibility comes from the
 Club, never from the platform.
+
+**Visitor**:
+Somebody reading Ricambi without signing in. Sees the Samples, which Models the archive covers
+and how much of each, and how to join the Club; nothing else of the archive.
+_Avoid_: Guest, anonymous user, prospect, the public
 
 **Account**:
 One person's identity on the platform, known by their e-mail address. Owns their password
