@@ -9,6 +9,7 @@ import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import { createScanRepository } from '../repositories/scan-repository.js';
 import { createTavolaRepository } from '../repositories/tavola-repository.js';
+import { createSampleServiceOn } from '../services/sample-service.js';
 import { createScanService } from '../services/scan-service.js';
 import { readDrawn, readQuantity } from '../sheets/cells.js';
 import { tableSheetKeyPrefix, type FileStore } from '../storage/file-store.js';
@@ -504,6 +505,11 @@ async function storeFiles(
   const scanService = createScanService({
     tavolaRepository: createTavolaRepository(options.db),
     scanRepository: createScanRepository(options.db),
+    sampleService: createSampleServiceOn(options.db, {
+      fileStore: options.fileStore,
+      clock: options.clock,
+      logger: options.logger,
+    }),
     fileStore: options.fileStore,
     clock: options.clock,
     logger: options.logger,

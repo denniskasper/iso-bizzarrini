@@ -25,17 +25,30 @@ export interface StoredImage {
  */
 const IMMUTABLE_FOR_A_YEAR = 'private, max-age=31536000, immutable';
 
+/**
+ * **A Sample's public copy** (ADR 0019), which a shared cache may keep — but only for an hour.
+ * What is at the address never changes, but whether there is anything there does: stopping a
+ * Sample deletes its copy, and a year in somebody else's cache would undo that for a year.
+ */
+const PUBLIC_FOR_AN_HOUR = 'public, max-age=3600';
+
 export function sendImage(
   request: Request,
   response: Response,
   next: NextFunction,
   image: StoredImage,
+  /** `public` for a Sample's copy alone: served to anybody, the same to everybody. */
+  visibility: 'private' | 'public' = 'private',
 ): void {
-  response.setHeader('Cache-Control', IMMUTABLE_FOR_A_YEAR);
+  if (visibility === 'public') {
+    response.setHeader('Cache-Control', PUBLIC_FOR_AN_HOUR);
+  } else {
+    response.setHeader('Cache-Control', IMMUTABLE_FOR_A_YEAR);
+    // What is served depends on who is asking, and a cache that forgets that serves a drawing to
+    // someone who has been signed out.
+    response.setHeader('Vary', 'Cookie');
+  }
   response.setHeader('ETag', image.etag);
-  // What is served depends on who is asking, and a cache that forgets that serves a drawing to
-  // someone who has been signed out.
-  response.setHeader('Vary', 'Cookie');
   response.setHeader('Content-Type', image.contentType);
   response.setHeader('Content-Disposition', 'inline');
 

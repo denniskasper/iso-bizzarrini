@@ -29,6 +29,7 @@ import { createSpecificationListRepository } from '../repositories/specification
 import { createTavolaRepository } from '../repositories/tavola-repository.js';
 import { createPartRecordService } from '../services/part-record-service.js';
 import { createPhotographService } from '../services/photograph-service.js';
+import { createSampleServiceOn } from '../services/sample-service.js';
 import { createScanService } from '../services/scan-service.js';
 import type { FileStore } from '../storage/file-store.js';
 import { categorySlug, numericPrefixOf } from './naming.js';
@@ -477,6 +478,7 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
   const scanService = createScanService({
     tavolaRepository: createTavolaRepository(db),
     scanRepository: createScanRepository(db),
+    sampleService: createSampleServiceOn(db, { fileStore, clock, logger }),
     fileStore,
     clock,
     logger,

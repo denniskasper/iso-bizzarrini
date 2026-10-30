@@ -403,6 +403,43 @@ export const marks = pgTable(
 );
 
 /**
+ * A Sample is a Published Tavola an Administrator shows to Visitors (ADR 0019), with **one** of
+ * its Positions open. A row of its own keyed by the Tavola, so a Tavola is one at most and there is
+ * no limit on how many are.
+ *
+ * Its drawing is a **smaller public copy** of the Scan, made when it is marked and stored under a
+ * key of its own: never the Scan's files, which stay behind the authenticated route (ADR 0013).
+ * `drawingId` is in the copy's public address, and a new copy is a new id, so that address never
+ * changes what it points at.
+ *
+ * Removing the open Position takes the row with it; what else that has to do is issue #130's.
+ */
+export const samples = pgTable(
+  'samples',
+  {
+    tavolaId: uuid('tavola_id')
+      .primaryKey()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    /** The one number a Visitor may read. Always on the same Tavola, which the service checks. */
+    positionId: uuid('position_id')
+      .notNull()
+      .references(() => positions.id, { onDelete: 'cascade' }),
+    /** When it was first shown. Opening another number does not move it. */
+    markedAt: timestamp('marked_at', { withTimezone: true }).notNull(),
+    markedBy: uuid('marked_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    drawingId: uuid('drawing_id').notNull().unique(),
+    /** A key in the file store, under a prefix nothing but the public copies are kept in. */
+    drawingKey: text('drawing_key').notNull(),
+    drawingWidth: integer('drawing_width').notNull(),
+    drawingHeight: integer('drawing_height').notNull(),
+    drawingByteSize: integer('drawing_byte_size').notNull(),
+  },
+  (table) => [index('samples_position_id_index').on(table.positionId)],
+);
+
+/**
  * A Part is a component identified **in its own right** rather than by where it appears, which
  * is ADR 0001 written as a table: no column here names a Tavola or a Position, because the same
  * Part is listed on many drawings and fits many cars. Where it appears is a Listing, below.
@@ -1620,6 +1657,12 @@ export const scansRelations = relations(scans, ({ one }) => ({
   tavola: one(tavole, { fields: [scans.tavolaId], references: [tavole.id] }),
 }));
 
+export const samplesRelations = relations(samples, ({ one }) => ({
+  tavola: one(tavole, { fields: [samples.tavolaId], references: [tavole.id] }),
+  position: one(positions, { fields: [samples.positionId], references: [positions.id] }),
+  marker: one(accounts, { fields: [samples.markedBy], references: [accounts.id] }),
+}));
+
 export type ModelRow = typeof models.$inferSelect;
 export type NewModelRow = typeof models.$inferInsert;
 export type CategoryRow = typeof categories.$inferSelect;
@@ -1627,6 +1670,8 @@ export type NewCategoryRow = typeof categories.$inferInsert;
 export type TavolaRow = typeof tavole.$inferSelect;
 export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
+export type SampleRow = typeof samples.$inferSelect;
+export type NewSampleRow = typeof samples.$inferInsert;
 export type TableSheetRow = typeof tableSheets.$inferSelect;
 export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
 export type CatalogRunRow = typeof catalogRuns.$inferSelect;

@@ -18,6 +18,7 @@ import type { RosterImportController } from '../controllers/roster-import-contro
 import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
 import type { PhotographController } from '../controllers/photograph-controller.js';
+import type { SampleController } from '../controllers/sample-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
 import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
@@ -82,6 +83,7 @@ export function createApiRouter(dependencies: {
   contributionController: ContributionController;
   contributionReviewController: ContributionReviewController;
   scanController: ScanController;
+  sampleController: SampleController;
 }): Router {
   const {
     gate,
@@ -112,6 +114,7 @@ export function createApiRouter(dependencies: {
     contributionController,
     contributionReviewController,
     scanController,
+    sampleController,
   } = dependencies;
 
   const router = Router();
@@ -135,6 +138,11 @@ export function createApiRouter(dependencies: {
   router.post('/password-resets', sessionController.requestPasswordReset);
   router.post('/password-setups/inspect', sessionController.inspectPasswordSetup);
   router.post('/password-setups', sessionController.setPassword);
+
+  // **A Sample's drawing** (ADR 0019): the one image anybody may be served, signed in or not. It
+  // is a smaller copy made for the purpose, at an address of its own; the Scan it was copied from
+  // stays behind the gate below with every other image (ADR 0006, ADR 0013).
+  router.get('/sample-drawings/:drawingId', sampleController.readDrawing);
 
   // **The platform's own legal pages** (issue #9): who is behind it, and what it keeps about a
   // person, for how long (ADR 0007) and in whose hands. Open, because neither is addressed to
@@ -393,6 +401,13 @@ export function createApiRouter(dependencies: {
   router.get('/specification-names', specificationListController.listNames);
 
   router.get('/tavole/:tavolaId', tavolaController.read);
+  // **Showing a Published Tavola to Visitors** (ADR 0019, issue #129), with one number open: the
+  // same address marks it and opens another number, and `DELETE` stops showing it. An
+  // Administrator's decision, which the controller asks in its own words; Editors are refused
+  // as well as Members, by it and by the rule above.
+  router.put('/tavole/:tavolaId/sample', sampleController.show);
+  router.delete('/tavole/:tavolaId/sample', sampleController.stop);
+  router.get('/samples', sampleController.list);
   router.post('/models/:modelId/tavole', tavolaController.create);
   // Filing a sheet under a system, moving it, or taking it out — the one thing about a Tavola
   // that changes after it is recorded, because the list it is chosen from changes too.

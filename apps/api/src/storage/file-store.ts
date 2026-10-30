@@ -128,3 +128,11 @@ export function tableSheetKeyPrefix(tableSheetId: string): string {
 export function photographKeyPrefix(photographId: string): string {
   return join('photographs', photographId);
 }
+
+/**
+ * Where one Sample's public copy of its drawing lives (ADR 0019). **A prefix of its own**, so the
+ * one kind of file in this store that anybody may be served is never under a Scan's key.
+ */
+export function sampleDrawingKeyPrefix(drawingId: string): string {
+  return join('sample-drawings', drawingId);
+}

@@ -29,6 +29,7 @@ import { createRetentionController } from './controllers/retention-controller.js
 import { createRosterController } from './controllers/roster-controller.js';
 import { createRosterImportController } from './controllers/roster-import-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
+import { createSampleController } from './controllers/sample-controller.js';
 import { createSearchController } from './controllers/search-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
 import { createStatusController } from './controllers/status-controller.js';
@@ -58,6 +59,7 @@ import { createPositionRepository } from './repositories/position-repository.js'
 import { createReadingRepository } from './repositories/reading-repository.js';
 import { createCatalogRunRepository } from './repositories/catalog-run-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
+import { createSampleRepository } from './repositories/sample-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
@@ -82,6 +84,7 @@ import { createSubAssemblyService } from './services/sub-assembly-service.js';
 import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
+import { createSampleService } from './services/sample-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createCatalogRunService } from './services/catalog-run-service.js';
 import { createSearchService } from './services/search-service.js';
@@ -345,9 +348,18 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     tavolaRepository,
     partService,
   });
+  const sampleService = createSampleService({
+    tavolaRepository,
+    positionRepository,
+    sampleRepository: createSampleRepository(db),
+    fileStore,
+    clock,
+    logger,
+  });
   const scanService = createScanService({
     tavolaRepository,
     scanRepository,
+    sampleService,
     fileStore,
     clock,
     logger,
@@ -388,7 +400,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const specificationListController = createSpecificationListController({
     specificationListService,
   });
-  const tavolaController = createTavolaController({ gate, tavolaService });
+  const tavolaController = createTavolaController({ gate, tavolaService, sampleService });
   const positionController = createPositionController({ positionService });
   const subAssemblyController = createSubAssemblyController({ subAssemblyService });
   const partController = createPartController({ gate, partService });
@@ -401,6 +413,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     contributionReviewService,
   });
   const scanController = createScanController({ scanService });
+  const sampleController = createSampleController({ gate, sampleService });
   const checkingController = createCheckingController({
     checkingService: createCheckingService({
       tavolaRepository,
@@ -494,6 +507,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       contributionController,
       contributionReviewController,
       scanController,
+      sampleController,
       checkingController,
     }),
   );

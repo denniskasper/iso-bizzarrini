@@ -16,6 +16,7 @@ import { MarkingBar } from '@/components/editor/marking-bar';
 import { OutlinePanel } from '@/components/editor/outline-panel';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
+import { ShowToVisitors, useShowToVisitors } from '@/components/editor/show-to-visitors';
 import { ReadAgain } from '@/components/readings/read-again';
 import { RemoveTavola } from '@/components/readings/remove-tavola';
 import { ConfirmEnglish, MachineTranslationTag } from '@/components/machine-translation';
@@ -111,6 +112,14 @@ export function TavolaPage() {
    */
   const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
+  /**
+   * **An Administrator choosing the number Visitors may read** (ADR 0019), by pressing its circle.
+   * Keyed by the Tavola like everything else held here, so it never follows them onto the next
+   * sheet; and only an Administrator is ever picking.
+   */
+  const [pickingFor, setPickingFor] = useState<string | null>(null);
+  const picking = isAdministrator && pickingFor === tavolaId;
+  const visitors = useShowToVisitors(tavolaId, () => setPickingFor(null));
   const tool = useMarkingTool(tavolaId);
   const outlining = useOutlineTool(tavolaId);
   /**
@@ -458,6 +467,26 @@ export function TavolaPage() {
         </div>
       )}
 
+      {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
+          the factory's drawing, and an Administrator alone is told whether it is one. */}
+      {isAdministrator &&
+        tavola.state === 'published' &&
+        tavola.sample !== undefined &&
+        (tavola.scan || tavola.sample) && (
+          <div className="mt-8">
+            <ShowToVisitors
+              sample={tavola.sample}
+              picking={picking}
+              onPick={() => {
+                visitors.show.reset();
+                setPickingFor(tavolaId);
+              }}
+              onCancel={() => setPickingFor(null)}
+              actions={visitors}
+            />
+          </div>
+        )}
+
       {tavola.state === 'unchecked' && (
         <div className="mt-8">
           <UncheckedBand tavolaId={tavola.id} modelId={tavola.model.id}>
@@ -505,10 +534,12 @@ export function TavolaPage() {
                 selectedPositionId={selectedPosition?.id ?? null}
                 selectedMarkId={selectedMark?.id ?? null}
                 lit={lit}
-                onSelect={readMark}
+                onSelect={
+                  picking ? (position: Position) => visitors.show.mutate(position.id) : readMark
+                }
                 onPoint={point}
                 pointedMarkId={described?.mark.id ?? null}
-                onMove={tool.on && !outlining.drawing ? tool.moveMark : undefined}
+                onMove={tool.on && !outlining.drawing && !picking ? tool.moveMark : undefined}
                 quiet={outlining.drawing}
               />
             }
@@ -538,7 +569,15 @@ export function TavolaPage() {
             }
             // The sheet only becomes a tool when an Editor says so. A member's drawing is a
             // drawing, and a stray tap on it records nothing.
-            onTapPoint={outlining.drawing ? outlining.add : tool.on ? tool.place : undefined}
+            onTapPoint={
+              picking
+                ? undefined
+                : outlining.drawing
+                  ? outlining.add
+                  : tool.on
+                    ? tool.place
+                    : undefined
+            }
             tapHint={outlining.drawing ? 'Click to add a corner to the outline.' : undefined}
           />
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
