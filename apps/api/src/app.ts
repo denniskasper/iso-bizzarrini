@@ -21,6 +21,7 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createSubAssemblyController } from './controllers/sub-assembly-controller.js';
 import { createReadingController } from './controllers/reading-controller.js';
 import { createReminderController } from './controllers/reminder-controller.js';
 import { createRetentionController } from './controllers/retention-controller.js';
@@ -74,6 +75,7 @@ import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createSubAssemblyService } from './services/sub-assembly-service.js';
 import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
@@ -279,6 +281,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   // member then reads about one arrives when they open it on a drawing.
   const searchService = createSearchService({ partRepository, partRecordRepository });
   const positionService = createPositionService({ tavolaRepository, positionRepository });
+  const subAssemblyService = createSubAssemblyService({ positionRepository, partRepository });
   const partRecordService = createPartRecordService({
     clock,
     modelRepository,
@@ -371,6 +374,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const categoryController = createCategoryController({ gate, categoryService });
   const tavolaController = createTavolaController({ gate, tavolaService });
   const positionController = createPositionController({ positionService });
+  const subAssemblyController = createSubAssemblyController({ subAssemblyService });
   const partController = createPartController({ gate, partService });
   const partRecordController = createPartRecordController({ partRecordService });
   const bulkPasteController = createBulkPasteController({ bulkPasteService });
@@ -465,6 +469,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       categoryController,
       tavolaController,
       positionController,
+      subAssemblyController,
       partController,
       partRecordController,
       bulkPasteController,

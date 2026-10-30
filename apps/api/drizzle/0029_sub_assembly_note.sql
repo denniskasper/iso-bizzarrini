@@ -1,0 +1,1 @@
+ALTER TABLE "sub_assemblies" ADD COLUMN "note" text;

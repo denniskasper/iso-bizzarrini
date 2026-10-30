@@ -68,6 +68,8 @@ import type {
   NewModelRequest,
   NewPositionRequest,
   NewSubAssemblyRequest,
+  SubAssemblyNoteRequest,
+  SubAssemblyResponse,
   NewTavolaRequest,
   PastePlanResponse,
   PasteRequest,
@@ -425,6 +427,14 @@ export const api = {
     request<PositionsResponse>(`/positions/${positionId}/sub-assembly`, { method: 'DELETE' }),
   dissolveSubAssembly: (subAssemblyId: string) =>
     request<PositionsResponse>(`/sub-assemblies/${subAssemblyId}`, { method: 'DELETE' }),
+  /**
+   * **A Sub-assembly read as one thing** (issue #110), under the Tavola it is on: its Note, and
+   * its numbers with what sits at each. Writing the Note answers with the same page.
+   */
+  subAssembly: (tavolaId: string, subAssemblyId: string) =>
+    request<SubAssemblyResponse>(`/tavole/${tavolaId}/sub-assemblies/${subAssemblyId}`),
+  writeSubAssemblyNote: (subAssemblyId: string, note: SubAssemblyNoteRequest) =>
+    send<SubAssemblyResponse>('PUT', `/sub-assemblies/${subAssemblyId}/note`, note),
 
   relatePositions: (tavolaId: string, pair: RelatePositionsRequest) =>
     send<PositionsResponse>('POST', `/tavole/${tavolaId}/related-positions`, pair),
@@ -696,6 +706,9 @@ export type {
   SourceCondition,
   ServiceStatus,
   SubAssembly,
+  SubAssemblyInFull,
+  SubAssemblyPosition,
+  SubAssemblyResponse,
   TavolaListing,
   TavolaProgress,
   TavolaPublishedResponse,

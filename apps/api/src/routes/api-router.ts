@@ -23,6 +23,7 @@ import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
 import type { StatusController } from '../controllers/status-controller.js';
+import type { SubAssemblyController } from '../controllers/sub-assembly-controller.js';
 import type { SubscriptionController } from '../controllers/subscription-controller.js';
 import type { TavolaController } from '../controllers/tavola-controller.js';
 
@@ -71,6 +72,7 @@ export function createApiRouter(dependencies: {
   tavolaController: TavolaController;
   checkingController: CheckingController;
   positionController: PositionController;
+  subAssemblyController: SubAssemblyController;
   partController: PartController;
   partRecordController: PartRecordController;
   bulkPasteController: BulkPasteController;
@@ -99,6 +101,7 @@ export function createApiRouter(dependencies: {
     tavolaController,
     checkingController,
     positionController,
+    subAssemblyController,
     partController,
     partRecordController,
     bulkPasteController,
@@ -406,6 +409,11 @@ export function createApiRouter(dependencies: {
   router.delete('/positions/:positionId/sub-assembly', positionController.takeOutOfSubAssembly);
   // Dissolving the name. The numbers that were in it stay on the sheet.
   router.delete('/sub-assemblies/:subAssemblyId', positionController.dissolveSubAssembly);
+  // **A Sub-assembly read as one thing** (issue #110), under its Tavola: that is the only place
+  // it exists, and it puts the page behind whatever its Tavola is behind. Its Note is an Editor's
+  // to write, by the rule above.
+  router.get('/tavole/:tavolaId/sub-assemblies/:subAssemblyId', subAssemblyController.read);
+  router.put('/sub-assemblies/:subAssemblyId/note', subAssemblyController.writeNote);
 
   router.post('/tavole/:tavolaId/related-positions', positionController.relate);
   // By the **link's** id and not by a pair, which is the symmetry made reachable: there is one

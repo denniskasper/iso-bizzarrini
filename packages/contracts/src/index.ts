@@ -1150,6 +1150,45 @@ export interface NewSubAssemblyRequest {
 }
 
 /**
+ * `GET /api/tavole/:tavolaId/sub-assemblies/:subAssemblyId` — **a Sub-assembly read as one
+ * thing** (issue #110): its name, what the club has written about it, and its numbers with what
+ * sits at each.
+ *
+ * Addressed under its Tavola because that is the only place it exists, which is also what puts it
+ * behind everything a Tavola is behind. The sheet itself still carries only the name
+ * (`SubAssembly`): a Note is prose, and a drawing's worth of it is nobody's to ship to draw a list.
+ */
+export interface SubAssemblyResponse {
+  subAssembly: SubAssemblyInFull;
+  /** Its numbers, in the order the factory printed them. */
+  positions: SubAssemblyPosition[];
+}
+
+export interface SubAssemblyInFull extends SubAssembly {
+  /** What the club has established about the assembly as a whole, written by an Editor. */
+  note: string | null;
+}
+
+/**
+ * One of a Sub-assembly's numbers, with the Parts listed at it — named as the sheet's own index
+ * names them, drawn ones first. A number nobody has recorded anything at yet has none.
+ */
+export interface SubAssemblyPosition {
+  id: string;
+  /** As printed. What a link to it on the drawing is built from. */
+  number: string;
+  parts: ListedPart[];
+}
+
+/**
+ * `PUT /api/sub-assemblies/:subAssemblyId/note` — an Editor writing, changing or clearing a
+ * Sub-assembly's Note. Blank or `null` clears it, as it does a Part's. Answers with the page.
+ */
+export interface SubAssemblyNoteRequest {
+  note: string | null;
+}
+
+/**
  * `POST /api/tavole/:tavolaId/related-positions` — the narrow, hand-picked pointer (story 107).
  *
  * **Recorded once, from either end.** The two ids are interchangeable: whichever way round they

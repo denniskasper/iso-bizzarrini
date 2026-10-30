@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { PositionChip } from '@/components/positions/position-chip';
 import { Button } from '@/components/ui/button';
 import type { Position, Sheet } from '@/lib/api';
@@ -18,12 +19,14 @@ import { positionsIn, relatedTo, subAssemblyOf } from '@/lib/positions';
  * same argument the Part's own three lists make.
  */
 export function BelongsWith({
+  tavolaId,
   sheet,
   position,
   showingSubAssembly,
   onShowSubAssembly,
   onSelect,
 }: {
+  tavolaId: string;
   sheet: Sheet;
   position: Position;
   /** Whether this number's Sub-assembly is the one lit on the drawing at the moment. */
@@ -68,7 +71,15 @@ export function BelongsWith({
             </Button>
           </div>
 
-          <p className="mt-2 text-lg text-pretty">{subAssembly.name}</p>
+          {/* Its name opens its own page: its Note, and its numbers with what sits at each. */}
+          <Link
+            to="/tavole/$tavolaId/sub-assemblies/$subAssemblyId"
+            params={{ tavolaId, subAssemblyId: subAssembly.id }}
+            data-testid="sub-assembly-link"
+            className="mt-1 inline-flex min-h-control items-center text-lg text-pretty text-accent-ink underline underline-offset-4"
+          >
+            {subAssembly.name}
+          </Link>
           <p className="mt-1 max-w-measure text-xs text-pretty text-faint">
             <span className="tabular">{alsoInIt.length}</span> numbers the club keeps together. A
             name for what comes apart at once — not a kit, and nothing here is ordered as one.
