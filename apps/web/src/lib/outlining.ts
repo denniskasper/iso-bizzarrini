@@ -94,8 +94,12 @@ export function useOutlineTool(tavolaId: string): OutlineTool {
   /**
    * One change to an outline being reshaped. It is shown at once, and put back the way it was
    * if the archive refuses it — which is the truth, as a Mark that could not be moved snaps back.
+   *
+   * Each change sends the whole outline, so they go one after another: a drag and a side clicked
+   * straight after it must reach the archive in that order, or the older shape would win.
    */
   const reshaped = useMutation({
+    scope: { id: 'outline-reshape' },
     mutationFn: ({ next }: { next: Reshaping; before: Reshaping }) =>
       api.outlineSubAssembly(next.subAssemblyId, { corners: next.corners }),
     onSuccess: record,
