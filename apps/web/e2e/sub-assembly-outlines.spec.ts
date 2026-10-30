@@ -259,13 +259,16 @@ test.describe('seeing an outline', () => {
  * on the drawing itself, each change saved as it is made.
  */
 test.describe('reshaping an outline', () => {
-  async function reshapeDoorLock(page: Page): Promise<string> {
-    const { tavolaId, subAssemblyId } = await aSheetWithADoorLock(page, 'outline-reshape');
+  async function reshapeDoorLock(page: Page, name: string): Promise<string> {
+    const { tavolaId, subAssemblyId } = await aSheetWithADoorLock(page, name);
     await outlined(page, subAssemblyId);
     await page.getByRole('button', { name: 'Mark positions' }).click();
     await page.getByRole('button', { name: 'Reshape outline' }).click();
     await expect(page.getByTestId('outline-panel')).toContainText('Reshaping Door Lock');
     await expect(page.getByTestId('outline-corner')).toHaveCount(4);
+    // The panel sits under the drawing, and pressing its button scrolled the page down to it,
+    // taking the drawing up under the header: back to the top, where a hand can reach it.
+    await page.evaluate(() => window.scrollTo(0, 0));
     return tavolaId;
   }
 
@@ -281,7 +284,7 @@ test.describe('reshaping an outline', () => {
   test('a corner is dragged to a new place, a side takes a new corner, and both are still there after a reload', async ({
     page,
   }) => {
-    const tavolaId = await reshapeDoorLock(page);
+    const tavolaId = await reshapeDoorLock(page, 'outline-reshape-drag');
 
     // Zoomed in about the corner first, which stays under the pointer: reshaping is for
     // following a dense sheet closely.
@@ -305,6 +308,17 @@ test.describe('reshaping an outline', () => {
 
     // The bottom side, from (0.5, 0.5) to (0.2, 0.5): a click halfway along it.
     await page.getByRole('button', { name: 'Fit the whole drawing' }).click();
+    await expect(magnification).toHaveText('×1.0');
+    // The sheet glides back to fit, and a click aimed at a side has to wait for it to arrive.
+    let last = '';
+    await expect
+      .poll(async () => {
+        const now = JSON.stringify(await page.getByTestId('drawing-marks').boundingBox());
+        const still = now === last;
+        last = now;
+        return still;
+      })
+      .toBe(true);
     await clickTheSheetAt(page, { x: 0.35, y: 0.5 });
     await expect(page.getByTestId('outline-corner')).toHaveCount(5);
     await expect.poll(async () => (await readOutline(page, tavolaId))?.length).toBe(5);
@@ -320,7 +334,7 @@ test.describe('reshaping an outline', () => {
   test('a corner is taken off, but never the one that would leave fewer than three', async ({
     page,
   }) => {
-    const tavolaId = await reshapeDoorLock(page);
+    const tavolaId = await reshapeDoorLock(page, 'outline-reshape-remove');
     const remove = page.getByRole('button', { name: 'Remove corner' });
     await expect(remove).toBeDisabled();
 
