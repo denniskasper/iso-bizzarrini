@@ -66,6 +66,9 @@ export interface PositionRepository {
   putInSubAssembly(tavolaId: string, name: string, positionIds: string[]): Promise<void>;
   takeOutOfSubAssembly(positionId: string): Promise<PositionRow | null>;
   removeSubAssembly(id: string): Promise<SubAssemblyRow | null>;
+  findSubAssembly(id: string): Promise<SubAssemblyRow | null>;
+  /** The Note as an Editor wrote it, or `null` to clear it. `null` back for no such one. */
+  writeSubAssemblyNote(id: string, note: string | null): Promise<SubAssemblyRow | null>;
   /**
    * **A Sub-assembly with nothing in it is not one.** Run after every membership change, so a
    * name left pointing at no numbers never survives the write that emptied it.
@@ -231,6 +234,20 @@ export function createPositionRepository(db: DbSession): PositionRepository {
       // dissolving one is not deleting the numbers that were in it.
       const [removed] = await db.delete(subAssemblies).where(eq(subAssemblies.id, id)).returning();
       return removed ?? null;
+    },
+
+    async findSubAssembly(id) {
+      const [row] = await db.select().from(subAssemblies).where(eq(subAssemblies.id, id));
+      return row ?? null;
+    },
+
+    async writeSubAssemblyNote(id, note) {
+      const [updated] = await db
+        .update(subAssemblies)
+        .set({ note })
+        .where(eq(subAssemblies.id, id))
+        .returning();
+      return updated ?? null;
     },
 
     async removeEmptySubAssemblies(tavolaId) {
