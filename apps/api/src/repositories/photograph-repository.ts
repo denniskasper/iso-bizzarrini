@@ -28,27 +28,44 @@ export type NewPhotograph = Omit<NewPhotographRow, 'sequence'>;
 /** A Photograph a Part owns, which every read and write through a Part's address is. */
 export type PartPhotographRow = PhotographRow & { partId: string };
 
+/** Whose order a reorder rewrites: one Part's, or one Sub-assembly's. */
+export type PhotographOwner = { partId: string } | { subAssemblyId: string };
+
 export interface PhotographRepository {
   listForParts(partIds: string[]): Promise<PartPhotographRow[]>;
+  listForSubAssembly(subAssemblyId: string): Promise<PhotographRow[]>;
   findById(id: string): Promise<PhotographRow | null>;
 
   /** Appends. A photograph nobody has placed goes at the end, where the newest thing belongs. */
   add(photograph: NewPhotograph): Promise<PhotographRow>;
 
   /**
-   * Rewrites one Part's order, or refuses.
+   * Rewrites one owner's order, or refuses.
    *
    * **All of them or none of them**, which is what `null` reports: a request naming a subset, a
-   * duplicate, or a photograph belonging to another Part is a browser working from a list that has
-   * moved on, and applying the half of it that made sense would leave an order nobody chose.
+   * duplicate, or a photograph belonging to another owner is a browser working from a list that
+   * has moved on, and applying the half of it that made sense would leave an order nobody chose.
    */
-  reorder(partId: string, photographIds: string[]): Promise<PhotographRow[] | null>;
+  reorder(owner: PhotographOwner, photographIds: string[]): Promise<PhotographRow[] | null>;
 
   /**
    * A Part's photograph, as it was on the way out, so its files can be dropped and its Part
    * re-read. A Sub-assembly's is not removed through here, and is `null` like a missing one.
    */
   remove(id: string): Promise<PartPhotographRow | null>;
+
+  /**
+   * One Sub-assembly's photograph, as it was on the way out. Another owner's is `null` like a
+   * missing one: an address naming the door lock does not remove the window slider's picture.
+   */
+  removeFromSubAssembly(subAssemblyId: string, id: string): Promise<PhotographRow | null>;
+}
+
+/** The photographs whose order a reorder rewrites. */
+function ownedBy(owner: PhotographOwner): SQL {
+  return 'partId' in owner
+    ? eq(photographs.partId, owner.partId)
+    : eq(photographs.subAssemblyId, owner.subAssemblyId);
 }
 
 /**
@@ -78,6 +95,14 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
         .orderBy(...inOrder) as Promise<PartPhotographRow[]>;
     },
 
+    listForSubAssembly(subAssemblyId) {
+      return db
+        .select()
+        .from(photographs)
+        .where(eq(photographs.subAssemblyId, subAssemblyId))
+        .orderBy(...inOrder);
+    },
+
     async findById(id) {
       const [row] = await db.select().from(photographs).where(eq(photographs.id, id)).limit(1);
       return row ?? null;
@@ -103,12 +128,12 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
       });
     },
 
-    async reorder(partId, photographIds) {
+    async reorder(owner, photographIds) {
       return db.transaction(async (tx) => {
         const held = await tx
           .select({ id: photographs.id })
           .from(photographs)
-          .where(eq(photographs.partId, partId));
+          .where(ownedBy(owner));
 
         /**
          * Compared as sets: the ids asked for have to be exactly the ids held, each once.
@@ -137,7 +162,7 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
         return tx
           .select()
           .from(photographs)
-          .where(eq(photographs.partId, partId))
+          .where(ownedBy(owner))
           .orderBy(...inOrder);
       });
     },
@@ -151,6 +176,14 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
         .where(and(eq(photographs.id, id), isNotNull(photographs.partId)))
         .returning();
       return (removed as PartPhotographRow | undefined) ?? null;
+    },
+
+    async removeFromSubAssembly(subAssemblyId, id) {
+      const [removed] = await db
+        .delete(photographs)
+        .where(and(eq(photographs.id, id), eq(photographs.subAssemblyId, subAssemblyId)))
+        .returning();
+      return removed ?? null;
     },
   };
 }

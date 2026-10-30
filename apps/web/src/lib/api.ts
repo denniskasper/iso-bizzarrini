@@ -476,6 +476,22 @@ export const api = {
     send<PositionsResponse>('PUT', `/sub-assemblies/${subAssemblyId}/outline`, outline),
   removeSubAssemblyOutline: (subAssemblyId: string) =>
     request<PositionsResponse>(`/sub-assemblies/${subAssemblyId}/outline`, { method: 'DELETE' }),
+  /**
+   * A Sub-assembly's Photographs (issue #114), uploaded, ordered and removed as a Part's are, and
+   * answered with the page re-read.
+   */
+  addSubAssemblyPhotograph: (subAssemblyId: string, file: File) =>
+    request<SubAssemblyResponse>(`/sub-assemblies/${subAssemblyId}/photographs`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  reorderSubAssemblyPhotographs: (subAssemblyId: string, order: ReorderPhotographsRequest) =>
+    send<SubAssemblyResponse>('PATCH', `/sub-assemblies/${subAssemblyId}/photographs`, order),
+  removeSubAssemblyPhotograph: (subAssemblyId: string, photographId: string) =>
+    request<SubAssemblyResponse>(`/sub-assemblies/${subAssemblyId}/photographs/${photographId}`, {
+      method: 'DELETE',
+    }),
 
   relatePositions: (tavolaId: string, pair: RelatePositionsRequest) =>
     send<PositionsResponse>('POST', `/tavole/${tavolaId}/related-positions`, pair),

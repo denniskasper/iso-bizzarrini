@@ -452,6 +452,21 @@ export function createApiRouter(dependencies: {
     '/sub-assemblies/:subAssemblyId/outline',
     positionController.removeSubAssemblyOutline,
   );
+  // Its Photographs (issue #114): uploaded, ordered and removed as a Part's are, and served at
+  // the same authenticated addresses below.
+  router.post(
+    '/sub-assemblies/:subAssemblyId/photographs',
+    express.raw({ type: () => true, limit: dependencies.maxPhotographBytes }),
+    subAssemblyController.addPhotograph,
+  );
+  router.patch(
+    '/sub-assemblies/:subAssemblyId/photographs',
+    subAssemblyController.reorderPhotographs,
+  );
+  router.delete(
+    '/sub-assemblies/:subAssemblyId/photographs/:photographId',
+    subAssemblyController.removePhotograph,
+  );
 
   router.post('/tavole/:tavolaId/related-positions', positionController.relate);
   // By the **link's** id and not by a pair, which is the symmetry made reachable: there is one

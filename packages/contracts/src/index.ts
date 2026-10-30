@@ -1299,6 +1299,11 @@ export interface SubAssemblyResponse {
 export interface SubAssemblyInFull extends SubAssembly {
   /** What the club has established about the assembly as a whole, written by an Editor. */
   note: string | null;
+  /**
+   * The assembly as restorers photograph it (issue #114), in the order an Editor put them in. The
+   * first is the one that identifies it. As private as a Part's, at the same addresses.
+   */
+  photographs: Photograph[];
 }
 
 /**
@@ -1319,6 +1324,13 @@ export interface SubAssemblyPosition {
 export interface SubAssemblyNoteRequest {
   note: string | null;
 }
+
+/*
+ * `POST /api/sub-assemblies/:subAssemblyId/photographs` — the photograph is the body, as it is for
+ * a Part's. `PATCH` the same address with a `ReorderPhotographsRequest` to name the whole order,
+ * and `DELETE /api/sub-assemblies/:subAssemblyId/photographs/:photographId` to remove one. Each
+ * answers with the page, `SubAssemblyResponse`, re-read.
+ */
 
 /**
  * `PUT /api/sub-assemblies/:subAssemblyId/outline` — an Editor drawing a Sub-assembly's outline,
