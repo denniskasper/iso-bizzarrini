@@ -17,13 +17,16 @@ export function CatalogPage() {
   });
 
   return (
-    <div className="animate-rise">
-      <h1 className="display text-4xl tracking-display sm:text-5xl">Covered cars</h1>
-      <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
-        Choose a car, open the factory drawing, click the numbered position, read the part.
-      </p>
+    // On a desk the words that open the archive sit beside its list of cars rather than above
+    // it, so every car is on the first screen of a laptop; on a phone they are the next thing down.
+    <div className="animate-rise lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-x-16">
+      <div>
+        <h1 className="display text-4xl tracking-display sm:text-5xl">Covered cars</h1>
+        <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
+          Choose a car, open the factory drawing, click the numbered position, read the part.
+        </p>
 
-      {/*
+        {/*
         And the other way in, said on the front door rather than only in the chrome. Half the time
         a restorer does not begin at the car — they begin holding a bracket with a number stamped
         on it — and a screen offering nothing but a list of cars is exactly where that member is
@@ -33,29 +36,30 @@ export function CatalogPage() {
         a search box here would be a second form competing with it, and the field itself is one
         press away and already focused when it gets there.
       */}
-      <p className="mt-6 max-w-measure text-lg text-pretty">
-        <Link
-          to="/search"
-          className="text-accent-ink underline-offset-4 hover:underline"
-          data-testid="search-from-the-catalog"
-        >
-          Or start from a number stamped on the part
-        </Link>
-      </p>
-      {/* And the third way in: by the system being worked on, whichever car it is on. */}
-      <p className="mt-2 max-w-measure text-lg text-pretty">
-        <Link
-          to="/categories"
-          className="text-accent-ink underline-offset-4 hover:underline"
-          data-testid="categories-from-the-catalog"
-        >
-          Or compare one system across every car
-        </Link>
-      </p>
+        <p className="mt-6 max-w-measure text-lg text-pretty">
+          <Link
+            to="/search"
+            className="text-accent-ink underline-offset-4 hover:underline"
+            data-testid="search-from-the-catalog"
+          >
+            Or start from a number stamped on the part
+          </Link>
+        </p>
+        {/* And the third way in: by the system being worked on, whichever car it is on. */}
+        <p className="mt-2 max-w-measure text-lg text-pretty">
+          <Link
+            to="/categories"
+            className="text-accent-ink underline-offset-4 hover:underline"
+            data-testid="categories-from-the-catalog"
+          >
+            Or compare one system across every car
+          </Link>
+        </p>
 
-      <NewModelForm className="mt-12" />
+        <NewModelForm className="mt-12" />
+      </div>
 
-      <div className="mt-16">
+      <div className="mt-16 lg:mt-0">
         {isPending && <Notice>Reading the catalog…</Notice>}
         {isError && <Notice tone="alarm">The archive could not be reached. {error.message}</Notice>}
         {data && <ModelIndex models={data.models} />}
@@ -78,7 +82,7 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
   }
 
   return (
-    <div className="space-y-20" data-testid="model-index">
+    <div className="space-y-20 lg:space-y-10" data-testid="model-index">
       {groupByBrand(models).map(([brand, brandModels]) => (
         <section key={brand} aria-labelledby={`brand-${brand}`}>
           <h2 id={`brand-${brand}`} className="text-lg text-muted">
