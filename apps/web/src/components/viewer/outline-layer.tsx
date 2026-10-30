@@ -1,4 +1,6 @@
+import { useRef, useState, type PointerEvent } from 'react';
 import type { MarkPoint, SubAssembly } from '@/lib/api';
+import { fraction } from './viewport';
 
 /**
  * **Where a Sub-assembly is on the drawing** (issue #113): the outline an Editor drew round it,
@@ -22,6 +24,17 @@ export interface OutlineLayerProps {
   shown: SubAssembly | null;
   /** The corners of an outline an Editor is drawing, in the order they were placed. */
   draft?: MarkPoint[] | null;
+  /** An outline an Editor is reshaping, with its corners to drag and its sides to add one on. */
+  reshaping?: Reshaping | null;
+}
+
+/** What the layer needs to let an outline be reshaped (issue #115). */
+export interface Reshaping {
+  corners: MarkPoint[];
+  /** The corner chosen to be taken off, if one is. */
+  selected: number | null;
+  onSelect: (index: number) => void;
+  onMove: (index: number, to: MarkPoint) => void;
 }
 
 /** An outline can be closed once it has this many corners: fewer enclose nothing. */
@@ -43,12 +56,12 @@ export function closesTheOutline(on: Element | null): boolean {
   return on?.closest('[data-outline-close]') != null;
 }
 
-export function OutlineLayer({ size, shown, draft = null }: OutlineLayerProps) {
+export function OutlineLayer({ size, shown, draft = null, reshaping = null }: OutlineLayerProps) {
   const points = (corners: MarkPoint[]) =>
     corners.map((corner) => `${corner.x * size.width},${corner.y * size.height}`).join(' ');
 
   const outline = shown?.outline ?? null;
-  if (!outline && !draft) {
+  if (!outline && !draft && !reshaping) {
     return null;
   }
 
@@ -61,7 +74,7 @@ export function OutlineLayer({ size, shown, draft = null }: OutlineLayerProps) {
       aria-hidden="true"
       data-testid="drawing-outlines"
     >
-      {outline && shown && !draft && (
+      {outline && shown && !draft && !reshaping && (
         <polygon
           key={shown.id}
           className="outline-shape"
@@ -72,6 +85,7 @@ export function OutlineLayer({ size, shown, draft = null }: OutlineLayerProps) {
       )}
 
       {draft && <Draft corners={draft} points={points} size={size} />}
+      {reshaping && <Reshape {...reshaping} points={points} size={size} />}
     </svg>
   );
 }
@@ -116,6 +130,107 @@ function Draft({
           cy={first.y * size.height}
         />
       )}
+    </g>
+  );
+}
+
+/**
+ * An outline being reshaped (issue #115): drawn as it stands, each corner a dot to drag, each side
+ * a band to click a new corner onto. Both are a thumb wide at every zoom, like the corner that
+ * closes a draft, and the corners are on top, so a press near a corner takes the corner.
+ *
+ * A corner is held here while a hand moves it and handed on only when it is let go, which is when
+ * the outline is saved — a drag is one change, not one per frame.
+ */
+function Reshape({
+  corners,
+  selected,
+  onSelect,
+  onMove,
+  points,
+  size,
+}: Reshaping & {
+  points: (corners: MarkPoint[]) => string;
+  size: { width: number; height: number };
+}) {
+  const layer = useRef<SVGGElement>(null);
+  const [held, setHeld] = useState<{ index: number; at: MarkPoint; moved: boolean } | null>(null);
+  const shown = held
+    ? corners.map((corner, index) => (index === held.index ? held.at : corner))
+    : corners;
+
+  function pointOnSheet(event: PointerEvent<SVGElement>): MarkPoint | null {
+    const box = layer.current?.ownerSVGElement?.getBoundingClientRect();
+    if (!box || box.width <= 0 || box.height <= 0) {
+      return null;
+    }
+    return {
+      x: fraction(event.clientX - box.left, box.width),
+      y: fraction(event.clientY - box.top, box.height),
+    };
+  }
+
+  function letGo(event: PointerEvent<SVGCircleElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (held?.moved && event.type === 'pointerup') {
+      onMove(held.index, held.at);
+    }
+    setHeld(null);
+  }
+
+  return (
+    <g ref={layer} data-testid="outline-reshape" data-corners={corners.length}>
+      <polygon className="outline-shape outline-reshaping" points={points(shown)} />
+      {shown.map((corner, index) => {
+        const next = shown[(index + 1) % shown.length] ?? corner;
+        return (
+          <line
+            // A side is the corners either end of it; the place is the identity.
+            key={index}
+            className="outline-side"
+            data-outline-side={index}
+            data-testid="outline-side"
+            x1={corner.x * size.width}
+            y1={corner.y * size.height}
+            x2={next.x * size.width}
+            y2={next.y * size.height}
+          />
+        );
+      })}
+      {shown.map((corner, index) => (
+        <g key={index}>
+          <circle
+            className="outline-corner"
+            data-selected={index === selected}
+            cx={corner.x * size.width}
+            cy={corner.y * size.height}
+          />
+          <circle
+            className="outline-handle"
+            data-testid="outline-corner"
+            data-selected={index === selected}
+            cx={corner.x * size.width}
+            cy={corner.y * size.height}
+            // Picking up a corner is not moving the drawing: the press stops here.
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              onSelect(index);
+              setHeld({ index, at: corner, moved: false });
+            }}
+            onPointerMove={(event) => {
+              const at = held?.index === index ? pointOnSheet(event) : null;
+              if (at) {
+                setHeld({ index, at, moved: true });
+              }
+            }}
+            onPointerUp={letGo}
+            onPointerCancel={letGo}
+          />
+        </g>
+      ))}
     </g>
   );
 }
