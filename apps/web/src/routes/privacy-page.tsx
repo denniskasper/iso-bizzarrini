@@ -140,6 +140,14 @@ function Statement({ privacy }: { privacy: PrivacyResponse }) {
           that the payment arrived; it keeps the amount, the date and the provider’s reference for
           the payment and for your subscription.
         </p>
+        <p data-testid="membership-request">
+          <strong className="font-semibold">Asking to join.</strong> If you are not a member and ask
+          the Club for membership on Ricambi’s first page, what you write there — your name, your
+          e-mail address, your car or cars and your message — is sent as one e-mail to the Club
+          office, which uses it to answer you. Ricambi keeps nothing of it: it is not stored, and it
+          is not written to the log. To keep automated junk out, the address your request came from
+          is held in the server’s memory for an hour and counted, and then forgotten.
+        </p>
         <p>
           <strong className="font-semibold">The server’s log.</strong> Each request to Ricambi is
           written to a log on the server with the address it came from, the page asked for and what

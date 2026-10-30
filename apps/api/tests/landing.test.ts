@@ -32,7 +32,15 @@ describe('the landing a Visitor reads', () => {
   it('is open to a browser that has not signed in', async () => {
     const response = await app.request().get('/api/landing').expect(200);
 
-    expect(response.body).toEqual({ landing: { models: [], fee: '0.00', currency: 'EUR' } });
+    expect(response.body).toEqual({
+      landing: {
+        models: [],
+        fee: '0.00',
+        currency: 'EUR',
+        officeEmail: null,
+        requestForm: false,
+      },
+    });
   });
 
   it('lists each Model with how many Published Tavole it has, by brand', async () => {
@@ -85,7 +93,13 @@ describe('the landing a Visitor reads', () => {
 
     const response = await app.request().get('/api/landing').expect(200);
 
-    expect(Object.keys(response.body.landing).toSorted()).toEqual(['currency', 'fee', 'models']);
+    expect(Object.keys(response.body.landing).toSorted()).toEqual([
+      'currency',
+      'fee',
+      'models',
+      'officeEmail',
+      'requestForm',
+    ]);
     expect(Object.keys(response.body.landing.models[0]).toSorted()).toEqual([
       'brand',
       'modelYears',

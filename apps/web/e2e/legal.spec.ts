@@ -54,6 +54,9 @@ test('the privacy statement says what is processed, by whom, and what cannot be 
   );
   await expect(page.getByText('a former member')).toBeVisible();
   await expect(page.getByText(/until\s+10 years after the end of the year/)).toBeVisible();
+  // Issue #131: what the form to ask for membership sends, to whom, and that nothing is kept.
+  await expect(page.getByTestId('membership-request')).toContainText('one e-mail to the Club');
+  await expect(page.getByTestId('membership-request')).toContainText('Ricambi keeps nothing');
 });
 
 test('what an Administrator writes about the association is what a stranger reads', async ({

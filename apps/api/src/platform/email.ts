@@ -10,6 +10,8 @@ import type { Logger } from './logger.js';
  */
 export interface OutboundEmail {
   to: string;
+  /** Where an answer goes, when that is somebody other than Ricambi — a Visitor asking to join. */
+  replyTo?: string;
   subject: string;
   text: string;
   html?: string;

@@ -261,7 +261,13 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     clubService,
     processorRepository,
   });
-  const visitorService = createVisitorService({ modelRepository, clubService });
+  const visitorService = createVisitorService({
+    clock,
+    modelRepository,
+    clubService,
+    emailSender,
+    logger,
+  });
   const subscriptionService = createSubscriptionService({
     db,
     clock,
