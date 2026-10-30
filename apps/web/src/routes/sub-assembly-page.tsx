@@ -3,8 +3,8 @@ import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { CopyLink } from '@/components/copy-link';
 import { PhotographListEditor } from '@/components/editor/photograph-editor';
-import { PartPhotographs } from '@/components/parts/part-photographs';
 import { EnglishName } from '@/components/machine-translation';
+import { PartPhotographs } from '@/components/parts/part-photographs';
 import { Button } from '@/components/ui/button';
 import { Refusal, TextArea } from '@/components/ui/field';
 import {
@@ -22,9 +22,9 @@ import { useSession } from '@/lib/session';
  * what restorers photograph and talk about rather than its single screws.
  *
  * The page is the name, its Photographs, the club's Note about the assembly as a whole, and its
- * numbers with what sits at each — every one of them a way back to that number on the drawing. The address is the
- * Tavola and the Sub-assembly, so it can be sent to somebody and opens through the sign-in screen
- * like a Position's does.
+ * numbers with what sits at each — every one of them a way back to that number on the drawing.
+ * The address is the Tavola and the Sub-assembly, so it can be sent to somebody and opens through
+ * the sign-in screen like a Position's does.
  */
 export function SubAssemblyPage() {
   const { tavolaId, subAssemblyId } = useParams({

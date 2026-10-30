@@ -61,16 +61,17 @@ export interface PhotographRepository {
   removeFromSubAssembly(subAssemblyId: string, id: string): Promise<PhotographRow | null>;
 }
 
-/**
- * The photographs whose order a new one joins. One naming no owner joins none, and is then
- * refused by the database rather than here.
- */
+/** The photographs whose order a reorder rewrites. */
 function ownedBy(owner: PhotographOwner): SQL {
   return 'partId' in owner
     ? eq(photographs.partId, owner.partId)
     : eq(photographs.subAssemblyId, owner.subAssemblyId);
 }
 
+/**
+ * The photographs whose order a new one joins. One naming no owner joins none, and is then
+ * refused by the database rather than here.
+ */
 function sameOwner(photograph: NewPhotograph): SQL {
   if (photograph.subAssemblyId) {
     return eq(photographs.subAssemblyId, photograph.subAssemblyId);
