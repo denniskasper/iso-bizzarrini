@@ -162,10 +162,10 @@ export async function reckonDiscard(
  * reading it again and removing it both follow, by the reckoning of `reckonDiscard`.
  *
  * The Tavola goes, and with it its Positions, Sub-assemblies and their Photographs, Marks,
- * Listings, Table sheets, Scan and reading doubts. So does every Part it listed that is now listed nowhere and carries no
- * Contribution, with its Fitments, Equivalents, Sources and Photographs. A Tavola with a
- * Contribution on any of its Positions, decided or not, is left as it is: a Member's words are
- * never lost as a side effect.
+ * Listings, Table sheets, Scan and reading doubts. So does every Part it listed that is now listed
+ * nowhere and carries no Contribution, with its Fitments, Equivalents, Sources and Photographs. A
+ * Tavola with a Contribution on any of its Positions, decided or not, is left as it is: a Member's
+ * words are never lost as a side effect.
  *
  * The caller has found the Tavola, and decided it may go. This runs in the caller's transaction
  * and touches no file. Once that has committed, the caller
