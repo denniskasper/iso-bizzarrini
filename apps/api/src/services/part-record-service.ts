@@ -10,9 +10,11 @@ import type {
   PartRecordRepository,
   PartRecordRows,
   SourceFields,
+  SpecificationValue,
 } from '../repositories/part-record-repository.js';
 import type { PartRepository } from '../repositories/part-repository.js';
 import type { PhotographRepository } from '../repositories/photograph-repository.js';
+import type { SpecificationListRepository } from '../repositories/specification-list-repository.js';
 import { toPartInFull } from './catalog-view.js';
 import { ISO_DATE } from './days.js';
 import { readAmount } from './money.js';
@@ -63,6 +65,22 @@ export interface NewSource {
   note: string | null;
 }
 
+/** A Specification as an Editor typed it: the name chosen from the list, and the value. */
+export interface NewSpecification {
+  nameId: string;
+  value: string;
+}
+
+/**
+ * **A number and nothing else**: digits, a sign, and one point or comma as the decimal
+ * separator. Not "about 40", not "412 g" with the Unit typed again, and not a thousands
+ * separator, which a point and a comma both being decimal would make ambiguous.
+ */
+const SPECIFICATION_NUMBER = /^-?\d+(?:[.,]\d+)?$/;
+
+/** As many suggestions as fit under a field without the list becoming a page of its own. */
+const SUGGESTIONS = 10;
+
 export interface PartRecordService {
   /**
    * Every collection a Part carries, read once for a whole Position rather than once a Part.
@@ -79,6 +97,12 @@ export interface PartRecordService {
    * would be a second chance to hand back a list in an order this one does not agree with.
    */
   readWhole(partId: string): Promise<PartInFull>;
+
+  addSpecification(partId: string, specification: NewSpecification): Promise<PartInFull>;
+  correctSpecification(specificationId: string, value: string): Promise<PartInFull>;
+  removeSpecification(specificationId: string): Promise<PartInFull>;
+  /** The words already recorded under a name, for an Editor typing a new one. */
+  suggestSpecificationValues(nameId: string, typed: string): Promise<string[]>;
 
   addFitment(partId: string, fitment: NewFitment): Promise<PartInFull>;
   correctFitment(fitmentId: string, fitment: NewFitment): Promise<PartInFull>;
@@ -99,9 +123,16 @@ export function createPartRecordService(dependencies: {
   partRepository: PartRepository;
   partRecordRepository: PartRecordRepository;
   photographRepository: PhotographRepository;
+  specificationListRepository: SpecificationListRepository;
 }): PartRecordService {
-  const { clock, modelRepository, partRepository, partRecordRepository, photographRepository } =
-    dependencies;
+  const {
+    clock,
+    modelRepository,
+    partRepository,
+    partRecordRepository,
+    photographRepository,
+    specificationListRepository,
+  } = dependencies;
 
   /** The Part, or the plain refusal — nothing here is recordable against something that is gone. */
   async function partThatExists(partId: string) {
@@ -127,11 +158,12 @@ export function createPartRecordService(dependencies: {
   }
 
   function emptyRecord(): PartRecordRows {
-    return { fitments: [], equivalents: [], sources: [], photographs: [] };
+    return { specifications: [], fitments: [], equivalents: [], sources: [], photographs: [] };
   }
 
   async function recordsFor(partIds: string[]): Promise<Map<string, PartRecordRows>> {
-    const [fitments, equivalents, sources, photographs] = await Promise.all([
+    const [specifications, fitments, equivalents, sources, photographs] = await Promise.all([
+      partRecordRepository.listSpecifications(partIds),
       partRecordRepository.listFitments(partIds),
       partRecordRepository.listEquivalents(partIds),
       partRecordRepository.listSources(partIds),
@@ -147,6 +179,9 @@ export function createPartRecordService(dependencies: {
 
     // The order each query came back in is the order the screen reads, so each list is only ever
     // appended to — nothing here re-sorts what the database has already decided.
+    for (const row of specifications) {
+      of(row.partId).specifications.push(row);
+    }
     for (const row of fitments) {
       of(row.partId).fitments.push(row);
     }
@@ -160,6 +195,48 @@ export function createPartRecordService(dependencies: {
       of(row.partId).photographs.push(row);
     }
     return byPart;
+  }
+
+  /** The name, with the Unit that decides what a value under it may be. */
+  async function nameThatExists(nameId: string) {
+    const name = await specificationListRepository.findName(nameId);
+    if (!name) {
+      throw new NotFoundError('No such Specification name.');
+    }
+    return name;
+  }
+
+  /**
+   * **What the name makes of what was typed.** Under a name with a Unit, a number, with the
+   * comma read as a point; the Unit is the name's and never typed. Under one without, words,
+   * trimmed and otherwise kept exactly as the Editor wrote them.
+   */
+  function specificationValue(
+    name: { name: string; unit: { symbol: string } | null },
+    typed: string,
+  ): SpecificationValue {
+    const value = typed.trim();
+    if (value === '') {
+      throw new ValidationError(
+        `Write what the ${name.name.toLowerCase()} is, or remove the Specification instead.`,
+      );
+    }
+    if (name.unit === null) {
+      return { valueNumber: null, valueText: value };
+    }
+    if (!SPECIFICATION_NUMBER.test(value)) {
+      throw new ValidationError(
+        `${name.name} is a number in ${name.unit.symbol} — 412, 412.5 or 412,5. The Unit is not typed.`,
+      );
+    }
+    return { valueNumber: value.replace(',', '.'), valueText: null };
+  }
+
+  /** A name whose Unit was changed, or which was removed, between reading it and writing to it. */
+  function nameChanged(): never {
+    throw new ConflictError(
+      'That Specification name was changed while this was being recorded. Read it again and record the value afresh.',
+    );
   }
 
   /** A car the archive actually has. A Fitment naming one it does not is a statement about nothing. */
@@ -247,6 +324,11 @@ export function createPartRecordService(dependencies: {
    * cross-reference at the same moment cannot both pass a check and both write.
    */
   function refusalFor(error: unknown): never {
+    if (violates(error, 'specifications_one_per_part_and_name')) {
+      throw new ConflictError(
+        'This Part already has a value under that name. Correct it rather than adding a second one.',
+      );
+    }
     if (violates(error, 'fitments_part_id_model_id_unique')) {
       throw new ConflictError(
         'This Part is already recorded as fitting that car. Correct the qualification rather than adding a second one.',
@@ -269,6 +351,51 @@ export function createPartRecordService(dependencies: {
   return {
     recordsFor,
     readWhole,
+
+    async addSpecification(partId, specification) {
+      await partThatExists(partId);
+      const name = await nameThatExists(specification.nameId);
+
+      const added = await partRecordRepository
+        .addSpecification(
+          { partId, nameId: name.id, ...specificationValue(name, specification.value) },
+          name.unit?.id ?? null,
+        )
+        .catch(refusalFor);
+      return added === 'name-changed' ? nameChanged() : readWhole(partId);
+    },
+
+    async correctSpecification(specificationId, value) {
+      const current = await partRecordRepository.findSpecification(specificationId);
+      if (!current) {
+        gone('Specification');
+      }
+      const name = await nameThatExists(current.nameId);
+
+      const corrected = await partRecordRepository.updateSpecification(
+        specificationId,
+        specificationValue(name, value),
+        name.unit?.id ?? null,
+      );
+      if (corrected === 'name-changed') {
+        nameChanged();
+      }
+      return corrected ? readWhole(corrected.partId) : gone('Specification');
+    },
+
+    async removeSpecification(specificationId) {
+      const removed = await partRecordRepository.removeSpecification(specificationId);
+      return removed ? readWhole(removed.partId) : gone('Specification');
+    },
+
+    async suggestSpecificationValues(nameId, typed) {
+      const name = await nameThatExists(nameId);
+      // A number is not chosen from what others typed; there is nothing to suggest under a Unit.
+      if (name.unit !== null) {
+        return [];
+      }
+      return partRecordRepository.suggestValues(nameId, typed.trim(), SUGGESTIONS);
+    },
 
     async addFitment(partId, fitment) {
       await partThatExists(partId);

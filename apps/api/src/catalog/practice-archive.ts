@@ -25,6 +25,7 @@ import { createPartRecordRepository } from '../repositories/part-record-reposito
 import { createPartRepository } from '../repositories/part-repository.js';
 import { createPhotographRepository } from '../repositories/photograph-repository.js';
 import { createScanRepository } from '../repositories/scan-repository.js';
+import { createSpecificationListRepository } from '../repositories/specification-list-repository.js';
 import { createTavolaRepository } from '../repositories/tavola-repository.js';
 import { createPartRecordService } from '../services/part-record-service.js';
 import { createPhotographService } from '../services/photograph-service.js';
@@ -670,6 +671,7 @@ async function writePracticePhotographs(
       partRepository,
       partRecordRepository: createPartRecordRepository(db),
       photographRepository,
+      specificationListRepository: createSpecificationListRepository(db),
     }),
     fileStore,
     clock,

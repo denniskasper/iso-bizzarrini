@@ -26,6 +26,9 @@ import type {
   SpecificationNameOrderRequest,
   SpecificationNamesResponse,
   SpecificationNameWrittenResponse,
+  SpecificationRequest,
+  CorrectSpecificationRequest,
+  SpecificationSuggestionsResponse,
   UnitsResponse,
   UnitSymbolRequest,
   UnitWrittenResponse,
@@ -391,6 +394,11 @@ export const api = {
     send<SpecificationNamesResponse>('PUT', '/specification-names/order', order),
   removeSpecificationName: (nameId: string) =>
     request<void>(`/specification-names/${nameId}`, { method: 'DELETE' }),
+  /** What has been written under a name before, most used first. An Editor's to read. */
+  specificationSuggestions: (nameId: string, typed: string) =>
+    request<SpecificationSuggestionsResponse>(
+      `/specification-names/${nameId}/suggestions?q=${encodeURIComponent(typed)}`,
+    ),
 
   tavola: (tavolaId: string) => request<TavolaResponse>(`/tavole/${tavolaId}`),
   createTavola: (modelId: string, tavola: NewTavolaRequest) =>
@@ -546,7 +554,16 @@ export const api = {
    * ordered list and the order is the archive's — the cars in the catalog's order, the
    * equivalents from the original supplier outwards, the sources with the most recently seen
    * price first — so nothing here ever has to work out where a new row belongs.
+   *
+   * A Part's Specifications are hung off it in the same way (issue #112), and answer the same.
    */
+  addSpecification: (partId: string, specification: SpecificationRequest) =>
+    send<PartRecordResponse>('POST', `/parts/${partId}/specifications`, specification),
+  correctSpecification: (specificationId: string, specification: CorrectSpecificationRequest) =>
+    send<PartRecordResponse>('PATCH', `/specifications/${specificationId}`, specification),
+  removeSpecification: (specificationId: string) =>
+    request<PartRecordResponse>(`/specifications/${specificationId}`, { method: 'DELETE' }),
+
   addFitment: (partId: string, fitment: FitmentRequest) =>
     send<PartRecordResponse>('POST', `/parts/${partId}/fitments`, fitment),
   correctFitment: (fitmentId: string, fitment: FitmentRequest) =>
@@ -657,6 +674,7 @@ export const api = {
 
 export type {
   CatalogModel,
+  Specification,
   SpecificationName,
   SpecificationNameListing,
   Unit,

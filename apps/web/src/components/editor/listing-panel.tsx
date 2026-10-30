@@ -347,7 +347,7 @@ function Listed({
           {toggle('part', 'Correct the part', 'Done with the part')}
           {toggle('photographs', 'Photographs', 'Done with photographs')}
           {toggle('where', 'Where it sits', 'Done with where it sits')}
-          {toggle('record', 'Fits, equivalents, sources', 'Done with this part')}
+          {toggle('record', 'Specifications, fits, equivalents, sources', 'Done with this part')}
           {/*
            * **Named for what it removes.** This takes the Part off this number and leaves
            * the Part alone — it may well be listed on five other drawings, and removing one

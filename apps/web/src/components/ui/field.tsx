@@ -14,11 +14,17 @@ export function Field({
   hint,
   mono = false,
   suggestions,
+  beside,
   className,
   ...props
 }: ComponentProps<'input'> & {
   label: string;
   hint?: ReactNode;
+  /**
+   * Printed beside the box, on its line, and never part of what is typed — a Specification's
+   * Unit, which is read from its name and so is something an Editor can see but not choose.
+   */
+  beside?: ReactNode;
   /** Set the value in the mono face — every number the factory printed is an identifier. */
   mono?: boolean;
   /**
@@ -37,18 +43,21 @@ export function Field({
       <label htmlFor={id} className="label">
         {label}
       </label>
-      <input
-        id={id}
-        aria-describedby={hintId}
-        list={listId}
-        className={cn(
-          'h-control w-full rounded-md border border-line-strong bg-surface-raised px-3',
-          'text-base text-text transition-colors duration-150 ease-[var(--ease-out-quick)]',
-          'placeholder:text-faint hover:border-line-strong focus:border-accent-ink',
-          mono && 'tabular',
-        )}
-        {...props}
-      />
+      <div className="flex items-center gap-3">
+        <input
+          id={id}
+          aria-describedby={hintId}
+          list={listId}
+          className={cn(
+            'h-control w-full min-w-0 rounded-md border border-line-strong bg-surface-raised px-3',
+            'text-base text-text transition-colors duration-150 ease-[var(--ease-out-quick)]',
+            'placeholder:text-faint hover:border-line-strong focus:border-accent-ink',
+            mono && 'tabular',
+          )}
+          {...props}
+        />
+        {beside}
+      </div>
       {listId && (
         <datalist id={listId}>
           {suggestions?.map((suggestion) => (

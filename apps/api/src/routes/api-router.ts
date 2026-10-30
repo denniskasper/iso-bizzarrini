@@ -535,6 +535,18 @@ export function createApiRouter(dependencies: {
   // evening's work from a sheet the Editor is not looking at.
   router.delete('/parts/:partId', partController.remove);
 
+  // **What the Part is made of, measures and weighs** (issue #112), under a name from the
+  // Administrator's list. Hung off the Part for the reason the three below are. What an Editor
+  // has typed before under a name is an Editor's tool, so it is behind the role.
+  router.post('/parts/:partId/specifications', partRecordController.addSpecification);
+  router.patch('/specifications/:specificationId', partRecordController.correctSpecification);
+  router.delete('/specifications/:specificationId', partRecordController.removeSpecification);
+  router.get(
+    '/specification-names/:nameId/suggestions',
+    editorsOnly,
+    partRecordController.suggestSpecificationValues,
+  );
+
   // **What fits the Part, what replaces it and where it has been available** — hung off the Part
   // and not off a Tavola, because all three are true of the component wherever it is listed
   // (ADR 0001). They are *read* with the Part at a Position and so have no address of their own;
