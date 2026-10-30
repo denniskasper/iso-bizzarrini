@@ -45,7 +45,7 @@ describe('what belongs with a number', () => {
       subAssemblyId: string | null;
       related: { id: string; positionId: string }[];
     }[];
-    subAssemblies: { id: string; name: string }[];
+    subAssemblies: { id: string; name: string; outline: unknown }[];
   }
 
   /** Numbers on the sheet, recorded the way an Editor records one the drawing does not show. */
@@ -104,7 +104,9 @@ describe('what belongs with a number', () => {
       ]).expect(201);
 
       const sheet = response.body as Sheet;
-      expect(sheet.subAssemblies).toEqual([{ id: expect.any(String), name: 'Window Slider' }]);
+      expect(sheet.subAssemblies).toEqual([
+        { id: expect.any(String), name: 'Window Slider', outline: null },
+      ]);
       expect(numbersIn(sheet, sheet.subAssemblies[0]?.id ?? '')).toEqual(['30', '31', '32']);
       expect(sheet).toEqual(await sheetOf());
     });
@@ -114,13 +116,13 @@ describe('what belongs with a number', () => {
      * nothing to order it by, and no way to nest one inside another — a Sub-assembly holds
      * Positions and a Position holds nothing. The shape is the enforcement: no field to sort by.
      */
-    it('carries a name and nothing else — no number, and nothing to order it by', async () => {
+    it('carries a name and an outline at most — no number, and nothing to order it by', async () => {
       const numbers = await givenPositions('30');
 
       const response = await putIn(tavolaId, 'Door Lock', [numbers.get('30') ?? '']).expect(201);
 
       const [subAssembly] = (response.body as Sheet).subAssemblies;
-      expect(Object.keys(subAssembly ?? {}).sort()).toEqual(['id', 'name']);
+      expect(Object.keys(subAssembly ?? {}).sort()).toEqual(['id', 'name', 'outline']);
     });
 
     // A number is in one Sub-assembly or in none. Membership is a column and not a join table, so
@@ -169,7 +171,7 @@ describe('what belongs with a number', () => {
       );
 
       expect((response.body as Sheet).subAssemblies).toEqual([
-        { id: expect.any(String), name: 'Window Slider' },
+        { id: expect.any(String), name: 'Window Slider', outline: null },
       ]);
     });
 
@@ -467,7 +469,9 @@ describe('what belongs with a number', () => {
 
       const sheet = await sheetOf();
 
-      expect(sheet.subAssemblies).toEqual([{ id: expect.any(String), name: 'Window Slider' }]);
+      expect(sheet.subAssemblies).toEqual([
+        { id: expect.any(String), name: 'Window Slider', outline: null },
+      ]);
       expect(numbersIn(sheet, sheet.subAssemblies[0]?.id ?? '')).toEqual(['30', '31']);
       expect(positionNumbered(sheet, '44').related).toHaveLength(1);
     });

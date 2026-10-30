@@ -445,6 +445,13 @@ export function createApiRouter(dependencies: {
   // to write, by the rule above.
   router.get('/tavole/:tavolaId/sub-assemblies/:subAssemblyId', subAssemblyController.read);
   router.put('/sub-assemblies/:subAssemblyId/note', subAssemblyController.writeNote);
+  // **Where it is on the drawing** (issue #113): one outline, drawn or replaced whole, and taken
+  // off without taking the Sub-assembly with it. Answered with the sheet, which is what shows it.
+  router.put('/sub-assemblies/:subAssemblyId/outline', positionController.outlineSubAssembly);
+  router.delete(
+    '/sub-assemblies/:subAssemblyId/outline',
+    positionController.removeSubAssemblyOutline,
+  );
   // Its Photographs (issue #114): uploaded, ordered and removed as a Part's are, and served at
   // the same authenticated addresses below.
   router.post(

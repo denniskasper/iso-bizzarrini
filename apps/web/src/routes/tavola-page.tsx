@@ -13,6 +13,7 @@ import {
 import { FileUnder } from '@/components/editor/file-under';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
+import { OutlinePanel } from '@/components/editor/outline-panel';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
 import { ReadAgain } from '@/components/readings/read-again';
@@ -29,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
 import { MarkCard, PositionCard, useBeside } from '@/components/viewer/mark-card';
 import { MarkLayer, type Pointed } from '@/components/viewer/mark-layer';
+import { OutlineLayer, outlineAt } from '@/components/viewer/outline-layer';
 import {
   api,
   type CatalogProvenance,
@@ -37,6 +39,7 @@ import {
   type ReadingDoubt,
 } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
+import { useOutlineTool } from '@/lib/outlining';
 import { useTavolaListings } from '@/lib/parts';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
 import { useSheetProgress } from '@/lib/progress';
@@ -109,6 +112,19 @@ export function TavolaPage() {
   const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
   const tool = useMarkingTool(tavolaId);
+  const outlining = useOutlineTool(tavolaId);
+  /**
+   * **Which Sub-assembly's outline the drawing shows** (issue #113), asked for in three ways.
+   * A name pointed at beside the drawing, for as long as the pointer rests there; a Sub-assembly
+   * selected from that list, until a number is selected instead; and the Sub-assembly the number
+   * being read is in. Keyed by the Tavola, so neither follows a member onto the next sheet.
+   */
+  const [outlinePointed, setOutlinePointed] = useState<{ tavolaId: string; id: string } | null>(
+    null,
+  );
+  const [outlineSelected, setOutlineSelected] = useState<{ tavolaId: string; id: string } | null>(
+    null,
+  );
 
   /**
    * The circle a pointer is resting on, or keyboard focus is at, and the card says what is there
@@ -273,6 +289,9 @@ export function TavolaPage() {
   const readMark = useCallback(
     (position: Position, mark: Mark) => {
       setReading({ positionId: position.id, markId: mark.id });
+      // Selecting a number is selecting something else, so a Sub-assembly selected to be shown
+      // stops being shown — the number's own Sub-assembly, if it has one, takes its place.
+      setOutlineSelected(null);
       open(position);
     },
     [open],
@@ -295,6 +314,7 @@ export function TavolaPage() {
           : (position.marks[0] ?? null);
 
       setReading(next ? { positionId: position.id, markId: next.id } : null);
+      setOutlineSelected(null);
       open(position);
       if (next) {
         view.current?.show(next);
@@ -317,6 +337,53 @@ export function TavolaPage() {
       }
     } else if (position) {
       goTo(position);
+    }
+  };
+
+  const outlinedId = outlining.drawing
+    ? null
+    : ((outlinePointed?.tavolaId === tavolaId ? outlinePointed.id : null) ??
+      (outlineSelected?.tavolaId === tavolaId ? outlineSelected.id : null) ??
+      selectedPosition?.subAssemblyId ??
+      null);
+  const outlined =
+    sheet.subAssemblies.find(
+      (subAssembly) => subAssembly.id === outlinedId && subAssembly.outline,
+    ) ?? null;
+
+  /** Pointing at a name: shown while the pointer rests on it, gone as it leaves. */
+  const pointAtOutline = useCallback(
+    (id: string | null) => setOutlinePointed(id === null ? null : { tavolaId, id }),
+    [tavolaId],
+  );
+
+  /**
+   * Selecting one from the list, which is how a finger asks — and the drawing is taken to it,
+   * because a member on a phone selecting from the list below has the drawing above them.
+   */
+  const selectOutline = (id: string | null) => {
+    setOutlineSelected(id === null ? null : { tavolaId, id });
+    const corners = sheet.subAssemblies.find((subAssembly) => subAssembly.id === id)?.outline;
+    if (corners && corners.length > 0) {
+      const middle = corners.reduce(
+        (sum, corner) => ({
+          x: sum.x + corner.x / corners.length,
+          y: sum.y + corner.y / corners.length,
+        }),
+        { x: 0, y: 0 },
+      );
+      view.current?.show(middle);
+    }
+  };
+
+  /** A tap inside an outline, away from any circle, opens that Sub-assembly. */
+  const tapDrawing = (on: Element | null) => {
+    const subAssemblyId = outlineAt(on);
+    if (subAssemblyId) {
+      void navigate({
+        to: '/tavole/$tavolaId/sub-assemblies/$subAssemblyId',
+        params: { tavolaId, subAssemblyId },
+      });
     }
   };
 
@@ -441,9 +508,20 @@ export function TavolaPage() {
                 onSelect={readMark}
                 onPoint={point}
                 pointedMarkId={described?.mark.id ?? null}
-                onMove={tool.on ? tool.moveMark : undefined}
+                onMove={tool.on && !outlining.drawing ? tool.moveMark : undefined}
+                quiet={outlining.drawing}
               />
             }
+            underlay={
+              tavola.scan && (
+                <OutlineLayer
+                  size={tavola.scan}
+                  shown={outlined}
+                  draft={outlining.drawing ? outlining.corners : null}
+                />
+              )
+            }
+            onTap={tapDrawing}
             card={
               described && (
                 <MarkCard anchor={described.element} beside={besideHost}>
@@ -460,7 +538,8 @@ export function TavolaPage() {
             }
             // The sheet only becomes a tool when an Editor says so. A member's drawing is a
             // drawing, and a stray tap on it records nothing.
-            onTapPoint={tool.on ? tool.place : undefined}
+            onTapPoint={outlining.drawing ? outlining.add : tool.on ? tool.place : undefined}
+            tapHint={outlining.drawing ? 'Click to add a corner to the outline.' : undefined}
           />
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
             {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
@@ -500,7 +579,13 @@ export function TavolaPage() {
             }
           />
 
-          <SubAssemblyList tavolaId={tavola.id} sheet={sheet} />
+          <SubAssemblyList
+            tavolaId={tavola.id}
+            sheet={sheet}
+            selectedId={outlineSelected?.tavolaId === tavolaId ? outlineSelected.id : null}
+            onPoint={pointAtOutline}
+            onSelect={selectOutline}
+          />
 
           <TavolaParts
             tavolaId={tavola.id}
@@ -540,13 +625,18 @@ export function TavolaPage() {
       )}
 
       {tool.on && (
-        <div className="mt-12">
-          <MarkingBar
-            tool={tool}
-            positions={positions}
-            selected={selected}
-            onDeselect={() => open(null)}
-          />
+        <div className="mt-12 flex flex-col gap-8">
+          {/* Drawing an outline is the tool's other mode, and while it is on, a click on the
+              drawing is a corner — so the panel that says a click places a Mark stands aside. */}
+          {!outlining.drawing && (
+            <MarkingBar
+              tool={tool}
+              positions={positions}
+              selected={selected}
+              onDeselect={() => open(null)}
+            />
+          )}
+          <OutlinePanel tool={outlining} subAssemblies={sheet.subAssemblies} />
         </div>
       )}
 
@@ -572,7 +662,10 @@ export function TavolaPage() {
         <PositionList
           positions={positions}
           selectedPositionId={selectedPosition?.id ?? null}
-          onSelect={open}
+          onSelect={(position) => {
+            setOutlineSelected(null);
+            open(position);
+          }}
           // A drawing nobody has scanned is not a drawing anybody can click, so the tool that
           // works by clicking it is not offered.
           action={

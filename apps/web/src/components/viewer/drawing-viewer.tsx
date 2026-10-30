@@ -83,6 +83,13 @@ export interface DrawingViewerProps {
    */
   overlay?: ReactNode;
   /**
+   * What is drawn on the sheet **under** the overlay — a Sub-assembly's outline (issue #113). In
+   * the same coordinate space as the overlay, above the Scan and below the Marks, so a circle
+   * inside an outline is still the thing a press lands on. `--drawing-px` is one of the
+   * member's pixels in the drawing's own, for a line that stays the same width at every zoom.
+   */
+  underlay?: ReactNode;
+  /**
    * What floats over the stage rather than sitting on the sheet — the card beside a Mark a
    * pointer is resting on (issue #35). Outside the sheet's coordinate space, so it stays the
    * size it was designed at however far in the member is, and full screen takes it along.
@@ -96,7 +103,15 @@ export interface DrawingViewerProps {
    * down, because when the marking tool is on, a tap places a circle and must never mean two
    * things at once.
    */
-  onTapPoint?: (at: Point) => void;
+  onTapPoint?: (at: Point, on: Element | null) => void;
+  /**
+   * A tap on the sheet while it is a drawing rather than a tool, with what the press went down
+   * on — how a member opens a Sub-assembly by its outline. A press that became a drag is the
+   * member moving the sheet, and is not one.
+   */
+  onTap?: (on: Element | null) => void;
+  /** What a tap does while the sheet is a tool, said to a screen reader. Placing a Mark unless told. */
+  tapHint?: string | undefined;
 }
 
 export function DrawingViewer({
@@ -104,8 +119,11 @@ export function DrawingViewer({
   alt,
   className,
   overlay,
+  underlay,
   card,
   onTapPoint,
+  onTap,
+  tapHint,
   ref,
 }: DrawingViewerProps) {
   // A Tavola recorded from a paper catalog before anyone has scanned the sheet is a legitimate
@@ -124,8 +142,11 @@ export function DrawingViewer({
       alt={alt}
       className={className}
       overlay={overlay}
+      underlay={underlay}
       card={card}
       onTapPoint={onTapPoint}
+      onTap={onTap}
+      tapHint={tapHint}
       ref={ref}
     />
   );
@@ -199,8 +220,11 @@ function Viewer({
   alt,
   className,
   overlay,
+  underlay,
   card,
   onTapPoint,
+  onTap,
+  tapHint = 'Click to place a Mark.',
   ref,
 }: DrawingViewerProps & { scan: TavolaScan }) {
   const image = useMemo<Size>(
@@ -267,6 +291,7 @@ function Viewer({
           '--mark-touch',
           `${Math.max(ring, Math.ceil(MARK_TOUCH / viewport.scale))}px`,
         );
+        sceneRef.current.style.setProperty('--drawing-px', `${1 / viewport.scale}px`);
       }
     }
 
@@ -432,6 +457,8 @@ function Viewer({
   const frameOrigin = useRef<Point>({ x: 0, y: 0 });
   /** Where a single press went down, for as long as it could still turn out to be a tap. */
   const tapFrom = useRef<Point | null>(null);
+  /** What that press went down on: a circle, an outline, or the bare sheet. */
+  const tapOn = useRef<Element | null>(null);
 
   const gesture = useCallback(() => {
     const [first, second] = [...pointers.current.values()];
@@ -453,6 +480,7 @@ function Viewer({
     pinch.current = pointers.current.size === 2 ? gesture() : null;
     // A second finger means the member is pinching, and nothing about a pinch is a tap.
     tapFrom.current = pointers.current.size === 1 ? { x: event.clientX, y: event.clientY } : null;
+    tapOn.current = event.target instanceof Element ? event.target : null;
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -516,10 +544,15 @@ function Viewer({
 
     // A press that never became a drag is a point on the drawing. Cancellation is not — a
     // pointer the browser took away is a gesture that did not finish, not one that meant this.
-    if (tapped && onTapPoint && event.type === 'pointerup') {
-      onTapPoint(
-        pointOn(pointIn(event.currentTarget, event), viewportRef.current, stageOf.current),
-      );
+    if (tapped && event.type === 'pointerup') {
+      if (onTapPoint) {
+        onTapPoint(
+          pointOn(pointIn(event.currentTarget, event), viewportRef.current, stageOf.current),
+          tapOn.current,
+        );
+      } else {
+        onTap?.(tapOn.current);
+      }
     }
   }
 
@@ -629,7 +662,7 @@ function Viewer({
         role="group"
         aria-label={
           onTapPoint
-            ? `${alt}. Click to place a Mark. Drag to move the drawing.`
+            ? `${alt}. ${tapHint} Drag to move the drawing.`
             : `${alt}. Drag to move the drawing, scroll or pinch to zoom.`
         }
         aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight + - 0 f"
@@ -673,6 +706,7 @@ function Viewer({
             draggable={false}
             onLoad={() => setSheetLoaded(true)}
           />
+          {underlay}
           {/*
            * Pinned to the sheet by being *in* it: the overlay is laid out in the drawing's own
            * coordinate space, so the one transform that moves the drawing moves the circles
