@@ -8,10 +8,12 @@ import type { OutlineTool } from '@/lib/outlining';
 /**
  * **Drawing round a Sub-assembly** (issue #113), the marking tool's outline mode.
  *
- * Two states, and only one thing to press in each. Choosing: which Sub-assembly, then draw (or
- * take off the outline it has). Drawing: the corners go on the drawing above, and the one action
- * here is closing it — the same as pressing the first corner or Enter, for whoever would rather
- * press a button than aim at a dot.
+ * Three states, and one thing that matters most in each. Choosing: which Sub-assembly, then draw,
+ * reshape, or take off the outline it has. Drawing: the corners go on the drawing above, and the
+ * action here is closing it — the same as pressing the first corner or Enter, for whoever would
+ * rather press a button than aim at a dot. Reshaping (issue #115): the corners are moved on the
+ * drawing, so the action here is being done with it, beside taking off the corner selected — a
+ * button as well as a key, because a finger has no Delete.
  */
 export function OutlinePanel({
   tool,
@@ -40,7 +42,7 @@ export function OutlinePanel({
         </h2>
         <p className="mt-4 max-w-measure text-pretty text-muted">
           Click the drawing to add a corner. Click the first corner, or press Enter, to close the
-          outline. Escape abandons it.
+          outline. Backspace takes back the last corner, and Escape abandons it.
         </p>
         <p className="mt-3 text-sm text-faint" aria-live="polite" data-testid="outline-corners">
           <span className="tabular text-text">{count}</span> {count === 1 ? 'corner' : 'corners'}
@@ -51,8 +53,51 @@ export function OutlinePanel({
           <Button variant="primary" disabled={!closable || tool.busy} onClick={tool.close}>
             Close outline
           </Button>
+          <Button variant="outline" disabled={count === 0 || tool.busy} onClick={tool.undo}>
+            Undo last corner
+          </Button>
           <Button variant="ghost" className="ml-auto" onClick={tool.abandon}>
             Abandon
+          </Button>
+        </div>
+
+        {tool.refusal && <Refusal>{tool.refusal}</Refusal>}
+      </section>
+    );
+  }
+
+  if (tool.reshaping && drawn) {
+    const count = tool.corners.length;
+    const selected = tool.selectedCorner;
+
+    return (
+      <section
+        aria-labelledby="reshaping"
+        className="editor-panel registration-mark w-full animate-rise"
+        data-testid="outline-panel"
+      >
+        <h2 id="reshaping" className="label">
+          Reshaping {drawn.name}
+        </h2>
+        <p className="mt-4 max-w-measure text-pretty text-muted">
+          Drag a corner to move it. Click a side to add a corner there. Select a corner and press
+          Remove corner, or Delete, to take it off. Each change is saved as you make it.
+        </p>
+        <p className="mt-3 text-sm text-faint" aria-live="polite" data-testid="outline-corners">
+          <span className="tabular text-text">{count}</span> corners
+          {selected !== null && `. Corner ${selected + 1} selected.`}
+        </p>
+
+        <div className="mt-8 flex flex-wrap gap-3 border-t border-line pt-6">
+          <Button variant="primary" onClick={tool.finish}>
+            Done
+          </Button>
+          <Button
+            variant="outline"
+            disabled={selected === null || tool.busy}
+            onClick={tool.removeCorner}
+          >
+            Remove corner
           </Button>
         </div>
 
@@ -95,6 +140,15 @@ export function OutlinePanel({
           <Button disabled={tool.busy} onClick={() => tool.start(chosen.id)}>
             {chosen.outline ? 'Redraw outline' : 'Draw outline'}
           </Button>
+          {chosen.outline && (
+            <Button
+              variant="outline"
+              disabled={tool.busy}
+              onClick={() => chosen.outline && tool.reshape(chosen.id, chosen.outline)}
+            >
+              Reshape outline
+            </Button>
+          )}
           {chosen.outline && (
             <Button variant="ghost" disabled={tool.busy} onClick={() => tool.remove(chosen.id)}>
               Remove outline

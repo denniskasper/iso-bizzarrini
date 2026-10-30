@@ -480,6 +480,45 @@
   }
 
   /*
+   * An outline being reshaped (issue #115). The shape itself is scenery here — a press inside it
+   * is not opening anything — and what can be pressed is its sides, to add a corner, and its
+   * corners, to move one or choose it to take off. Both are a thumb wide whatever the zoom.
+   */
+  .outline-reshaping {
+    pointer-events: none;
+    cursor: default;
+    animation: none;
+  }
+
+  .outline-side {
+    stroke: transparent;
+    stroke-width: calc(var(--drawing-px, 1px) * 24);
+    stroke-linecap: round;
+    pointer-events: stroke;
+    cursor: copy;
+  }
+
+  .outline-handle {
+    r: calc(var(--drawing-px, 1px) * 22);
+    fill: transparent;
+    pointer-events: all;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .outline-handle:active {
+    cursor: grabbing;
+  }
+
+  /* The corner chosen to take off is pressed, so it wears the champagne of what is pressed. */
+  .outline-corner[data-selected='true'] {
+    r: calc(var(--drawing-px, 1px) * 7);
+    fill: var(--accent);
+    stroke: var(--mark);
+    stroke-width: calc(var(--drawing-px, 1px) * 2);
+  }
+
+  /*
    * While an outline is being drawn, a press on a circle is a corner placed there — so the
    * circles stand out of the way of the press, and stay on the sheet to be drawn round.
    */
