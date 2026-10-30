@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/denniskasper/iso-bizzarrini/compare/v0.7.0...v0.7.1) (2026-10-30)
+
+
+### Fixed
+
+* **editor:** keep the scan tools under the drawing they change ([723900c](https://github.com/denniskasper/iso-bizzarrini/commit/723900ca3ca3af016511b095e97456b527ae244c))
+
 ## [0.7.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.6.0...v0.7.0) (2026-10-24)
 
 
