@@ -1,3 +1,4 @@
+import './run-log.ts';
 import { basename } from 'node:path';
 import { run, claudeCode } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
