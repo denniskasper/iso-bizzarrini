@@ -285,7 +285,14 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   // member then reads about one arrives when they open it on a drawing.
   const searchService = createSearchService({ partRepository, partRecordRepository });
   const positionService = createPositionService({ tavolaRepository, positionRepository });
-  const subAssemblyService = createSubAssemblyService({ positionRepository, partRepository });
+  const subAssemblyService = createSubAssemblyService({
+    positionRepository,
+    partRepository,
+    photographRepository,
+    fileStore,
+    clock,
+    logger,
+  });
   const partRecordService = createPartRecordService({
     clock,
     modelRepository,

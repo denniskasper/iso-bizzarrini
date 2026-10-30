@@ -221,18 +221,12 @@ describe('removing an Unchecked Tavola', () => {
       .insert(subAssemblies)
       .values({ tavolaId: tavola('84'), name: 'Differential' })
       .returning();
-    // Uploaded to the screw, which stays, then handed to the Sub-assembly: nothing lets an Editor
-    // photograph a Sub-assembly yet, and this is the row and the files that would make.
     const uploaded = await editor
-      .post(`/api/parts/${await partNumbered('208900')}/photographs`)
+      .post(`/api/sub-assemblies/${group?.id ?? ''}/photographs`)
       .set('Content-Type', 'image/jpeg')
       .send(await givenPhotographImage())
       .expect(201);
-    const photographId = uploaded.body.part.photographs[0].id as string;
-    await app.db
-      .update(photographs)
-      .set({ partId: null, subAssemblyId: group?.id })
-      .where(eq(photographs.id, photographId));
+    const photographId = uploaded.body.subAssembly.photographs[0].id as string;
     const stored = await filesUnder('photographs');
 
     await remove(administrator, tavola('84')).expect(200);

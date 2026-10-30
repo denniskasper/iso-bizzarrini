@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { CopyLink } from '@/components/copy-link';
+import { PhotographListEditor } from '@/components/editor/photograph-editor';
+import { PartPhotographs } from '@/components/parts/part-photographs';
 import { EnglishName } from '@/components/machine-translation';
 import { Button } from '@/components/ui/button';
 import { Refusal, TextArea } from '@/components/ui/field';
@@ -19,8 +21,8 @@ import { useSession } from '@/lib/session';
  * **A Sub-assembly read as one thing** (issue #110) — the window slider or the door lock, which is
  * what restorers photograph and talk about rather than its single screws.
  *
- * The page is the name, the club's Note about the assembly as a whole, and its numbers with what
- * sits at each — every one of them a way back to that number on the drawing. The address is the
+ * The page is the name, its Photographs, the club's Note about the assembly as a whole, and its
+ * numbers with what sits at each — every one of them a way back to that number on the drawing. The address is the
  * Tavola and the Sub-assembly, so it can be sent to somebody and opens through the sign-in screen
  * like a Position's does.
  */
@@ -103,11 +105,62 @@ export function SubAssemblyPage() {
         ordered as one.
       </p>
 
+      <ItsPhotographs tavolaId={tavolaId} subAssembly={subAssembly} />
+
       <div className="mt-12 grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <ItsNumbers tavolaId={tavolaId} positions={positions} />
         <ItsNote tavolaId={tavolaId} subAssembly={subAssembly} />
       </div>
     </div>
+  );
+}
+
+/**
+ * **The assembly as restorers photograph it** (issue #114), the first one large: an Editor chose
+ * it as the picture that says which assembly this is. Above the numbers, because it is how a
+ * member recognises the thing before reading what it is made of. A Member is shown nothing where
+ * there are none; an Editor is shown the list to add them to, order and remove.
+ */
+function ItsPhotographs({
+  tavolaId,
+  subAssembly,
+}: {
+  tavolaId: string;
+  subAssembly: SubAssemblyInFull;
+}) {
+  const { isEditor } = useSession();
+  const queryClient = useQueryClient();
+
+  if (subAssembly.photographs.length === 0 && !isEditor) {
+    return null;
+  }
+
+  return (
+    <section aria-label="Photographs" className="mt-6" data-testid="sub-assembly-photographs">
+      <PartPhotographs
+        photographs={subAssembly.photographs}
+        partName={subAssembly.name}
+        setting="page"
+      />
+      {isEditor && (
+        <div className="max-w-2xl">
+          <PhotographListEditor
+            photographs={subAssembly.photographs}
+            about="The assembly as it looks put together. The first one is what a member sees first."
+            add={(file) => api.addSubAssemblyPhotograph(subAssembly.id, file)}
+            reorder={(photographIds) =>
+              api.reorderSubAssemblyPhotographs(subAssembly.id, { photographIds })
+            }
+            remove={(photographId) => api.removeSubAssemblyPhotograph(subAssembly.id, photographId)}
+            onChanged={() =>
+              void queryClient.invalidateQueries({
+                queryKey: subAssemblyKey(tavolaId, subAssembly.id),
+              })
+            }
+          />
+        </div>
+      )}
+    </section>
   );
 }
 
