@@ -28,6 +28,8 @@
     background-color: var(--surface);
     color: var(--text);
     font-family: var(--font-sans);
+    /* Said rather than left to the browser, so text with no size of its own takes the step too. */
+    font-size: var(--text-base);
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -129,6 +131,14 @@
     .catalog-row {
       grid-template-columns: 1fr auto;
       padding-block: --spacing(12);
+    }
+  }
+
+  /* On a desk the list sits beside the words above it, and every car is on the first screen: a
+     row is still a whole band to aim at, it is just not a screen's worth of band. */
+  @media (width >= 64rem) {
+    .catalog-row {
+      padding-block: --spacing(5);
     }
   }
 

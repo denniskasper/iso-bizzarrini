@@ -126,6 +126,12 @@ Two faces and the numbers.
 | Headings, body and interface | Open Sans Variable | The Club's own body face. Humanist, tall x-height, unfussy at small sizes and at arm's length. |
 | Every factory number | IBM Plex Mono | **Ours, and additive.** Tabular figures and a slashed zero, so two catalog numbers can be told apart by eye. The Club site has no numbers to compare and therefore no opinion. |
 
+**Two type steps, and the garage keeps its own.** Below the breakpoint at which a drawing sits
+beside its parts (64rem) every size is what a phone at arm's length needs. From it up, a laptop
+reads a step denser (`--type-*` in the tokens), so the archive shows more at once on a desk. Only
+type moves: controls, touch targets and contrast are the same at every width, and nothing read as
+a sentence goes below 14px.
+
 All three are self-hosted, Latin subsets only. No request ever leaves for a
 font, so no consent is owed for one — the same rule the club website is being rebuilt to
 satisfy, and the reason its current cookie banner exists.
