@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, ne, notExists } from 'drizzle-orm';
+import { and, count, eq, inArray, ne, notExists, or } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
   contributions,
@@ -8,6 +8,7 @@ import {
   photographs,
   positions,
   scans,
+  subAssemblies,
   tableSheets,
   tavole,
 } from '../db/schema.js';
@@ -35,7 +36,10 @@ export interface DiscardedTavola {
     nameIt: string | null;
     nameEn: string | null;
   }[];
-  /** The prefixes its files, and those Parts' Photographs, are under, for `removeDiscardedFiles`. */
+  /**
+   * The prefixes its files, its Sub-assemblies' Photographs and those Parts' Photographs are
+   * under, for `removeDiscardedFiles`.
+   */
   fileKeys: string[];
 }
 
@@ -123,13 +127,19 @@ export async function reckonDiscard(
           )
           .orderBy(parts.catalogNumber, parts.nameIt);
   const goingIds = going.map((part) => part.id);
-  const photographed =
-    goingIds.length === 0
-      ? []
-      : await session
-          .select({ id: photographs.id })
-          .from(photographs)
-          .where(inArray(photographs.partId, goingIds));
+  // Its Sub-assemblies' go with them, as the Parts' go with the Parts.
+  const grouped = session
+    .select({ id: subAssemblies.id })
+    .from(subAssemblies)
+    .where(eq(subAssemblies.tavolaId, tavolaId));
+  const photographed = await session
+    .select({ id: photographs.id })
+    .from(photographs)
+    .where(
+      goingIds.length === 0
+        ? inArray(photographs.subAssemblyId, grouped)
+        : or(inArray(photographs.subAssemblyId, grouped), inArray(photographs.partId, goingIds)),
+    );
 
   return {
     modelId: tavola.modelId,
@@ -151,8 +161,8 @@ export async function reckonDiscard(
  * **Discarding an Unchecked Tavola** (issue #82): the one rule for taking a Tavola out whole, which
  * reading it again and removing it both follow, by the reckoning of `reckonDiscard`.
  *
- * The Tavola goes, and with it its Positions, Sub-assemblies, Marks, Listings, Table sheets, Scan
- * and reading doubts. So does every Part it listed that is now listed nowhere and carries no
+ * The Tavola goes, and with it its Positions, Sub-assemblies and their Photographs, Marks,
+ * Listings, Table sheets, Scan and reading doubts. So does every Part it listed that is now listed nowhere and carries no
  * Contribution, with its Fitments, Equivalents, Sources and Photographs. A Tavola with a
  * Contribution on any of its Positions, decided or not, is left as it is: a Member's words are
  * never lost as a side effect.

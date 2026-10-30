@@ -1,9 +1,10 @@
-import { asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import { photographs, type NewPhotographRow, type PhotographRow } from '../db/schema.js';
 
 /**
- * The pictures of a Part, **in the order somebody decided on**.
+ * The pictures of a Part or a Sub-assembly, **in the order somebody decided on**: each owner has
+ * an order of its own, and a picture is only ever one owner's.
  *
  * That order is the only thing here that is not obvious, and it is the reason this is a table
  * with a `sequence` rather than a list read back in whatever order Postgres felt like. The first
@@ -17,14 +18,18 @@ import { photographs, type NewPhotographRow, type PhotographRow } from '../db/sc
  */
 
 /**
- * A Photograph as it arrives from ingest: everything but where in the Part's order it goes, which
- * is the one field this file decides. The id comes with it — the files are written under it
- * before the row exists.
+ * A Photograph as it arrives from ingest: everything but where in its owner's order it goes,
+ * which is the one field this file decides. The id comes with it — the files are written under it
+ * before the row exists. It names a Part or a Sub-assembly, and the database refuses both or
+ * neither.
  */
 export type NewPhotograph = Omit<NewPhotographRow, 'sequence'>;
 
+/** A Photograph a Part owns, which every read and write through a Part's address is. */
+export type PartPhotographRow = PhotographRow & { partId: string };
+
 export interface PhotographRepository {
-  listForParts(partIds: string[]): Promise<PhotographRow[]>;
+  listForParts(partIds: string[]): Promise<PartPhotographRow[]>;
   findById(id: string): Promise<PhotographRow | null>;
 
   /** Appends. A photograph nobody has placed goes at the end, where the newest thing belongs. */
@@ -39,8 +44,22 @@ export interface PhotographRepository {
    */
   reorder(partId: string, photographIds: string[]): Promise<PhotographRow[] | null>;
 
-  /** The row as it was on the way out, so its files can be dropped and its Part re-read. */
-  remove(id: string): Promise<PhotographRow | null>;
+  /**
+   * A Part's photograph, as it was on the way out, so its files can be dropped and its Part
+   * re-read. A Sub-assembly's is not removed through here, and is `null` like a missing one.
+   */
+  remove(id: string): Promise<PartPhotographRow | null>;
+}
+
+/**
+ * The photographs whose order a new one joins. One naming no owner joins none, and is then
+ * refused by the database rather than here.
+ */
+function sameOwner(photograph: NewPhotograph): SQL {
+  if (photograph.subAssemblyId) {
+    return eq(photographs.subAssemblyId, photograph.subAssemblyId);
+  }
+  return photograph.partId ? eq(photographs.partId, photograph.partId) : sql`false`;
 }
 
 export function createPhotographRepository(db: DbSession): PhotographRepository {
@@ -56,7 +75,7 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
         .select()
         .from(photographs)
         .where(inArray(photographs.partId, partIds))
-        .orderBy(...inOrder);
+        .orderBy(...inOrder) as Promise<PartPhotographRow[]>;
     },
 
     async findById(id) {
@@ -69,7 +88,7 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
         const [last] = await tx
           .select({ sequence: photographs.sequence })
           .from(photographs)
-          .where(eq(photographs.partId, photograph.partId))
+          .where(sameOwner(photograph))
           .orderBy(desc(photographs.sequence))
           .limit(1);
 
@@ -127,8 +146,11 @@ export function createPhotographRepository(db: DbSession): PhotographRepository 
       // The gap the removal leaves in the sequence is left there. Order is what the column is
       // for and a gap does not disturb it; renumbering would be a write to every remaining row
       // to tidy something nobody can see.
-      const [removed] = await db.delete(photographs).where(eq(photographs.id, id)).returning();
-      return removed ?? null;
+      const [removed] = await db
+        .delete(photographs)
+        .where(and(eq(photographs.id, id), isNotNull(photographs.partId)))
+        .returning();
+      return (removed as PartPhotographRow | undefined) ?? null;
     },
   };
 }
