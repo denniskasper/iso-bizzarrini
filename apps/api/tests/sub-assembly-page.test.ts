@@ -113,7 +113,7 @@ describe('a Sub-assembly’s page', () => {
     const response = await pageOf(id).expect(200);
     const page = response.body as SubAssemblyResponse;
 
-    expect(page.subAssembly).toEqual({ id, name: 'Window Slider', note: null });
+    expect(page.subAssembly).toEqual({ id, name: 'Window Slider', note: null, photographs: [] });
     expect(
       page.positions.map((position) => ({
         number: position.number,

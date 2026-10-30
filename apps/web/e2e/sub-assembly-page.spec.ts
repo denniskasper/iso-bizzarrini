@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import {
+  borrowAnImage,
+  markFor,
+  openADrawingOfYourOwn,
+  openFirstDrawing,
+} from './support/archive.js';
 import { MEMBER_PASSWORD, PRACTICE, signInAs } from './support/gate.js';
 
 /**
@@ -102,5 +107,56 @@ test.describe('a Sub-assembly’s page', () => {
     await page.getByRole('button', { name: 'Save the note' }).click();
     await expect(page.getByTestId('sub-assembly-note-text')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Write a note' })).toBeVisible();
+  });
+
+  /**
+   * **Its Photographs** (issue #114): added, put in order and removed by an Editor on the page,
+   * and the one first in the order is the one set large.
+   */
+  test('carries Photographs an Editor adds, orders and removes', async ({ page }, info) => {
+    await openADrawingOfYourOwn(page, `sub-assembly-photographs-${info.project.name}`);
+    const tavolaId = new URL(page.url()).pathname.split('/').at(-1) ?? '';
+    const bytes = await borrowAnImage(page);
+
+    const sheet = (await (
+      await page.request.post(`/api/tavole/${tavolaId}/positions`, { data: { number: '7' } })
+    ).json()) as { positions: { id: string }[] };
+    const recorded = (await (
+      await page.request.post(`/api/tavole/${tavolaId}/sub-assemblies`, {
+        data: { name: 'Window Slider', positionIds: sheet.positions.map((one) => one.id) },
+      })
+    ).json()) as { subAssemblies: { id: string }[] };
+
+    await page.goto(`/tavole/${tavolaId}/sub-assemblies/${recorded.subAssemblies[0]?.id ?? ''}`);
+    await expect(page.getByRole('heading', { name: 'Window Slider' })).toBeVisible();
+
+    const photographs = page.getByTestId('sub-assembly-photographs');
+    const editor = photographs.getByTestId('photograph-editor');
+    await editor.locator('input[type="file"]').setInputFiles([
+      { name: 'slider.webp', mimeType: 'image/webp', buffer: bytes },
+      { name: 'slider-channel.webp', mimeType: 'image/webp', buffer: bytes },
+    ]);
+    await page.getByRole('button', { name: 'Upload 2' }).click();
+
+    await expect(editor.getByTestId('editable-photograph')).toHaveCount(2);
+    await expect(photographs.getByTestId('photograph')).toHaveCount(2);
+
+    // Rendered, not merely requested: these are behind the gate.
+    const lead = photographs.getByTestId('photograph').first().locator('img');
+    await expect
+      .poll(() => lead.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0);
+    const wasLeading = await lead.getAttribute('src');
+
+    await page.getByRole('button', { name: 'Move photograph 2 of 2 earlier' }).click();
+    await expect(lead).not.toHaveAttribute('src', wasLeading ?? '');
+
+    await page.reload();
+    await expect(lead).not.toHaveAttribute('src', wasLeading ?? '');
+
+    await page.getByRole('button', { name: 'Remove photograph 1 of 2' }).click();
+    await expect(editor.getByTestId('editable-photograph')).toHaveCount(1);
+    await expect(photographs.getByTestId('photograph')).toHaveCount(1);
+    await expect(lead).toHaveAttribute('src', wasLeading ?? '');
   });
 });

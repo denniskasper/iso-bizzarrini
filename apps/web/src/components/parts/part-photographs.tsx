@@ -20,9 +20,15 @@ import type { Photograph } from '@/lib/api';
 export function PartPhotographs({
   photographs,
   partName,
+  setting = 'panel',
 }: {
   photographs: Photograph[];
   partName: string;
+  /**
+   * Where they are shown. Beside the drawing the lead is kept short, so the numbers stay in reach
+   * on a phone; a page of its own, like a Sub-assembly's (issue #114), gives it the room.
+   */
+  setting?: 'panel' | 'page';
 }) {
   /** Which photograph is filling the screen, if any. Nothing is expanded on arrival. */
   const [expandedAt, setExpandedAt] = useState<number | null>(null);
@@ -46,7 +52,11 @@ export function PartPhotographs({
       <Thumbnail
         photograph={lead}
         label={caption(partName, 1, photographs.length)}
-        className="aspect-[4/3] max-h-52 w-full"
+        className={
+          setting === 'page'
+            ? 'aspect-[4/3] max-h-96 w-full max-w-2xl'
+            : 'aspect-[4/3] max-h-52 w-full'
+        }
         onOpen={() => setExpandedAt(0)}
       />
 

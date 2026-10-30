@@ -23,21 +23,55 @@ import { useRereadPart } from '@/lib/parts';
  * drag target is the one gesture that has no keyboard, no screen reader and no forgiveness.
  */
 export function PhotographEditor({ part }: { part: PartInFull }) {
+  const reread = useRereadPart();
+
+  return (
+    <PhotographListEditor
+      photographs={part.photographs}
+      about="What the part looks like, which is the one thing a catalog number cannot tell anybody. They belong to the part itself, so they show on every sheet it is listed on — and the first one is what a member sees without scrolling."
+      add={(file) => api.addPhotograph(part.id, file)}
+      reorder={(photographIds) => api.reorderPhotographs(part.id, { photographIds })}
+      remove={(photographId) => api.removePhotograph(photographId)}
+      onChanged={() => reread()}
+    />
+  );
+}
+
+/**
+ * The editor itself, for whichever owner the photographs are: a Part's, or a Sub-assembly's
+ * (issue #114), which are ordered and removed alike. `onChanged` re-reads the owner after each
+ * write, so the list shown is what the archive holds.
+ */
+export function PhotographListEditor({
+  photographs,
+  about,
+  add,
+  reorder: sendOrder,
+  remove: sendRemoval,
+  onChanged,
+}: {
+  photographs: Photograph[];
+  /** What these photographs are for, said once above them. */
+  about: string;
+  add: (file: File) => Promise<unknown>;
+  reorder: (photographIds: string[]) => Promise<unknown>;
+  remove: (photographId: string) => Promise<unknown>;
+  onChanged: () => void;
+}) {
   const picker = useRef<HTMLInputElement>(null);
   const pickerId = useId();
   const [chosen, setChosen] = useState<File[]>([]);
-  const reread = useRereadPart();
 
   /**
    * **One at a time, in the order they were picked**, and that is not timidity about parallelism:
-   * a photograph goes to the end of the Part's order, so sending six at once would land them in
+   * a photograph goes to the end of its owner's order, so sending six at once would land them in
    * whichever order the requests happened to finish — which is an order nobody chose, on the very
    * list this panel exists to let somebody choose.
    */
   const upload = useMutation({
     mutationFn: async (files: File[]) => {
       for (const file of files) {
-        await api.addPhotograph(part.id, file);
+        await add(file);
       }
     },
     onSuccess: () => {
@@ -52,23 +86,23 @@ export function PhotographEditor({ part }: { part: PartInFull }) {
      * refusal beside a list missing the photographs they had just uploaded. The refusal is what
      * tells them to try the rest again; the list has to be what the archive actually holds.
      */
-    onSettled: () => reread(),
+    onSettled: () => onChanged(),
   });
 
   const reorder = useMutation({
-    mutationFn: (photographIds: string[]) => api.reorderPhotographs(part.id, { photographIds }),
-    onSuccess: () => reread(),
+    mutationFn: sendOrder,
+    onSuccess: () => onChanged(),
   });
 
   const remove = useMutation({
-    mutationFn: (photographId: string) => api.removePhotograph(photographId),
-    onSuccess: () => reread(),
+    mutationFn: sendRemoval,
+    onSuccess: () => onChanged(),
   });
 
   const busy = upload.isPending || reorder.isPending || remove.isPending;
 
   const move = (from: number, to: number) => {
-    const order = part.photographs.map((photograph) => photograph.id);
+    const order = photographs.map((photograph) => photograph.id);
     const [moved] = order.splice(from, 1);
     if (moved === undefined) {
       return;
@@ -84,23 +118,19 @@ export function PhotographEditor({ part }: { part: PartInFull }) {
     >
       <div>
         <h3 className="label">Photographs</h3>
-        <p className="mt-2 max-w-measure text-sm text-pretty text-faint">
-          What the part looks like, which is the one thing a catalog number cannot tell anybody.
-          They belong to the part itself, so they show on every sheet it is listed on — and the
-          first one is what a member sees without scrolling.
-        </p>
+        <p className="mt-2 max-w-measure text-sm text-pretty text-faint">{about}</p>
       </div>
 
-      {part.photographs.length > 0 && (
+      {photographs.length > 0 && (
         // A list read top to bottom, because that is what an order is. Laid out as a wrapping
         // grid of pictures it would look like a gallery, and a gallery has no first.
         <ul className="flex flex-col border-t border-line" data-testid="editable-photographs">
-          {part.photographs.map((photograph, index) => (
+          {photographs.map((photograph, index) => (
             <Editable
               key={photograph.id}
               photograph={photograph}
               at={index}
-              total={part.photographs.length}
+              total={photographs.length}
               busy={busy}
               onEarlier={() => move(index, index - 1)}
               onLater={() => move(index, index + 1)}
