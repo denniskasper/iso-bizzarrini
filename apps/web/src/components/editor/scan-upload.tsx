@@ -40,24 +40,18 @@ export function ScanUpload({ tavolaId, hasScan }: { tavolaId: string; hasScan: b
   });
 
   return (
-    <section aria-labelledby="scan-upload">
-      <h2 id="scan-upload" className="label">
-        {hasScan ? 'Replace the scan' : 'Upload the scan'}
-      </h2>
-      <p className="mt-4 max-w-measure text-pretty text-muted">
-        {hasScan
-          ? 'A new scan replaces this one everywhere it is shown. Nothing else about the drawing changes.'
-          : 'Pick the scanned sheet. It is prepared for viewing here — you do not need to convert it first.'}
-      </p>
-
-      <div className="mt-6 flex flex-wrap items-center gap-4">
+    <section
+      aria-label={hasScan ? 'Replace the scan' : 'Upload the scan'}
+      className="flex flex-col items-end gap-3"
+    >
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {/*
           A label rather than a styled `file:` pseudo-element: the browser's own file button
           cannot be given the archive's outline treatment without writing every one of its
           utilities out a second time, and a label opens the picker natively with no script.
         */}
         <label htmlFor={pickerId} className={buttonVariants({ variant: 'outline' })}>
-          {chosen ? 'Choose another' : 'Choose a scan'}
+          {chosen ? 'Choose another' : hasScan ? 'Choose a new scan' : 'Choose a scan'}
         </label>
         <input
           ref={picker}
@@ -68,18 +62,25 @@ export function ScanUpload({ tavolaId, hasScan }: { tavolaId: string; hasScan: b
           onChange={(event) => setChosen(event.target.files?.[0] ?? null)}
         />
 
-        <Button
-          variant="primary"
-          disabled={!chosen || upload.isPending}
-          onClick={() => chosen && upload.mutate(chosen)}
-        >
-          {upload.isPending ? 'Preparing…' : hasScan ? 'Replace' : 'Upload'}
-        </Button>
+        {/* Nothing to press until there is something to send, so the row under the drawing
+            stays quiet until an Editor has picked a file. */}
+        {chosen && (
+          <Button
+            variant="primary"
+            disabled={upload.isPending}
+            onClick={() => upload.mutate(chosen)}
+          >
+            {upload.isPending ? 'Preparing…' : hasScan ? 'Replace the scan' : 'Upload the scan'}
+          </Button>
+        )}
       </div>
 
       {chosen && (
-        <p className="mt-4 text-sm text-muted">
-          <span className="tabular">{chosen.name}</span>
+        <p className="max-w-measure text-right text-sm text-pretty text-muted">
+          <span className="tabular text-text">{chosen.name}</span>.{' '}
+          {hasScan
+            ? 'It replaces this scan everywhere it is shown. Nothing else about the drawing changes.'
+            : 'It is prepared for viewing here — you do not need to convert it first.'}
         </p>
       )}
 

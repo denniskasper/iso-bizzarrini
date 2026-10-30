@@ -67,6 +67,8 @@ export default defineConfig({
       WEB_DIST_PATH: webDistPath,
       LOG_LEVEL: 'warn',
       SESSION_SECRET: 'an-end-to-end-session-secret-long-enough',
+      // Blank, so a developer's `.env` cannot sign the suite in: it is here to meet the form.
+      DEV_SIGN_IN_AS: '',
       // Members sign in with their own passwords (ticket 14), so the suite adds people to the
       // roster and reads the invitation out of the log. `log` is what puts it there.
       EMAIL_TRANSPORT: 'log',

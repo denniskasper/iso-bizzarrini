@@ -106,14 +106,19 @@ export function createGate(dependencies: {
   config: AppConfig;
   clock: Clock;
   accounts: SignedInReader;
+  /**
+   * Who a request without a valid session is, when that is not nobody — `DEV_SIGN_IN_AS`, and
+   * only that. Absent everywhere the sign-in form is meant to be met.
+   */
+  standIn?: () => Promise<SignedIn | null>;
 }): Gate {
-  const { config, clock, accounts } = dependencies;
+  const { config, clock, accounts, standIn } = dependencies;
   const signer: SessionSigner = createSessionSigner(config.session.secret);
 
   async function identify(cookieHeader: string | undefined): Promise<SignedIn | null> {
     const claim = signer.read(readCookie(cookieHeader, SESSION_COOKIE_NAME), clock.now());
     if (claim === null) {
-      return null;
+      return standIn ? standIn() : null;
     }
 
     return accounts.identify(claim.accountId, claim.epoch);

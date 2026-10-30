@@ -265,11 +265,28 @@
    * are scrolled, so a number read in the column can be found on the sheet without scrolling back
    * up to it. No taller than the window then leaves room for, or its foot would be out of reach.
    */
+  /* `min-width: 0` because this is the grid item now, not the drawing: without it a sheet zoomed
+     past the frame would widen the column it is meant to be cropped by. */
+  .drawing-column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* The column sticks rather than the drawing, so the tools under the sheet stay with it; the
+     drawing takes whatever height they leave. */
   @media (width >= 64rem) {
-    .drawing-stage.drawing-beside {
+    .drawing-column {
       position: sticky;
       top: calc(var(--chrome-height, 0px) + 1.5rem);
       height: clamp(20rem, calc(100dvh - var(--chrome-height, 0px) - 3rem), 56rem);
+    }
+
+    .drawing-column > .drawing-stage.drawing-beside {
+      flex: 1;
+      min-height: 0;
+      height: auto;
     }
   }
 

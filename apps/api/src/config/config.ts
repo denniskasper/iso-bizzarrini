@@ -143,6 +143,14 @@ const environmentSchema = z.object({
   ),
 
   /**
+   * **Development only: every request without a session is this Account.** An e-mail address on
+   * the roster, so `pnpm dev` on a machine only its owner can reach opens straight into the
+   * archive instead of the sign-in form. Refused outside `NODE_ENV=development`, refused in
+   * production, and while it is set the API listens on loopback alone (`main.ts`).
+   */
+  DEV_SIGN_IN_AS: z.preprocess(blankAsUnset, z.string().email().optional()),
+
+  /**
    * Where scans and their derived images are written. A directory, not a URL and not inside
    * anything served statically: the archive's images are reachable only through the
    * authenticated route (ADR 0006).
@@ -264,6 +272,8 @@ export interface AppConfig {
    */
   session: {
     secret: string | undefined;
+    /** Who a request without a session is, in development. See `DEV_SIGN_IN_AS`. */
+    devSignInAs: string | undefined;
   };
   files: {
     /** Absolute, so nothing depends on where the process happens to have been started. */
@@ -313,6 +323,13 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const env = parsed.data;
 
+  if (env.DEV_SIGN_IN_AS !== undefined && env.NODE_ENV !== 'development') {
+    throw new ConfigurationError(
+      `DEV_SIGN_IN_AS is set and NODE_ENV is ${env.NODE_ENV}. It signs in everybody who can ` +
+        'reach the API, and is only for `pnpm dev` on a machine nobody else can reach.',
+    );
+  }
+
   return {
     nodeEnv: env.NODE_ENV,
     environmentName: env.ENVIRONMENT_NAME,
@@ -331,6 +348,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     remindersEnabled: env.REMINDERS_ENABLED,
     session: {
       secret: env.SESSION_SECRET,
+      devSignInAs: env.DEV_SIGN_IN_AS,
     },
     files: {
       storagePath: resolve(env.FILE_STORAGE_PATH),
