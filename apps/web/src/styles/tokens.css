@@ -38,18 +38,18 @@
   --line-strong: oklch(0.76 0.008 264);
 
   /*
-   * Paper. **The one token that is identical in both themes and in a practice system**, because
-   * a factory drawing is black lines on white and the sheet it was printed on does not care what
-   * the reader's phone is set to. Every scan sits on this, so the drawing is the brightest thing
-   * on a dark screen — which is the whole argument for dark chrome, made literal.
+   * Paper. **The one surface that is identical in both themes**, because a factory drawing is
+   * black lines on white and the sheet it was printed on does not care what the reader's phone
+   * is set to. Every scan sits on this, so the drawing is the brightest thing on a dark screen —
+   * which is the whole argument for dark chrome, made literal.
    */
   --paper: oklch(1 0 0);
 
   /*
    * What dims the part of a drawing that is not in view, in the navigator. Paper's companion,
-   * and like paper it is the same in both themes and in a practice system, because it only ever
-   * sits on paper. Ink at just over half strength: enough that the part in view is obviously the
-   * bright one, light enough that the rest of the sheet is still a drawing rather than a hole.
+   * and like paper it is the same in both themes, because it only ever sits on paper. Ink at
+   * just over half strength: enough that the part in view is obviously the bright one, light
+   * enough that the rest of the sheet is still a drawing rather than a hole.
    */
   --scrim: oklch(0.279 0.015 257 / 0.55);
 
@@ -114,9 +114,10 @@
   --alarm: oklch(0.5 0.17 27);
 
   /*
-   * The stamp a non-production system wears. Deliberately **not** themed: it is the same
-   * orange in light and dark, because it is a mark printed on top of the archive rather than
-   * part of it, and it must look identical in a screenshot however the reader's phone is set.
+   * The stamp a non-production system wears, as the band over the chrome and as the mark on a
+   * drawing filling the screen. Deliberately **not** themed: it is the same orange in light and
+   * dark, because it is a mark printed on top of the archive rather than part of it, and it must
+   * look identical in a screenshot however the reader's phone is set.
    *
    * The hue is one the Club uses nowhere — that is the point. It is orange where a failure is
    * red (55° against 27°), and a band rather than a line of text. The ink sits on it at 6.6:1.
@@ -166,43 +167,18 @@
 /* ---------------------------------------------------------------------------
  * The non-production surfaces
  *
- * A practice system must be unmistakable from any part of any screen, not only from the band
- * at the top — so the surfaces themselves change: production is the Club's cool graphite (or
- * its white paper), and the non-production system is warm throughout. It is the plainest
- * possible statement of the difference, because a demo is precisely *not* wearing the Club's
- * chrome.
+ * There are none. A practice system wears production's surfaces and rules exactly, in both
+ * themes, because what the Club judges Ricambi by is the practice system, and it has to look
+ * like the Club's own website to be judged fairly.
  *
- * **Hue and chroma carry the difference; lightness is production's.** That is what keeps this
- * safe: contrast is carried by lightness, so every text, rule and focus ratio measured for
- * production holds here and no token had to be re-argued.
+ * **The band is the mark.** The DEMO band is part of the sticky chrome, so it is at the top of
+ * every page and stays there while scrolling; the full-screen drawing hides the chrome, so it
+ * carries a DEMO stamp of its own. Both wear `demo-band`, above, and production shows neither.
  *
- * There are two exceptions, both in the light theme, both forced: paper already sits at the top
- * of the lightness scale, and white cannot be warm. `surface` drops 0.007 and `surface-raised`
- * 0.012 — the least that leaves them in gamut at all. Re-measured: the faintest token clears
- * 4.93:1 and 4.99:1 on them. Every other value, and the whole dark theme, is exact.
- *
- * The attribute is written by whatever serves the document, and is *absent* in `vite dev` —
- * which the pre-paint script settles as non-production, because an app served by something
- * that has not been taught to declare itself gets marked rather than trusted.
+ * The attribute that decides it is written by whatever serves the document, and is *absent* in
+ * `vite dev` — which the pre-paint script settles as non-production, because an app served by
+ * something that has not been taught to declare itself gets marked rather than trusted.
  * ------------------------------------------------------------------------ */
-
-html[data-environment-mode='non-production'] {
-  --surface: oklch(0.978 0.017 75);
-  --surface-raised: oklch(0.988 0.01 80);
-  --surface-sunken: oklch(0.965 0.022 75);
-
-  --line: oklch(0.917 0.014 70);
-  --line-strong: oklch(0.76 0.016 70);
-}
-
-html.dark[data-environment-mode='non-production'] {
-  --surface: oklch(0.205 0.019 60);
-  --surface-raised: oklch(0.272 0.024 58);
-  --surface-sunken: oklch(0.168 0.016 60);
-
-  --line: oklch(0.345 0.018 60);
-  --line-strong: oklch(0.47 0.02 60);
-}
 
 @theme inline {
   /* ---- Colour ---------------------------------------------------------- */

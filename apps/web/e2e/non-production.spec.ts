@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openFirstDrawing } from './support/archive.js';
 
 /**
  * This seam runs the built app served by the API with no `ENVIRONMENT_MODE` set — which is a
@@ -45,20 +46,58 @@ test.describe('a system that is not the real archive', () => {
     await expect(page.getByTestId('environment-banner')).toBeInViewport();
   });
 
-  test("does not wear the Club's chrome, so no screenshot of it can pass for the archive", async ({
-    page,
-  }) => {
-    await page.goto('/');
+  test('marks the drawing in full screen too, where the band is out of sight', async ({ page }) => {
+    await openFirstDrawing(page);
+    await expect(page.getByTestId('environment-mark')).toHaveCount(0);
 
-    const background = await page
-      .getByRole('banner')
-      .evaluate((element) => getComputedStyle(element).backgroundColor);
+    await page.getByRole('button', { name: 'Full screen' }).click();
 
-    // The tokens are authored in OKLCH and reported back in it, so the hue can be read straight
-    // off. Production's chrome is the Club's own — a cool graphite at 264°, or its white paper.
-    // Anything in the warm arc is, by construction, not the Club's colour.
-    const hue = Number(/^oklch\([^)]*?\s([\d.]+)\)$/.exec(background)?.[1]);
-    expect(hue, `the chrome reported ${background}`).toBeGreaterThan(30);
-    expect(hue).toBeLessThan(110);
+    const mark = page.getByTestId('environment-mark');
+    await expect(mark).toBeInViewport();
+    await expect(mark).toContainText(/demo/i);
+    await expect(mark.getByRole('button')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Leave full screen' }).click();
+    await expect(page.getByTestId('environment-mark')).toHaveCount(0);
   });
+
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test.describe(`in the ${colorScheme} theme`, () => {
+      test.use({ colorScheme });
+
+      test("wears production's surfaces and rules, so the band alone says what it is", async ({
+        page,
+      }) => {
+        await page.goto('/');
+        await expect(page.locator('html')).toHaveAttribute(
+          'data-environment-mode',
+          'non-production',
+        );
+
+        // There is only one server at this seam, so production is read off the same page with
+        // the stamp the API would have written in its place.
+        const surfaces = await page.evaluate(() => {
+          const tokens = [
+            '--surface',
+            '--surface-raised',
+            '--surface-sunken',
+            '--line',
+            '--line-strong',
+          ];
+          const root = document.documentElement;
+          const read = () => {
+            const style = getComputedStyle(root);
+            return tokens.map((token) => `${token}: ${style.getPropertyValue(token).trim()}`);
+          };
+          const practice = read();
+          root.dataset.environmentMode = 'production';
+          const production = read();
+          root.dataset.environmentMode = 'non-production';
+          return { practice, production };
+        });
+
+        expect(surfaces.practice).toEqual(surfaces.production);
+      });
+    });
+  }
 });

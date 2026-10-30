@@ -34,3 +34,22 @@ export function EnvironmentBanner() {
     </aside>
   );
 }
+
+/**
+ * The same stamp, for a drawing filling the screen: full screen covers the chrome, and with it
+ * the band, so the drawing carries the mark itself. One word rather than the band's sentence,
+ * because it sits on the artwork and the artwork is what a member came for. In a corner nothing
+ * else uses, and it lets every pointer through to the sheet beneath it.
+ */
+export function EnvironmentMark() {
+  if (environmentMode() === 'production') {
+    return null;
+  }
+
+  return (
+    <p data-testid="environment-mark" className="demo-band demo-mark absolute top-3 left-3">
+      <span className="text-sm font-semibold tracking-wordmark uppercase">Demo</span>
+      <span className="sr-only"> — practice archive, nothing here is real</span>
+    </p>
+  );
+}

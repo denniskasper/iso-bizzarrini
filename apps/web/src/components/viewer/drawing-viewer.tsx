@@ -13,6 +13,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+import { EnvironmentMark } from '@/components/environment-banner';
 import { Plate } from '@/components/plate';
 import { Button } from '@/components/ui/button';
 import type { MarkPoint, TavolaScan } from '@/lib/api';
@@ -682,6 +683,8 @@ function Viewer({
       </div>
 
       {card}
+
+      {expanded && <EnvironmentMark />}
 
       <div
         ref={navigatorRef}
