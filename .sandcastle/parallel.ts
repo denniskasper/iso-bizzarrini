@@ -184,6 +184,11 @@ async function checks(sandbox: Sandbox): Promise<{ passed: boolean; output: stri
   return { passed: result.exitCode === 0, output: tail(`${result.stdout}\n${result.stderr}`) };
 }
 
+/** Commits on the branch that `main` does not have. */
+async function ahead(sandbox: Sandbox, base: string): Promise<number> {
+  return Number((await sandbox.exec(`git rev-list --count ${base}..HEAD`)).stdout.trim());
+}
+
 async function head(sandbox: Sandbox): Promise<string> {
   return (await sandbox.exec('git rev-parse HEAD')).stdout.trim();
 }
@@ -252,17 +257,23 @@ async function build(issue: Issue): Promise<Built> {
   const sandbox = await openSandbox(branch, { TEST_DATABASE_URL: database.url });
 
   try {
-    log(scope, `implementing on ${branch}`);
-    const implemented = await sandbox.run({
-      name: `implement-${issue.number}`,
-      agent: agent(),
-      promptFile: './.sandcastle/implement-prompt.md',
-      promptArgs: { ISSUE_NUMBER: String(issue.number), BRANCH: branch },
-      maxIterations: 3,
-    });
-    if (implemented.commits.length === 0) {
-      log(scope, 'no commits — the agent says why on the issue');
-      return { issue, outcome: 'nothing' };
+    // A branch an earlier run already built on goes straight to the checks: asking an agent to
+    // build it again finds the work done, commits nothing, and reads as nothing built.
+    if ((await ahead(sandbox, base)) > 0) {
+      log(scope, `${branch} already holds work; checking it`);
+    } else {
+      log(scope, `implementing on ${branch}`);
+      await sandbox.run({
+        name: `implement-${issue.number}`,
+        agent: agent(),
+        promptFile: './.sandcastle/implement-prompt.md',
+        promptArgs: { ISSUE_NUMBER: String(issue.number), BRANCH: branch },
+        maxIterations: 3,
+      });
+      if ((await ahead(sandbox, base)) === 0) {
+        log(scope, 'no commits — the agent says why on the issue');
+        return { issue, outcome: 'nothing' };
+      }
     }
 
     let gate = await checks(sandbox);
@@ -316,9 +327,16 @@ async function build(issue: Issue): Promise<Built> {
 
 // --- Pull request and merge --------------------------------------------------------------------
 
-function openPullRequest(built: Exclude<Built, { outcome: 'nothing' }>): number {
+async function openPullRequest(built: Exclude<Built, { outcome: 'nothing' }>): Promise<number> {
   const branch = branchOf(built.issue.number);
   host('git', ['push', '--force-with-lease', '-u', 'origin', branch]);
+
+  const existing = JSON.parse(
+    host('gh', ['pr', 'list', '--state', 'open', '--head', branch, '--json', 'number']),
+  ) as { number: number }[];
+  if (existing[0]) {
+    return existing[0].number;
+  }
 
   const commits = host('git', ['log', '--format=- %s', `${BASE}..${branch}`]);
   const body = [
@@ -332,7 +350,7 @@ function openPullRequest(built: Exclude<Built, { outcome: 'nothing' }>): number 
     '🤖 Generated with [Claude Code](https://claude.com/claude-code)',
   ].join('\n');
 
-  const url = host('gh', [
+  const create = [
     'pr',
     'create',
     '--base',
@@ -345,8 +363,18 @@ function openPullRequest(built: Exclude<Built, { outcome: 'nothing' }>): number 
     '--body',
     body,
     ...(built.outcome === 'red' ? ['--draft'] : []),
-  ]);
-  return Number(url.split('/').at(-1));
+  ];
+  // GitHub's API fails now and then for no reason it will say; the branch is already pushed.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return Number(host('gh', create).split('/').at(-1));
+    } catch (error) {
+      if (attempt === 3) {
+        throw error;
+      }
+      await pause(30_000);
+    }
+  }
 }
 
 interface PullRequestState {
@@ -508,6 +536,7 @@ for (let round = 1; round <= MAX_ROUNDS; round += 1) {
     break;
   }
 
+  let opened = 0;
   const issues = chosen.issues.map((entry) =>
     candidates.find((issue) => issue.number === entry.number)!,
   );
@@ -517,7 +546,8 @@ for (let round = 1; round <= MAX_ROUNDS; round += 1) {
       summary.push(`#${issue.number}: nothing committed`);
       return;
     }
-    const pr = openPullRequest(built);
+    const pr = await openPullRequest(built);
+    opened += 1;
     log(`#${issue.number}`, `pull request #${pr}${built.outcome === 'red' ? ' (draft)' : ''}`);
     if (built.outcome === 'red' || NO_MERGE) {
       summary.push(
@@ -536,6 +566,11 @@ for (let round = 1; round <= MAX_ROUNDS; round += 1) {
     });
   });
   await merging;
+  if (opened === 0) {
+    // Planning the same issues again would build them the same way, at the same cost.
+    log('round', 'opened no pull request; stopping rather than trying the same again');
+    break;
+  }
 
   for (const [index, outcome] of settled.entries()) {
     if (outcome.status === 'rejected') {
