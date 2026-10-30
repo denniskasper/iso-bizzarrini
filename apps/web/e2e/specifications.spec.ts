@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openADrawingOfYourOwn } from './support/archive.js';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
@@ -73,5 +74,55 @@ test.describe('the Specification lists', () => {
 
     await page.getByRole('button', { name: `Remove ${symbol}`, exact: true }).click();
     await expect(unit).toHaveCount(0);
+  });
+});
+
+/**
+ * A Part's Specifications (issue #112), recorded and read. Thin, like the rest of this file: what
+ * a value may be, the suggestions and who may write one are proved at the API seam. What is here
+ * is that the Unit is shown beside the box rather than asked for, that a comma is taken, and that
+ * the panel a member reads has it, name, value and Unit.
+ */
+test.describe('a Part’s Specifications', () => {
+  test('an Editor records a weight with a comma, and it is read with its Unit', async ({
+    page,
+  }, info) => {
+    const frame = page.getByTestId('drawing-frame');
+    const reading = page.getByTestId('part-reading');
+
+    await openADrawingOfYourOwn(page, `specifications-${info.project.name}`);
+    const box = await frame.boundingBox();
+    if (!box) {
+      throw new Error('The drawing has no frame.');
+    }
+
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await frame.click({ position: { x: box.width * 0.45, y: box.height * 0.45 } });
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    await page.locator('[data-testid="drawing-mark"][data-position="1"]').click();
+    await page.getByRole('button', { name: 'Record a part here' }).click();
+    await page.getByLabel('Name (English)').fill('Door handle');
+    await page.getByRole('button', { name: 'Record this part' }).click();
+    await expect(reading).toContainText('Door handle');
+    // Nothing recorded, so nothing is shown for it.
+    await expect(reading.getByTestId('specifications')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Specifications, fits, equivalents, sources' }).click();
+    await page.getByRole('button', { name: 'Record a specification' }).click();
+    await page.getByRole('combobox', { name: 'Name' }).selectOption({ label: 'Weight (g)' });
+    // The Unit is the name's: printed beside the box, and nowhere to choose it.
+    await expect(page.getByTestId('specification-unit')).toHaveText('g');
+
+    const value = page.getByRole('textbox', { name: 'Value' });
+    await value.fill('about 400');
+    await page.getByRole('button', { name: 'Record this specification' }).click();
+    await expect(page.getByRole('alert')).toContainText('is a number in g');
+
+    await value.fill('412,5');
+    await page.getByRole('button', { name: 'Record this specification' }).click();
+
+    const weight = reading.getByTestId('specification').filter({ hasText: 'Weight' });
+    await expect(weight).toContainText('412.5 g');
   });
 });

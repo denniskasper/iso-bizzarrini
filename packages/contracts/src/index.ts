@@ -223,6 +223,43 @@ export interface SpecificationNameOrderRequest {
 }
 
 /**
+ * A Specification: one Part's value under one name — *Material: Chromed brass*, *Weight: 412 g*.
+ * At most one per Part per name.
+ */
+export interface Specification {
+  id: string;
+  nameId: string;
+  name: string;
+  /**
+   * As it is read. A number under a name with a Unit, written with a point whatever was typed;
+   * words, as the Editor wrote them, under a name without one.
+   */
+  value: string;
+  /** The name's Unit, read from the name and never stored with the value. `null` for words. */
+  unit: string | null;
+}
+
+/** `POST /api/parts/:partId/specifications` — a value under a name the Part has none for yet. */
+export interface SpecificationRequest {
+  nameId: string;
+  /** A number, with a point or a comma, for a name with a Unit; words for one without. */
+  value: string;
+}
+
+/** `PATCH /api/specifications/:specificationId` — the value corrected. The name stays. */
+export interface CorrectSpecificationRequest {
+  value: string;
+}
+
+/**
+ * `GET /api/specification-names/:nameId/suggestions?q=` — the values already recorded under a
+ * name that contain what has been typed, ignoring case, most used first. Offered, not imposed.
+ */
+export interface SpecificationSuggestionsResponse {
+  suggestions: string[];
+}
+
+/**
  * `PUT /api/tavole/:tavolaId/category` — an Editor putting a drawing under a system, moving it
  * to another, or taking it out again.
  */
@@ -1000,13 +1037,16 @@ export interface Photograph {
 /**
  * A Part with everything the archive holds about it — **what a member reads at a circle**.
  *
- * The four collections are the Part's and not the Listing's: which cars it fits, what can be
- * bought instead of it, where it has been available and what it looks like are true of the
- * component wherever it is listed, which is ADR 0001 showing up in a response shape. They hang
+ * The five collections are the Part's and not the Listing's: what it is made of and weighs,
+ * which cars it fits, what can be bought instead of it, where it has been available and what it
+ * looks like are true of the component wherever it is listed, which is ADR 0001 showing up in a
+ * response shape. They hang
  * off this rather than off `Part` so that the bare identity — what a refused Catalog Number
  * hands back, what a Tavola's index prints — stays the small thing it is.
  */
 export interface PartInFull extends Part {
+  /** In the order of the Administrator's list of names. Empty for a Part with none. */
+  specifications: Specification[];
   fitments: Fitment[];
   equivalents: Equivalent[];
   sources: Source[];

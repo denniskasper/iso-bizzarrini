@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDeferredValue, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field, Refusal, Select, TextArea } from '@/components/ui/field';
 import {
@@ -14,6 +14,7 @@ import {
   type PartInFull,
   type Source,
   type SourceCondition,
+  type Specification,
 } from '@/lib/api';
 import {
   CURRENCIES,
@@ -26,10 +27,10 @@ import {
 import { useRereadPart } from '@/lib/parts';
 
 /**
- * Recording what fits a Part, what can be bought instead of it, and where it has been available
- * (stories 108–110).
+ * Recording what a Part is made of and measures (issue #112), what fits it, what can be bought
+ * instead of it, and where it has been available (stories 108–110).
  *
- * **All three belong to the component and not to this drawing**, which is the one thing this
+ * **All of them belong to the component and not to this drawing**, which is the one thing this
  * panel has to say out loud: an Editor working under Tavola 2 who corrects a fitment corrects it
  * on every sheet the Part is listed on. That is ADR 0001 doing what it is for rather than a side
  * effect, but it is invisible from a screen showing one number, so the panel says it in a
@@ -49,6 +50,7 @@ export function PartRecordEditor({ part }: { part: PartInFull }) {
         <strong className="font-semibold">{part.nameEn ?? part.nameIt}</strong> is listed on.
       </p>
 
+      <Specifications part={part} />
       <Fitments part={part} />
       <Equivalents part={part} />
       <Sources part={part} />
@@ -140,6 +142,171 @@ function FormActions({
         Cancel
       </Button>
     </div>
+  );
+}
+
+/**
+ * What the Part is made of, measures and weighs (issue #112), each under a name from the
+ * Administrator's list.
+ *
+ * **The name decides the value.** One with a Unit takes a number, and the Unit is printed beside
+ * the box rather than asked for, so the same weight is never written as *g* on one Part and
+ * *gramm* on the next. One without takes words, and what has been written under it before is
+ * offered as the Editor types, most used first, so *Steel* stays *Steel*. A Part holds one value
+ * per name, so a name already used is not offered again; correcting keeps the name and changes
+ * the value.
+ */
+function Specifications({ part }: { part: PartInFull }) {
+  const names = useQuery({ queryKey: ['specification-names'], queryFn: api.specificationNames });
+  const [editing, setEditing] = useState<Specification | 'new' | null>(null);
+  const [nameId, setNameId] = useState('');
+  const [value, setValue] = useState('');
+  const queryClient = useQueryClient();
+  const reread = useRereadPart();
+
+  // How many Parts use a name is on the Administrator's list, and a value has just changed it.
+  const rereadAll = async () => {
+    await Promise.all([
+      reread(),
+      queryClient.invalidateQueries({ queryKey: ['specification-names'] }),
+    ]);
+  };
+
+  const write = useMutation({
+    mutationFn: () =>
+      editing === 'new' || editing === null
+        ? api.addSpecification(part.id, { nameId, value })
+        : api.correctSpecification(editing.id, { value }),
+    onSuccess: async () => {
+      setEditing(null);
+      await rereadAll();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (specificationId: string) => api.removeSpecification(specificationId),
+    onSuccess: () => rereadAll(),
+  });
+
+  const list = names.data?.specificationNames ?? [];
+  const recorded = new Set(part.specifications.map((specification) => specification.nameId));
+  const unrecorded = list.filter((name) => !recorded.has(name.id));
+  const chosen = list.find((name) => name.id === nameId);
+  const unit = chosen?.unit?.symbol ?? null;
+
+  // Asked for only under a name that takes words, and a keystroke behind, so a fast typist is
+  // not answered once a letter.
+  const typed = useDeferredValue(value.trim());
+  const suggestions = useQuery({
+    queryKey: ['specification-suggestions', nameId, typed],
+    queryFn: () => api.specificationSuggestions(nameId, typed),
+    enabled: editing !== null && chosen !== undefined && chosen.unit === null,
+    placeholderData: keepPreviousData,
+  });
+
+  const open = (specification: Specification | 'new') => {
+    setNameId(specification === 'new' ? (unrecorded[0]?.id ?? '') : specification.nameId);
+    setValue(specification === 'new' ? '' : specification.value);
+    write.reset();
+    setEditing(specification);
+  };
+
+  return (
+    <Section
+      title="Specifications"
+      note="What the part is made of, measures and weighs. The name says what it is counted in — type the number, never the unit."
+      addLabel="Record a specification"
+      onAdd={() => open('new')}
+      rows={part.specifications.map((specification) => (
+        <Row
+          key={specification.id}
+          busy={remove.isPending}
+          onCorrect={() => open(specification)}
+          onRemove={() => remove.mutate(specification.id)}
+        >
+          <span className="text-muted">{specification.name}</span>{' '}
+          <span className={specification.unit === null ? undefined : 'tabular'}>
+            {specification.value}
+          </span>
+          {specification.unit !== null && (
+            <span className="tabular text-muted"> {specification.unit}</span>
+          )}
+        </Row>
+      ))}
+      form={
+        editing && (
+          <form
+            className="mt-6 flex flex-col gap-6"
+            onSubmit={(event) => {
+              event.preventDefault();
+              write.mutate();
+            }}
+          >
+            <div className="grid gap-6 sm:grid-cols-2">
+              {editing === 'new' ? (
+                <Select
+                  label="Name"
+                  hint={
+                    unrecorded.length === 0
+                      ? 'This part has a value under every name on the list.'
+                      : undefined
+                  }
+                  value={nameId}
+                  onChange={(event) => setNameId(event.target.value)}
+                >
+                  {unrecorded.map((name) => (
+                    <option key={name.id} value={name.id}>
+                      {name.name}
+                      {name.unit ? ` (${name.unit.symbol})` : ''}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="label">Name</p>
+                  <p className="flex h-control items-center">{editing.name}</p>
+                </div>
+              )}
+
+              {/*
+               * **The Unit beside the box, set like the number it counts**, and outside the
+               * input, so it can be read but never typed over or chosen.
+               */}
+              <Field
+                label="Value"
+                mono={unit !== null}
+                inputMode={unit === null ? 'text' : 'decimal'}
+                autoComplete="off"
+                hint={
+                  unit === null
+                    ? 'In words, in English. What is already used is offered as you type.'
+                    : 'A number. A point or a comma both mark the decimals.'
+                }
+                suggestions={unit === null ? suggestions.data?.suggestions : undefined}
+                beside={
+                  unit !== null && (
+                    <span
+                      className="tabular shrink-0 text-lg text-muted"
+                      data-testid="specification-unit"
+                    >
+                      {unit}
+                    </span>
+                  )
+                }
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+              />
+            </div>
+
+            {write.isError && <Refusal>{write.error.message}</Refusal>}
+            <FormActions
+              busy={write.isPending}
+              submitting="Record this specification"
+              onCancel={() => setEditing(null)}
+            />
+          </form>
+        )
+      }
+    />
   );
 }
 

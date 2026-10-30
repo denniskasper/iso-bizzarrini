@@ -119,10 +119,11 @@ describe('reading a Part from a Position', () => {
             catalogNote: 'Fino al telaio 310',
             catalogNoteEn: null,
             note: 'The later cars use a longer rod; measure before ordering.',
-            // What fits it, what replaces it, where it has been available (ticket 08) and what
-            // it looks like (ticket 10) arrive with it — empty here, because a Part recorded a
-            // moment ago has none of them, and asserted so that the whole of what a member is
-            // handed stays written down.
+            // Its Specifications (issue #112), what fits it, what replaces it, where it has been
+            // available (ticket 08) and what it looks like (ticket 10) arrive with it — empty
+            // here, because a Part recorded a moment ago has none of them, and asserted so that
+            // the whole of what a member is handed stays written down.
+            specifications: [],
             fitments: [],
             equivalents: [],
             sources: [],

@@ -158,6 +158,9 @@ const A_MEMBERS_TO_WRITE = new Set([
 const AN_EDITORS_TO_READ = new Set([
   'GET /api/contributions/waiting',
   'GET /api/contributions/waiting/count',
+  // What has been typed under a Specification name before (issue #112): an Editor's tool for
+  // writing a value the way the archive already does. Members read the values on the Part.
+  'GET /api/specification-names/:nameId/suggestions',
 ]);
 
 describe('who may reach what', () => {

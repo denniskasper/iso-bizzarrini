@@ -1,4 +1,8 @@
-import type { PartInFull, PartRecordResponse } from '@ricambi/contracts';
+import type {
+  PartInFull,
+  PartRecordResponse,
+  SpecificationSuggestionsResponse,
+} from '@ricambi/contracts';
 import type { Request, RequestHandler } from 'express';
 import { z } from 'zod';
 import { CURRENCIES, EQUIVALENT_KINDS, SOURCE_CONDITIONS } from '../db/schema.js';
@@ -19,9 +23,24 @@ import { blankToNull, required } from './fields.js';
  */
 
 const partIdParams = z.object({ partId: z.uuid('That is not a Part id.') });
+const specificationIdParams = z.object({
+  specificationId: z.uuid('That is not a Specification id.'),
+});
+const nameIdParams = z.object({ nameId: z.uuid('That is not a Specification name id.') });
 const fitmentIdParams = z.object({ fitmentId: z.uuid('That is not a Fitment id.') });
 const equivalentIdParams = z.object({ equivalentId: z.uuid('That is not an Equivalent id.') });
 const sourceIdParams = z.object({ sourceId: z.uuid('That is not a Source id.') });
+
+/**
+ * Reads `SpecificationRequest`. The value is text here whatever the name is: whether it has to
+ * be a number is the name's to say, and only the service has read the name.
+ */
+const specificationBody = z.object({
+  nameId: z.uuid('Choose a name from the list.'),
+  value: z.string({ error: 'A Specification needs a value.' }),
+});
+const specificationCorrectionBody = specificationBody.pick({ value: true });
+const suggestionsQuery = z.object({ q: z.string().optional().default('') });
 
 /**
  * Reads `FitmentRequest` from `@ricambi/contracts`.
@@ -65,6 +84,10 @@ const sourceBody = z.object({
 });
 
 export interface PartRecordController {
+  addSpecification: RequestHandler;
+  correctSpecification: RequestHandler;
+  removeSpecification: RequestHandler;
+  suggestSpecificationValues: RequestHandler;
   addFitment: RequestHandler;
   correctFitment: RequestHandler;
   removeFitment: RequestHandler;
@@ -94,6 +117,31 @@ export function createPartRecordController(dependencies: {
     };
 
   return {
+    addSpecification: answering(201, async (request) => {
+      const { partId } = partIdParams.parse(request.params);
+      return partRecordService.addSpecification(partId, specificationBody.parse(request.body));
+    }),
+
+    correctSpecification: answering(200, async (request) => {
+      const { specificationId } = specificationIdParams.parse(request.params);
+      const { value } = specificationCorrectionBody.parse(request.body);
+      return partRecordService.correctSpecification(specificationId, value);
+    }),
+
+    removeSpecification: answering(200, async (request) => {
+      const { specificationId } = specificationIdParams.parse(request.params);
+      return partRecordService.removeSpecification(specificationId);
+    }),
+
+    async suggestSpecificationValues(request, response) {
+      const { nameId } = nameIdParams.parse(request.params);
+      const { q } = suggestionsQuery.parse(request.query);
+      const body: SpecificationSuggestionsResponse = {
+        suggestions: await partRecordService.suggestSpecificationValues(nameId, q),
+      };
+      response.json(body);
+    },
+
     addFitment: answering(201, async (request) => {
       const { partId } = partIdParams.parse(request.params);
       return partRecordService.addFitment(partId, fitmentBody.parse(request.body));

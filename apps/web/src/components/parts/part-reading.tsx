@@ -352,6 +352,7 @@ function ListedPart({
         {part.dimensions}
       </Prose>
       <Prose label="Material and finish">{part.materialFinish}</Prose>
+      <Specifications part={part} />
 
       {/*
        * **Evidence, then interpretation, and never the two run together.** The factory's words
@@ -427,6 +428,44 @@ function Block({
       <h5 className="label">{title}</h5>
       {note && <p className="mt-2 max-w-measure text-xs text-pretty text-faint">{note}</p>}
       <ul className="mt-3 flex flex-col gap-3">{children}</ul>
+    </div>
+  );
+}
+
+/**
+ * What the Part is made of, measures and weighs (issue #112), in the order of the
+ * Administrator's list of names, and the same on every sheet the Part is listed on.
+ *
+ * **Name, value, Unit, in two columns**: the names down the left in the label's quiet weight,
+ * the values down the right where the eye runs looking for one. A number is set tabular with its
+ * Unit beside it in the muted colour, because the Unit is the name's and the number is the fact.
+ * Absent entirely for a Part with none, as every block on this panel is.
+ */
+function Specifications({ part }: { part: PartInFull }): ReactNode {
+  if (part.specifications.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-6 border-t border-line pt-4" data-testid="specifications">
+      <h5 className="label">Specifications</h5>
+      <dl className="mt-3 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 gap-y-2">
+        {part.specifications.map((specification) => (
+          <div key={specification.id} className="contents" data-testid="specification">
+            <dt className="text-sm text-muted">{specification.name}</dt>
+            <dd className="text-pretty">
+              {specification.unit === null ? (
+                specification.value
+              ) : (
+                <>
+                  <span className="tabular">{specification.value}</span>
+                  <span className="tabular text-muted"> {specification.unit}</span>
+                </>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { numberBeginsWith } from '../catalog/part-matching.js';
 import type { DbSession } from '../db/client.js';
 import {
@@ -7,14 +7,19 @@ import {
   fitments,
   models,
   sources,
+  specificationNames,
+  specifications,
+  units,
   type EquivalentRow,
   type FitmentRow,
   type ModelRow,
   type NewEquivalentRow,
   type NewFitmentRow,
   type NewSourceRow,
+  type NewSpecificationRow,
   type PhotographRow,
   type SourceRow,
+  type SpecificationRow,
 } from '../db/schema.js';
 
 /**
@@ -48,11 +53,25 @@ export interface FitmentWithModel extends FitmentRow {
  * once, which is why they are gathered here.
  */
 export interface PartRecordRows {
+  specifications: SpecificationWithName[];
   fitments: FitmentWithModel[];
   equivalents: EquivalentRow[];
   sources: SourceRow[];
   photographs: PhotographRow[];
 }
+
+/**
+ * A Specification as it is read: with its name, and the name's Unit, because neither is stored
+ * on the value. The Unit is the name's, which is what lets it be refused a change once a value
+ * is counted in it.
+ */
+export interface SpecificationWithName extends SpecificationRow {
+  name: string;
+  unit: string | null;
+}
+
+/** Exactly one of the two, as `specifications_one_value` insists. */
+export type SpecificationValue = Pick<NewSpecificationRow, 'valueNumber' | 'valueText'>;
 
 /** The editable fields of a Fitment — everything but which Part it belongs to. */
 export type FitmentFields = Pick<NewFitmentRow, 'modelId' | 'qualifier'>;
@@ -60,6 +79,8 @@ export type EquivalentFields = Pick<NewEquivalentRow, 'kind' | 'maker' | 'refere
 export type SourceFields = Omit<NewSourceRow, 'id' | 'partId'>;
 
 export interface PartRecordRepository {
+  /** In the order of the Administrator's list of names. */
+  listSpecifications(partIds: string[]): Promise<SpecificationWithName[]>;
   listFitments(partIds: string[]): Promise<FitmentWithModel[]>;
   listEquivalents(partIds: string[]): Promise<EquivalentRow[]>;
   listSources(partIds: string[]): Promise<SourceRow[]>;
@@ -73,6 +94,32 @@ export interface PartRecordRepository {
    * shared rule in `part-matching.ts`, so a reference is found here exactly as it is found there.
    */
   listMatchingEquivalents(partIds: string[], query: string): Promise<EquivalentRow[]>;
+
+  /**
+   * A value under a name, **only while the name is still counted in `unitId`** — `null` for one
+   * that takes words. The name is locked for the write, so an Administrator changing its Unit
+   * at the same moment either waits for this or is waited for; a name gone or changed answers
+   * `'name-changed'` and nothing is written. Two values under one name on one Part are refused
+   * by `specifications_one_per_part_and_name`.
+   */
+  addSpecification(
+    row: NewSpecificationRow,
+    unitId: string | null,
+  ): Promise<SpecificationRow | 'name-changed'>;
+  /** The Specification, so its name can be read before its value is corrected. */
+  findSpecification(id: string): Promise<SpecificationRow | null>;
+  /** As `addSpecification`, for the value of one already recorded. */
+  updateSpecification(
+    id: string,
+    value: SpecificationValue,
+    unitId: string | null,
+  ): Promise<SpecificationRow | null | 'name-changed'>;
+  removeSpecification(id: string): Promise<SpecificationRow | null>;
+  /**
+   * The words already recorded under a name that contain `typed`, ignoring case, most used
+   * first. `typed` is matched as characters, never as a pattern.
+   */
+  suggestValues(nameId: string, typed: string, limit: number): Promise<string[]>;
 
   addFitment(row: NewFitmentRow): Promise<FitmentRow>;
   addEquivalent(row: NewEquivalentRow): Promise<EquivalentRow>;
@@ -123,7 +170,110 @@ export function createPartRecordRepository(db: DbSession): PartRecordRepository 
     asc(sources.id),
   ];
 
+  /**
+   * Whether the name is still counted in the Unit the value was read against, with the name
+   * locked against a change of Unit until the transaction ends.
+   */
+  async function nameStillCountedIn(
+    tx: DbSession,
+    nameId: string,
+    unitId: string | null,
+  ): Promise<boolean> {
+    const [name] = await tx
+      .select({ unitId: specificationNames.unitId })
+      .from(specificationNames)
+      .where(eq(specificationNames.id, nameId))
+      .for('share');
+    return name !== undefined && name.unitId === unitId;
+  }
+
   return {
+    async listSpecifications(partIds) {
+      if (partIds.length === 0) {
+        return [];
+      }
+
+      const rows = await db
+        .select({
+          specification: specifications,
+          name: specificationNames.name,
+          unit: units.symbol,
+        })
+        .from(specifications)
+        .innerJoin(specificationNames, eq(specificationNames.id, specifications.nameId))
+        .leftJoin(units, eq(units.id, specificationNames.unitId))
+        .where(inArray(specifications.partId, partIds))
+        .orderBy(asc(specificationNames.sequence), asc(specificationNames.id));
+
+      return rows.map((row) => ({ ...row.specification, name: row.name, unit: row.unit }));
+    },
+
+    addSpecification(row, unitId) {
+      return db.transaction(async (tx) => {
+        if (!(await nameStillCountedIn(tx, row.nameId, unitId))) {
+          return 'name-changed' as const;
+        }
+        const [added] = await tx.insert(specifications).values(row).returning();
+        if (!added) {
+          throw new Error('Inserting a Specification returned nothing.');
+        }
+        return added;
+      });
+    },
+
+    async findSpecification(id) {
+      const [row] = await db.select().from(specifications).where(eq(specifications.id, id));
+      return row ?? null;
+    },
+
+    updateSpecification(id, value, unitId) {
+      return db.transaction(async (tx) => {
+        const [current] = await tx
+          .select({ nameId: specifications.nameId })
+          .from(specifications)
+          .where(eq(specifications.id, id));
+        if (!current) {
+          return null;
+        }
+        if (!(await nameStillCountedIn(tx, current.nameId, unitId))) {
+          return 'name-changed' as const;
+        }
+        const [updated] = await tx
+          .update(specifications)
+          .set(value)
+          .where(eq(specifications.id, id))
+          .returning();
+        return updated ?? null;
+      });
+    },
+
+    async removeSpecification(id) {
+      const [removed] = await db
+        .delete(specifications)
+        .where(eq(specifications.id, id))
+        .returning();
+      return removed ?? null;
+    },
+
+    async suggestValues(nameId, typed, limit) {
+      const uses = count();
+      const rows = await db
+        .select({ value: specifications.valueText, uses })
+        .from(specifications)
+        .where(
+          and(
+            eq(specifications.nameId, nameId),
+            isNotNull(specifications.valueText),
+            sql`strpos(lower(${specifications.valueText}), lower(${typed})) > 0`,
+          ),
+        )
+        .groupBy(specifications.valueText)
+        .orderBy(desc(uses), asc(specifications.valueText))
+        .limit(limit);
+
+      return rows.flatMap((row) => (row.value === null ? [] : [row.value]));
+    },
+
     async listFitments(partIds) {
       if (partIds.length === 0) {
         return [];

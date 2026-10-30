@@ -292,6 +292,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     partRepository,
     partRecordRepository,
     photographRepository,
+    specificationListRepository,
   });
   const partService = createPartService({
     tavolaRepository,
