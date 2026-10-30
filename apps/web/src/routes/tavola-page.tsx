@@ -23,6 +23,7 @@ import { TavolaParts } from '@/components/parts/tavola-parts';
 import { BelongsWith } from '@/components/positions/belongs-with';
 import { PositionJump } from '@/components/positions/position-jump';
 import { PositionList } from '@/components/positions/position-list';
+import { SubAssemblyList } from '@/components/positions/sub-assembly-list';
 import { WhatIsLeft } from '@/components/progress/what-is-left';
 import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
@@ -486,6 +487,7 @@ export function TavolaPage() {
             belongsWith={
               selectedPosition && (
                 <BelongsWith
+                  tavolaId={tavola.id}
                   sheet={sheet}
                   position={selectedPosition}
                   showingSubAssembly={shownSubAssembly !== null}
@@ -497,6 +499,8 @@ export function TavolaPage() {
               )
             }
           />
+
+          <SubAssemblyList tavolaId={tavola.id} sheet={sheet} />
 
           <TavolaParts
             tavolaId={tavola.id}

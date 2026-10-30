@@ -317,6 +317,11 @@ export const subAssemblies = pgTable(
       .references(() => tavole.id, { onDelete: 'cascade' }),
     /** As whoever grouped them wrote it. This is what members read. */
     name: text('name').notNull(),
+    /**
+     * What the club has established about the assembly as a whole, written by an Editor — like a
+     * Part's Note, and written once here rather than on each of its screws (issue #110).
+     */
+    note: text('note'),
   },
   (table) => [
     unique('sub_assemblies_tavola_id_name_unique').on(table.tavolaId, table.name),
