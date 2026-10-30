@@ -33,6 +33,15 @@ export function assertSafeForEnvironment(assembled: {
   const { config, emailSender, paymentProvider, reading } = assembled;
 
   if (config.environmentMode === 'production') {
+    // `loadConfig` already refuses this outside development; a development process pointed at
+    // the archive is the case left, and it must not open the archive to whoever reaches it.
+    if (config.session.devSignInAs !== undefined) {
+      throw new EnvironmentSafetyError(
+        `"${config.environmentName}" is production and will not start with DEV_SIGN_IN_AS set. ` +
+          'It signs in every request without a session. Unset it.',
+      );
+    }
+
     /**
      * **The one rule that points the other way**, and the thing that keeps a practice stack from
      * quietly becoming the archive by having a variable flipped.

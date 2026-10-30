@@ -211,7 +211,19 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     publicUrl: config.publicUrl,
     renewalGraceDays: config.renewalGraceDays,
   });
-  const gate = createGate({ config, clock, accounts: accountService });
+  const devSignInAs = config.session.devSignInAs;
+  const gate = createGate({
+    config,
+    clock,
+    accounts: accountService,
+    standIn:
+      devSignInAs === undefined
+        ? undefined
+        : async () => {
+            const account = await accountRepository.findByEmail(devSignInAs);
+            return account ? accountService.describe(account.id) : null;
+          },
+  });
 
   const rosterService = createRosterService({
     clock,

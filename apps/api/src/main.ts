@@ -112,9 +112,23 @@ const stopReminders = scheduleReminders({
   config,
 });
 
-const server = app.listen(config.port, () => {
+/**
+ * Every interface, as a deployment behind Traefik needs — except while `DEV_SIGN_IN_AS` lets in
+ * every request without a session, when only this machine (and Vite's proxy on it) may ask.
+ */
+function listening(): void {
   logger.info({ port: config.port, environment: config.environmentName }, 'Ricambi API listening');
-});
+}
+const server =
+  config.session.devSignInAs === undefined
+    ? app.listen(config.port, listening)
+    : app.listen(config.port, '127.0.0.1', () => {
+        listening();
+        logger.warn(
+          { as: config.session.devSignInAs },
+          'DEV_SIGN_IN_AS is set: every request without a session is signed in as this Account',
+        );
+      });
 
 /**
  * **Nothing in front of this API may be holding a connection this server has already closed.**
