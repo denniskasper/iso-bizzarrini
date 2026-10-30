@@ -470,26 +470,6 @@ export function TavolaPage() {
         </div>
       )}
 
-      {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
-          the factory's drawing, and an Administrator alone is told whether it is one. */}
-      {isAdministrator &&
-        tavola.state === 'published' &&
-        tavola.sample !== undefined &&
-        (tavola.scan || tavola.sample) && (
-          <div className="mt-8">
-            <ShowToVisitors
-              sample={tavola.sample}
-              picking={picking}
-              onPick={() => {
-                visitors.show.reset();
-                setPickingFor(tavolaId);
-              }}
-              onCancel={() => setPickingFor(null)}
-              actions={visitors}
-            />
-          </div>
-        )}
-
       {tavola.state === 'unchecked' && (
         <div className="mt-8">
           <UncheckedBand tavolaId={tavola.id} modelId={tavola.model.id}>
@@ -667,6 +647,27 @@ export function TavolaPage() {
           />
         </div>
       </div>
+
+      {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
+          the factory's drawing, and an Administrator alone is told whether it is one. Under the
+          drawing, as every tool here is, so the drawing is still the first thing on a phone. */}
+      {isAdministrator &&
+        tavola.state === 'published' &&
+        tavola.sample !== undefined &&
+        (tavola.scan || tavola.sample) && (
+          <div className="mt-12">
+            <ShowToVisitors
+              sample={tavola.sample}
+              picking={picking}
+              onPick={() => {
+                visitors.show.reset();
+                setPickingFor(tavolaId);
+              }}
+              onCancel={() => setPickingFor(null)}
+              actions={visitors}
+            />
+          </div>
+        )}
 
       {checkingOpen && checking.data && (
         <div className="mt-16">
