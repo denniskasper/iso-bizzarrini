@@ -83,7 +83,8 @@ test('what an Administrator writes about the association is what a stranger read
   const stranger = await elsewhere.newPage();
 
   await stranger.goto('/legal-notice');
-  await expect(stranger.getByText(CLUB.name)).toBeVisible();
+  // Within the notice: the header names the Club on every page (#107).
+  await expect(stranger.getByRole('article').getByText(CLUB.name)).toBeVisible();
   await expect(stranger.getByText('00000 Musterstadt')).toBeVisible();
   await expect(stranger.getByText(CLUB.representedBy)).toBeVisible();
 

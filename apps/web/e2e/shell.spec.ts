@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { expect, test } from '@playwright/test';
-import { signIn } from './support/gate.js';
+import { expect, test, type Page } from '@playwright/test';
+import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 test.describe('the application shell', () => {
   test('serves the app for a deep link, so a shared address survives a reload', async ({
@@ -53,6 +53,90 @@ test.describe('the application shell', () => {
     }) => {
       await page.goto('/');
       await expect(page.locator('html')).not.toHaveClass(/dark/);
+    });
+  });
+
+  /**
+   * **Whose archive this is** (issue #107), named from the Club's own record. That what an
+   * Administrator writes there is what the public Legal notice serves is proved at the API seam
+   * and in the legal spec; what is here is the header reading it. The record is answered here
+   * rather than written, because the database is shared and the legal spec writes the same row.
+   */
+  test.describe('the header', () => {
+    /** Invented, and long on purpose: a real association's registered name often is. */
+    const CLUB_NAME = 'An Invented Automobile Club of Musterstadt e.V.';
+
+    function recordClubName(page: Page, name: string | null) {
+      return page.route('**/api/legal-notice', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as { legalNotice: Record<string, unknown> };
+        await route.fulfill({
+          response,
+          json: { legalNotice: { ...body.legalNotice, name } },
+        });
+      });
+    }
+
+    test('names the Club, with Parts Database beside it', async ({ page }) => {
+      await recordClubName(page, CLUB_NAME);
+      await page.goto('/');
+
+      const home = page.getByRole('banner').getByRole('link', {
+        name: `${CLUB_NAME} Parts Database`,
+        exact: true,
+      });
+      await expect(home).toBeVisible();
+      await expect(home).toContainText('Parts Database');
+      await expect(home.getByTestId('club-name')).toHaveText(CLUB_NAME);
+    });
+
+    test('says Ricambi while the Club has recorded no name', async ({ page }) => {
+      await recordClubName(page, null);
+      await page.goto('/');
+
+      const home = page.getByRole('banner').getByRole('link', { name: 'Ricambi', exact: true });
+      await expect(home).toBeVisible();
+      await expect(home).toHaveText('Ricambi');
+    });
+
+    test("keeps a member's header on one line, shortening the Club's name rather than wrapping", async ({
+      page,
+    }) => {
+      await recordClubName(page, CLUB_NAME);
+      await signInAs(page, PRACTICE.member);
+      await landed(page);
+
+      const header = page.getByRole('banner');
+      const home = header.getByRole('link', { name: `${CLUB_NAME} Parts Database` });
+      const theme = header.getByRole('button', { name: /Switch to the/ });
+      const [homeBox, themeBox] = await Promise.all([home.boundingBox(), theme.boundingBox()]);
+      expect(homeBox).not.toBeNull();
+      expect(themeBox).not.toBeNull();
+      // One row: the last control sits level with the home link, not on a line of its own.
+      expect(Math.abs(homeBox!.y - themeBox!.y)).toBeLessThan(homeBox!.height);
+      expect(
+        await header.evaluate((element) => (element as HTMLElement).offsetHeight),
+      ).toBeLessThan(80);
+      // And nothing was pushed past the edge to get there.
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+        ),
+      ).toBe(true);
+    });
+
+    test("lets an Administrator's header wrap rather than push the page sideways", async ({
+      page,
+    }) => {
+      await recordClubName(page, CLUB_NAME);
+      await signIn(page);
+
+      await expect(page.getByRole('banner').getByRole('link', { name: 'Readings' })).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+        ),
+      ).toBe(true);
     });
   });
 
