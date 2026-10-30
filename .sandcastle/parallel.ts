@@ -1,5 +1,4 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { basename } from 'node:path';
 import { claudeCode, createSandbox, type Sandbox } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
 import { baseForRun } from './branch-check.ts';
@@ -31,8 +30,13 @@ const POSTGRES_CONTAINER = 'ricambi-postgres';
 const PLAN_ONLY = process.argv.includes('--plan-only');
 const NO_MERGE = process.argv.includes('--no-merge');
 
-const network =
-  process.env.SANDCASTLE_NETWORK ?? `${basename(process.cwd()).toLowerCase()}_default`;
+/**
+ * Named outright rather than after the directory this runs in, as `main.ts` does: a run from a
+ * second checkout of the repository still needs the image built for it and the network the
+ * development Postgres is on.
+ */
+const imageName = process.env.SANDCASTLE_IMAGE ?? 'sandcastle:iso-bizzarrini';
+const network = process.env.SANDCASTLE_NETWORK ?? 'iso-bizzarrini_default';
 
 /**
  * Git and `gh` on the host run as the person, never with the sandbox's token: that one may only
@@ -147,6 +151,7 @@ async function openSandbox(branch: string, env: Record<string, string> = {}): Pr
     branch,
     baseBranch: BASE,
     sandbox: docker({
+      imageName,
       network,
       env,
       mounts: [
