@@ -219,6 +219,21 @@
   }
 
   /*
+   * One entry on the Units or the Specification names (issue #109): ruled like a Category's
+   * row, but not a link — the entry is read here, not opened — so the band does not light up.
+   * The actions wrap under the entry on a phone rather than squeezing it.
+   */
+  .specification-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2) --spacing(4);
+    min-height: var(--spacing-control-lg);
+    padding-block: --spacing(3);
+    border-top: 1px solid var(--line);
+  }
+
+  /*
    * A plate: one drawing on the sheet it was printed on.
    *
    * A Model's Tavole are laid out as a **contact sheet** — the way anyone with a box of plates

@@ -25,6 +25,7 @@ import { RosterPage } from '@/routes/roster-page';
 import { SearchPage } from '@/routes/search-page';
 import { SetPasswordPage } from '@/routes/set-password-page';
 import { SignInPage } from '@/routes/sign-in-page';
+import { SpecificationsPage } from '@/routes/specifications-page';
 import { SubAssemblyPage } from '@/routes/sub-assembly-page';
 import { TavolaPage } from '@/routes/tavola-page';
 
@@ -249,6 +250,16 @@ const categoryRoute = createRoute({
 });
 
 /**
+ * The Units and the Specification names (issue #109), next to the Categories and kept the same
+ * way: read by anyone in the archive, changed only by an Administrator.
+ */
+const specificationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/specifications',
+  component: SpecificationsPage,
+});
+
+/**
  * What members have sent that an Editor has yet to decide (issue #6). Inside the gate, because
  * it is the archive's: the role that makes it an Editor's is checked where the queue is read.
  */
@@ -308,6 +319,7 @@ export const router = createRouter({
     modelRoute,
     categoriesRoute,
     categoryRoute,
+    specificationsRoute,
     reviewRoute,
     tavolaRoute,
     subAssemblyRoute,

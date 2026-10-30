@@ -21,6 +21,14 @@ import type {
   CategoryNameRequest,
   CategoryResponse,
   CategoryWrittenResponse,
+  AddSpecificationNameRequest,
+  CorrectSpecificationNameRequest,
+  SpecificationNameOrderRequest,
+  SpecificationNamesResponse,
+  SpecificationNameWrittenResponse,
+  UnitsResponse,
+  UnitSymbolRequest,
+  UnitWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
   ReminderPlan,
@@ -365,6 +373,25 @@ export const api = {
   renameCategory: (categoryId: string, category: CategoryNameRequest) =>
     send<CategoryWrittenResponse>('PATCH', `/categories/${categoryId}`, category),
 
+  /**
+   * The Units and the Specification names (issue #109): read by anyone in the archive, kept by an
+   * Administrator. The names are put in order whole, as a Part's photographs are.
+   */
+  units: () => request<UnitsResponse>('/units'),
+  addUnit: (unit: UnitSymbolRequest) => send<UnitWrittenResponse>('POST', '/units', unit),
+  renameUnit: (unitId: string, unit: UnitSymbolRequest) =>
+    send<UnitWrittenResponse>('PATCH', `/units/${unitId}`, unit),
+  removeUnit: (unitId: string) => request<void>(`/units/${unitId}`, { method: 'DELETE' }),
+  specificationNames: () => request<SpecificationNamesResponse>('/specification-names'),
+  addSpecificationName: (name: AddSpecificationNameRequest) =>
+    send<SpecificationNameWrittenResponse>('POST', '/specification-names', name),
+  correctSpecificationName: (nameId: string, name: CorrectSpecificationNameRequest) =>
+    send<SpecificationNameWrittenResponse>('PATCH', `/specification-names/${nameId}`, name),
+  orderSpecificationNames: (order: SpecificationNameOrderRequest) =>
+    send<SpecificationNamesResponse>('PUT', '/specification-names/order', order),
+  removeSpecificationName: (nameId: string) =>
+    request<void>(`/specification-names/${nameId}`, { method: 'DELETE' }),
+
   tavola: (tavolaId: string) => request<TavolaResponse>(`/tavole/${tavolaId}`),
   createTavola: (modelId: string, tavola: NewTavolaRequest) =>
     send<{ tavola: TavolaSummary }>('POST', `/models/${modelId}/tavole`, tavola),
@@ -630,6 +657,10 @@ export const api = {
 
 export type {
   CatalogModel,
+  SpecificationName,
+  SpecificationNameListing,
+  Unit,
+  UnitListing,
   CatalogRun,
   CheckedListing,
   QuarterTurn,

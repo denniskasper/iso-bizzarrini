@@ -86,6 +86,14 @@ const ADMINISTRATORS_ONLY = new Set([
   // and is refused here like anybody else who is not one.
   'POST /api/categories',
   'PATCH /api/categories/:categoryId',
+  // So are the Units and the Specification names (issue #109), for the same reason.
+  'POST /api/units',
+  'PATCH /api/units/:unitId',
+  'DELETE /api/units/:unitId',
+  'POST /api/specification-names',
+  'PUT /api/specification-names/order',
+  'PATCH /api/specification-names/:nameId',
+  'DELETE /api/specification-names/:nameId',
 ]);
 
 /**

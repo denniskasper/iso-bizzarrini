@@ -140,6 +140,89 @@ export interface CategoryWrittenResponse {
 }
 
 /**
+ * A Unit: what a Specification's quantity is counted in, written one way only — *g*, *mm*, *Nm*.
+ * Kept by an Administrator; fixed by a Specification name and never typed by an Editor.
+ */
+export interface Unit {
+  id: string;
+  /** As it is printed beside a value. Case is part of it: *mm* and *Mm* are different Units. */
+  symbol: string;
+}
+
+/** A Unit as the list reports it, with how many Specification names count in it. */
+export interface UnitListing extends Unit {
+  /** A Unit with any is refused removal. */
+  names: number;
+}
+
+/** `GET /api/units` — the whole list, by symbol. */
+export interface UnitsResponse {
+  units: UnitListing[];
+}
+
+/** `POST /api/units` and `PATCH /api/units/:unitId` — an Administrator adding or respelling one. */
+export interface UnitSymbolRequest {
+  symbol: string;
+}
+
+/** What both of those answer. */
+export interface UnitWrittenResponse {
+  unit: Unit;
+}
+
+/**
+ * A Specification name: what a Part's Specification is recorded under — *Material*, *Weight* —
+ * and the Unit its values are counted in, if any. A name without one takes words.
+ */
+export interface SpecificationName {
+  id: string;
+  name: string;
+  /** What decides whether two names are the same, as a Category's slug does. */
+  slug: string;
+  unit: Unit | null;
+}
+
+/** A name as the list reports it, with how many Parts have a value for it. */
+export interface SpecificationNameListing extends SpecificationName {
+  /** A name with any can neither change its Unit nor be removed. */
+  parts: number;
+}
+
+/** `GET /api/specification-names` — the whole list, in the order a Part's Specifications read in. */
+export interface SpecificationNamesResponse {
+  specificationNames: SpecificationNameListing[];
+}
+
+/** `POST /api/specification-names` — added at the end of the list. */
+export interface AddSpecificationNameRequest {
+  name: string;
+  /** A Unit on the list, or `null` for a name that takes words. */
+  unitId: string | null;
+}
+
+/**
+ * `PATCH /api/specification-names/:nameId` — renaming one, or changing its Unit while no Part has
+ * a value for it. An absent field is left as it is.
+ */
+export interface CorrectSpecificationNameRequest {
+  name?: string;
+  unitId?: string | null;
+}
+
+/** What adding and correcting answer. */
+export interface SpecificationNameWrittenResponse {
+  specificationName: SpecificationName;
+}
+
+/**
+ * `PUT /api/specification-names/order` — the whole list in its new order, every name once. It
+ * answers `SpecificationNamesResponse`.
+ */
+export interface SpecificationNameOrderRequest {
+  nameIds: string[];
+}
+
+/**
  * `PUT /api/tavole/:tavolaId/category` — an Editor putting a drawing under a system, moving it
  * to another, or taking it out again.
  */
