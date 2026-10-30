@@ -1032,6 +1032,13 @@
     background-position: bottom left;
   }
 
+  /* The band, cut down to a stamp on a drawing filling the screen. */
+  .demo-mark {
+    padding: --spacing(1) --spacing(3) calc(--spacing(1) + 4px);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+  }
+
   /*
    * The registration mark: the corner ticks a printer aligns a plate with. Used as the
    * archive's one ornament — on the wordmark and on empty states — because it is the mark of
