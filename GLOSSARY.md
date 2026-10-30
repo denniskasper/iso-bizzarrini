@@ -76,8 +76,9 @@ the factory printed the same number wherever the part is used, or none at all.
 _Avoid_: Hotspot, pin, annotation, marker
 
 **Sub-assembly**:
-A named group of Positions within one Tavola — *Window Slider*, *Door Lock*. A labelling
-device; it is not itself a Part and cannot be ordered.
+A named group of Positions within one Tavola — *Window Slider*, *Door Lock* — outlined on
+the Scan, with Photographs and a Note of its own, because it is what restorers photograph and
+talk about rather than its single screws. It is not itself a Part and cannot be ordered.
 _Avoid_: Assembly, group, sottogruppo, kit
 
 **Related Position**:
@@ -113,6 +114,20 @@ the same thing; *undrawn* ones are additional. The factory marks both with a das
 Position's number would be: on the catalog's own sheets the dash is an undrawn Part, on the
 technical office's it is the other hand of a pair.
 _Avoid_: Visible, invisible, hidden, implied
+
+**Specification**:
+One stated property of a Part — its material, its colour, a dimension, its weight — as a name
+and a value. The name comes from a list an Administrator keeps, and fixes the **Unit** its value
+is counted in, so two Parts' weights can always be compared; a name without a Unit, such as
+*Material*, takes words instead of a number. Written by an Editor. A standard the
+Part conforms to is an Equivalent, not a Specification.
+_Avoid_: Attribute, property, field, spec, characteristic
+
+**Unit**:
+What a Specification's quantity is counted in, written one way only — *g*, *mm*, *Nm*. Kept in a
+list by an Administrator and fixed by the Specification's name, never typed, so the same
+quantity is never written two ways.
+_Avoid_: Measure, dimension, UoM
 
 **Fitment**:
 A statement that a Part fits a Model, with an optional qualifier in the words whoever knew
@@ -159,7 +174,7 @@ one of them.
 ## Contributions
 
 **Contribution**:
-Something a Member offers about a Part or a Position — what they know, in their words, with
+Something a Member offers about a Part, a Position or a Sub-assembly — what they know, in their words, with
 photographs if they have them. Carries their name and the date, and is checked before anyone
 else sees it.
 _Avoid_: Comment, post, submission, suggestion, edit
