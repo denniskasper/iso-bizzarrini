@@ -897,11 +897,14 @@ export const sources = pgTable(
 );
 
 /**
- * A photograph of a Part — the thing a member holds a bracket up against (story 77).
+ * A photograph of a Part — the thing a member holds a bracket up against (story 77) — or of a
+ * Sub-assembly, the window slider as it looks put together (issue #111).
  *
- * **It hangs off the Part and off nothing else**, which is ADR 0001 again: the same washer
+ * **It hangs off the Part and off no Listing**, which is ADR 0001 again: the same washer
  * photographed once is the same washer on every sheet it is listed on, and a photograph attached
- * to a Listing would be the same picture uploaded six times and corrected in five of them.
+ * to a Listing would be the same picture uploaded six times and corrected in five of them. A
+ * Sub-assembly is on one Tavola only, so its photographs go with that Tavola. **One owner, never
+ * both and never neither**, which the check constraint holds; the order is each owner's own.
  *
  * `sequence` is what makes the list an *order* rather than an accident of insertion. The first
  * photograph is the one that identifies the Part — the one a grid shows first and a member sees
@@ -917,11 +920,12 @@ export const photographs = pgTable(
   'photographs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    partId: uuid('part_id')
-      .notNull()
-      .references(() => parts.id, { onDelete: 'cascade' }),
+    partId: uuid('part_id').references(() => parts.id, { onDelete: 'cascade' }),
+    subAssemblyId: uuid('sub_assembly_id').references(() => subAssemblies.id, {
+      onDelete: 'cascade',
+    }),
 
-    /** Where it sits in the Part's own order, from `0`. Ties break on `id`, so the list is total. */
+    /** Where it sits in its owner's order, from `0`. Ties break on `id`, so the list is total. */
     sequence: integer('sequence').notNull(),
 
     /** What the Editor uploaded, kept verbatim: nothing derived is ever the archive's copy. */
@@ -950,7 +954,12 @@ export const photographs = pgTable(
   (table) => [
     // Named for both columns, because it is on both: the Part's photographs, already in order.
     index('photographs_part_id_sequence_index').on(table.partId, table.sequence),
+    index('photographs_sub_assembly_id_sequence_index').on(table.subAssemblyId, table.sequence),
     check('photographs_sequence_is_a_place', sql`${table.sequence} >= 0`),
+    check(
+      'photographs_belong_to_one_owner',
+      sql`num_nonnulls(${table.partId}, ${table.subAssemblyId}) = 1`,
+    ),
   ],
 );
 
@@ -1546,6 +1555,7 @@ export const positionsRelations = relations(positions, ({ one, many }) => ({
 export const subAssembliesRelations = relations(subAssemblies, ({ one, many }) => ({
   tavola: one(tavole, { fields: [subAssemblies.tavolaId], references: [tavole.id] }),
   positions: many(positions),
+  photographs: many(photographs),
 }));
 
 export const partsRelations = relations(parts, ({ many }) => ({
@@ -1558,6 +1568,10 @@ export const partsRelations = relations(parts, ({ many }) => ({
 
 export const photographsRelations = relations(photographs, ({ one }) => ({
   part: one(parts, { fields: [photographs.partId], references: [parts.id] }),
+  subAssembly: one(subAssemblies, {
+    fields: [photographs.subAssemblyId],
+    references: [subAssemblies.id],
+  }),
 }));
 
 export const fitmentsRelations = relations(fitments, ({ one }) => ({

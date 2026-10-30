@@ -19,8 +19,10 @@ import {
   contributions,
   listings,
   marks,
+  photographs,
   positions,
   readingDoubts,
+  subAssemblies,
   tavole,
   type ModelRow,
 } from '../src/db/schema.js';
@@ -211,6 +213,34 @@ describe('removing an Unchecked Tavola', () => {
     const other = (await editor.get(`/api/tavole/${tavola('85')}`).expect(200))
       .body as TavolaResponse;
     expect(other.tavola).toMatchObject({ number: '85', state: 'unchecked' });
+  });
+
+  it('takes its Sub-assemblies’ Photographs, files and all', async () => {
+    const { tavola } = await givenLoaded();
+    const [group] = await app.db
+      .insert(subAssemblies)
+      .values({ tavolaId: tavola('84'), name: 'Differential' })
+      .returning();
+    // Uploaded to the screw, which stays, then handed to the Sub-assembly: nothing lets an Editor
+    // photograph a Sub-assembly yet, and this is the row and the files that would make.
+    const uploaded = await editor
+      .post(`/api/parts/${await partNumbered('208900')}/photographs`)
+      .set('Content-Type', 'image/jpeg')
+      .send(await givenPhotographImage())
+      .expect(201);
+    const photographId = uploaded.body.part.photographs[0].id as string;
+    await app.db
+      .update(photographs)
+      .set({ partId: null, subAssemblyId: group?.id })
+      .where(eq(photographs.id, photographId));
+    const stored = await filesUnder('photographs');
+
+    await remove(administrator, tavola('84')).expect(200);
+
+    expect(await app.db.select().from(photographs).where(eq(photographs.id, photographId))).toEqual(
+      [],
+    );
+    expect(await filesUnder('photographs')).toBe(stored - 1);
   });
 
   it('keeps a Part listed only on it that carries a Contribution', async () => {
