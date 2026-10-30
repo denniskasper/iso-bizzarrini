@@ -40,6 +40,7 @@ import {
   type ReadingDoubt,
 } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
+import { outsideTheirOutlines } from '@/lib/outline-geometry';
 import { useOutlineTool } from '@/lib/outlining';
 import { useTavolaListings } from '@/lib/parts';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
@@ -349,7 +350,9 @@ export function TavolaPage() {
     }
   };
 
-  const outlinedId = outlining.drawing
+  /** Drawing or reshaping: a press on the sheet is about the outline, and not a circle. */
+  const outlineInHand = outlining.drawing || outlining.reshaping;
+  const outlinedId = outlineInHand
     ? null
     : ((outlinePointed?.tavolaId === tavolaId ? outlinePointed.id : null) ??
       (outlineSelected?.tavolaId === tavolaId ? outlineSelected.id : null) ??
@@ -539,8 +542,8 @@ export function TavolaPage() {
                 }
                 onPoint={point}
                 pointedMarkId={described?.mark.id ?? null}
-                onMove={tool.on && !outlining.drawing && !picking ? tool.moveMark : undefined}
-                quiet={outlining.drawing}
+                onMove={tool.on && !outlineInHand && !picking ? tool.moveMark : undefined}
+                quiet={outlineInHand}
               />
             }
             underlay={
@@ -549,6 +552,16 @@ export function TavolaPage() {
                   size={tavola.scan}
                   shown={outlined}
                   draft={outlining.drawing ? outlining.corners : null}
+                  reshaping={
+                    outlining.reshaping
+                      ? {
+                          corners: outlining.corners,
+                          selected: outlining.selectedCorner,
+                          onSelect: outlining.selectCorner,
+                          onMove: outlining.moveCorner,
+                        }
+                      : null
+                  }
                 />
               )
             }
@@ -574,11 +587,19 @@ export function TavolaPage() {
                 ? undefined
                 : outlining.drawing
                   ? outlining.add
-                  : tool.on
-                    ? tool.place
-                    : undefined
+                  : outlining.reshaping
+                    ? outlining.tapWhileReshaping
+                    : tool.on
+                      ? tool.place
+                      : undefined
             }
-            tapHint={outlining.drawing ? 'Click to add a corner to the outline.' : undefined}
+            tapHint={
+              outlining.drawing
+                ? 'Click to add a corner to the outline.'
+                : outlining.reshaping
+                  ? 'Click a side of the outline to add a corner there.'
+                  : undefined
+            }
           />
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
             {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
@@ -624,6 +645,7 @@ export function TavolaPage() {
             selectedId={outlineSelected?.tavolaId === tavolaId ? outlineSelected.id : null}
             onPoint={pointAtOutline}
             onSelect={selectOutline}
+            outside={isEditor ? outsideTheirOutlines(sheet) : null}
           />
 
           <TavolaParts
@@ -665,9 +687,10 @@ export function TavolaPage() {
 
       {tool.on && (
         <div className="mt-12 flex flex-col gap-8">
-          {/* Drawing an outline is the tool's other mode, and while it is on, a click on the
-              drawing is a corner — so the panel that says a click places a Mark stands aside. */}
-          {!outlining.drawing && (
+          {/* Drawing or reshaping an outline is the tool's other mode, and while it is on, a
+              click on the drawing is about the outline — so the panel that says a click places
+              a Mark stands aside. */}
+          {!outlineInHand && (
             <MarkingBar
               tool={tool}
               positions={positions}
