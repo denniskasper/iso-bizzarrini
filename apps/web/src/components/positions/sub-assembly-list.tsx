@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
-import type { Sheet } from '@/lib/api';
+import { TriangleAlert } from 'lucide-react';
+import type { Position, Sheet } from '@/lib/api';
 import { positionsIn } from '@/lib/positions';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ export function SubAssemblyList({
   selectedId = null,
   onPoint,
   onSelect,
+  outside = null,
 }: {
   tavolaId: string;
   sheet: Sheet;
@@ -29,6 +31,8 @@ export function SubAssemblyList({
   onPoint?: (subAssemblyId: string | null) => void;
   /** Selecting one to show, or `null` to stop. */
   onSelect?: (subAssemblyId: string | null) => void;
+  /** An Editor's warning: by Sub-assembly, its Positions with a Mark outside its outline. */
+  outside?: ReadonlyMap<string, Position[]> | null;
 }) {
   if (sheet.subAssemblies.length === 0) {
     return null;
@@ -42,11 +46,12 @@ export function SubAssemblyList({
       <ul className="mt-4 border-b border-line">
         {sheet.subAssemblies.map((subAssembly) => {
           const selected = subAssembly.id === selectedId;
+          const strays = outside?.get(subAssembly.id) ?? [];
           return (
             <li
               key={subAssembly.id}
               className={cn(
-                'flex items-stretch border-t border-line',
+                'flex flex-wrap items-stretch border-t border-line',
                 selected && 'bg-surface-sunken',
               )}
               onPointerEnter={(event) => {
@@ -95,6 +100,23 @@ export function SubAssemblyList({
                 >
                   {selected ? 'Shown' : 'Show'}
                 </button>
+              )}
+              {strays.length > 0 && (
+                <p
+                  data-testid="outside-outline"
+                  className="flex basis-full items-start gap-2 pb-3 text-sm text-pretty text-muted"
+                >
+                  <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-alarm" />
+                  <span>
+                    Outside its outline:{' '}
+                    {strays.map((position, index) => (
+                      <span key={position.id}>
+                        {index > 0 && ', '}
+                        <span className="tabular text-text">{position.number}</span>
+                      </span>
+                    ))}
+                  </span>
+                </p>
               )}
             </li>
           );
