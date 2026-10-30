@@ -218,6 +218,13 @@
       "when": 1793375317310,
       "tag": "0030_units_and_specification_names",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793377894091,
+      "tag": "0031_photographs_of_a_part_or_a_sub_assembly",
+      "breakpoints": true
     }
   ]
 }
