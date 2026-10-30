@@ -51,7 +51,7 @@ the marking tool and the editor tooling need nothing but a laptop.
 | API | http://localhost:3000/api/status |
 | Postgres | `localhost:5433`, user `ricambi` |
 
-**You will land on "The archive is members-only", and that is the archive working.** Everything
+**You will land on the Visitor landing page, "The archive is members-only", and that is the archive working.** Everything
 is behind the sign-in gate and there is no shared credential of any kind, so a fresh clone has
 nobody who can get in. Put yourself on the roster once:
 

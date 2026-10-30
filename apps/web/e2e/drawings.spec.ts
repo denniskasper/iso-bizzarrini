@@ -38,12 +38,17 @@ test.describe('opening a drawing', () => {
   });
 
   // The whole archive is behind the gate, not only the images: a stranger does not get to read
-  // a Tavola's number, its names or the factory's Sezione either.
-  test('shows a signed-out browser nothing of a car at all', async ({ page }) => {
+  // a Tavola's number, its names or the factory's Sezione either. What a Visitor is shown is which
+  // cars are covered and how many drawings each has (ADR 0019), and nothing to open.
+  test('shows a signed-out browser nothing beyond the Model counts', async ({ page }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'The archive is members-only.' })).toBeVisible();
+    await expect(page.getByTestId('visitor-model-row').first()).toBeVisible();
     await expect(page.getByTestId('model-row')).toHaveCount(0);
+    await expect(page.getByTestId('tavola-plate')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Iso Grifo' })).toHaveCount(0);
+    await expect(page.getByText('Impianto frenante anteriore')).toHaveCount(0);
   });
 
   test('a Tavola nobody has scanned says so, and is not mistaken for one that is hidden', async ({
