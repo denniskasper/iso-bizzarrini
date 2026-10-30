@@ -1,3 +1,4 @@
+import './run-log.ts';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { claudeCode, createSandbox, type Sandbox } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
