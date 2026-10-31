@@ -101,11 +101,16 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
 
+  # Split across two machines, each with its own Postgres, running half of the test files.
   api-tests:
-    name: API seam (real HTTP, real Postgres)
+    name: API seam (${{ matrix.shard }}/2)
     needs: already-green
     if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     services:
       postgres:
         # The official image, from Google's mirror of Docker Hub. Runners share addresses, and
@@ -133,28 +138,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # An uploaded catalog is rendered with Poppler, as it is in the image (issue #57).
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
-      - run: pnpm test:api
+      - run: pnpm test:api --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: api-test-results
+          name: api-test-results-${{ matrix.shard }}
           path: apps/api/test-results/
           if-no-files-found: ignore
 
-  # Split across four machines, each with its own Postgres and its own built app, running a
-  # quarter of the tests one at a time. One machine ran them all in 17 minutes; four keep the
+  # Split across six machines, each with its own Postgres and its own built app, running a
+  # sixth of the tests one at a time. One machine ran them all in 17 minutes; six keep the
   # browser seam about as long as the API seam. Standard runners cost nothing for a public
   # repository.
   e2e-tests:
-    name: Browser seam (${{ matrix.shard }}/4)
+    name: Browser seam (${{ matrix.shard }}/6)
     needs: already-green
     if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
     strategy:
-      # Every quarter runs to the end, so one failure shows all the others with it.
+      # Every share runs to the end, so one failure shows all the others with it.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     services:
       postgres:
         # The official image, from Google's mirror of Docker Hub. Runners share addresses, and
