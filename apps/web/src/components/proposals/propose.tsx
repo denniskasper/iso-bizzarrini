@@ -394,7 +394,7 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
         <form
           onSubmit={send}
           onPaste={showPasted}
-          className="max-h-[60%] overflow-y-auto border-t border-line px-gutter py-3"
+          className="max-h-3/5 overflow-y-auto border-t border-line px-gutter py-3"
         >
           {failure !== undefined && (
             <div className="mb-2">

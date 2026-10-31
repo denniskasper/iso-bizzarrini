@@ -733,6 +733,10 @@ describe('proposing, on a practice system', () => {
       await author.agent.delete(`/api/proposals/${id}/screenshots/${sent.id}`).expect(404);
 
       await summarise(author.agent, id);
+      // One shown and never sent is not handed over with it.
+      const waiting = await aScreenshot(author.agent, id);
+      await author.agent.post(`/api/proposals/${id}/hand-over`).expect(409);
+      await author.agent.delete(`/api/proposals/${id}/screenshots/${waiting.id}`).expect(200);
       await author.agent.post(`/api/proposals/${id}/hand-over`).expect(200);
       await author.agent.delete(`/api/proposals/${id}/screenshots/${kept.id}`).expect(409);
       await show(author.agent, id, await givenPhotographImage()).expect(409);

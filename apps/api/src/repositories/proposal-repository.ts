@@ -1,4 +1,17 @@
-import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
   proposals,
@@ -48,8 +61,8 @@ export interface ProposalRepository {
    */
   keepSummary(id: string, summary: ProposalSummary): Promise<ProposalRow | null>;
   /**
-   * The Draft made New, if it still is a Draft with a summary. Null where it is not, so two
-   * presses at once hand it over once.
+   * The Draft made New, if it still is a Draft with a summary and no screenshot waiting to be
+   * sent (issue #154). Null where it is not, so two presses at once hand it over once.
    */
   handOver(id: string, at: Date): Promise<ProposalRow | null>;
   /** This author's Draft, gone with its conversation. Whether there was one to take away. */
@@ -100,8 +113,9 @@ export interface ProposalRepository {
    */
   removeScreenshot(proposalId: string, screenshotId: string): Promise<ProposalScreenshotRow | null>;
   /**
-   * A screenshot **if this reader may be shown it**: anybody's once its Proposal is handed over,
-   * and a Draft's only to its author. Null otherwise, as if there were none.
+   * A screenshot **if this reader may be shown it**: anybody's once its Proposal is handed over
+   * and it was sent with a turn, and a Draft's only to its author. Null otherwise, as if there
+   * were none.
    */
   findScreenshotReadableBy(
     screenshotId: string,
@@ -202,7 +216,19 @@ export function createProposalRepository(db: DbSession): ProposalRepository {
         .update(proposals)
         .set({ status: 'new', handedOverAt: at, updatedAt: at })
         .where(
-          and(eq(proposals.id, id), eq(proposals.status, 'draft'), isNotNull(proposals.summary)),
+          and(
+            eq(proposals.id, id),
+            eq(proposals.status, 'draft'),
+            isNotNull(proposals.summary),
+            notExists(
+              db
+                .select({ id: proposalScreenshots.id })
+                .from(proposalScreenshots)
+                .where(
+                  and(eq(proposalScreenshots.proposalId, id), isNull(proposalScreenshots.turnId)),
+                ),
+            ),
+          ),
         )
         .returning();
       return row ?? null;
@@ -323,7 +349,10 @@ export function createProposalRepository(db: DbSession): ProposalRepository {
         .where(
           and(
             eq(proposalScreenshots.id, screenshotId),
-            or(ne(proposals.status, 'draft'), eq(proposals.authorId, readerId)),
+            or(
+              and(ne(proposals.status, 'draft'), isNotNull(proposalScreenshots.turnId)),
+              eq(proposals.authorId, readerId),
+            ),
           ),
         )
         .limit(1);

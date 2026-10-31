@@ -210,7 +210,11 @@ export function createProposalService(dependencies: {
       turns: turns.map((turn) => turnOf(turn, screenshots)),
       summary: proposal.summary,
       declineReason: proposal.declineReason,
-      unsent: screenshots.filter((shot) => shot.turnId === null).map(screenshotOf),
+      // What waits to be sent is the author's alone, until a turn sends it.
+      unsent:
+        proposal.authorId === proposer.accountId
+          ? screenshots.filter((shot) => shot.turnId === null).map(screenshotOf)
+          : [],
     };
   }
 
@@ -406,6 +410,12 @@ export function createProposalService(dependencies: {
       }
       const handedOver = await proposalRepository.handOver(proposalId, clock.now());
       if (handedOver === null) {
+        const screenshots = await proposalRepository.listScreenshots(proposalId);
+        if (screenshots.some((shot) => shot.turnId === null)) {
+          throw new ConflictError(
+            'A screenshot is waiting to be sent: send it with a turn, or remove it, first.',
+          );
+        }
         throw new ConflictError(
           'Read the finished Proposal before handing it over: ask for it, and it is written ' +
             'from the conversation as it now stands.',
