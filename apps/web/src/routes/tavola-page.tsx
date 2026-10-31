@@ -658,6 +658,7 @@ export function TavolaPage() {
           <div className="mt-12">
             <ShowToVisitors
               sample={tavola.sample}
+              ended={tavola.endedSample ?? null}
               picking={picking}
               onPick={() => {
                 visitors.show.reset();

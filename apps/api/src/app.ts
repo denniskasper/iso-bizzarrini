@@ -300,7 +300,19 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   // nothing else: it asks what the query names and where those Parts are listed, and everything a
   // member then reads about one arrives when they open it on a drawing.
   const searchService = createSearchService({ partRepository, partRecordRepository });
-  const positionService = createPositionService({ tavolaRepository, positionRepository });
+  const sampleService = createSampleService({
+    tavolaRepository,
+    positionRepository,
+    sampleRepository: createSampleRepository(db),
+    fileStore,
+    clock,
+    logger,
+  });
+  const positionService = createPositionService({
+    tavolaRepository,
+    positionRepository,
+    sampleService,
+  });
   const subAssemblyService = createSubAssemblyService({
     positionRepository,
     partRepository,
@@ -360,14 +372,6 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     positionRepository,
     tavolaRepository,
     partService,
-  });
-  const sampleService = createSampleService({
-    tavolaRepository,
-    positionRepository,
-    sampleRepository: createSampleRepository(db),
-    fileStore,
-    clock,
-    logger,
   });
   const scanService = createScanService({
     tavolaRepository,

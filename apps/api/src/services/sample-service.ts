@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
-import type { SamplesResponse, TavolaSample } from '@ricambi/contracts';
+import type { EndedSample, SamplesResponse, TavolaSample } from '@ricambi/contracts';
 import { ConflictError, NotFoundError } from '../http/errors.js';
 import type { StoredImage } from '../http/served-image.js';
 import { sampleDrawingUrl } from '../images/image-addresses.js';
@@ -8,7 +8,7 @@ import { prepareSampleDrawing } from '../images/sample-drawing.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import type { DbSession } from '../db/client.js';
-import type { ScanRow } from '../db/schema.js';
+import type { EndedSampleRow, ScanRow } from '../db/schema.js';
 import {
   createPositionRepository,
   type PositionRepository,
@@ -17,6 +17,7 @@ import {
   createSampleRepository,
   type SampleDrawing,
   type SampleInContext,
+  type ListedSample,
   type SampleRepository,
 } from '../repositories/sample-repository.js';
 import {
@@ -42,11 +43,22 @@ export interface SampleService {
    * Refused for an Unchecked Tavola, a Tavola with no Scan to copy, and a number on another sheet.
    */
   show(tavolaId: string, positionId: string, accountId: string): Promise<TavolaSample>;
-  /** Stops showing it, and deletes its public copy. */
+  /**
+   * Stops showing it, and deletes its public copy. For a Sample that already ended by itself, sets
+   * the ending aside, so Administrators are no longer told about it.
+   */
   stop(tavolaId: string): Promise<void>;
   /** `null` when the Tavola is not shown. */
   ofTavola(tavolaId: string): Promise<TavolaSample | null>;
-  list(): Promise<SamplesResponse['samples']>;
+  /** `null` when it did not end by itself, or has been shown again or set aside since. */
+  endedOf(tavolaId: string): Promise<EndedSample | null>;
+  list(): Promise<SamplesResponse>;
+  /**
+   * **Removes a Position through `remove`, and ends the Sample it is the open number of** (issue
+   * #130): a Sample with nothing for a Visitor to read is not one. Its public copy is deleted and
+   * Administrators are told that it ended and why. Nothing ends when `remove` is refused.
+   */
+  removingPosition(positionId: string, remove: () => Promise<void>): Promise<void>;
   /**
    * A new copy from the Tavola's current Scan, for a Sample whose Scan was replaced or turned:
    * the copy is of the drawing the Marks are on. Nothing happens for a Tavola that is not shown.
@@ -54,6 +66,20 @@ export interface SampleService {
   redraw(tavolaId: string): Promise<void>;
   /** `null` for an address that is not a Sample's drawing, or no longer is one. */
   openDrawing(drawingId: string): Promise<StoredImage | null>;
+}
+
+function toEndedSample(row: EndedSampleRow): EndedSample {
+  return { openNumber: row.openNumber, endedAt: row.endedAt.toISOString(), reason: row.reason };
+}
+
+function toSampleTavola({ tavola }: Pick<ListedSample, 'tavola'>) {
+  return {
+    id: tavola.id,
+    number: tavola.number,
+    nameIt: tavola.nameIt,
+    nameEn: tavola.nameEn,
+    model: toCatalogModel(tavola.model),
+  };
 }
 
 function toTavolaSample(row: SampleInContext): TavolaSample {
@@ -160,12 +186,17 @@ export function createSampleService(dependencies: {
         await discardDrawing(drawing.drawingId);
         await sampleRepository.open(tavolaId, positionId);
       }
+      // Shown again, so whatever ended before is over.
+      await sampleRepository.forgetEnded(tavolaId);
       return shown(tavolaId);
     },
 
     async stop(tavolaId) {
       const removed = await sampleRepository.remove(tavolaId);
       if (!removed) {
+        if (await sampleRepository.forgetEnded(tavolaId)) {
+          return;
+        }
         throw new NotFoundError('This Tavola is not shown to Visitors.');
       }
       await discardDrawing(removed.drawingId);
@@ -176,18 +207,44 @@ export function createSampleService(dependencies: {
       return row ? toTavolaSample(row) : null;
     },
 
+    async endedOf(tavolaId) {
+      const row = await sampleRepository.endedOf(tavolaId);
+      return row ? toEndedSample(row) : null;
+    },
+
     async list() {
-      const rows = await sampleRepository.list();
-      return rows.map((row) => ({
-        ...toTavolaSample(row),
-        tavola: {
-          id: row.tavola.id,
-          number: row.tavola.number,
-          nameIt: row.tavola.nameIt,
-          nameEn: row.tavola.nameEn,
-          model: toCatalogModel(row.tavola.model),
-        },
-      }));
+      const [shownRows, endedRows] = await Promise.all([
+        sampleRepository.list(),
+        sampleRepository.listEnded(),
+      ]);
+      return {
+        samples: shownRows.map((row) => ({ ...toTavolaSample(row), tavola: toSampleTavola(row) })),
+        ended: endedRows.map((row) => ({ ...toEndedSample(row), tavola: toSampleTavola(row) })),
+      };
+    },
+
+    async removingPosition(positionId, remove) {
+      const open = await sampleRepository.findByOpenPosition(positionId);
+      // The Sample's row goes with the Position, which the database sees to.
+      await remove();
+      if (!open) {
+        return;
+      }
+      // Another number was opened on it meanwhile: it is still a Sample, and the copy still its.
+      if (await sampleRepository.findByTavola(open.tavolaId)) {
+        return;
+      }
+      await sampleRepository.recordEnded({
+        tavolaId: open.tavolaId,
+        openNumber: open.position.number,
+        endedAt: clock.now(),
+        reason: 'removed',
+      });
+      await discardDrawing(open.drawingId);
+      logger.info(
+        { tavolaId: open.tavolaId, number: open.position.number },
+        'A Sample ended: its open number was removed',
+      );
     },
 
     async redraw(tavolaId) {

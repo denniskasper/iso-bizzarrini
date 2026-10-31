@@ -54,7 +54,10 @@ export function createTavolaController(dependencies: {
       const body: TavolaResponse = await tavolaService.readTavola(tavolaId);
       // Whether it is shown to Visitors is the Administrators' business, and only theirs.
       if (gate.whoIsSignedIn(response).account.role === 'administrator') {
-        body.tavola.sample = await sampleService.ofTavola(tavolaId);
+        [body.tavola.sample, body.tavola.endedSample] = await Promise.all([
+          sampleService.ofTavola(tavolaId),
+          sampleService.endedOf(tavolaId),
+        ]);
       }
       response.json(body);
     },

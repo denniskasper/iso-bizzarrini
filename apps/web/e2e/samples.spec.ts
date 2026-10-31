@@ -55,3 +55,36 @@ test('an Administrator shows a drawing by picking its number, and stops showing 
   expect((await visitor.get(sample.tavola.sample.drawing.url)).status()).toBe(404);
   await visitor.dispose();
 });
+
+/**
+ * **A Sample ends when its open number goes** (issue #130): an Administrator finds the drawing
+ * says so, and why, where they would show it again. The ending itself is proved at the API seam.
+ */
+test('an Administrator is told a drawing stopped being shown when its open number was removed', async ({
+  page,
+}, info) => {
+  const drawing = await openADrawingOfYourOwn(page, `sample-ended-${info.project.name}`);
+  const tavolaId = new URL(page.url()).pathname.split('/').at(-1) ?? '';
+  const placed = await page.request.post(`/api/tavole/${tavolaId}/marks`, {
+    data: { number: '1', x: 0.3, y: 0.5 },
+  });
+  expect(placed.ok()).toBe(true);
+  const { positions } = (await placed.json()) as { positions: { id: string; number: string }[] };
+  const one = positions.find((position) => position.number === '1')?.id ?? '';
+  const shown = await page.request.put(`/api/tavole/${tavolaId}/sample`, {
+    data: { positionId: one },
+  });
+  expect(shown.ok()).toBe(true);
+
+  expect((await page.request.delete(`/api/positions/${one}`)).ok()).toBe(true);
+  await page.reload();
+  await expectTheSheetIsDrawn(drawing);
+
+  const band = page.getByTestId('show-to-visitors');
+  await expect(band.getByTestId('sample-ended')).toContainText('number 1');
+  await expect(band.getByTestId('sample-ended')).toContainText('was removed');
+
+  await band.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(band.getByTestId('sample-ended')).toBeHidden();
+  await expect(band.getByRole('button', { name: 'Show to Visitors' })).toBeVisible();
+});

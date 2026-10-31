@@ -820,6 +820,7 @@ export type {
   TavolaScan,
   TavolaPublication,
   TavolaSample,
+  EndedSample,
   SamplesResponse,
   TavolaState,
   TavolaSummary,
