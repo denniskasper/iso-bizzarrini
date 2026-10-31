@@ -53,6 +53,7 @@ export class SmtpEmailSender implements EmailSender {
       await this.#transport.sendMail({
         from: this.#from,
         to: email.to,
+        ...(email.replyTo === undefined ? {} : { replyTo: email.replyTo }),
         subject: email.subject,
         text: email.text,
         ...(email.html === undefined ? {} : { html: email.html }),

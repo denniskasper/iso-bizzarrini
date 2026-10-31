@@ -55,6 +55,9 @@ const OPEN = new Set([
   // What a Visitor is shown (issue #128): the Models with their Published Tavola counts and the
   // fee, and nothing else of the archive, which `landing.test.ts` proves.
   'GET /api/landing',
+  // A Visitor asking the Club for membership (issue #131): one e-mail to the office and nothing
+  // kept, behind a hidden field and a limit per address, which `membership-requests.test.ts` proves.
+  'POST /api/membership-requests',
   // Where the payment provider delivers (issue #4). Nobody is signed in at it; what it is
   // behind is the provider's signature over the bytes, which `subscriptions.test.ts` proves.
   'POST /api/payments/webhook',

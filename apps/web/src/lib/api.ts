@@ -35,6 +35,7 @@ import type {
   TavolaCategoryRequest,
   ClubResponse,
   LandingResponse,
+  MembershipRequest,
   ReminderPlan,
   ReminderRun,
   MembershipStandingResponse,
@@ -248,6 +249,8 @@ export const api = {
    * archive is in it.
    */
   landing: () => request<LandingResponse>('/landing'),
+  /** One e-mail to the Club office, answered to the Visitor. Nothing of it is kept (issue #131). */
+  askToJoin: (asked: MembershipRequest) => send<void>('POST', '/membership-requests', asked),
 
   /** The association's own record of its processors, agreements included. An Administrator's. */
   processors: () => request<ProcessorsResponse>('/processors'),

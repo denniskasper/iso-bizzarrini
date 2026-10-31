@@ -147,6 +147,26 @@ describe('the SMTP transport', () => {
       expect(header(letter?.raw ?? '', 'Subject')).toBe('Your Ricambi invitation');
       expect(bodyOf(letter?.raw ?? '')).toContain('https://ricambi.example/set-password?token=');
     });
+
+    // Issue #131: the office answers the Visitor, not Ricambi.
+    it('delivers a membership request to the Club office, to be answered to the Visitor', async () => {
+      await administrator
+        .patch('/api/club')
+        .send({ officeEmail: 'office@club.example' })
+        .expect(200);
+      server.received.length = 0;
+
+      await app
+        .request()
+        .post('/api/membership-requests')
+        .send({ name: 'Ada Visitor', email: 'ada@visitor.example', consent: true })
+        .expect(204);
+
+      expect(server.received).toHaveLength(1);
+      const [letter] = server.received;
+      expect(letter?.to).toEqual(['office@club.example']);
+      expect(header(letter?.raw ?? '', 'Reply-To')).toBe('ada@visitor.example');
+    });
   });
 
   it('answers 502 when the server refuses, and leaves the person on the roster', async () => {
