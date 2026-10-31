@@ -260,6 +260,13 @@
       "when": 1793459500832,
       "tag": "0036_proposals_are_handed_over_and_decided",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793467091721,
+      "tag": "0037_proposals_carry_screenshots",
+      "breakpoints": true
     }
   ]
 }

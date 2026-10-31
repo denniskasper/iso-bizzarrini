@@ -30,6 +30,14 @@ export function contributionPhotographImageUrl(
   return `/api/contribution-photographs/${photographId}/${variant}`;
 }
 
+/**
+ * A screenshot shown with a Proposal (issue #154). An address of its own, because it is served
+ * to those with the permission to propose, and a Draft's only to its author.
+ */
+export function proposalScreenshotImageUrl(screenshotId: string, variant: ImageVariant): string {
+  return `/api/proposal-screenshots/${screenshotId}/${variant}`;
+}
+
 export function photographImageUrl(photographId: string, variant: ImageVariant): string {
   return `/api/photographs/${photographId}/${variant}`;
 }

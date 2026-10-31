@@ -1,16 +1,26 @@
+import { randomUUID } from 'node:crypto';
 import type {
   Proposal,
   ProposalContext,
   ProposalKind,
   ProposalListing,
+  ProposalScreenshot,
   ProposalStatusRequest,
   ProposalSummary,
   ProposalTurn,
 } from '@ricambi/contracts';
-import type { ProposalRow, ProposalTurnRow } from '../db/schema.js';
-import { ConflictError, NotFoundError } from '../http/errors.js';
+import type { ProposalRow, ProposalScreenshotRow, ProposalTurnRow } from '../db/schema.js';
+import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
+import type { StoredImage } from '../http/served-image.js';
+import { proposalScreenshotImageUrl, type ImageVariant } from '../images/image-addresses.js';
+import { prepareScreenshot } from '../images/screenshot-ingest.js';
 import type { Clock } from '../platform/clock.js';
-import type { Conversation, ConversationMethod } from '../proposals/conversation-method.js';
+import type { Logger } from '../platform/logger.js';
+import type {
+  Conversation,
+  ConversationMethod,
+  ConversationScreenshot,
+} from '../proposals/conversation-method.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
 import type {
   HandedOverStatus,
@@ -18,6 +28,8 @@ import type {
   ProposalRepository,
 } from '../repositories/proposal-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
+import { proposalScreenshotKeyPrefix, type FileStore } from '../storage/file-store.js';
+import { discardImageFiles, openStoredImage, storeImageFiles } from '../storage/stored-images.js';
 
 /** Who is proposing, as far as a Proposal needs to know. */
 export interface Proposer {
@@ -31,6 +43,12 @@ export interface StartProposal {
   pageAddress: string;
   modelId: string | null;
   tavolaId: string | null;
+}
+
+/** A waiting screenshot named by the turn it is sent with, and what the author says about it. */
+export interface SentScreenshot {
+  id: string;
+  note: string | null;
 }
 
 /**
@@ -65,7 +83,7 @@ export interface ProposalService {
   converse(
     proposer: Proposer,
     proposalId: string,
-    text: string,
+    turn: { text: string; screenshots: SentScreenshot[] },
     heard: (piece: string) => void,
   ): Promise<ProposalTurn[]>;
   /**
@@ -79,6 +97,19 @@ export interface ProposalService {
   discard(proposer: Proposer, proposalId: string): Promise<void>;
   /** An Administrator's decision about a handed-over Proposal. The role is the caller's to check. */
   decide(proposer: Proposer, proposalId: string, decision: Decision): Promise<Proposal>;
+  /**
+   * A screenshot shown on the author's Draft (issue #154), waiting there until a turn sends it.
+   * What it is is decided by reading it.
+   */
+  show(proposer: Proposer, proposalId: string, upload: Buffer): Promise<ProposalScreenshot>;
+  /** A screenshot taken off the author's Draft, sent or not, and its files with it. */
+  removeScreenshot(proposer: Proposer, proposalId: string, screenshotId: string): Promise<Proposal>;
+  /** Null where there is none this proposer may be shown, so the route answers 404. */
+  openScreenshot(
+    proposer: Proposer,
+    screenshotId: string,
+    variant: ImageVariant,
+  ): Promise<StoredImage | null>;
 }
 
 export interface Decision {
@@ -89,6 +120,8 @@ export interface Decision {
 
 export function createProposalService(dependencies: {
   clock: Clock;
+  fileStore: FileStore;
+  logger: Logger;
   /** Null where Proposals are closed here, which the gate has already refused. */
   conversation: ConversationMethod | null;
   /** The Version this server is, written onto every Draft started on it. */
@@ -97,8 +130,16 @@ export function createProposalService(dependencies: {
   modelRepository: ModelRepository;
   tavolaRepository: TavolaRepository;
 }): ProposalService {
-  const { clock, conversation, version, proposalRepository, modelRepository, tavolaRepository } =
-    dependencies;
+  const {
+    clock,
+    fileStore,
+    logger,
+    conversation,
+    version,
+    proposalRepository,
+    modelRepository,
+    tavolaRepository,
+  } = dependencies;
 
   async function own(proposer: Proposer, proposalId: string): Promise<ProposalRow> {
     const proposal = await proposalRepository.findOwn(proposalId, proposer.accountId);
@@ -132,29 +173,62 @@ export function createProposalService(dependencies: {
     return { proposal, method: conversation };
   }
 
-  /** What the method is told about this Draft: everything but who is asking. */
+  /**
+   * What the method is told about this Draft: everything but who is asking. Each turn carries
+   * the screenshots sent with it, so one taken off again is not shown in later turns.
+   */
   async function told(proposal: ProposalRow): Promise<Conversation> {
-    const [earlier, turns] = await Promise.all([
+    const [earlier, turns, screenshots] = await Promise.all([
       proposalRepository.listEarlier(),
       proposalRepository.listTurns(proposal.id),
+      proposalRepository.listScreenshots(proposal.id),
     ]);
     return {
       kind: proposal.kind,
       context: contextOf(proposal),
       earlier,
-      turns: turns.map(({ speaker, text }) => ({ speaker, text })),
+      turns: await Promise.all(
+        turns.map(async ({ id, speaker, text }) => ({
+          speaker,
+          text,
+          screenshots: await Promise.all(
+            screenshots.filter((shot) => shot.turnId === id).map(picture),
+          ),
+        })),
+      ),
     };
   }
 
   async function whole(proposer: Proposer, proposal: ProposalRow): Promise<Proposal> {
-    const turns = await proposalRepository.listTurns(proposal.id);
+    const [turns, screenshots] = await Promise.all([
+      proposalRepository.listTurns(proposal.id),
+      proposalRepository.listScreenshots(proposal.id),
+    ]);
     const opening = turns.find((turn) => turn.speaker === 'author')?.text ?? null;
     return {
       ...listingOf(proposer, { proposal, opening }),
-      turns: turns.map(turnOf),
+      turns: turns.map((turn) => turnOf(turn, screenshots)),
       summary: proposal.summary,
       declineReason: proposal.declineReason,
+      // What waits to be sent is the author's alone, until a turn sends it.
+      unsent:
+        proposal.authorId === proposer.accountId
+          ? screenshots.filter((shot) => shot.turnId === null).map(screenshotOf)
+          : [],
     };
+  }
+
+  /** The picture as the conversation is shown it: the display image, read whole. */
+  async function picture(screenshot: ProposalScreenshotRow): Promise<ConversationScreenshot> {
+    const file = await fileStore.open(screenshot.displayKey);
+    if (file === null) {
+      throw new Error(`A screenshot's file is missing from the store: ${screenshot.id}`);
+    }
+    const chunks: Buffer[] = [];
+    for await (const chunk of file.stream()) {
+      chunks.push(chunk as Buffer);
+    }
+    return { note: screenshot.note, mediaType: 'image/webp', data: Buffer.concat(chunks) };
   }
 
   /**
@@ -218,8 +292,16 @@ export function createProposalService(dependencies: {
       return whole(proposer, await visible(proposer, proposalId));
     },
 
-    async converse(proposer, proposalId, text, heard) {
+    async converse(proposer, proposalId, { text, screenshots: sent }, heard) {
       const { proposal, method } = await draft(proposer, proposalId);
+      const waiting = new Set(
+        (await proposalRepository.listScreenshots(proposalId))
+          .filter((shot) => shot.turnId === null)
+          .map((shot) => shot.id),
+      );
+      if (sent.some((shot) => !waiting.delete(shot.id))) {
+        throw new ValidationError('That screenshot is not one waiting to be sent on this Draft.');
+      }
 
       const asked = await proposalRepository.addTurn({
         proposalId,
@@ -227,6 +309,7 @@ export function createProposalService(dependencies: {
         text,
         at: clock.now(),
       });
+      await proposalRepository.sendScreenshots(proposalId, asked.id, sent);
 
       let answer = '';
       for await (const piece of method.answer(await told(proposal))) {
@@ -240,7 +323,51 @@ export function createProposalService(dependencies: {
         text: answer,
         at: clock.now(),
       });
-      return [turnOf(asked), turnOf(answered)];
+      const shown = await proposalRepository.listScreenshots(proposalId);
+      return [turnOf(asked, shown), turnOf(answered, [])];
+    },
+
+    async show(proposer, proposalId, upload) {
+      await draft(proposer, proposalId);
+      const prepared = await prepareScreenshot(upload);
+
+      // Minted here, because the files are written before the row is, and under it.
+      const id = randomUUID();
+      const prefix = proposalScreenshotKeyPrefix(id);
+      const stored = await storeImageFiles(fileStore, prefix, upload, prepared);
+      try {
+        const row = await proposalRepository.addScreenshot({
+          id,
+          proposalId,
+          ...stored,
+          uploadedAt: clock.now(),
+        });
+        return screenshotOf(row);
+      } catch (error) {
+        await discardImageFiles(fileStore, prefix);
+        throw error;
+      }
+    },
+
+    async removeScreenshot(proposer, proposalId, screenshotId) {
+      const { proposal } = await draft(proposer, proposalId);
+      const removed = await proposalRepository.removeScreenshot(proposalId, screenshotId);
+      if (removed === null) {
+        if ((await own(proposer, proposalId)).status !== 'draft') {
+          throw new ConflictError('A handed-over Proposal keeps what it was handed over with.');
+        }
+        throw new NotFoundError('There is no such screenshot on this Draft.');
+      }
+      await discardImageFiles(fileStore, proposalScreenshotKeyPrefix(removed.id));
+      return whole(proposer, proposal);
+    },
+
+    async openScreenshot(proposer, screenshotId, variant) {
+      const screenshot = await proposalRepository.findScreenshotReadableBy(
+        screenshotId,
+        proposer.accountId,
+      );
+      return screenshot ? openStoredImage({ fileStore, logger }, screenshot, variant) : null;
     },
 
     async summarise(proposer, proposalId, change) {
@@ -283,6 +410,12 @@ export function createProposalService(dependencies: {
       }
       const handedOver = await proposalRepository.handOver(proposalId, clock.now());
       if (handedOver === null) {
+        const screenshots = await proposalRepository.listScreenshots(proposalId);
+        if (screenshots.some((shot) => shot.turnId === null)) {
+          throw new ConflictError(
+            'A screenshot is waiting to be sent: send it with a turn, or remove it, first.',
+          );
+        }
         throw new ConflictError(
           'Read the finished Proposal before handing it over: ask for it, and it is written ' +
             'from the conversation as it now stands.',
@@ -296,8 +429,12 @@ export function createProposalService(dependencies: {
       if (proposal.status !== 'draft') {
         throw new ConflictError('A handed-over Proposal stays, whatever becomes of it.');
       }
+      const screenshots = await proposalRepository.listScreenshots(proposalId);
       if (!(await proposalRepository.discard(proposalId, proposer.accountId))) {
         throw new NotFoundError('There is no such Proposal of yours.');
+      }
+      for (const { id } of screenshots) {
+        await discardImageFiles(fileStore, proposalScreenshotKeyPrefix(id));
       }
     },
 
@@ -367,11 +504,23 @@ function listingOf(proposer: Proposer, { proposal, opening }: ListedProposal): P
   };
 }
 
-function turnOf(turn: ProposalTurnRow): ProposalTurn {
+function turnOf(turn: ProposalTurnRow, screenshots: ProposalScreenshotRow[]): ProposalTurn {
   return {
     sequence: turn.sequence,
     speaker: turn.speaker,
     text: turn.text,
     at: turn.at.toISOString(),
+    screenshots: screenshots.filter((shot) => shot.turnId === turn.id).map(screenshotOf),
+  };
+}
+
+function screenshotOf(row: ProposalScreenshotRow): ProposalScreenshot {
+  return {
+    id: row.id,
+    note: row.note,
+    width: row.displayWidth,
+    height: row.displayHeight,
+    displayUrl: proposalScreenshotImageUrl(row.id, 'display'),
+    previewUrl: proposalScreenshotImageUrl(row.id, 'preview'),
   };
 }

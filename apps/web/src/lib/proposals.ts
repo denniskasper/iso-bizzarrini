@@ -5,6 +5,7 @@ import type {
   ProposalStatus,
   ProposalStatusRequest,
   ProposalTurn,
+  ProposalTurnRequest,
   StartProposalRequest,
 } from '@ricambi/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -80,12 +81,12 @@ export function useConverse(proposalId: string) {
   const [answering, setAnswering] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async (text: string) => {
-      setAsked(text);
+    mutationFn: async (turn: Required<ProposalTurnRequest>) => {
+      setAsked(turn.text);
       setAnswering('');
       let failure: string | null = null;
       let kept: ProposalTurn[] = [];
-      await api.converse(proposalId, text, (event) => {
+      await api.converse(proposalId, turn, (event) => {
         if (event.type === 'text') {
           setAnswering((sofar) => (sofar ?? '') + event.text);
         } else if (event.type === 'answered') {
@@ -103,6 +104,9 @@ export function useConverse(proposalId: string) {
               turns: [...current.proposal.turns, ...kept],
               // Carrying the conversation on sets aside a finished Proposal written before it.
               summary: null,
+              unsent: current.proposal.unsent.filter(
+                (waiting) => !turn.screenshots.some((sent) => sent.id === waiting.id),
+              ),
             },
           },
       );
@@ -185,4 +189,35 @@ export function useDiscard(proposalId: string) {
       return queryClient.invalidateQueries({ queryKey: PROPOSALS_QUERY_KEY });
     },
   });
+}
+
+/**
+ * **Screenshots shown on a Draft** (issue #154): each pasted or picked file goes up at once and
+ * waits on the Draft until a turn sends it; one added by mistake is taken off again, sent or not.
+ */
+export function useScreenshots(proposalId: string) {
+  const queryClient = useQueryClient();
+  const key = [...PROPOSALS_QUERY_KEY, proposalId];
+
+  const show = useMutation({
+    mutationFn: async (files: File[]) => {
+      for (const file of files) {
+        const { screenshot } = await api.showScreenshot(proposalId, file);
+        queryClient.setQueryData<{ proposal: Proposal }>(
+          key,
+          (current) =>
+            current && {
+              proposal: { ...current.proposal, unsent: [...current.proposal.unsent, screenshot] },
+            },
+        );
+      }
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (screenshotId: string) => api.removeScreenshot(proposalId, screenshotId),
+    onSuccess: (read) => queryClient.setQueryData(key, read),
+  });
+
+  return { show, remove };
 }

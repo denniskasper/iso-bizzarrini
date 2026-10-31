@@ -1,8 +1,29 @@
-import type { Proposal, ProposalContext, ProposalKind, ProposalListing } from '@ricambi/contracts';
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import type {
+  Proposal,
+  ProposalContext,
+  ProposalKind,
+  ProposalListing,
+  ProposalScreenshot,
+} from '@ricambi/contracts';
 import { Link } from '@tanstack/react-router';
-import { ContextList, FinishedProposal, Said } from '@/components/proposals/proposal-parts';
-import { Button } from '@/components/ui/button';
+import { Images } from 'lucide-react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
+import {
+  ContextList,
+  FinishedProposal,
+  Said,
+  Screenshots,
+  Shown,
+} from '@/components/proposals/proposal-parts';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { ApiError, refusalText } from '@/lib/api';
 import {
@@ -15,6 +36,7 @@ import {
   useHandOver,
   useOnScreen,
   useProposal,
+  useScreenshots,
   useStartProposal,
   useSummarise,
 } from '@/lib/proposals';
@@ -245,12 +267,21 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
   const converse = useConverse(proposal.id);
   const summarise = useSummarise(proposal.id);
   const handOver = useHandOver(proposal.id);
+  const screenshots = useScreenshots(proposal.id);
   const [text, setText] = useState('');
+  /** What the author says about each waiting screenshot, by its id, until the turn is sent. */
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const end = useRef<HTMLDivElement>(null);
+  const pickerId = useId();
 
   const isDraft = proposal.status === 'draft';
   const finished = proposal.summary;
-  const busy = converse.isPending || summarise.isPending || handOver.isPending;
+  const busy =
+    converse.isPending ||
+    summarise.isPending ||
+    handOver.isPending ||
+    screenshots.show.isPending ||
+    screenshots.remove.isPending;
   const hasSaidSomething = proposal.turns.some((turn) => turn.speaker === 'author');
 
   useEffect(() => {
@@ -263,8 +294,23 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
     if (said === '' || busy) {
       return;
     }
-    if (finished === null) {
-      converse.mutate(said, { onSuccess: () => setText('') });
+    // A screenshot shown after the Proposal was finished carries the conversation on with it.
+    if (finished === null || proposal.unsent.length > 0) {
+      converse.mutate(
+        {
+          text: said,
+          screenshots: proposal.unsent.map((shot) => ({
+            id: shot.id,
+            note: notes[shot.id]?.trim() || null,
+          })),
+        },
+        {
+          onSuccess: () => {
+            setText('');
+            setNotes({});
+          },
+        },
+      );
     } else {
       summarise.mutate(said, { onSuccess: () => setText('') });
     }
@@ -276,7 +322,25 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
     }
   }
 
-  const failure = [converse, summarise, handOver].find((mutation) => mutation.isError)?.error;
+  function show(files: FileList | File[] | null) {
+    const pictures = [...(files ?? [])].filter((file) => file.type.startsWith('image/'));
+    if (pictures.length > 0) {
+      screenshots.show.mutate(pictures);
+    }
+  }
+
+  /** A screenshot pasted anywhere in the panel's form goes up; pasted text stays text. */
+  function showPasted(event: ClipboardEvent) {
+    const files = [...event.clipboardData.files].filter((file) => file.type.startsWith('image/'));
+    if (files.length > 0) {
+      event.preventDefault();
+      show(files);
+    }
+  }
+
+  const failure = [converse, summarise, handOver, screenshots.show, screenshots.remove].find(
+    (mutation) => mutation.isError,
+  )?.error;
 
   return (
     <>
@@ -288,6 +352,15 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
           {proposal.turns.map((turn) => (
             <Said key={turn.sequence} speaker={turn.speaker}>
               {turn.text}
+              {turn.screenshots.length > 0 && (
+                <div className="mt-3" data-testid="turn-screenshots">
+                  <Screenshots
+                    screenshots={turn.screenshots}
+                    disabled={busy}
+                    onRemove={isDraft ? (id) => screenshots.remove.mutate(id) : undefined}
+                  />
+                </div>
+              )}
             </Said>
           ))}
           {converse.asked !== null && <Said speaker="author">{converse.asked}</Said>}
@@ -308,14 +381,21 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
             aria-label="The finished Proposal"
             className="mx-gutter mb-6 rounded-lg border border-line-strong bg-surface px-4 py-5"
           >
-            <FinishedProposal summary={finished} />
+            <FinishedProposal
+              summary={finished}
+              screenshots={proposal.turns.flatMap((turn) => turn.screenshots)}
+            />
           </section>
         )}
         <div ref={end} />
       </div>
 
       {isDraft ? (
-        <form onSubmit={send} className="border-t border-line px-gutter py-3">
+        <form
+          onSubmit={send}
+          onPaste={showPasted}
+          className="max-h-3/5 overflow-y-auto border-t border-line px-gutter py-3"
+        >
           {failure !== undefined && (
             <div className="mb-2">
               <Refusal>
@@ -325,6 +405,23 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
               </Refusal>
             </div>
           )}
+          {proposal.unsent.length > 0 && (
+            <ul className="mb-3 space-y-3" data-testid="unsent-screenshots">
+              {proposal.unsent.map((shot, index) => (
+                <li key={shot.id}>
+                  <Waiting
+                    screenshot={shot}
+                    index={index}
+                    note={notes[shot.id] ?? ''}
+                    onNote={(note) => setNotes((was) => ({ ...was, [shot.id]: note }))}
+                    disabled={busy}
+                    onRemove={() => screenshots.remove.mutate(shot.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+
           <label htmlFor="proposal-turn" className="sr-only">
             {finished === null ? 'Your answer' : 'Ask for a change'}
           </label>
@@ -336,7 +433,7 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
             onKeyDown={sendOnModifiedEnter}
             placeholder={
               finished === null
-                ? 'Write in your own words, in German or English.'
+                ? 'Write in your own words, in German or English. Paste a screenshot to show it.'
                 : 'Should it say something differently? Write what to change.'
             }
             className={cn(
@@ -346,7 +443,34 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
           />
           <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
             <Discard proposalId={proposal.id} disabled={busy} onDiscarded={onDiscarded} />
-            {finished === null ? (
+            {/* A label rather than a scripted button, so a phone opens its own photo picker. */}
+            <label
+              htmlFor={pickerId}
+              className={cn(
+                buttonVariants({ variant: 'outline' }),
+                'cursor-pointer aria-disabled:pointer-events-none aria-disabled:opacity-40',
+              )}
+              aria-disabled={busy}
+            >
+              <Images aria-hidden="true" />
+              {screenshots.show.isPending ? 'Adding…' : 'Add screenshots'}
+            </label>
+            <input
+              id={pickerId}
+              type="file"
+              // A hint to the operating system and nothing more. What a file is is decided by
+              // reading it, at the API.
+              accept="image/*"
+              multiple
+              className="sr-only"
+              disabled={busy}
+              data-testid="proposal-screenshot-picker"
+              onChange={(event) => {
+                show(event.target.files);
+                event.target.value = '';
+              }}
+            />
+            {finished === null || proposal.unsent.length > 0 ? (
               <>
                 <Button disabled={busy || !hasSaidSomething} onClick={() => summarise.mutate(null)}>
                   Finish
@@ -425,6 +549,52 @@ function Discard({
         Keep it
       </Button>
     </span>
+  );
+}
+
+/**
+ * A screenshot waiting to be sent, with a field for what in it matters. The note goes with the
+ * turn, and is kept as written.
+ */
+function Waiting({
+  screenshot,
+  index,
+  note,
+  onNote,
+  disabled,
+  onRemove,
+}: {
+  screenshot: ProposalScreenshot;
+  index: number;
+  note: string;
+  onNote: (note: string) => void;
+  disabled: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <Shown
+      screenshot={screenshot}
+      label={`Screenshot ${index + 1} to send`}
+      disabled={disabled}
+      onRemove={onRemove}
+    >
+      <label htmlFor={`note-${screenshot.id}`} className="sr-only">
+        Note on screenshot {index + 1}
+      </label>
+      <input
+        id={`note-${screenshot.id}`}
+        type="text"
+        value={note}
+        maxLength={2000}
+        disabled={disabled}
+        onChange={(event) => onNote(event.target.value)}
+        placeholder="What in it matters? (optional)"
+        className={cn(
+          'block h-control w-full rounded-md border border-line-strong bg-surface',
+          'px-3 text-sm text-text placeholder:text-faint',
+        )}
+      />
+    </Shown>
   );
 }
 

@@ -1,9 +1,21 @@
-import type { ProposalAnswerEvent, ProposalResponse, ProposalsResponse } from '@ricambi/contracts';
+import type {
+  ProposalAnswerEvent,
+  ProposalResponse,
+  ProposalScreenshotResponse,
+  ProposalsResponse,
+} from '@ricambi/contracts';
 import type { RequestHandler, Response } from 'express';
 import { z } from 'zod';
 import type { Gate } from '../access/gate.js';
 import { PROPOSAL_KINDS } from '../db/schema.js';
-import { ForbiddenError } from '../http/errors.js';
+import {
+  ForbiddenError,
+  NotFoundError,
+  UnsupportedMediaTypeError,
+  ValidationError,
+} from '../http/errors.js';
+import { sendImage } from '../http/served-image.js';
+import { IMAGE_VARIANTS } from '../images/image-addresses.js';
 import type { Logger } from '../platform/logger.js';
 import type { Proposer, ProposalService } from '../services/proposal-service.js';
 import { required } from './fields.js';
@@ -29,8 +41,6 @@ const startBody = z.object({
 
 const turnText = required('Write something first').max(20_000, 'That is too long for one turn');
 
-const turnBody = z.object({ text: turnText });
-
 const summaryBody = z
   .object({ change: turnText.optional() })
   .optional()
@@ -41,6 +51,33 @@ const listQuery = z.object({
     .enum(['new', 'taken-up', 'done', 'declined'], 'Proposals are filtered by where they stand.')
     .optional()
     .transform((status) => status ?? null),
+});
+
+const screenshotParams = proposalParams.extend({
+  screenshotId: z.uuid('There is no such screenshot on this Draft.'),
+});
+
+const screenshotImageParams = z.object({
+  screenshotId: z.uuid('No such screenshot.'),
+  variant: z.enum(IMAGE_VARIANTS),
+});
+
+const turnBody = z.object({
+  text: turnText,
+  screenshots: z
+    .array(
+      z.object({
+        id: z.uuid('That is not a screenshot of this Draft.'),
+        note: z
+          .string()
+          .trim()
+          .max(2000, 'That note is too long for one screenshot')
+          .nullish()
+          .transform((note) => (note ? note : null)),
+      }),
+    )
+    .max(20, 'Send at most twenty screenshots with one turn')
+    .default([]),
 });
 
 const decisionBody = z
@@ -66,6 +103,9 @@ export interface ProposalController {
   handOver: RequestHandler;
   discard: RequestHandler;
   decide: RequestHandler;
+  show: RequestHandler;
+  removeScreenshot: RequestHandler;
+  readScreenshot: RequestHandler;
 }
 
 /**
@@ -116,7 +156,7 @@ export function createProposalController(dependencies: {
      */
     converse: async (request, response) => {
       const { proposalId } = proposalParams.parse(request.params);
-      const { text } = turnBody.parse(request.body);
+      const turn = turnBody.parse(request.body);
 
       const send = (event: ProposalAnswerEvent): void => {
         if (!response.headersSent) {
@@ -132,7 +172,7 @@ export function createProposalController(dependencies: {
         const turns = await proposalService.converse(
           proposer(response),
           proposalId,
-          text,
+          turn,
           (piece) => send({ type: 'text', text: piece }),
         );
         send({ type: 'answered', turns });
@@ -184,6 +224,41 @@ export function createProposalController(dependencies: {
         proposal: await proposalService.decide(proposer(response), proposalId, decision),
       };
       response.json(body);
+    },
+    /** **A screenshot pasted or picked** (issue #154): the picture is the body, as a Photograph's is. */
+    show: async (request, response) => {
+      const { proposalId } = proposalParams.parse(request.params);
+      if (!Buffer.isBuffer(request.body)) {
+        throw new UnsupportedMediaTypeError('Send the screenshot itself as the request body.');
+      }
+      if (request.body.byteLength === 0) {
+        throw new ValidationError('That upload was empty.');
+      }
+      const body: ProposalScreenshotResponse = {
+        screenshot: await proposalService.show(proposer(response), proposalId, request.body),
+      };
+      response.status(201).json(body);
+    },
+
+    removeScreenshot: async (request, response) => {
+      const { proposalId, screenshotId } = screenshotParams.parse(request.params);
+      const body: ProposalResponse = {
+        proposal: await proposalService.removeScreenshot(
+          proposer(response),
+          proposalId,
+          screenshotId,
+        ),
+      };
+      response.json(body);
+    },
+
+    readScreenshot: async (request, response, next) => {
+      const { screenshotId, variant } = screenshotImageParams.parse(request.params);
+      const image = await proposalService.openScreenshot(proposer(response), screenshotId, variant);
+      if (!image) {
+        throw new NotFoundError('No such screenshot.');
+      }
+      sendImage(request, response, next, image);
     },
   };
 }
