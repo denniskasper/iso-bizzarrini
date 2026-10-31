@@ -11,6 +11,7 @@ import { PROPOSAL_KINDS } from '../db/schema.js';
 import {
   ForbiddenError,
   NotFoundError,
+  ProposalsPausedError,
   UnsupportedMediaTypeError,
   ValidationError,
 } from '../http/errors.js';
@@ -184,8 +185,10 @@ export function createProposalController(dependencies: {
         send({
           type: 'failed',
           message:
-            'The conversation stopped before it finished answering. What you wrote is kept; ' +
-            'write again to carry on.',
+            error instanceof ProposalsPausedError
+              ? error.message
+              : 'The conversation stopped before it finished answering. What you wrote is ' +
+                'kept; write again to carry on.',
         });
       }
       response.end();

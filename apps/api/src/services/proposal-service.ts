@@ -10,16 +10,24 @@ import type {
   ProposalTurn,
 } from '@ricambi/contracts';
 import type { ProposalRow, ProposalScreenshotRow, ProposalTurnRow } from '../db/schema.js';
-import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
+import {
+  ConflictError,
+  ConversationNotAnsweringError,
+  NotFoundError,
+  ProposalsPausedError,
+  ValidationError,
+} from '../http/errors.js';
 import type { StoredImage } from '../http/served-image.js';
 import { proposalScreenshotImageUrl, type ImageVariant } from '../images/image-addresses.js';
 import { prepareScreenshot } from '../images/screenshot-ingest.js';
 import type { Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
-import type {
-  Conversation,
-  ConversationMethod,
-  ConversationScreenshot,
+import {
+  ConversationPausedError,
+  ConversationUnavailableError,
+  type Conversation,
+  type ConversationMethod,
+  type ConversationScreenshot,
 } from '../proposals/conversation-method.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
 import type {
@@ -232,6 +240,23 @@ export function createProposalService(dependencies: {
   }
 
   /**
+   * **What the method could not do, as the author is told it** (issue #155): paused where the
+   * month's limit is spent, unavailable for anything else the method reports. What it said is
+   * logged for the developer; anything it did not report is a fault, and stays one.
+   */
+  function refusalOf(error: unknown, proposalId: string): unknown {
+    if (error instanceof ConversationPausedError) {
+      logger.warn({ proposalId }, 'The conversation’s spending limit for this month is reached');
+      return new ProposalsPausedError();
+    }
+    if (error instanceof ConversationUnavailableError) {
+      logger.error({ err: error, proposalId }, 'The conversation did not answer');
+      return new ConversationNotAnsweringError();
+    }
+    return error;
+  }
+
+  /**
    * The Model and Tavola looked up rather than taken on trust, and written down as they are now.
    * A Tavola names its Model (ADR 0002), so where both are given the Tavola's is the one kept.
    */
@@ -312,9 +337,13 @@ export function createProposalService(dependencies: {
       await proposalRepository.sendScreenshots(proposalId, asked.id, sent);
 
       let answer = '';
-      for await (const piece of method.answer(await told(proposal))) {
-        answer += piece;
-        heard(piece);
+      try {
+        for await (const piece of method.answer(await told(proposal))) {
+          answer += piece;
+          heard(piece);
+        }
+      } catch (error) {
+        throw refusalOf(error, proposalId);
       }
 
       const answered = await proposalRepository.addTurn({
@@ -389,7 +418,12 @@ export function createProposalService(dependencies: {
         throw new ConflictError('Say what you bring first; there is nothing to finish yet.');
       }
 
-      const written = await method.summarise(conversation);
+      let written;
+      try {
+        written = await method.summarise(conversation);
+      } catch (error) {
+        throw refusalOf(error, proposalId);
+      }
       if (written.kind !== proposal.kind) {
         throw new Error(`The conversation finished a ${written.kind} as a ${proposal.kind}.`);
       }

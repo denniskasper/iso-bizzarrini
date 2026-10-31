@@ -100,6 +100,18 @@ Art. 30(1) GDPR, drafted for Ricambi. **A draft for the association to adopt** �
 | Who sees it | Whoever operates the server for `<CLUB>` |
 | Erasure | **Thirty days**, enforced by the server's journal and not by the application — [log-retention.md](../operations/log-retention.md). Not included in backups. |
 
+### 6a. Proposals, on Integration
+
+| | |
+| --- | --- |
+| Purpose | Developing Ricambi: somebody the developer has let propose hands over a Fix or an Idea, worked out in conversation with Claude on Integration. Never on Production, which refuses the conversation's credential ([ADR 0012](../adr/0012-non-production-is-the-default.md), as amended). |
+| Legal basis | Art. 6(1)(f) — the interest is developing the archive the Club's members use |
+| Data subjects | The people let propose. A standing reminder asks them not to name members, and the summary replaces names by roles. |
+| Data | Their Account, their words and screenshots, what was on screen when they started, the summary and the model that wrote it |
+| Recipients | **Anthropic, as a Processor for developing Ricambi**: every turn and screenshot is sent to answer it, through a key in a workspace of its own ([proposals.md](../operations/proposals.md)). Its agreement is kept with the Club's others. |
+| Who sees it | Its author while it is a Draft; once handed over, everybody let propose, and the developer |
+| Erasure | A Draft is discarded by its author. `<PROPOSAL_RETENTION>` for handed-over Proposals is the Club's to set. |
+
 ### 7. Backups
 
 | | |

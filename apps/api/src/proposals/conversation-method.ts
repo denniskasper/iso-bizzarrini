@@ -63,3 +63,27 @@ export interface ConversationScreenshot {
   mediaType: 'image/webp';
   data: Buffer;
 }
+
+/**
+ * **This month's spending limit is reached** (issue #155): the provider refuses every request
+ * until the month turns. Told to the author as Proposals being paused, which is what it is, and
+ * kept apart from {@link ConversationUnavailableError}, which is something to tell the developer.
+ */
+export class ConversationPausedError extends Error {
+  constructor() {
+    super('The conversation’s spending limit for this month is reached.');
+    this.name = 'ConversationPausedError';
+  }
+}
+
+/**
+ * **The conversation could not be had**, for any reason but the spending limit: the provider
+ * refused the key, could not be reached, or declined to answer. The message is for the log and
+ * never carries the request, and so never the credential.
+ */
+export class ConversationUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConversationUnavailableError';
+  }
+}

@@ -95,6 +95,13 @@ COPY --from=build --chown=node:node /app/apps/api/dist ./dist
 COPY --from=build --chown=node:node /app/apps/api/drizzle ./drizzle
 # Beside `apps`, not inside the server's directory: `WEB_DIST_PATH` below names it in full.
 COPY --from=build --chown=node:node /app/apps/web/dist /app/web
+# What a Proposal's conversation is given of Ricambi (issue #155): the glossary, the product spec
+# and the ADRs of exactly this Version, where they are in a checkout, so the server finds them as
+# it does in one. Not the source code. The last line fails the build if any is missing.
+COPY --chown=node:node GLOSSARY.md /app/GLOSSARY.md
+COPY --chown=node:node docs/spec.md /app/docs/spec.md
+COPY --chown=node:node docs/adr /app/docs/adr
+RUN test -s /app/GLOSSARY.md && test -s /app/docs/spec.md && ls /app/docs/adr/0001-*.md
 
 # The app is served from the same origin as the API, so it ships inside this image.
 ENV WEB_DIST_PATH=/app/web

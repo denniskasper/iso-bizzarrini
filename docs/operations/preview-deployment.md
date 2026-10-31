@@ -74,6 +74,9 @@ into Dokploy's environment editor, which keeps them on the server.
    logs for `Schema is up to date` and
    `Wrote an invented catalog into an empty practice archive`.
 
+Proposals need a key of their own, in a workspace with a monthly limit:
+[`proposals.md`](proposals.md) says how it is given.
+
 ## Getting yourself in
 
 Nobody is on the roster, so nobody can sign in — including you. Put yourself on it, from a shell

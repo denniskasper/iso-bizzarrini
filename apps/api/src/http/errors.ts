@@ -120,6 +120,37 @@ export class PaymentProviderUnavailableError extends HttpError {
   }
 }
 
+/**
+ * **Proposals are paused** (issue #155): the conversation's monthly spending limit is spent, and
+ * it answers again when the month turns. Said plainly, so nobody thinks they broke something,
+ * and kept apart from {@link ConversationNotAnsweringError}, which is worth telling the developer.
+ */
+export class ProposalsPausedError extends HttpError {
+  constructor() {
+    super(
+      503,
+      'proposals_paused',
+      'Proposals are paused until next month: this month’s limit for the conversation is spent. ' +
+        'What you wrote is kept.',
+    );
+  }
+}
+
+/**
+ * The conversation could not answer, for any reason but the limit. 502, for the reason an unsent
+ * invitation is: what failed is somebody else's service.
+ */
+export class ConversationNotAnsweringError extends HttpError {
+  constructor() {
+    super(
+      502,
+      'conversation_unavailable',
+      'The conversation is unavailable just now. What you wrote is kept; try again later, and ' +
+        'tell the developer if it stays so.',
+    );
+  }
+}
+
 /** The request contradicts something already recorded — a Tavola number used twice on a Model. */
 export class ConflictError extends HttpError {
   constructor(message: string, details?: unknown) {

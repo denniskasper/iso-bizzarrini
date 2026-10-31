@@ -244,10 +244,12 @@ const environmentSchema = z.object({
   ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
 
   /**
-   * **What a Proposal's conversation is had with** (issue #152), on a practice system only. Just
-   * `fake` for now, which answers fixed text. Unset means none, and nobody is shown Propose.
+   * **What a Proposal's conversation is had with** (issue #152), on a practice system only:
+   * `api-key`, Claude through PROPOSALS_ANTHROPIC_API_KEY (issue #155), or `fake`, which answers
+   * fixed text. Unset, the key decides: with it the conversation is `api-key`, without it there is
+   * none and nobody is shown Propose.
    */
-  PROPOSALS_METHOD: z.preprocess(blankAsUnset, z.enum(['fake']).optional()),
+  PROPOSALS_METHOD: z.preprocess(blankAsUnset, z.enum(['api-key', 'fake']).optional()),
   /**
    * The conversation's own Anthropic API key, kept in a workspace of its own with a monthly limit.
    * **Production refuses to start with it** (ADR 0012, as amended). Never shown, logged or written.
