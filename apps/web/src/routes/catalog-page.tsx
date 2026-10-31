@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { NewModelForm } from '@/components/editor/new-model-form';
+import { ShownToVisitors } from '@/components/samples/shown-to-visitors';
 import { Roundel } from '@/components/wordmark';
 import { api, type CatalogModel } from '@/lib/api';
+import { useSession } from '@/lib/session';
 
 /**
  * The catalog index — where a member starts, by finding their car.
@@ -15,6 +17,7 @@ export function CatalogPage() {
     queryKey: ['models'],
     queryFn: api.models,
   });
+  const { isAdministrator } = useSession();
 
   return (
     // On a desk the words that open the archive sit beside its list of cars rather than above
@@ -57,6 +60,7 @@ export function CatalogPage() {
         </p>
 
         <NewModelForm className="mt-12" />
+        {isAdministrator && <ShownToVisitors className="mt-12" />}
       </div>
 
       <div className="mt-16 lg:mt-0">

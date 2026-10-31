@@ -80,6 +80,17 @@ function outlineOf(page: Page): Locator {
 
 /** A place on the sheet, as fractions of it, clicked the way an Editor or a member clicks it. */
 async function clickTheSheetAt(page: Page, at: { x: number; y: number }): Promise<void> {
+  // The sheet glides to wherever it was last sent, and a click aimed at a place on it waits for
+  // it to arrive.
+  let last = '';
+  await expect
+    .poll(async () => {
+      const now = JSON.stringify(await page.getByTestId('drawing-marks').boundingBox());
+      const still = now === last;
+      last = now;
+      return still;
+    })
+    .toBe(true);
   const sheet = await page.getByTestId('drawing-marks').boundingBox();
   const frame = await page.getByTestId('drawing-frame').boundingBox();
   if (!sheet || !frame) {
@@ -163,7 +174,7 @@ test.describe('drawing an outline', () => {
 
     await page.getByRole('button', { name: 'Remove outline' }).click();
     await expect(page.getByRole('button', { name: 'Draw outline' })).toBeVisible();
-    expect(await readOutline(page, tavolaId)).toBeNull();
+    await expect.poll(() => readOutline(page, tavolaId)).toBeNull();
   });
 });
 
@@ -267,8 +278,10 @@ test.describe('reshaping an outline', () => {
     await expect(page.getByTestId('outline-panel')).toContainText('Reshaping Door Lock');
     await expect(page.getByTestId('outline-corner')).toHaveCount(4);
     // The panel sits under the drawing, and pressing its button scrolled the page down to it,
-    // taking the drawing up under the header: back to the top, where a hand can reach it.
-    await page.evaluate(() => window.scrollTo(0, 0));
+    // taking the drawing up under the header: back to the middle, where a hand can reach it.
+    await page
+      .getByTestId('drawing-frame')
+      .evaluate((frame) => frame.scrollIntoView({ block: 'center' }));
     return tavolaId;
   }
 
@@ -309,16 +322,6 @@ test.describe('reshaping an outline', () => {
     // The bottom side, from (0.5, 0.5) to (0.2, 0.5): a click halfway along it.
     await page.getByRole('button', { name: 'Fit the whole drawing' }).click();
     await expect(magnification).toHaveText('×1.0');
-    // The sheet glides back to fit, and a click aimed at a side has to wait for it to arrive.
-    let last = '';
-    await expect
-      .poll(async () => {
-        const now = JSON.stringify(await page.getByTestId('drawing-marks').boundingBox());
-        const still = now === last;
-        last = now;
-        return still;
-      })
-      .toBe(true);
     await clickTheSheetAt(page, { x: 0.35, y: 0.5 });
     await expect(page.getByTestId('outline-corner')).toHaveCount(5);
     await expect.poll(async () => (await readOutline(page, tavolaId))?.length).toBe(5);

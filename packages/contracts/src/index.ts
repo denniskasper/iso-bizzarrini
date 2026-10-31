@@ -496,7 +496,52 @@ export interface TavolaResponse extends Sheet {
     publication: TavolaPublication | null;
     /** Empty for a Tavola recorded by hand, which nobody read off a table. */
     tableSheets: TableSheet[];
+    /**
+     * Whether it is shown to Visitors, and how (ADR 0019): `null` when it is not. **Only an
+     * Administrator is told**, so for everybody else the field is not there at all.
+     */
+    sample?: TavolaSample | null;
   };
+}
+
+/**
+ * A Published Tavola an Administrator shows to Visitors (ADR 0019), as Administrators are told
+ * about it. What a Visitor reads of it is another shape, and a much smaller one.
+ */
+export interface TavolaSample {
+  /** The one number a Visitor may read the Parts at. Every other number is locked. */
+  open: { positionId: string; number: string };
+  /** ISO timestamp of when it was first shown. Opening another number does not move it. */
+  markedAt: string;
+  /** Who showed it, while their Account exists. */
+  markedBy: string | null;
+  /**
+   * **The smaller public copy** of the drawing: served to anybody, signed in or not, and sharp
+   * enough to read the numbers but not to print the sheet. The Scan itself stays private.
+   */
+  drawing: { url: string; width: number; height: number };
+}
+
+/**
+ * `PUT /api/tavole/:tavolaId/sample` — an Administrator showing a Published Tavola to Visitors
+ * with this Position open, or opening another one on a Tavola already shown. Answers
+ * `SampleResponse`. `DELETE` on the same address stops showing it.
+ */
+export interface ShowToVisitorsRequest {
+  positionId: string;
+}
+
+export interface SampleResponse {
+  sample: TavolaSample;
+}
+
+/** `GET /api/samples` — every Tavola shown to Visitors, in the order they were first shown. */
+export interface SamplesResponse {
+  samples: (TavolaSample & {
+    tavola: Pick<TavolaSummary, 'id' | 'number' | 'nameIt' | 'nameEn'> & {
+      model: CatalogModel;
+    };
+  })[];
 }
 
 /**

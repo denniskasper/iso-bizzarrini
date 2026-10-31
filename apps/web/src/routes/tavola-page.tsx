@@ -16,6 +16,7 @@ import { MarkingBar } from '@/components/editor/marking-bar';
 import { OutlinePanel } from '@/components/editor/outline-panel';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
+import { ShowToVisitors, useShowToVisitors } from '@/components/editor/show-to-visitors';
 import { ReadAgain } from '@/components/readings/read-again';
 import { RemoveTavola } from '@/components/readings/remove-tavola';
 import { ConfirmEnglish, MachineTranslationTag } from '@/components/machine-translation';
@@ -112,6 +113,14 @@ export function TavolaPage() {
    */
   const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
+  /**
+   * **An Administrator choosing the number Visitors may read** (ADR 0019), by pressing its circle.
+   * Keyed by the Tavola like everything else held here, so it never follows them onto the next
+   * sheet; and only an Administrator is ever picking.
+   */
+  const [pickingFor, setPickingFor] = useState<string | null>(null);
+  const picking = isAdministrator && pickingFor === tavolaId;
+  const visitors = useShowToVisitors(tavolaId, () => setPickingFor(null));
   const tool = useMarkingTool(tavolaId);
   const outlining = useOutlineTool(tavolaId);
   /**
@@ -508,10 +517,12 @@ export function TavolaPage() {
                 selectedPositionId={selectedPosition?.id ?? null}
                 selectedMarkId={selectedMark?.id ?? null}
                 lit={lit}
-                onSelect={readMark}
+                onSelect={
+                  picking ? (position: Position) => visitors.show.mutate(position.id) : readMark
+                }
                 onPoint={point}
                 pointedMarkId={described?.mark.id ?? null}
-                onMove={tool.on && !outlineInHand ? tool.moveMark : undefined}
+                onMove={tool.on && !outlineInHand && !picking ? tool.moveMark : undefined}
                 quiet={outlineInHand}
               />
             }
@@ -552,13 +563,15 @@ export function TavolaPage() {
             // The sheet only becomes a tool when an Editor says so. A member's drawing is a
             // drawing, and a stray tap on it records nothing.
             onTapPoint={
-              outlining.drawing
-                ? outlining.add
-                : outlining.reshaping
-                  ? outlining.tapWhileReshaping
-                  : tool.on
-                    ? tool.place
-                    : undefined
+              picking
+                ? undefined
+                : outlining.drawing
+                  ? outlining.add
+                  : outlining.reshaping
+                    ? outlining.tapWhileReshaping
+                    : tool.on
+                      ? tool.place
+                      : undefined
             }
             tapHint={
               outlining.drawing
@@ -634,6 +647,27 @@ export function TavolaPage() {
           />
         </div>
       </div>
+
+      {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
+          the factory's drawing, and an Administrator alone is told whether it is one. Under the
+          drawing, as every tool here is, so the drawing is still the first thing on a phone. */}
+      {isAdministrator &&
+        tavola.state === 'published' &&
+        tavola.sample !== undefined &&
+        (tavola.scan || tavola.sample) && (
+          <div className="mt-12">
+            <ShowToVisitors
+              sample={tavola.sample}
+              picking={picking}
+              onPick={() => {
+                visitors.show.reset();
+                setPickingFor(tavolaId);
+              }}
+              onCancel={() => setPickingFor(null)}
+              actions={visitors}
+            />
+          </div>
+        )}
 
       {checkingOpen && checking.data && (
         <div className="mt-16">

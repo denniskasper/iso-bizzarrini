@@ -99,6 +99,9 @@ import type {
   TavolaListingsResponse,
   TavolaPublishedResponse,
   TavolaResponse,
+  SampleResponse,
+  SamplesResponse,
+  ShowToVisitorsRequest,
   TavolaScan,
   TavolaSummary,
   TurnScanRequest,
@@ -421,6 +424,18 @@ export const api = {
   /** An Editor's statement that an Unchecked Tavola says what the factory printed. */
   publishTavola: (tavolaId: string) =>
     send<TavolaPublishedResponse>('POST', `/tavole/${tavolaId}/publication`, {}),
+  /**
+   * Showing a Published Tavola to Visitors with this number open, or opening another number on
+   * one already shown (ADR 0019). An Administrator's decision, and so are the two below.
+   */
+  showToVisitors: (tavolaId: string, positionId: string) =>
+    send<SampleResponse>('PUT', `/tavole/${tavolaId}/sample`, {
+      positionId,
+    } satisfies ShowToVisitorsRequest),
+  stopShowingToVisitors: (tavolaId: string) =>
+    request<void>(`/tavole/${tavolaId}/sample`, { method: 'DELETE' }),
+  /** Every Tavola shown to Visitors, in the order they were first shown. */
+  samples: () => request<SamplesResponse>('/samples'),
   /** What an Editor checks a machine-read Tavola against (issue #34). An Editor's alone. */
   tavolaChecking: (tavolaId: string) =>
     request<TavolaCheckingResponse>(`/tavole/${tavolaId}/checking`),
@@ -797,6 +812,8 @@ export type {
   TavolaResponse,
   TavolaScan,
   TavolaPublication,
+  TavolaSample,
+  SamplesResponse,
   TavolaState,
   TavolaSummary,
 } from '@ricambi/contracts';

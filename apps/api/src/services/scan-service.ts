@@ -12,6 +12,7 @@ import type { Logger } from '../platform/logger.js';
 import type { ScanRepository } from '../repositories/scan-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
 import type { ScanRow } from '../db/schema.js';
+import type { SampleService } from './sample-service.js';
 import { toTavolaScan } from './catalog-view.js';
 
 export interface ScanService {
@@ -29,11 +30,24 @@ export interface ScanService {
 export function createScanService(dependencies: {
   tavolaRepository: TavolaRepository;
   scanRepository: ScanRepository;
+  sampleService: Pick<SampleService, 'redraw'>;
   fileStore: FileStore;
   clock: Clock;
   logger: Logger;
 }): ScanService {
-  const { tavolaRepository, scanRepository, fileStore, clock, logger } = dependencies;
+  const { tavolaRepository, scanRepository, sampleService, fileStore, clock, logger } =
+    dependencies;
+
+  /**
+   * A Sample's public copy is of the drawing the Marks are on (ADR 0019), so a new or turned Scan
+   * is copied again. The Scan has changed whatever happens here, so a failure is said and not
+   * thrown: the Sample keeps the copy it had.
+   */
+  async function redrawSample(tavolaId: string): Promise<void> {
+    await sampleService.redraw(tavolaId).catch((error: unknown) => {
+      logger.error({ err: error, tavolaId }, 'Could not copy a Sample’s new drawing');
+    });
+  }
 
   return {
     async ingest(tavolaId, upload) {
@@ -73,6 +87,7 @@ export function createScanService(dependencies: {
         });
       }
 
+      await redrawSample(tavolaId);
       return toTavolaScan(current);
     },
 
@@ -123,6 +138,7 @@ export function createScanService(dependencies: {
         logger.warn({ err: error, scanId: scan.id }, 'Could not remove a turned scan’s files');
       });
 
+      await redrawSample(tavolaId);
       return toTavolaScan(current);
     },
 

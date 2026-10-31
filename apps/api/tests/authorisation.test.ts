@@ -61,6 +61,9 @@ const OPEN = new Set([
   // Where the payment provider delivers (issue #4). Nobody is signed in at it; what it is
   // behind is the provider's signature over the bytes, which `subscriptions.test.ts` proves.
   'POST /api/payments/webhook',
+  // A Sample's drawing (ADR 0019): a smaller copy made to be public, and gone when the Sample is.
+  // The Scan it was copied from stays behind the gate; `samples.test.ts` proves both.
+  'GET /api/sample-drawings/:drawingId',
 ]);
 
 /** An Administrator's, and behind the role rather than behind a Membership. */
