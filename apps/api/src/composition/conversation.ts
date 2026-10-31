@@ -48,7 +48,7 @@ export function configureConversation(
         return {
           method: null,
           unavailable:
-            'The API key is configured, and there is no API key. Set ' +
+            'PROPOSALS_METHOD is api-key, and there is no API key. Set ' +
             'PROPOSALS_ANTHROPIC_API_KEY as a secret.',
         };
       }
