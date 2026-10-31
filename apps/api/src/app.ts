@@ -98,7 +98,9 @@ import {
 import { createTavolaService } from './services/tavola-service.js';
 import { createVisitorService } from './services/visitor-service.js';
 import { createFileStore, type FileStore } from './storage/file-store.js';
+import { createIndexing } from './http/indexing.js';
 import { createStaticSiteHandler } from './http/static-site.js';
+import { createVisitorPages } from './http/visitor-pages.js';
 
 /**
  * Everything the application needs from the outside world, handed in rather than reached for.
@@ -425,7 +427,14 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     contributionReviewService,
   });
   const scanController = createScanController({ scanService });
-  const sampleController = createSampleController({ gate, sampleService });
+  const indexing = createIndexing(config.environmentMode);
+  const visitorPages = createVisitorPages({
+    visitorService,
+    environmentMode: config.environmentMode,
+    publicUrl: config.publicUrl,
+    webDistPath: config.webDistPath,
+  });
+  const sampleController = createSampleController({ gate, sampleService, indexing });
   const checkingController = createCheckingController({
     checkingService: createCheckingService({
       tavolaRepository,
@@ -465,11 +474,8 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
 
   // Members-only, in every environment: nothing here is for a search engine, and the
   // non-production system least of all. The markup says the same thing; this covers what a
-  // crawler reaches that is not markup.
-  app.use((_request, response, next) => {
-    response.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    next();
-  });
+  // crawler reaches that is not markup. The Visitor pages lift it, in production only (ADR 0019).
+  app.use(indexing.forbidByDefault);
 
   app.use(
     express.json({
@@ -526,9 +532,15 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   );
   app.use(API_MOUNT, notFoundHandler);
 
+  // What a crawler reads first (issue #133), whether or not this process serves the web app.
+  app.get('/robots.txt', visitorPages.robots);
+  app.get('/sitemap.xml', visitorPages.sitemap);
+
   const staticSite = createStaticSiteHandler({
     webDistPath: config.webDistPath,
     environmentMode: config.environmentMode,
+    visitorPages,
+    indexing,
   });
   if (staticSite) {
     app.use(staticSite);
