@@ -55,9 +55,9 @@ export function Processors() {
 
           return (
             <ProcessorForm
-              // Remounted when somebody is named or let go, so a row that was just removed comes
-              // back empty rather than still showing what was typed.
-              key={`${work.role}:${processor === null ? 'unnamed' : 'named'}`}
+              // Kept mounted when somebody is named for the first time: remounting it then threw
+              // the save away with the form, and "Saved." never appeared after the first save.
+              key={work.role}
               work={work}
               processor={processor}
             />
@@ -140,7 +140,18 @@ function ProcessorForm({
             type="button"
             variant="ghost"
             disabled={remove.isPending}
-            onClick={() => remove.mutate(work.role)}
+            onClick={() =>
+              remove.mutate(work.role, {
+                // A row that was just removed comes back empty rather than still showing what
+                // was typed, and without the "Saved." of the save before it.
+                onSuccess: () => {
+                  setName('');
+                  setLocation('');
+                  setSignedOn('');
+                  save.reset();
+                },
+              })
+            }
           >
             Remove
           </Button>
