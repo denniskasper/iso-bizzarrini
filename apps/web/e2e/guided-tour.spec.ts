@@ -67,3 +67,18 @@ test('signing out moves the tour on to the archive as a Visitor sees it', async 
   await expect(tour.getByTestId('tour-step')).toHaveText('What a Visitor sees');
   await page.screenshot({ path: info.outputPath('visitor.png'), fullPage: false });
 });
+
+test('a Tavola 51 that was not loaded can be skipped, on to showing a drawing', async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.evaluate(() =>
+    window.localStorage.setItem('ricambi.tour', JSON.stringify({ step: 2, folded: false })),
+  );
+  await page.reload();
+  const tour = page.getByTestId('tour');
+  await expect(tour.getByTestId('tour-step')).toHaveText('Wait for it to finish');
+
+  await tour.getByRole('button', { name: 'Tavola 51 wasn’t loaded' }).click();
+  await expect(tour.getByTestId('tour-step')).toHaveText('Show a drawing to Visitors');
+});

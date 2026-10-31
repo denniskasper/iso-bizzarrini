@@ -34,6 +34,8 @@ interface Step {
   done?: (where: Where) => boolean;
   /** What the tester presses to say they are done, where nothing can tell. */
   next?: string;
+  /** A way on to the next part, for when the archive is not as the step expects. */
+  skip?: string;
 }
 
 const onTavola = (where: Where) => where.path.startsWith('/tavole/');
@@ -91,6 +93,8 @@ const STEPS: Step[] = [
       </p>
     ),
     done: onTavola,
+    // A Tavola 51 somebody has already published is not read again, and leaves nothing to check.
+    skip: 'Tavola 51 wasn’t loaded',
   },
   {
     part: 'read',
@@ -223,6 +227,9 @@ export function GuidedTour() {
 
   const last = state.step === STEPS.length - 1;
   const advance = () => (last ? end() : goTo(state.step + 1));
+  const nextPart = STEPS.findIndex(
+    (later, index) => index > state.step && later.part !== null && later.part !== step.part,
+  );
   const go = step.go && !step.go.unless(where) ? step.go : null;
   const reached = step.part ? PARTS.findIndex((part) => part.part === step.part) : -1;
   const partsDone = last ? PARTS.length : reached;
@@ -305,6 +312,11 @@ export function GuidedTour() {
 
         {/* Quieter than the step's own action, on a line of their own. */}
         <div className="mt-2 -mr-3 flex flex-wrap justify-end gap-1">
+          {step.skip && nextPart !== -1 && (
+            <Button variant="ghost" className="px-3" onClick={() => goTo(nextPart)}>
+              {step.skip}
+            </Button>
+          )}
           {state.step > 0 && (
             <Button variant="ghost" className="px-3" onClick={start}>
               Start over
