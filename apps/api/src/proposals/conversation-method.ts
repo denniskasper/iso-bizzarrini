@@ -25,4 +25,13 @@ export interface Conversation {
 export interface ConversationTurn {
   speaker: ProposalSpeaker;
   text: string;
+  /** What the author showed with the turn (issue #154), in the order they added it. */
+  screenshots: ConversationScreenshot[];
+}
+
+/** A screenshot as the conversation is shown it: the picture itself, and the author's note. */
+export interface ConversationScreenshot {
+  note: string | null;
+  mediaType: 'image/webp';
+  data: Buffer;
 }

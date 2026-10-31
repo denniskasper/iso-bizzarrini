@@ -59,6 +59,7 @@ export function createApiRouter(dependencies: {
   uncheckedTavolaGuard: UncheckedTavolaGuard;
   maxScanBytes: number;
   maxPhotographBytes: number;
+  maxScreenshotBytes: number;
   statusController: StatusController;
   sessionController: SessionController;
   rosterController: RosterController;
@@ -360,6 +361,24 @@ export function createApiRouter(dependencies: {
   router.post('/proposals', gate.requireProposer, proposalController.start);
   router.get('/proposals/:proposalId', gate.requireProposer, proposalController.read);
   router.post('/proposals/:proposalId/turns', gate.requireProposer, proposalController.converse);
+  // **What the author shows** (issue #154). The picture is the body, and nothing here trusts what
+  // it says it is. Asked who is sending before the body is read, so nobody else's upload is.
+  router.post(
+    '/proposals/:proposalId/screenshots',
+    gate.requireProposer,
+    express.raw({ type: () => true, limit: dependencies.maxScreenshotBytes }),
+    proposalController.show,
+  );
+  router.delete(
+    '/proposals/:proposalId/screenshots/:screenshotId',
+    gate.requireProposer,
+    proposalController.removeScreenshot,
+  );
+  router.get(
+    '/proposal-screenshots/:screenshotId/:variant',
+    gate.requireProposer,
+    proposalController.readScreenshot,
+  );
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);

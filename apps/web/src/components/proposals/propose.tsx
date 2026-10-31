@@ -1,6 +1,22 @@
-import type { Proposal, ProposalContext, ProposalKind, ProposalSummary } from '@ricambi/contracts';
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import type {
+  Proposal,
+  ProposalContext,
+  ProposalKind,
+  ProposalScreenshot,
+  ProposalSummary,
+} from '@ricambi/contracts';
+import { Images, X } from 'lucide-react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { ApiError, refusalText } from '@/lib/api';
 import {
@@ -10,6 +26,7 @@ import {
   useDrafts,
   useOnScreen,
   useProposal,
+  useScreenshots,
   useStartProposal,
 } from '@/lib/proposals';
 import { cn } from '@/lib/utils';
@@ -232,8 +249,13 @@ function Conversing({ proposalId }: { proposalId: string }) {
 
 function Conversation({ proposal }: { proposal: Proposal }) {
   const converse = useConverse(proposal.id);
+  const screenshots = useScreenshots(proposal.id);
   const [text, setText] = useState('');
+  /** What the author says about each waiting screenshot, by its id, until the turn is sent. */
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const end = useRef<HTMLDivElement>(null);
+  const pickerId = useId();
+  const busy = converse.isPending || screenshots.show.isPending;
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
@@ -242,10 +264,24 @@ function Conversation({ proposal }: { proposal: Proposal }) {
   function send(event?: FormEvent) {
     event?.preventDefault();
     const said = text.trim();
-    if (said === '' || converse.isPending) {
+    if (said === '' || busy) {
       return;
     }
-    converse.mutate(said, { onSuccess: () => setText('') });
+    converse.mutate(
+      {
+        text: said,
+        screenshots: proposal.unsent.map((shot) => ({
+          id: shot.id,
+          note: notes[shot.id]?.trim() || null,
+        })),
+      },
+      {
+        onSuccess: () => {
+          setText('');
+          setNotes({});
+        },
+      },
+    );
   }
 
   function sendOnModifiedEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -253,6 +289,24 @@ function Conversation({ proposal }: { proposal: Proposal }) {
       send();
     }
   }
+
+  function show(files: FileList | File[] | null) {
+    const pictures = [...(files ?? [])].filter((file) => file.type.startsWith('image/'));
+    if (pictures.length > 0) {
+      screenshots.show.mutate(pictures);
+    }
+  }
+
+  /** A screenshot pasted anywhere in the panel's form goes up; pasted text stays text. */
+  function showPasted(event: ClipboardEvent) {
+    const files = [...event.clipboardData.files].filter((file) => file.type.startsWith('image/'));
+    if (files.length > 0) {
+      event.preventDefault();
+      show(files);
+    }
+  }
+
+  const refusal = converse.error ?? screenshots.show.error ?? screenshots.remove.error;
 
   return (
     <>
@@ -264,6 +318,24 @@ function Conversation({ proposal }: { proposal: Proposal }) {
           {proposal.turns.map((turn) => (
             <Said key={turn.sequence} speaker={turn.speaker}>
               {turn.text}
+              {turn.screenshots.length > 0 && (
+                <ul className="mt-3 space-y-3" data-testid="turn-screenshots">
+                  {turn.screenshots.map((shot, index) => (
+                    <li key={shot.id}>
+                      <Shown
+                        screenshot={shot}
+                        label={`Screenshot ${index + 1}`}
+                        disabled={busy || screenshots.remove.isPending}
+                        onRemove={() => screenshots.remove.mutate(shot.id)}
+                      >
+                        {shot.note !== null && (
+                          <p className="mt-1 text-sm text-pretty text-muted">{shot.note}</p>
+                        )}
+                      </Shown>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Said>
           ))}
           {converse.asked !== null && <Said speaker="author">{converse.asked}</Said>}
@@ -276,16 +348,55 @@ function Conversation({ proposal }: { proposal: Proposal }) {
         <div ref={end} />
       </div>
 
-      <form onSubmit={send} className="border-t border-line px-gutter py-3">
-        {converse.isError && (
+      <form
+        onSubmit={send}
+        onPaste={showPasted}
+        className="max-h-[60%] overflow-y-auto border-t border-line px-gutter py-3"
+      >
+        {refusal !== null && (
           <div className="mb-2">
             <Refusal>
-              {converse.error instanceof ApiError || !(converse.error instanceof Error)
-                ? refusalText(converse.error)
-                : converse.error.message}
+              {refusal instanceof ApiError || !(refusal instanceof Error)
+                ? refusalText(refusal)
+                : refusal.message}
             </Refusal>
           </div>
         )}
+
+        {proposal.unsent.length > 0 && (
+          <ul className="mb-3 space-y-3" data-testid="unsent-screenshots">
+            {proposal.unsent.map((shot, index) => (
+              <li key={shot.id}>
+                <Shown
+                  screenshot={shot}
+                  label={`Screenshot ${index + 1} to send`}
+                  disabled={busy || screenshots.remove.isPending}
+                  onRemove={() => screenshots.remove.mutate(shot.id)}
+                >
+                  <label htmlFor={`note-${shot.id}`} className="sr-only">
+                    Note on screenshot {index + 1}
+                  </label>
+                  <input
+                    id={`note-${shot.id}`}
+                    type="text"
+                    value={notes[shot.id] ?? ''}
+                    maxLength={2000}
+                    disabled={converse.isPending}
+                    onChange={(event) =>
+                      setNotes((was) => ({ ...was, [shot.id]: event.target.value }))
+                    }
+                    placeholder="What in it matters? (optional)"
+                    className={cn(
+                      'mt-1 block h-control w-full rounded-md border border-line-strong bg-surface',
+                      'px-3 text-sm text-text placeholder:text-faint',
+                    )}
+                  />
+                </Shown>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <label htmlFor="proposal-turn" className="sr-only">
           Your answer
         </label>
@@ -295,23 +406,88 @@ function Conversation({ proposal }: { proposal: Proposal }) {
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={sendOnModifiedEnter}
-          placeholder="Write in your own words, in German or English."
+          placeholder="Write in your own words, in German or English. Paste a screenshot to show it."
           className={cn(
             'block w-full resize-none rounded-md border border-line-strong bg-surface px-3 py-2',
             'text-base text-text placeholder:text-faint',
           )}
         />
-        <div className="mt-2 flex justify-end">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={converse.isPending || text.trim() === ''}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          {/* A label rather than a scripted button, so a phone opens its own photo picker. */}
+          <label
+            htmlFor={pickerId}
+            className={cn(
+              buttonVariants({ variant: 'outline' }),
+              'cursor-pointer aria-disabled:pointer-events-none aria-disabled:opacity-40',
+            )}
+            aria-disabled={busy}
           >
+            <Images aria-hidden="true" />
+            {screenshots.show.isPending ? 'Adding…' : 'Add screenshots'}
+          </label>
+          <input
+            id={pickerId}
+            type="file"
+            // A hint to the operating system and nothing more. What a file is is decided by
+            // reading it, at the API.
+            accept="image/*"
+            multiple
+            className="sr-only"
+            disabled={busy}
+            data-testid="proposal-screenshot-picker"
+            onChange={(event) => {
+              show(event.target.files);
+              event.target.value = '';
+            }}
+          />
+          <Button type="submit" variant="primary" disabled={busy || text.trim() === ''}>
             {converse.isPending ? 'Answering…' : 'Send'}
           </Button>
         </div>
       </form>
     </>
+  );
+}
+
+/**
+ * One screenshot, the picture first and whole: what the author means is in it. Opens larger in
+ * a tab of its own; taken off the Draft with the button beside it.
+ */
+function Shown({
+  screenshot,
+  label,
+  disabled,
+  onRemove,
+  children,
+}: {
+  screenshot: ProposalScreenshot;
+  label: string;
+  disabled: boolean;
+  onRemove: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <figure className="flex items-start gap-3" data-testid="screenshot">
+      <a
+        href={screenshot.displayUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="photograph size-24 shrink-0 rounded-md"
+      >
+        <img src={screenshot.previewUrl} alt={label} />
+      </a>
+      <figcaption className="min-w-0 flex-1">{children}</figcaption>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={`Remove ${label.toLowerCase()}`}
+        disabled={disabled}
+        onClick={onRemove}
+      >
+        <X />
+      </Button>
+    </figure>
   );
 }
 
@@ -358,7 +534,7 @@ function Said({
 }: {
   speaker: 'author' | 'conversation';
   live?: boolean;
-  children: string;
+  children: ReactNode;
 }) {
   return (
     <li

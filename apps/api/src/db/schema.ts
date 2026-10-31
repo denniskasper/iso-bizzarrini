@@ -1680,6 +1680,53 @@ export const proposalTurns = pgTable(
   ],
 );
 
+/**
+ * **A screenshot the author showed** (issue #154), with what they said about it. Added to a
+ * Draft as soon as it is pasted or picked, and carried by the author's turn it was sent with:
+ * `turnId` is null until then. Its files are under its own id, as a Photograph's are, on the
+ * system's own volume and served only through an authenticated route (ADR 0013).
+ */
+export const proposalScreenshots = pgTable(
+  'proposal_screenshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    proposalId: uuid('proposal_id')
+      .notNull()
+      .references(() => proposals.id, { onDelete: 'cascade' }),
+    /** The author's turn it was sent with, or null while it waits to be sent. */
+    turnId: uuid('turn_id').references(() => proposalTurns.id, { onDelete: 'cascade' }),
+    /** The order they were added to the Draft in, from `0`, without gaps until one is removed. */
+    sequence: integer('sequence').notNull(),
+    /** What the author said about it, word for word, or null where they said nothing. */
+    note: text('note'),
+
+    sourceFormat: text('source_format').notNull(),
+    sourceByteSize: integer('source_byte_size').notNull(),
+    sourceWidth: integer('source_width').notNull(),
+    sourceHeight: integer('source_height').notNull(),
+
+    displayFormat: text('display_format').notNull(),
+    displayByteSize: integer('display_byte_size').notNull(),
+    displayWidth: integer('display_width').notNull(),
+    displayHeight: integer('display_height').notNull(),
+
+    previewByteSize: integer('preview_byte_size').notNull(),
+
+    /** Keys in the private file store. Not paths, not URLs — nothing here is reachable. */
+    originalKey: text('original_key').notNull(),
+    displayKey: text('display_key').notNull(),
+    previewKey: text('preview_key').notNull(),
+
+    /** From the injected clock. */
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('proposal_screenshots_one_a_place').on(table.proposalId, table.sequence),
+    index('proposal_screenshots_turn_id_index').on(table.turnId),
+    check('proposal_screenshots_sequence_is_a_place', sql`${table.sequence} >= 0`),
+  ],
+);
+
 export const accountsRelations = relations(accounts, ({ many }) => ({
   memberships: many(memberships),
   tokens: many(accountTokens),
@@ -1844,6 +1891,8 @@ export type NewContributionRow = typeof contributions.$inferInsert;
 export type ContributionPhotographRow = typeof contributionPhotographs.$inferSelect;
 export type NewContributionPhotographRow = typeof contributionPhotographs.$inferInsert;
 export type ProposalRow = typeof proposals.$inferSelect;
+export type ProposalScreenshotRow = typeof proposalScreenshots.$inferSelect;
+export type NewProposalScreenshotRow = typeof proposalScreenshots.$inferInsert;
 export type NewProposalRow = typeof proposals.$inferInsert;
 export type ProposalTurnRow = typeof proposalTurns.$inferSelect;
 export type NewProposalTurnRow = typeof proposalTurns.$inferInsert;

@@ -1,17 +1,22 @@
 import type {
   Proposal,
   ProposalAnswerEvent,
+  ProposalScreenshot,
   ProposalsResponse,
   RosterEntry,
   SessionResponse,
 } from '@ricambi/contracts';
+import { eq } from 'drizzle-orm';
+import sharp from 'sharp';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { configureConversation } from '../src/composition/conversation.js';
 import { loadConfig } from '../src/config/config.js';
+import type { Db } from '../src/db/client.js';
+import { proposals } from '../src/db/schema.js';
 import type { Conversation, ConversationMethod } from '../src/proposals/conversation-method.js';
 import { FAKE_ANSWER } from '../src/proposals/fake-conversation-method.js';
-import { givenModel, givenTavola } from './support/fixtures.js';
+import { givenModel, givenPhotographImage, givenTavola } from './support/fixtures.js';
 import { givenAMember, givenAnAdministrator, type RecruitedMember } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
@@ -29,10 +34,11 @@ async function converse(
   agent: TestAgent,
   proposalId: string,
   text: string,
+  screenshots: { id: string; note?: string | null }[] = [],
 ): Promise<ProposalAnswerEvent[]> {
   const response = await agent
     .post(`/api/proposals/${proposalId}/turns`)
-    .send({ text })
+    .send({ text, screenshots })
     .buffer(true)
     .parse((res, callback) => {
       let body = '';
@@ -47,6 +53,33 @@ async function converse(
     .split('\n')
     .filter((line) => line !== '')
     .map((line) => JSON.parse(line) as ProposalAnswerEvent);
+}
+
+/** A screenshot pasted or picked: the picture is the body, as a Photograph's is. */
+function show(agent: TestAgent, proposalId: string, image: Buffer, contentType = 'image/png') {
+  return agent
+    .post(`/api/proposals/${proposalId}/screenshots`)
+    .set('Content-Type', contentType)
+    .send(image);
+}
+
+async function aScreenshot(agent: TestAgent, proposalId: string): Promise<ProposalScreenshot> {
+  const shown = await show(agent, proposalId, await givenPhotographImage({ format: 'png' }));
+  expect(shown.status).toBe(201);
+  return shown.body.screenshot as ProposalScreenshot;
+}
+
+async function aDraft(agent: TestAgent): Promise<string> {
+  const started = await agent
+    .post('/api/proposals')
+    .send({ kind: 'fix', pageAddress: '/' })
+    .expect(201);
+  return (started.body.proposal as Proposal).id;
+}
+
+/** Handing over is not built yet (#153); a Proposal past its Draft is written down as one. */
+async function handedOver(db: Db, proposalId: string): Promise<void> {
+  await db.update(proposals).set({ status: 'new' }).where(eq(proposals.id, proposalId));
 }
 
 function written(events: ProposalAnswerEvent[]): string {
@@ -319,6 +352,142 @@ describe('proposing, on a practice system', () => {
       await author.agent.post(`/api/proposals/${id}/turns`).send({ text: '   ' }).expect(400);
     });
   });
+
+  describe('a screenshot', () => {
+    it('waits on the Draft once shown, and is sent with a turn and its note', async () => {
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+
+      const first = await aScreenshot(author.agent, id);
+      expect(first).toMatchObject({ note: null, width: 1600, height: 1200 });
+      const second = await aScreenshot(author.agent, id);
+
+      const waiting = (await author.agent.get(`/api/proposals/${id}`).expect(200)).body
+        .proposal as Proposal;
+      expect(waiting.unsent.map((shot) => shot.id)).toEqual([first.id, second.id]);
+
+      const events = await converse(author.agent, id, 'The washer is missing here.', [
+        { id: first.id, note: 'Circle 12, top left' },
+        { id: second.id },
+      ]);
+      expect(events.at(-1)).toMatchObject({
+        type: 'answered',
+        turns: [
+          {
+            speaker: 'author',
+            screenshots: [
+              { id: first.id, note: 'Circle 12, top left' },
+              { id: second.id, note: null },
+            ],
+          },
+          { speaker: 'conversation', screenshots: [] },
+        ],
+      });
+
+      const read = (await author.agent.get(`/api/proposals/${id}`).expect(200)).body
+        .proposal as Proposal;
+      expect(read.unsent).toEqual([]);
+      expect(read.turns[0]?.screenshots.map((shot) => [shot.id, shot.note])).toEqual([
+        [first.id, 'Circle 12, top left'],
+        [second.id, null],
+      ]);
+
+      const display = await author.agent.get(first.displayUrl).expect(200);
+      expect(display.headers['content-type']).toBe('image/webp');
+      const preview = await author.agent.get(first.previewUrl).expect(200);
+      expect((await sharp(preview.body as Buffer).metadata()).width).toBe(480);
+    });
+
+    it('is refused when it is not a picture, and a turn may send only what waits on its Draft', async () => {
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+
+      await show(author.agent, id, Buffer.from('not a screenshot at all')).expect(415);
+      await show(author.agent, id, Buffer.alloc(0)).expect(400);
+
+      const shot = await aScreenshot(author.agent, id);
+      const elsewhere = await aDraft(author.agent);
+      await author.agent
+        .post(`/api/proposals/${elsewhere}/turns`)
+        .send({ text: 'This one.', screenshots: [{ id: shot.id }] })
+        .expect(400);
+
+      await converse(author.agent, id, 'This one.', [{ id: shot.id }]);
+      // Sent once, it is the turn's: it cannot be sent again.
+      await author.agent
+        .post(`/api/proposals/${id}/turns`)
+        .send({ text: 'Again.', screenshots: [{ id: shot.id }] })
+        .expect(400);
+      await author.agent
+        .post(`/api/proposals/${id}/turns`)
+        .send({ text: 'A long note.', screenshots: [{ id: shot.id, note: 'x'.repeat(2001) }] })
+        .expect(400);
+    });
+
+    it('can be removed from a Draft, sent or not, and not from a handed-over Proposal', async () => {
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+      const mistaken = await aScreenshot(author.agent, id);
+      const sent = await aScreenshot(author.agent, id);
+      const kept = await aScreenshot(author.agent, id);
+      await converse(author.agent, id, 'Look.', [{ id: sent.id }, { id: kept.id }]);
+
+      const afterUnsent = await author.agent
+        .delete(`/api/proposals/${id}/screenshots/${mistaken.id}`)
+        .expect(200);
+      expect((afterUnsent.body.proposal as Proposal).unsent).toEqual([]);
+      await author.agent.get(mistaken.displayUrl).expect(404);
+
+      const afterSent = await author.agent
+        .delete(`/api/proposals/${id}/screenshots/${sent.id}`)
+        .expect(200);
+      expect(
+        (afterSent.body.proposal as Proposal).turns[0]?.screenshots.map((shot) => shot.id),
+      ).toEqual([kept.id]);
+      await author.agent.get(sent.previewUrl).expect(404);
+
+      await author.agent.delete(`/api/proposals/${id}/screenshots/${sent.id}`).expect(404);
+
+      await handedOver(app.db, id);
+      await author.agent.delete(`/api/proposals/${id}/screenshots/${kept.id}`).expect(409);
+      await show(author.agent, id, await givenPhotographImage()).expect(409);
+      await author.agent.get(kept.displayUrl).expect(200);
+    });
+
+    it('is served only to those with the permission, and a Draft’s only to its author', async () => {
+      const { agent: administrator } = await anAdministrator();
+      const author = await aProposer('The Author');
+      const somebodyElse = await aProposer('Somebody Else');
+      const member = await givenAMember(app, administrator, { name: 'Not Let In' });
+      const id = await aDraft(author.agent);
+      const shot = await aScreenshot(author.agent, id);
+
+      await app.request().get(shot.displayUrl).expect(401);
+      await member.agent.get(shot.displayUrl).expect(403);
+      await administrator.get(shot.displayUrl).expect(403);
+      await somebodyElse.agent.get(shot.displayUrl).expect(404);
+      await somebodyElse.agent.get(shot.previewUrl).expect(404);
+
+      // Nor can anybody else add to the Draft, or take from it.
+      await show(somebodyElse.agent, id, await givenPhotographImage()).expect(404);
+      await somebodyElse.agent.delete(`/api/proposals/${id}/screenshots/${shot.id}`).expect(404);
+      await app
+        .request()
+        .post(`/api/proposals/${id}/screenshots`)
+        .set('Content-Type', 'image/png')
+        .send(await givenPhotographImage())
+        .expect(401);
+
+      await converse(author.agent, id, 'See this.', [{ id: shot.id }]);
+      await handedOver(app.db, id);
+
+      await somebodyElse.agent.get(shot.displayUrl).expect(200);
+      await app.request().get(shot.displayUrl).expect(401);
+      await member.agent.get(shot.displayUrl).expect(403);
+      await letPropose(administrator, somebodyElse, false);
+      await somebodyElse.agent.get(shot.displayUrl).expect(403);
+    });
+  });
 });
 
 describe('what the conversation is given', () => {
@@ -338,6 +507,7 @@ describe('what the conversation is given', () => {
       conversation: { method: listening, unavailable: null },
     });
   });
+  afterEach(() => app.reset());
   afterAll(() => app.close());
 
   it('is the kind, the starting context and the turns so far', async () => {
@@ -365,11 +535,54 @@ describe('what the conversation is given', () => {
         tavola: null,
       },
       turns: [
-        { speaker: 'author', text: 'Members could note their own car.' },
-        { speaker: 'conversation', text: 'Noted.' },
-        { speaker: 'author', text: 'For every Member.' },
+        { speaker: 'author', text: 'Members could note their own car.', screenshots: [] },
+        { speaker: 'conversation', text: 'Noted.', screenshots: [] },
+        { speaker: 'author', text: 'For every Member.', screenshots: [] },
       ],
     });
+  });
+
+  it('is each turn’s screenshots, as pictures, with their notes', async () => {
+    heard.length = 0;
+    const administrator = await givenAnAdministrator(app);
+    const author = await givenAMember(app, administrator.agent);
+    await letPropose(administrator.agent, author);
+    const id = await aDraft(author.agent);
+    const shot = await aScreenshot(author.agent, id);
+    const removed = await aScreenshot(author.agent, id);
+
+    await converse(author.agent, id, 'This page.', [
+      { id: shot.id, note: 'The empty box' },
+      { id: removed.id },
+    ]);
+    expect(heard[0]?.turns[0]?.screenshots).toHaveLength(2);
+
+    await author.agent.delete(`/api/proposals/${id}/screenshots/${removed.id}`).expect(200);
+    await converse(author.agent, id, 'Only that one.');
+
+    const [shown, ...rest] = heard[1]?.turns[0]?.screenshots ?? [];
+    expect(rest).toEqual([]);
+    expect(shown).toMatchObject({ note: 'The empty box', mediaType: 'image/webp' });
+    const picture = await sharp(Buffer.from(shown?.data ?? [])).metadata();
+    expect(picture).toMatchObject({ format: 'webp', width: 1600, height: 1200 });
+  });
+});
+
+describe('a screenshot larger than Proposals accept', () => {
+  let app: TestApp;
+  beforeAll(async () => {
+    app = await startTestApp({ env: { PROPOSALS_METHOD: 'fake', MAX_SCREENSHOT_BYTES: '2048' } });
+  });
+  afterAll(() => app.close());
+
+  it('is refused rather than read into memory', async () => {
+    const administrator = await givenAnAdministrator(app);
+    const author = await givenAMember(app, administrator.agent);
+    await letPropose(administrator.agent, author);
+    const id = await aDraft(author.agent);
+
+    const refused = await show(author.agent, id, await givenPhotographImage()).expect(413);
+    expect(refused.body.error).toMatchObject({ code: 'payload_too_large' });
   });
 });
 

@@ -185,6 +185,10 @@ const PROPOSERS_ONLY = new Set([
   'POST /api/proposals',
   'GET /api/proposals/:proposalId',
   'POST /api/proposals/:proposalId/turns',
+  // What the author shows (issue #154), and the screenshots themselves.
+  'POST /api/proposals/:proposalId/screenshots',
+  'DELETE /api/proposals/:proposalId/screenshots/:screenshotId',
+  'GET /api/proposal-screenshots/:screenshotId/:variant',
 ]);
 
 describe('who may reach what', () => {
