@@ -7,6 +7,7 @@ import type {
   RosterStanding,
 } from '@ricambi/contracts';
 import { api } from '@/lib/api';
+import { SESSION_QUERY_KEY } from '@/lib/session';
 import { LEGAL_QUERY_KEY, usePrivacy } from '@/lib/legal';
 
 /** The roster, and the four things an Administrator does to it. */
@@ -44,10 +45,21 @@ export function useInviteAgain() {
   return useRosterMutation((accountId: string) => api.inviteAgain(accountId));
 }
 
+/**
+ * A name, a role, or whether they may propose. The session is read again with the roster, since
+ * the person corrected may be the one signed in — and whether they are shown Propose is theirs.
+ */
 export function useCorrectMember() {
-  return useRosterMutation((correction: { accountId: string; fields: CorrectMemberRequest }) =>
-    api.correctMember(correction.accountId, correction.fields),
-  );
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (correction: { accountId: string; fields: CorrectMemberRequest }) =>
+      api.correctMember(correction.accountId, correction.fields),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ROSTER_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY }),
+      ]),
+  });
 }
 
 export function useRecordPayment() {

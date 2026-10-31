@@ -6,6 +6,10 @@ import supertest from 'supertest';
 import type TestAgent from 'supertest/lib/agent.js';
 import { createApp, type RicambiApp } from '../../src/app.js';
 import { createPasswordHasher } from '../../src/access/passwords.js';
+import {
+  configureConversation,
+  type ConfiguredConversation,
+} from '../../src/composition/conversation.js';
 import { configureReading, type ConfiguredReading } from '../../src/composition/reading.js';
 import { loadConfig, type AppConfig } from '../../src/config/config.js';
 import type { Db } from '../../src/db/client.js';
@@ -79,6 +83,11 @@ export interface TestAppOptions {
    * test says `READING_METHOD`.
    */
   reading?: ConfiguredReading;
+  /**
+   * What a Proposal's conversation is had with (issue #152). Defaults to whatever `env`
+   * configures, which is none unless a test says `PROPOSALS_METHOD`.
+   */
+  conversation?: ConfiguredConversation;
   /** What the server says it was built as. Defaults to what this checkout says it is. */
   build?: Build;
 }
@@ -156,6 +165,7 @@ async function buildTestApp(
       paymentProvider,
       breachedPasswords: breached,
       reading: options.reading ?? configureReading(config.reading),
+      conversation: options.conversation ?? configureConversation(config),
       passwordHasher: createPasswordHasher(TEST_PASSWORD_COST),
       logger,
       build: options.build,

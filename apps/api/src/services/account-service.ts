@@ -105,6 +105,11 @@ export function createAccountService(dependencies: {
   publicUrl: string;
   /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
   renewalGraceDays: number;
+  /**
+   * Whether anybody may propose here (issue #152): a practice system with a conversation to be
+   * had. Where not, nobody is told they may, whatever an Administrator once granted.
+   */
+  proposalsOpen?: boolean;
 }): AccountService {
   const {
     clock,
@@ -156,6 +161,7 @@ export function createAccountService(dependencies: {
           name: account.name,
           email: account.email,
           role: account.role,
+          mayPropose: account.mayPropose && dependencies.proposalsOpen === true,
         },
         ...accessOf({ paidThrough, renewsItself }, today(clock), dependencies.renewalGraceDays),
         paidThrough,

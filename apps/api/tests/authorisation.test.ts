@@ -175,6 +175,18 @@ const AN_EDITORS_TO_READ = new Set([
   'GET /api/specification-names/:nameId/suggestions',
 ]);
 
+/**
+ * **Those an Administrator has let propose, and nobody else** (issue #152): a capability beside
+ * the role, so a Member, an Editor and an Administrator are refused alike until they are let.
+ * Not behind a Membership, because proposing is not reading the archive.
+ */
+const PROPOSERS_ONLY = new Set([
+  'GET /api/proposals',
+  'POST /api/proposals',
+  'GET /api/proposals/:proposalId',
+  'POST /api/proposals/:proposalId/turns',
+]);
+
 describe('who may reach what', () => {
   let app: TestApp;
   let administrator: TestAgent;
@@ -208,6 +220,7 @@ describe('who may reach what', () => {
       ...ANY_MEMBER,
       ...A_MEMBERS_TO_WRITE,
       ...AN_EDITORS_TO_READ,
+      ...PROPOSERS_ONLY,
     ]) {
       expect(surface.map(named), `${known} is not a route this application has`).toContain(known);
     }
@@ -239,7 +252,12 @@ describe('who may reach what', () => {
     it('is refused every write in the archive, and told it is not a sign-in problem', async () => {
       for (const address of surface) {
         const name = named(address);
-        if (address.method === 'get' || OPEN.has(name) || ADMINISTRATORS_ONLY.has(name)) {
+        if (
+          address.method === 'get' ||
+          OPEN.has(name) ||
+          ADMINISTRATORS_ONLY.has(name) ||
+          PROPOSERS_ONLY.has(name)
+        ) {
           continue;
         }
         // Not refused but not there, which the test below asks of every hidden address.
@@ -294,6 +312,16 @@ describe('who may reach what', () => {
       }
     });
 
+    it('is refused the Proposals until an Administrator lets them propose', async () => {
+      for (const name of PROPOSERS_ONLY) {
+        const address = surface.find((route) => named(route) === name);
+        const response = await member[address!.method](fill(address!.path));
+
+        expect(response.status, `${name} let somebody propose unasked`).toBe(403);
+        expect(response.body.error?.code).toBe('forbidden');
+      }
+    });
+
     /** What they *are* for. A refusal here would mean the gate had stopped being a gate. */
     it('reads the archive, which is what their Membership buys', async () => {
       await member.get('/api/models').expect(200);
@@ -338,7 +366,8 @@ describe('who may reach what', () => {
           OPEN.has(name) ||
           ADMINISTRATORS_ONLY.has(name) ||
           HIDDEN_FROM_ALL_BUT_ADMINISTRATORS.has(name) ||
-          ANY_MEMBER.has(name)
+          ANY_MEMBER.has(name) ||
+          PROPOSERS_ONLY.has(name)
         ) {
           continue;
         }

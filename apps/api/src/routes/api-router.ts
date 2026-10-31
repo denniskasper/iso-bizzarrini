@@ -22,6 +22,7 @@ import type { SampleController } from '../controllers/sample-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
 import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
+import type { ProposalController } from '../controllers/proposal-controller.js';
 import type { SessionController } from '../controllers/session-controller.js';
 import type { StatusController } from '../controllers/status-controller.js';
 import type { SpecificationListController } from '../controllers/specification-list-controller.js';
@@ -86,6 +87,7 @@ export function createApiRouter(dependencies: {
   contributionReviewController: ContributionReviewController;
   scanController: ScanController;
   sampleController: SampleController;
+  proposalController: ProposalController;
 }): Router {
   const {
     gate,
@@ -118,6 +120,7 @@ export function createApiRouter(dependencies: {
     contributionReviewController,
     scanController,
     sampleController,
+    proposalController,
   } = dependencies;
 
   const router = Router();
@@ -349,6 +352,14 @@ export function createApiRouter(dependencies: {
     gate.requireSignedIn,
     subscriptionController.readReceipt,
   );
+
+  // **Proposing a Fix or an Idea** (issue #152), on a practice system, by those an Administrator
+  // has let propose. Above the archive's gate: proposing is not reading the archive, and these
+  // writes are not the archive's either, so the Editors' rule below does not apply to them.
+  router.get('/proposals', gate.requireProposer, proposalController.list);
+  router.post('/proposals', gate.requireProposer, proposalController.start);
+  router.get('/proposals/:proposalId', gate.requireProposer, proposalController.read);
+  router.post('/proposals/:proposalId/turns', gate.requireProposer, proposalController.converse);
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);

@@ -5,6 +5,7 @@ import { RecordPayment } from '@/components/roster/record-payment';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
+import { environmentMode } from '@/lib/environment';
 import { standingReads, useCorrectMember, useInviteAgain } from '@/lib/roster';
 import { useSession } from '@/lib/session';
 
@@ -104,7 +105,22 @@ export function MemberRow({
           </Button>
         )}
 
+        {/* Letting somebody propose (issue #152), on a practice system only: Production refuses
+            it, so it is not offered there. A capability beside the role, for anybody on it. */}
+        {(environmentMode() !== 'production' || member.mayPropose) && (
+          <Button
+            variant="ghost"
+            disabled={correct.isPending}
+            onClick={() =>
+              correct.mutate({ accountId: member.id, fields: { mayPropose: !member.mayPropose } })
+            }
+          >
+            {member.mayPropose ? 'Stop them proposing' : 'Let them propose'}
+          </Button>
+        )}
+
         {member.role !== 'member' && <span className="tag ml-1">{member.role}</span>}
+        {member.mayPropose && <span className="tag ml-1">proposes</span>}
 
         {/*
           Last in the row and pushed to its far end, away from the three things an Administrator

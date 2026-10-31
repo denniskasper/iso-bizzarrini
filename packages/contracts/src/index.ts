@@ -2066,6 +2066,11 @@ export interface SignedInAccount {
    * has passed and the renewal payment is being confirmed. Null otherwise, paid up included.
    */
   graceUntil: string | null;
+  /**
+   * Whether they may propose (issue #152): an Administrator has let them, this is a practice
+   * system, and the conversation is there to be had. What the Propose button is shown by.
+   */
+  mayPropose: boolean;
 }
 
 /**
@@ -2133,6 +2138,8 @@ export interface RosterEntry {
   invitationSentAt: string | null;
   invitationExpiresAt: string | null;
   addedAt: string;
+  /** Whether an Administrator has let them propose (issue #152). Never true in Production. */
+  mayPropose: boolean;
 }
 
 /** `GET /api/roster` */
@@ -2158,6 +2165,8 @@ export interface NewMemberRequest {
 export interface CorrectMemberRequest {
   name?: string;
   role?: Role;
+  /** Letting them propose, or no longer (issue #152). Refused in Production. */
+  mayPropose?: boolean;
 }
 
 /**
@@ -2833,3 +2842,97 @@ export interface StartSubscriptionResponse {
 export interface SetAutoRenewalRequest {
   renews: boolean;
 }
+
+/**
+ * **What somebody brings to a Proposal** (issue #152): a Fix, where something is wrong, or an
+ * Idea, where something should be new. Chosen before the conversation starts, so it asks the
+ * right kind of questions.
+ */
+export type ProposalKind = 'fix' | 'idea';
+
+/**
+ * Where a Proposal stands. A `draft` is its author's alone; it becomes `new` when handed over,
+ * and the developer moves it on to `taken-up` and `done`, or `declined` with a reason.
+ */
+export type ProposalStatus = 'draft' | 'new' | 'taken-up' | 'done' | 'declined';
+
+/** Who said a turn: the author, or the conversation answering them. */
+export type ProposalSpeaker = 'author' | 'conversation';
+
+/**
+ * **What the author was looking at when they pressed Propose**, attached without their typing it
+ * and shown at the top of the conversation. The Model and Tavola are named as they were then:
+ * a practice archive is re-seeded, and a Proposal outlives what it was about.
+ */
+export interface ProposalContext {
+  /** The address of the page, path and query, as the browser had it. */
+  pageAddress: string;
+  /** The Version of Ricambi that was running. */
+  version: string;
+  model: { id: string; name: string } | null;
+  tavola: { id: string; number: string; name: string } | null;
+}
+
+/** One turn of the conversation, in the order it was said. */
+export interface ProposalTurn {
+  /** From 0, without gaps. */
+  sequence: number;
+  speaker: ProposalSpeaker;
+  text: string;
+  /** ISO instant. */
+  at: string;
+}
+
+/** A Proposal as listed: enough to find it again. */
+export interface ProposalSummary {
+  id: string;
+  kind: ProposalKind;
+  status: ProposalStatus;
+  context: ProposalContext;
+  /** The author's first words, or `null` before they have written any. */
+  opening: string | null;
+  /** ISO instants. */
+  startedAt: string;
+  updatedAt: string;
+}
+
+/** `GET /api/proposals/:proposalId` — one Proposal and the whole of its conversation. */
+export interface Proposal extends ProposalSummary {
+  turns: ProposalTurn[];
+}
+
+export interface ProposalResponse {
+  proposal: Proposal;
+}
+
+/** `GET /api/proposals` — the author's own Drafts, the latest first. */
+export interface ProposalsResponse {
+  drafts: ProposalSummary[];
+}
+
+/**
+ * `POST /api/proposals` — starting a Draft. The page is the browser's to say; the Version is the
+ * server's, and the Model and Tavola are looked up from the ids rather than taken on trust.
+ */
+export interface StartProposalRequest {
+  kind: ProposalKind;
+  pageAddress: string;
+  modelId?: string | null;
+  tavolaId?: string | null;
+}
+
+/** `POST /api/proposals/:proposalId/turns` — what the author writes next. */
+export interface ProposalTurnRequest {
+  text: string;
+}
+
+/**
+ * **The answer to a turn, as it is written**: `POST /api/proposals/:proposalId/turns` answers
+ * with one of these per line (`application/x-ndjson`). Text arrives in pieces; `answered` closes
+ * it with the two turns as kept; `failed` says why the answer stopped, and the author's turn is
+ * kept either way.
+ */
+export type ProposalAnswerEvent =
+  | { type: 'text'; text: string }
+  | { type: 'answered'; turns: ProposalTurn[] }
+  | { type: 'failed'; message: string };

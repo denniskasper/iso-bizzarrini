@@ -178,6 +178,27 @@ describe('production and the fake Reading method', () => {
   });
 });
 
+/**
+ * **Proposals run the other way** (ADR 0012, as amended; issue #152): the conversation is for
+ * practice systems, and Production refuses its credential rather than hiding a button.
+ */
+describe('production and the conversation’s credential', () => {
+  const key = { PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-api03-made-up' };
+
+  it('refuses to start with it, saying why', async () => {
+    await expect(
+      startTestApp({
+        env: { ENVIRONMENT_MODE: 'production', PUBLIC_URL: 'https://ricambi.example', ...key },
+      }),
+    ).rejects.toThrow(/PROPOSALS_ANTHROPIC_API_KEY.*Proposals are for practice systems/s);
+  });
+
+  it('leaves a practice system free to hold it', async () => {
+    const app = await startTestApp({ env: key });
+    await app.close();
+  });
+});
+
 describe('production', () => {
   it('is allowed every one of them, because the refusals are about the mode and nothing else', async () => {
     let app: TestApp | undefined;

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { EnvironmentBanner } from '@/components/environment-banner';
+import { Propose } from '@/components/proposals/propose';
 import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { GuidedTour, TourLink } from '@/components/tour/guided-tour';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
  * way: it says where you are, and it gets you somewhere else.
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { isAdministrator, isEditor, mayRead, signedIn } = useSession();
+  const { account, isAdministrator, isEditor, mayRead, signedIn } = useSession();
   const waiting = useWaitingCount();
   const chrome = useChromeHeight();
   // The Legal notice's registered name, which is public: the header names the Club for whoever
@@ -125,6 +126,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Link>
                 </>
               )}
+              {/* **Propose** (issue #152): on every page, for those an Administrator has let
+                  propose, and only where the archive says there is a conversation to be had —
+                  which is never Production. Plain like the links beside it: the accent is
+                  each page's own one action, and this is a way out of it. */}
+              {account?.mayPropose && <Propose className={chromeLink} />}
               <SessionControl />
               <ThemeToggle />
             </div>

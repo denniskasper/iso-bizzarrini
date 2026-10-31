@@ -24,8 +24,14 @@ export interface AccountRepository {
   /** By e-mail, normalised. The only lookup sign-in has. */
   findByEmail(email: string): Promise<AccountRow | null>;
   add(account: NewAccountRow): Promise<AccountRow>;
-  /** Corrects a name or a role. Never a password — that goes through `setPassword`. */
-  correct(id: string, fields: Partial<Pick<AccountRow, 'name' | 'role'>>): Promise<AccountRow>;
+  /**
+   * Corrects a name, a role or whether they may propose. Never a password — that goes through
+   * `setPassword`.
+   */
+  correct(
+    id: string,
+    fields: Partial<Pick<AccountRow, 'name' | 'role' | 'mayPropose'>>,
+  ): Promise<AccountRow>;
   /**
    * The member choosing their own password. Bumps the session epoch with it, so every session
    * issued under the old number is dead — which is the point of resetting one.
