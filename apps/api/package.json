@@ -18,7 +18,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "roster:invite-administrator": "tsx src/cli/invite-administrator.ts",
-    "roster:retention-sweep": "tsx src/cli/retention-sweep.ts"
+    "roster:retention-sweep": "tsx src/cli/retention-sweep.ts",
+    "proposals:export": "tsx src/cli/export-proposals.ts",
+    "proposals:import": "tsx src/cli/import-proposals.ts",
+    "proposals:fetch": "tsx src/cli/fetch-proposals.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

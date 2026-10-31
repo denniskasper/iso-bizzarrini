@@ -11,8 +11,7 @@
  * reasoning for why it is written in this repository rather than imported from anywhere.
  */
 import { Client } from 'pg';
-import { emptyCatalog, writePracticeArchive } from '../src/catalog/practice-archive.js';
-import { writePracticeRoster } from '../src/catalog/practice-roster.js';
+import { reseedPracticeSystem } from '../src/catalog/practice-system.js';
 import { assertSeedable } from '../src/composition/environment-safety.js';
 import { loadConfig } from '../src/config/config.js';
 import { loadEnvFile } from '../src/config/env-file.js';
@@ -33,7 +32,6 @@ const fileStore = createFileStore(config.files.storagePath);
 
 try {
   await runMigrations(database.db);
-  await emptyCatalog(database.db, fileStore);
 
   /**
    * The invented membership, and the invented Club (ticket 14). Nobody in it is real and every
@@ -43,19 +41,16 @@ try {
    * to the repository would work on every practice system ever deployed from it, so there is not
    * one: without `PRACTICE_MEMBER_PASSWORD` every generated member is left on the roster as
    * invited, which is a perfectly good practice roster and admits nobody.
+   *
+   * Proposals are left where they are (issue #157): they are real, and outlive the practice data.
    */
-  const roster = await writePracticeRoster({
-    db: database.db,
-    clock: systemClock,
-    password: process.env.PRACTICE_MEMBER_PASSWORD || undefined,
-  });
-
-  const written = await writePracticeArchive({
+  const { archive: written, roster } = await reseedPracticeSystem({
     db: database.db,
     fileStore,
     clock: systemClock,
     logger: createLogger({ ...config, logLevel: 'warn' }),
     config,
+    password: process.env.PRACTICE_MEMBER_PASSWORD || undefined,
   });
 
   console.log(

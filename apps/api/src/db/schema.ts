@@ -1623,10 +1623,13 @@ export const proposals = pgTable(
   'proposals',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    /** Whose it is. A person's Drafts go with them when their Account does. */
-    authorId: uuid('author_id')
-      .notNull()
-      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /**
+     * Whose it is, or null once their Account is gone. **A Proposal outlives its author's
+     * Account** (issue #157): re-seeding a practice system empties the roster, and Proposals are
+     * real where the roster is not. A person's Drafts are taken by their erasure rather than by
+     * this key, which only lets go.
+     */
+    authorId: uuid('author_id').references(() => accounts.id, { onDelete: 'set null' }),
     kind: text('kind').notNull().$type<ProposalKind>(),
     status: text('status').notNull().$type<ProposalStatus>().default('draft'),
 
