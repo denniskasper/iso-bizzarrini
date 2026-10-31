@@ -448,15 +448,23 @@ export const samples = pgTable(
  *
  * Nothing of the Sample is kept beyond the number it had open: its public copy is deleted with it.
  */
-export const endedSamples = pgTable('ended_samples', {
-  tavolaId: uuid('tavola_id')
-    .primaryKey()
-    .references(() => tavole.id, { onDelete: 'cascade' }),
-  /** The number that was open, as it was printed: the Position itself is gone. */
-  openNumber: text('open_number').notNull(),
-  endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
-  reason: text('reason').notNull().$type<SampleEndReason>(),
-});
+export const SAMPLE_END_REASONS = ['removed'] as const satisfies readonly SampleEndReason[];
+
+export const endedSamples = pgTable(
+  'ended_samples',
+  {
+    tavolaId: uuid('tavola_id')
+      .primaryKey()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    /** The number that was open, as it was printed: the Position itself is gone. */
+    openNumber: text('open_number').notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+    reason: text('reason').notNull().$type<SampleEndReason>(),
+  },
+  (table) => [
+    check('ended_samples_reason_is_known', sql`${table.reason} in (${oneOf(SAMPLE_END_REASONS)})`),
+  ],
+);
 
 /**
  * A Part is a component identified **in its own right** rather than by where it appears, which

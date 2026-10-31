@@ -1,5 +1,5 @@
 {
-  "id": "71d7edaf-5a1b-4c10-b630-0b97de17d6aa",
+  "id": "72408f3b-8d75-4c6c-8017-8b41661c5dc3",
   "prevId": "2c947021-4af8-4cf5-bb70-136f03f34208",
   "version": "7",
   "dialect": "postgresql",
@@ -1350,7 +1350,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "ended_samples_reason_is_known": {
+          "name": "ended_samples_reason_is_known",
+          "value": "\"ended_samples\".\"reason\" in ('removed')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.equivalents": {
