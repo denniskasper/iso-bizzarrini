@@ -1,4 +1,4 @@
-import type { LandingResponse } from '@ricambi/contracts';
+import type { LandingResponse, VisitorSampleResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import { ValidationError } from '../http/errors.js';
@@ -18,9 +18,13 @@ const membershipRequestBody = z.object({
   website: blankToNull(),
 });
 
+/** Not `tavolaId`: that name is guarded as the archive is, behind sign-in. */
+const sampleParams = z.object({ shownTavolaId: z.uuid('That is not a Tavola id.') });
+
 /** What somebody who has not signed in may read of the archive (ADR 0019), and ask of the Club. */
 export interface VisitorController {
   readLanding: RequestHandler;
+  readSample: RequestHandler;
   askToJoin: RequestHandler;
 }
 
@@ -32,6 +36,12 @@ export function createVisitorController(dependencies: {
   return {
     readLanding: async (_request, response) => {
       const body: LandingResponse = { landing: await visitorService.landing() };
+      response.json(body);
+    },
+
+    readSample: async (request, response) => {
+      const { shownTavolaId } = sampleParams.parse(request.params);
+      const body: VisitorSampleResponse = { sample: await visitorService.sample(shownTavolaId) };
       response.json(body);
     },
 

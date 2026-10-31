@@ -35,6 +35,7 @@ import type {
   TavolaCategoryRequest,
   ClubResponse,
   LandingResponse,
+  VisitorSampleResponse,
   MembershipRequest,
   ReminderPlan,
   ReminderRun,
@@ -251,6 +252,12 @@ export const api = {
   landing: () => request<LandingResponse>('/landing'),
   /** One e-mail to the Club office, answered to the Visitor. Nothing of it is kept (issue #131). */
   askToJoin: (asked: MembershipRequest) => send<void>('POST', '/membership-requests', asked),
+  /**
+   * **A Sample, as a Visitor reads it** (issue #132): its public drawing, every number on it, and
+   * the factory's Parts at the open one. A 404 for any Tavola that is not a Sample.
+   */
+  visitorSample: (tavolaId: string) =>
+    request<VisitorSampleResponse>(`/landing/samples/${encodeURIComponent(tavolaId)}`),
 
   /** The association's own record of its processors, agreements included. An Administrator's. */
   processors: () => request<ProcessorsResponse>('/processors'),
@@ -816,4 +823,8 @@ export type {
   SamplesResponse,
   TavolaState,
   TavolaSummary,
+  VisitorListing,
+  VisitorPosition,
+  VisitorSample,
+  VisitorSampleListed,
 } from '@ricambi/contracts';

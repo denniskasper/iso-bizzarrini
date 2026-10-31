@@ -1,9 +1,11 @@
-import type { Landing } from '@ricambi/contracts';
-import { HttpError, TooManyAttemptsError } from '../http/errors.js';
+import type { Landing, VisitorSample, VisitorSampleListed } from '@ricambi/contracts';
+import { HttpError, NotFoundError, TooManyAttemptsError } from '../http/errors.js';
+import { sampleDrawingUrl } from '../images/image-addresses.js';
 import type { Clock } from '../platform/clock.js';
 import type { EmailSender } from '../platform/email.js';
 import type { Logger } from '../platform/logger.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
+import type { VisitorRepository, VisitorSampleRow } from '../repositories/visitor-repository.js';
 import type { ClubService } from './club-service.js';
 
 /**
@@ -17,6 +19,11 @@ import type { ClubService } from './club-service.js';
 export interface VisitorService {
   /** Which Models the archive covers, how deep it goes for each, and what membership costs. */
   landing(): Promise<Landing>;
+  /**
+   * A Sample (issue #132): its drawing, every number on it, and the Parts at the one that is open.
+   * Refused in the words of a Tavola that does not exist for any Tavola that is not a Sample.
+   */
+  sample(tavolaId: string): Promise<VisitorSample>;
   /**
    * One letter to the Club office, answered to the Visitor. `from` is the network address the
    * request came from, which is all the limit below counts by.
@@ -64,14 +71,38 @@ export class MembershipRequestNotSentError extends HttpError {
   }
 }
 
+function toListedSample(row: VisitorSampleRow): VisitorSampleListed {
+  return {
+    tavola: {
+      id: row.tavolaId,
+      number: row.number,
+      nameIt: row.nameIt,
+      nameEn: row.nameEn,
+      model: {
+        brand: row.brand,
+        name: row.modelName,
+        series: row.series,
+        modelYears: row.modelYears,
+      },
+    },
+    drawing: {
+      url: sampleDrawingUrl(row.drawingId),
+      width: row.drawingWidth,
+      height: row.drawingHeight,
+    },
+  };
+}
+
 export function createVisitorService(dependencies: {
   clock: Clock;
   modelRepository: ModelRepository;
+  visitorRepository: VisitorRepository;
   clubService: ClubService;
   emailSender: EmailSender;
   logger: Logger;
 }): VisitorService {
-  const { clock, modelRepository, clubService, emailSender, logger } = dependencies;
+  const { clock, modelRepository, visitorRepository, clubService, emailSender, logger } =
+    dependencies;
 
   /**
    * When each address last asked, within the window. **In memory and nowhere else**: Ricambi
@@ -110,8 +141,9 @@ export function createVisitorService(dependencies: {
 
   return {
     async landing() {
-      const [covered, club] = await Promise.all([
+      const [covered, samples, club] = await Promise.all([
         modelRepository.listCovered(),
+        visitorRepository.listSamples(),
         clubService.read(),
       ]);
 
@@ -123,10 +155,32 @@ export function createVisitorService(dependencies: {
           modelYears: model.modelYears,
           publishedTavole: model.publishedTavole,
         })),
+        samples: samples.map(toListedSample),
         fee: club.fee,
         currency: club.currency,
         officeEmail: club.officeEmail,
         requestForm: officeToWriteTo(club.officeEmail) !== null,
+      };
+    },
+
+    async sample(tavolaId) {
+      const row = await visitorRepository.findSample(tavolaId);
+      if (!row) {
+        throw new NotFoundError('No such Sample.');
+      }
+      const [positions, listings] = await Promise.all([
+        visitorRepository.listPositions(tavolaId),
+        visitorRepository.listListings(row.openPositionId),
+      ]);
+
+      return {
+        ...toListedSample(row),
+        positions: positions.map((position) => ({
+          number: position.number,
+          marks: position.marks,
+          open: position.id === row.openPositionId,
+        })),
+        open: { number: row.openNumber, listings },
       };
     },
 

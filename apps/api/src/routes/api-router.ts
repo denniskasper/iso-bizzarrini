@@ -158,6 +158,11 @@ export function createApiRouter(dependencies: {
   // many Published Tavole each has, and what membership costs. The depth and none of the content,
   // built from a shape of its own, so the archive below stays exactly as private as it was.
   router.get('/landing', visitorController.readLanding);
+  // **A Sample, as a Visitor reads it** (issue #132): its public drawing, every number on it, and
+  // the factory's Parts at the one that is open, from a projection of its own. A Tavola that is
+  // not a Sample is a 404 here and stays behind the gate below, its name included. The parameter
+  // is not `:tavolaId`, which the gate below guards as the archive's.
+  router.get('/landing/samples/:shownTavolaId', visitorController.readSample);
   // **Asking the Club for membership** (issue #131): one e-mail to the Club office, answered to
   // the Visitor, and nothing of it kept here. Open, since asking to be let in cannot require
   // already being in; a hidden field and a limit per address keep the junk out.

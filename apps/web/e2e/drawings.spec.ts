@@ -40,7 +40,9 @@ test.describe('opening a drawing', () => {
   // The whole archive is behind the gate, not only the images: a stranger does not get to read
   // a Tavola's number, its names or the factory's Sezione either. What a Visitor is shown is which
   // cars are covered and how many drawings each has (ADR 0019), and nothing to open.
-  test('shows a signed-out browser nothing beyond the Model counts', async ({ page }) => {
+  test('shows a signed-out browser nothing beyond the Samples and the Model counts', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'The archive is members-only.' })).toBeVisible();

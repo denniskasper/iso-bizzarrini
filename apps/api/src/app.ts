@@ -66,6 +66,7 @@ import { createSignInFailureRepository } from './repositories/sign-in-failure-re
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createSpecificationListRepository } from './repositories/specification-list-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
+import { createVisitorRepository } from './repositories/visitor-repository.js';
 import { API_MOUNT, createApiRouter, WEBHOOK_PATH } from './routes/api-router.js';
 import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
@@ -267,6 +268,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const visitorService = createVisitorService({
     clock,
     modelRepository,
+    visitorRepository: createVisitorRepository(db),
     clubService,
     emailSender,
     logger,
