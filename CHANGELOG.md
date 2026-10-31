@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.10.0...v0.11.0) (2026-10-31)
+
+
+### New
+
+* **152:** somebody let propose on a practice system starts a Fix or an Idea and gets answers ([1f16139](https://github.com/denniskasper/iso-bizzarrini/commit/1f161396d77c182281adcae35c98523a8cfe0075))
+* **153:** somebody proposing hands over the finished Proposal and follows what becomes of it ([d99f766](https://github.com/denniskasper/iso-bizzarrini/commit/d99f766f121a44dfb6cc48d05b25efe729cbb4e4))
+* **154:** somebody proposing can show screenshots with notes, and remove one added by mistake ([8f46137](https://github.com/denniskasper/iso-bizzarrini/commit/8f46137c7fe003975611f2c386643534b81d719f))
+* **155:** Proposals on Integration are worked out with Claude, and pause when the month's limit is spent ([ce38bf6](https://github.com/denniskasper/iso-bizzarrini/commit/ce38bf6f5e57e3fc7f8967c41c86ce58fabde7ab))
+* **157:** Proposals outlive re-seeding and move between practice systems ([8b7d70d](https://github.com/denniskasper/iso-bizzarrini/commit/8b7d70d3083b43dacd892b33a05436ab511237a7))
+
+
+### Fixed
+
+* **152:** give the Proposal panel its shadow on wide screens ([6a728c2](https://github.com/denniskasper/iso-bizzarrini/commit/6a728c2dfa9cdc48746394a20ccdf66ed0c0a4b2))
+* **153:** a summary written after handing over never replaces the one handed over ([a421bdb](https://github.com/denniskasper/iso-bizzarrini/commit/a421bdbe9b9e6e18979742790fc987d12ea07456))
+* **153:** the header wraps for anybody who may propose ([19e7ff2](https://github.com/denniskasper/iso-bizzarrini/commit/19e7ff2970ef483744327f519edebe7ac2622039))
+* **154:** a screenshot never sent is not handed over with its Proposal ([0c5fd5a](https://github.com/denniskasper/iso-bizzarrini/commit/0c5fd5aea404dac85ba7ea8872aa516bca602baf))
+* **155:** the status names PROPOSALS_METHOD when the api-key method has no key ([a3212f0](https://github.com/denniskasper/iso-bizzarrini/commit/a3212f02116a8aee6d99a646e45e639294ccc1b0))
+* **157:** an export makes the directory it is told to write into ([5b4c293](https://github.com/denniskasper/iso-bizzarrini/commit/5b4c2931720ff5402ddc0f9ed6f998684dea90ea))
+* **proposals:** name each Draft by its opening words ([561773f](https://github.com/denniskasper/iso-bizzarrini/commit/561773f1bbc62b38837499387d22f8ef0dcf0f56))
+
 ## [0.10.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.9.0...v0.10.0) (2026-10-31)
 
 
