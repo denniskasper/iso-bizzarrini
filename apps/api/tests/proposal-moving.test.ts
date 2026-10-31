@@ -260,6 +260,24 @@ describe('Proposals on a practice system', () => {
       });
     });
 
+    it('makes the directory it is told to export into', async () => {
+      const administrator = await givenAnAdministrator(app);
+      const author = await aProposer(administrator.agent);
+      const draft = await aDraft(author.agent);
+      const into = join(await anExportDirectory(), 'not-made-yet');
+
+      expect(await exportProposals({ db: app.db, fileStore: fileStore() }, into)).toEqual({
+        proposals: 1,
+        turns: 0,
+        screenshots: 0,
+      });
+
+      await app.reset();
+      await importProposals({ db: app.db, fileStore: fileStore() }, into);
+      const [imported] = await app.db.select({ id: proposals.id }).from(proposals);
+      expect(imported?.id).toBe(draft);
+    });
+
     it('refuses to import over Proposals already there, and writes nothing', async () => {
       const administrator = await givenAnAdministrator(app);
       const author = await aProposer(administrator.agent);

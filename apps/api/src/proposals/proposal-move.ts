@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ProposalSummary } from '@ricambi/contracts';
 import { asc, eq, inArray } from 'drizzle-orm';
@@ -195,7 +195,9 @@ export async function exportProposals(
       })),
   }));
 
-  // Written last, so a directory with a manifest in it is a whole export.
+  // Written last, so a directory with a manifest in it is a whole export. The directory is made
+  // here too: without a screenshot to copy, nothing above has made it.
+  await mkdir(directory, { recursive: true });
   await writeFile(
     join(directory, MANIFEST),
     JSON.stringify({ format: FORMAT, proposals: exported }, null, 2),
