@@ -4,7 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { Estimating } from '@/components/readings/estimating';
 import { PastRuns } from '@/components/readings/past-runs';
 import { StartRun } from '@/components/readings/start-run';
-import { Working } from '@/components/readings/working';
+import { Sweep, Working } from '@/components/readings/working';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, Refusal, Select } from '@/components/ui/field';
@@ -213,14 +213,14 @@ function NewRun() {
               <span className="text-sm text-pretty break-all text-muted">{catalog.name}</span>
               <span className="text-base text-text" aria-live="polite">
                 {count === null ? (
-                  <span className="text-muted">Counting its pages…</span>
+                  <Counting />
                 ) : pages !== null ? (
-                  <>
+                  <span className="inline-block animate-rise">
                     <span className="font-semibold">
                       {pages} {pages === 1 ? 'page' : 'pages'}
                     </span>
                     <span className="text-muted">, {sizeOf(catalog.size)}</span>
-                  </>
+                  </span>
                 ) : null}
               </span>
             </div>
@@ -294,6 +294,21 @@ function NewRun() {
 
       {estimate.data && <Estimated runId={estimate.data.run.id} />}
     </section>
+  );
+}
+
+/**
+ * **A chosen catalog being read in the browser** for its page count. A scanned catalog runs to
+ * hundreds of MB, and a line of grey text that sits still for that long looks stopped, so it comes
+ * with the same track uploading and reading are shown on. The bar is only drawn: it sits in the
+ * count's live region, and the words are what is announced.
+ */
+function Counting() {
+  return (
+    <span className="flex items-center gap-3" data-testid="catalog-counting">
+      <Sweep className="h-1.5 w-24 shrink-0" />
+      <span className="text-muted">Reading the catalog for its pages…</span>
+    </span>
   );
 }
 

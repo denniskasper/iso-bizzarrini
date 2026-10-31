@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { EnvironmentBanner } from '@/components/environment-banner';
 import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { GuidedTour, TourLink } from '@/components/tour/guided-tour';
 import { Wordmark, wordmarkName } from '@/components/wordmark';
 import { ServiceStatusStrip } from '@/components/service-status-strip';
 import { useLegalNotice } from '@/lib/legal';
@@ -153,9 +154,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link to="/privacy" className={chromeLink}>
               Privacy
             </Link>
+            {/* Temporary, with the tour itself: practice systems only. */}
+            <TourLink className={chromeLink} />
           </nav>
         </div>
       </footer>
+
+      {/* Temporary: a tester's walk through what is new, on a practice system only. */}
+      <GuidedTour />
     </div>
   );
 }

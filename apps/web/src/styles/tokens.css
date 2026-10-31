@@ -381,9 +381,9 @@
    */
   --animate-rise: rise 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
   /*
-   * Work the server is doing that has no figure to show yet: a short length of the track, crossing
-   * it again and again. Only ever on the track a figure is drawn on elsewhere, so it reads as the
-   * same bar, waiting for its number.
+   * Work under way that has no figure to show yet, on the server or in the browser: a short length
+   * of the track, crossing it again and again. Only ever on that track (`Sweep`), so it reads as
+   * the same bar, waiting for its number.
    */
   --animate-sweep: sweep 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }

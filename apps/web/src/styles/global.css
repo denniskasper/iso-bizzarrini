@@ -1210,4 +1210,52 @@
     border-bottom-width: 1px;
     border-right-width: 1px;
   }
+
+  /*
+   * **The guided tour** (temporary, `components/tour`): docked in a corner beside the page and
+   * never over the middle of it, because what it points at is the page. Its edge wears the ice
+   * blue of what points, and it floats on the card's shadow because, like the card, it is the
+   * one thing not part of the sheet. A phone gets it across the bottom, clear of the home bar.
+   */
+  .tour {
+    position: fixed;
+    z-index: 30;
+    inset-inline: --spacing(2);
+    bottom: calc(--spacing(2) + env(safe-area-inset-bottom));
+    max-height: 70dvh;
+    overflow-y: auto;
+    color: var(--text);
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line-strong);
+    border-inline-start: 3px solid var(--mark);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+
+  @media (min-width: 40rem) {
+    .tour {
+      inset-inline: auto --spacing(6);
+      bottom: --spacing(6);
+      width: 24rem;
+    }
+  }
+
+  .tour-folded {
+    overflow: hidden;
+  }
+
+  /* Room to scroll the end of a page out from under it. */
+  body:has(.tour) {
+    padding-bottom: 45dvh;
+  }
+
+  body:has(.tour-folded) {
+    padding-bottom: --spacing(20);
+  }
+
+  @media (min-width: 40rem) {
+    .tour-folded {
+      width: 18rem;
+    }
+  }
 }
