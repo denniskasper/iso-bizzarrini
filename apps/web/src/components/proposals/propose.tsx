@@ -72,7 +72,7 @@ function ProposalPanel({
       }}
       className={cn(
         'fixed inset-0 z-30 flex flex-col bg-surface-raised',
-        'sm:shadow-card sm:left-auto sm:w-proposal-panel sm:border-l sm:border-line',
+        'sm:left-auto sm:w-proposal-panel sm:border-l sm:border-line sm:shadow-(--shadow-card)',
       )}
     >
       <header className="flex items-center gap-2 border-b border-line px-gutter py-2">
