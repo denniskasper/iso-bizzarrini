@@ -1,6 +1,9 @@
 import type {
   Proposal,
+  ProposalAudience,
   ProposalKind,
+  ProposalStatus,
+  ProposalStatusRequest,
   ProposalTurn,
   StartProposalRequest,
 } from '@ricambi/contracts';
@@ -16,7 +19,15 @@ import { api } from '@/lib/api';
 export const PROPOSALS_QUERY_KEY = ['proposals'] as const;
 
 export function useDrafts() {
-  return useQuery({ queryKey: PROPOSALS_QUERY_KEY, queryFn: api.proposals });
+  return useQuery({ queryKey: PROPOSALS_QUERY_KEY, queryFn: () => api.proposals() });
+}
+
+/** Every handed-over Proposal, New first, or those standing at `status` (issue #153). */
+export function useProposals(status: ProposalStatus | undefined) {
+  return useQuery({
+    queryKey: [...PROPOSALS_QUERY_KEY, { status: status ?? 'all' }],
+    queryFn: () => api.proposals(status),
+  });
 }
 
 export function useProposal(proposalId: string) {
@@ -87,7 +98,12 @@ export function useConverse(proposalId: string) {
         [...PROPOSALS_QUERY_KEY, proposalId],
         (current) =>
           current && {
-            proposal: { ...current.proposal, turns: [...current.proposal.turns, ...kept] },
+            proposal: {
+              ...current.proposal,
+              turns: [...current.proposal.turns, ...kept],
+              // Carrying the conversation on sets aside a finished Proposal written before it.
+              summary: null,
+            },
           },
       );
       if (failure !== null) {
@@ -102,4 +118,71 @@ export function useConverse(proposalId: string) {
   });
 
   return { ...mutation, asked, answering };
+}
+
+export const STATUS_NAME: Record<ProposalStatus, string> = {
+  draft: 'Draft',
+  new: 'New',
+  'taken-up': 'Taken up',
+  done: 'Done',
+  declined: 'Declined',
+};
+
+export const AUDIENCE_NAME: Record<ProposalAudience, string> = {
+  member: 'Members',
+  editor: 'Editors',
+  administrator: 'Administrators',
+  visitor: 'Visitors',
+};
+
+/**
+ * A change to one Proposal that answers with it whole: kept as what is now known of it, and
+ * every list read again, since where it stands decides which of them it is in.
+ */
+function useProposalChange<T>(
+  proposalId: string,
+  change: (input: T) => Promise<{ proposal: Proposal }>,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: change,
+    onSuccess: (answer) => {
+      queryClient.setQueryData([...PROPOSALS_QUERY_KEY, proposalId], answer);
+      return queryClient.invalidateQueries({
+        queryKey: PROPOSALS_QUERY_KEY,
+        predicate: (query) => query.queryKey[1] !== proposalId,
+      });
+    },
+  });
+}
+
+/**
+ * **The finished Proposal** (issue #153), written from the conversation as it stands; with a
+ * change, the author's ask is kept and it is written again.
+ */
+export function useSummarise(proposalId: string) {
+  return useProposalChange(proposalId, (change: string | null) =>
+    api.summariseProposal(proposalId, change === null ? {} : { change }),
+  );
+}
+
+export function useHandOver(proposalId: string) {
+  return useProposalChange(proposalId, () => api.handOverProposal(proposalId));
+}
+
+export function useDecide(proposalId: string) {
+  return useProposalChange(proposalId, (decision: ProposalStatusRequest) =>
+    api.decideProposal(proposalId, decision),
+  );
+}
+
+export function useDiscard(proposalId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.discardProposal(proposalId),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: [...PROPOSALS_QUERY_KEY, proposalId] });
+      return queryClient.invalidateQueries({ queryKey: PROPOSALS_QUERY_KEY });
+    },
+  });
 }

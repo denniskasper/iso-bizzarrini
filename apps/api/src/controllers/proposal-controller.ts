@@ -3,6 +3,7 @@ import type { RequestHandler, Response } from 'express';
 import { z } from 'zod';
 import type { Gate } from '../access/gate.js';
 import { PROPOSAL_KINDS } from '../db/schema.js';
+import { ForbiddenError } from '../http/errors.js';
 import type { Logger } from '../platform/logger.js';
 import type { Proposer, ProposalService } from '../services/proposal-service.js';
 import { required } from './fields.js';
@@ -26,20 +27,51 @@ const startBody = z.object({
     .transform((id) => id ?? null),
 });
 
-const turnBody = z.object({
-  text: required('Write something first').max(20_000, 'That is too long for one turn'),
+const turnText = required('Write something first').max(20_000, 'That is too long for one turn');
+
+const turnBody = z.object({ text: turnText });
+
+const summaryBody = z
+  .object({ change: turnText.optional() })
+  .optional()
+  .transform((body) => body?.change ?? null);
+
+const listQuery = z.object({
+  status: z
+    .enum(['new', 'taken-up', 'done', 'declined'], 'Proposals are filtered by where they stand.')
+    .optional()
+    .transform((status) => status ?? null),
 });
+
+const decisionBody = z
+  .object({
+    status: z.enum(
+      ['taken-up', 'done', 'declined'],
+      'A Proposal is Taken up, Done or Declined; it is New only by being handed over.',
+    ),
+    reason: z.string().trim().max(2000, 'That reason is too long').optional(),
+  })
+  .transform(({ status, reason }) => ({ status, reason: reason || null }))
+  .refine(
+    ({ status, reason }) => status !== 'declined' || reason !== null,
+    'Say why it is Declined: its author is shown the reason.',
+  );
 
 export interface ProposalController {
   list: RequestHandler;
   start: RequestHandler;
   read: RequestHandler;
   converse: RequestHandler;
+  summarise: RequestHandler;
+  handOver: RequestHandler;
+  discard: RequestHandler;
+  decide: RequestHandler;
 }
 
 /**
- * **Proposing** (issue #152). Every address here is behind `requireProposer`, and every one of
- * them is about the proposer's own Proposals.
+ * **Proposing** (issue #152) and **handing over** (issue #153). Every address here is behind
+ * `requireProposer`; a Draft is its author's alone, and a handed-over Proposal everybody's who
+ * may propose. Only an Administrator decides what becomes of one.
  */
 export function createProposalController(dependencies: {
   gate: Gate;
@@ -56,10 +88,9 @@ export function createProposalController(dependencies: {
   }
 
   return {
-    list: async (_request, response) => {
-      const body: ProposalsResponse = {
-        drafts: await proposalService.listDrafts(proposer(response)),
-      };
+    list: async (request, response) => {
+      const { status } = listQuery.parse(request.query);
+      const body: ProposalsResponse = await proposalService.list(proposer(response), status);
       response.json(body);
     },
 
@@ -118,6 +149,41 @@ export function createProposalController(dependencies: {
         });
       }
       response.end();
+    },
+
+    summarise: async (request, response) => {
+      const { proposalId } = proposalParams.parse(request.params);
+      const change = summaryBody.parse(request.body);
+      const body: ProposalResponse = {
+        proposal: await proposalService.summarise(proposer(response), proposalId, change),
+      };
+      response.json(body);
+    },
+
+    handOver: async (request, response) => {
+      const { proposalId } = proposalParams.parse(request.params);
+      const body: ProposalResponse = {
+        proposal: await proposalService.handOver(proposer(response), proposalId),
+      };
+      response.json(body);
+    },
+
+    discard: async (request, response) => {
+      const { proposalId } = proposalParams.parse(request.params);
+      await proposalService.discard(proposer(response), proposalId);
+      response.status(204).end();
+    },
+
+    decide: async (request, response) => {
+      if (gate.whoIsSignedIn(response).account.role !== 'administrator') {
+        throw new ForbiddenError('What becomes of a Proposal is an Administrator’s to decide.');
+      }
+      const { proposalId } = proposalParams.parse(request.params);
+      const decision = decisionBody.parse(request.body);
+      const body: ProposalResponse = {
+        proposal: await proposalService.decide(proposer(response), proposalId, decision),
+      };
+      response.json(body);
     },
   };
 }

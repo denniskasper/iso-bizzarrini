@@ -9,6 +9,7 @@ import type {
   ProposalKind,
   ProposalSpeaker,
   ProposalStatus,
+  ProposalSummary,
   ReadingMethodKind,
   Role,
   SampleEndReason,
@@ -1639,13 +1640,32 @@ export const proposals = pgTable(
     tavolaNumber: text('tavola_number'),
     tavolaName: text('tavola_name'),
 
+    /**
+     * **The finished Proposal** (issue #153), as the conversation wrote it, with the author's
+     * own words copied in. Null until asked for, and again once the conversation carries on past
+     * it, so what is handed over is always what the author last read.
+     */
+    summary: jsonb('summary').$type<ProposalSummary>(),
+    /** Why an Administrator Declined it, which its author is shown. Only ever on a Declined one. */
+    declineReason: text('decline_reason'),
+
     /** From the injected clock. */
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
     /** When the last turn was said, or when it was started. What the Drafts are listed by. */
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    /** When its author pressed Hand over. Null while it is a Draft, and set for good after. */
+    handedOverAt: timestamp('handed_over_at', { withTimezone: true }),
   },
   (table) => [
     index('proposals_author_id_index').on(table.authorId),
+    check(
+      'proposals_handed_over_has_a_summary',
+      sql`${table.status} = 'draft' or (${table.summary} is not null and ${table.handedOverAt} is not null)`,
+    ),
+    check(
+      'proposals_declined_has_a_reason',
+      sql`(${table.status} = 'declined') = (${table.declineReason} is not null)`,
+    ),
     check('proposals_kind_is_fix_or_idea', sql`${table.kind} in (${oneOf(PROPOSAL_KINDS)})`),
     check('proposals_status_is_one_of_five', sql`${table.status} in (${oneOf(PROPOSAL_STATUSES)})`),
     check(

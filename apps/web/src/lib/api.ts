@@ -62,6 +62,9 @@ import type {
   ProposalAnswerEvent,
   ProposalResponse,
   ProposalsResponse,
+  ProposalStatus,
+  ProposalStatusRequest,
+  SummariseProposalRequest,
   StartProposalRequest,
   RosterImportPlan,
   RosterImportRequest,
@@ -728,10 +731,24 @@ export const api = {
    * **Proposing** (issue #152): the proposer's own Drafts, one of them whole, and a new one
    * started with what is on screen.
    */
-  proposals: () => request<ProposalsResponse>('/proposals'),
+  proposals: (status?: ProposalStatus) =>
+    request<ProposalsResponse>(status === undefined ? '/proposals' : `/proposals?status=${status}`),
   proposal: (proposalId: string) => request<ProposalResponse>(`/proposals/${proposalId}`),
   startProposal: (start: StartProposalRequest) =>
     send<ProposalResponse>('POST', '/proposals', start),
+  /**
+   * **The finished Proposal** (issue #153), written from the conversation, or written again with
+   * a change the author asks for; then handed over, or the Draft discarded.
+   */
+  summariseProposal: (proposalId: string, request: SummariseProposalRequest) =>
+    send<ProposalResponse>('POST', `/proposals/${proposalId}/summary`, request),
+  handOverProposal: (proposalId: string) =>
+    send<ProposalResponse>('POST', `/proposals/${proposalId}/hand-over`, {}),
+  discardProposal: (proposalId: string) =>
+    request<void>(`/proposals/${proposalId}`, { method: 'DELETE' }),
+  /** An Administrator's decision about a handed-over Proposal. */
+  decideProposal: (proposalId: string, decision: ProposalStatusRequest) =>
+    send<ProposalResponse>('PATCH', `/proposals/${proposalId}`, decision),
   /**
    * A turn, and its answer **as it is written**: one event per line, each handed to `heard` as
    * it arrives. A refusal before the answer begins is thrown as any other; a failure after it is

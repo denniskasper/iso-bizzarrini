@@ -360,6 +360,15 @@ export function createApiRouter(dependencies: {
   router.post('/proposals', gate.requireProposer, proposalController.start);
   router.get('/proposals/:proposalId', gate.requireProposer, proposalController.read);
   router.post('/proposals/:proposalId/turns', gate.requireProposer, proposalController.converse);
+  // Finishing a Proposal and handing it over (issue #153), and what becomes of it.
+  router.post('/proposals/:proposalId/summary', gate.requireProposer, proposalController.summarise);
+  router.post(
+    '/proposals/:proposalId/hand-over',
+    gate.requireProposer,
+    proposalController.handOver,
+  );
+  router.delete('/proposals/:proposalId', gate.requireProposer, proposalController.discard);
+  router.patch('/proposals/:proposalId', gate.requireProposer, proposalController.decide);
 
   // Everything below is the archive, and the archive is what a live Membership buys.
   router.use(gate.requireLiveMembership);

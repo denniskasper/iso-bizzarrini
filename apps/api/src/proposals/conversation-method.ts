@@ -1,25 +1,53 @@
-import type { ProposalContext, ProposalKind, ProposalSpeaker } from '@ricambi/contracts';
+import type {
+  FixSummary,
+  IdeaSummary,
+  ProposalContext,
+  ProposalKind,
+  ProposalSpeaker,
+  ProposalStatus,
+} from '@ricambi/contracts';
 
 /**
  * **The one seam between a Proposal and a model** (issue #152), beside the Reading method. A
  * conversation method is given what the author brings — a Fix or an Idea — what was on screen
- * when they started, and every turn so far, and writes the next answer a piece at a time.
- * Everything around it — who may propose, whose Draft is whose, the order turns are kept in — is
- * plain code that never talks to a model, and is tested against a fake one (ADR 0017).
+ * when they started, what was proposed before, and every turn so far; it writes the next answer a
+ * piece at a time, or the finished Proposal (issue #153). Everything around it — who may propose,
+ * whose Draft is whose, the order turns are kept in — is plain code that never talks to a model,
+ * and is tested against a fake one (ADR 0017).
  */
 export interface ConversationMethod {
   /** What the conversation is had with, for an operator. Never a credential. */
   readonly name: string;
   /** The next answer, as it is written. Ends when the answer does. */
   answer(conversation: Conversation): AsyncIterable<string>;
+  /**
+   * **The finished Proposal**, as structured output in the fixed shape for the conversation's
+   * kind, naming the model that wrote it. The author's own words are not the method's to write:
+   * the archive copies them from the turns, so they stay verbatim.
+   */
+  summarise(conversation: Conversation): Promise<WrittenSummary>;
 }
+
+/** What the method writes of a finished Proposal: everything but the author's own words. */
+export type WrittenSummary = Omit<FixSummary, 'authorsWords'> | Omit<IdeaSummary, 'authorsWords'>;
 
 /** Everything the method is told, and nothing about who the author is. */
 export interface Conversation {
   kind: ProposalKind;
   context: ProposalContext;
+  /**
+   * Every Proposal handed over before, by its title and where it stands (issue #153), so the
+   * conversation can say when something was already raised and what became of it. Oldest first.
+   */
+  earlier: EarlierProposal[];
   /** Oldest first, ending with the author's turn being answered. */
   turns: ConversationTurn[];
+}
+
+export interface EarlierProposal {
+  kind: ProposalKind;
+  title: string;
+  status: Exclude<ProposalStatus, 'draft'>;
 }
 
 export interface ConversationTurn {

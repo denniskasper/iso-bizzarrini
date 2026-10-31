@@ -130,7 +130,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   propose, and only where the archive says there is a conversation to be had —
                   which is never Production. Plain like the links beside it: the accent is
                   each page's own one action, and this is a way out of it. */}
-              {account?.mayPropose && <Propose className={chromeLink} />}
+              {account?.mayPropose && (
+                <>
+                  <Link to="/proposals" className={chromeLink} data-testid="proposals-link">
+                    Proposals
+                  </Link>
+                  <Propose className={chromeLink} />
+                </>
+              )}
               <SessionControl />
               <ThemeToggle />
             </div>
