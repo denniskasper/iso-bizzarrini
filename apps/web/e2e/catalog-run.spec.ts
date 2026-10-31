@@ -317,6 +317,7 @@ test('an Administrator removes a Tavola a run read, and its Model is without it'
   await expect(line).toContainText('Removed by');
   await expect(line.getByRole('link')).toHaveCount(0);
   await expect(page.getByTestId('run-actions')).toContainText('Tavola 106 removed by');
+  await expect(page.getByTestId('catalog-run-state')).not.toContainText('waiting to be checked');
 });
 
 /**
