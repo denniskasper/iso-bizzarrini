@@ -56,10 +56,16 @@ export function Unreadable({ children }: { children: ReactNode }) {
   return <p className="text-lg text-pretty text-muted">{children}</p>;
 }
 
-/** An address somebody can write to, as the link it is. */
+/**
+ * An address somebody can write to, as the link it is: a target a hand can hit, though it sits in
+ * a line of text.
+ */
 export function Mail({ address }: { address: string }) {
   return (
-    <a href={`mailto:${address}`} className="text-accent-ink underline underline-offset-4">
+    <a
+      href={`mailto:${address}`}
+      className="-my-2 inline-flex min-h-control items-center text-accent-ink underline underline-offset-4"
+    >
       {address}
     </a>
   );
