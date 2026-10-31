@@ -1,6 +1,7 @@
 import type {
   Proposal,
   ProposalAnswerEvent,
+  ProposalKind,
   ProposalsResponse,
   RosterEntry,
   SessionResponse,
@@ -10,7 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { configureConversation } from '../src/composition/conversation.js';
 import { loadConfig } from '../src/config/config.js';
 import type { Conversation, ConversationMethod } from '../src/proposals/conversation-method.js';
-import { FAKE_ANSWER } from '../src/proposals/fake-conversation-method.js';
+import { FAKE_ANSWER, FAKE_SUMMARY } from '../src/proposals/fake-conversation-method.js';
 import { givenModel, givenTavola } from './support/fixtures.js';
 import { givenAMember, givenAnAdministrator, type RecruitedMember } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
@@ -63,6 +64,36 @@ async function letPropose(
     .send({ mayPropose })
     .expect(200);
   return response.body.member as RosterEntry;
+}
+
+async function aDraft(agent: TestAgent, kind: ProposalKind = 'fix'): Promise<string> {
+  const started = await agent.post('/api/proposals').send({ kind, pageAddress: '/' }).expect(201);
+  return (started.body.proposal as Proposal).id;
+}
+
+async function summarise(agent: TestAgent, proposalId: string, change?: string): Promise<Proposal> {
+  const response = await agent
+    .post(`/api/proposals/${proposalId}/summary`)
+    .send(change === undefined ? {} : { change })
+    .expect(200);
+  return response.body.proposal as Proposal;
+}
+
+/** A Proposal talked through, finished and handed over: New, and seen by all who may propose. */
+async function aHandedOver(agent: TestAgent, kind: ProposalKind = 'fix'): Promise<string> {
+  const id = await aDraft(agent, kind);
+  await converse(agent, id, `Something about a ${kind}.`);
+  await summarise(agent, id);
+  await agent.post(`/api/proposals/${id}/hand-over`).expect(200);
+  return id;
+}
+
+async function readProposal(agent: TestAgent, proposalId: string): Promise<Proposal> {
+  return (await agent.get(`/api/proposals/${proposalId}`).expect(200)).body.proposal as Proposal;
+}
+
+async function listed(agent: TestAgent, query = ''): Promise<ProposalsResponse> {
+  return (await agent.get(`/api/proposals${query}`).expect(200)).body as ProposalsResponse;
 }
 
 describe('proposing, on a practice system', () => {
@@ -319,6 +350,275 @@ describe('proposing, on a practice system', () => {
       await author.agent.post(`/api/proposals/${id}/turns`).send({ text: '   ' }).expect(400);
     });
   });
+
+  describe('the finished Proposal', () => {
+    it('is written in the fixed shape for its kind, with the author’s words verbatim', async () => {
+      const author = await aProposer();
+      const fix = await aDraft(author.agent, 'fix');
+      await converse(author.agent, fix, 'The drawing does not open.');
+      await converse(author.agent, fix, '  On a phone, every time.  ');
+
+      const finished = await summarise(author.agent, fix);
+      expect(finished.summary).toEqual({
+        ...FAKE_SUMMARY.fix,
+        authorsWords: ['The drawing does not open.', 'On a phone, every time.'],
+      });
+      expect(finished.title).toBe(FAKE_SUMMARY.fix.title);
+      expect(finished.summary?.model).toBe('The fake conversation');
+      expect((await readProposal(author.agent, fix)).summary).toEqual(finished.summary);
+
+      const idea = await aDraft(author.agent, 'idea');
+      await converse(author.agent, idea, 'Members could note their own car.');
+      expect((await summarise(author.agent, idea)).summary).toEqual({
+        ...FAKE_SUMMARY.idea,
+        authorsWords: ['Members could note their own car.'],
+      });
+    });
+
+    it('is written again when the author asks for a change, and the ask is kept', async () => {
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+      await converse(author.agent, id, 'The drawing does not open.');
+      await summarise(author.agent, id);
+
+      const revised = await summarise(author.agent, id, 'Say that it happens on a phone.');
+      expect(revised.turns.at(-1)).toMatchObject({
+        sequence: 2,
+        speaker: 'author',
+        text: 'Say that it happens on a phone.',
+      });
+      expect(revised.summary?.authorsWords).toEqual([
+        'The drawing does not open.',
+        'Say that it happens on a phone.',
+      ]);
+    });
+
+    it('is set aside when the conversation carries on after it', async () => {
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+      await converse(author.agent, id, 'The drawing does not open.');
+      await summarise(author.agent, id);
+
+      await converse(author.agent, id, 'One more thing.');
+      expect((await readProposal(author.agent, id)).summary).toBeNull();
+      await author.agent.post(`/api/proposals/${id}/hand-over`).expect(409);
+    });
+
+    it('needs something said first, and is the author’s alone to ask for', async () => {
+      const author = await aProposer();
+      const somebodyElse = await aProposer('Somebody Else');
+      const id = await aDraft(author.agent);
+
+      await author.agent.post(`/api/proposals/${id}/summary`).send({}).expect(409);
+      await converse(author.agent, id, 'The drawing does not open.');
+      await somebodyElse.agent.post(`/api/proposals/${id}/summary`).send({}).expect(404);
+      await author.agent.post(`/api/proposals/${id}/summary`).send({ change: '   ' }).expect(400);
+    });
+  });
+
+  describe('handing over', () => {
+    it('makes a Draft New, and shows it whole to everybody with the permission', async () => {
+      const author = await aProposer('The Author');
+      const somebodyElse = await aProposer('Somebody Else');
+      const id = await aDraft(author.agent);
+      await converse(author.agent, id, 'The drawing does not open.');
+      await summarise(author.agent, id);
+
+      app.clock.advanceBy(60_000);
+      const handedOver = await author.agent.post(`/api/proposals/${id}/hand-over`).expect(200);
+      expect(handedOver.body.proposal).toMatchObject({
+        status: 'new',
+        handedOverAt: app.clock.now().toISOString(),
+      });
+
+      expect((await listed(author.agent)).drafts).toEqual([]);
+      const theirs = await listed(somebodyElse.agent);
+      expect(theirs.handedOver).toMatchObject([
+        { id, status: 'new', title: FAKE_SUMMARY.fix.title, mine: false },
+      ]);
+      expect((await listed(author.agent)).handedOver).toMatchObject([{ id, mine: true }]);
+
+      const read = await readProposal(somebodyElse.agent, id);
+      expect(read.summary?.authorsWords).toEqual(['The drawing does not open.']);
+      expect(read.turns.map((turn) => turn.speaker)).toEqual(['author', 'conversation']);
+
+      const { agent: administrator } = await anAdministrator();
+      await administrator.get(`/api/proposals/${id}`).expect(403);
+    });
+
+    it('needs the finished Proposal, happens once, and ends the conversation', async () => {
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+      await converse(author.agent, id, 'The drawing does not open.');
+      await author.agent.post(`/api/proposals/${id}/hand-over`).expect(409);
+
+      await summarise(author.agent, id);
+      await author.agent.post(`/api/proposals/${id}/hand-over`).expect(200);
+      await author.agent.post(`/api/proposals/${id}/hand-over`).expect(409);
+      await author.agent.post(`/api/proposals/${id}/turns`).send({ text: 'More.' }).expect(409);
+      await author.agent.post(`/api/proposals/${id}/summary`).send({}).expect(409);
+    });
+
+    it('is the author’s alone to do', async () => {
+      const author = await aProposer('The Author');
+      const somebodyElse = await aProposer('Somebody Else');
+      const id = await aDraft(author.agent);
+      await converse(author.agent, id, 'The drawing does not open.');
+      await summarise(author.agent, id);
+
+      await somebodyElse.agent.post(`/api/proposals/${id}/hand-over`).expect(404);
+    });
+  });
+
+  describe('discarding', () => {
+    it('takes away a Draft its author no longer wants', async () => {
+      const author = await aProposer('The Author');
+      const somebodyElse = await aProposer('Somebody Else');
+      const id = await aDraft(author.agent);
+      await converse(author.agent, id, 'A false start.');
+
+      await somebodyElse.agent.delete(`/api/proposals/${id}`).expect(404);
+      await author.agent.delete(`/api/proposals/${id}`).expect(204);
+      await author.agent.get(`/api/proposals/${id}`).expect(404);
+      expect((await listed(author.agent)).drafts).toEqual([]);
+    });
+
+    it('never takes away a handed-over Proposal, not even for its author', async () => {
+      const author = await aProposer('The Author');
+      const somebodyElse = await aProposer('Somebody Else');
+      const id = await aHandedOver(author.agent);
+
+      await author.agent.delete(`/api/proposals/${id}`).expect(409);
+      await somebodyElse.agent.delete(`/api/proposals/${id}`).expect(409);
+      await readProposal(author.agent, id);
+    });
+  });
+
+  describe('what becomes of it', () => {
+    async function anAdministratorWhoProposes(): Promise<RecruitedMember> {
+      const administrator = await anAdministrator();
+      const entry = await letPropose(administrator.agent, administrator);
+      return { ...administrator, entry };
+    }
+
+    function moveOn(agent: TestAgent, proposalId: string, status: string, reason?: string) {
+      return agent
+        .patch(`/api/proposals/${proposalId}`)
+        .send(reason === undefined ? { status } : { status, reason });
+    }
+
+    it('runs New, Taken up, Done, by an Administrator, and its author sees it', async () => {
+      const { agent: administrator } = await anAdministratorWhoProposes();
+      const author = await aProposer();
+      const id = await aHandedOver(author.agent);
+
+      const takenUp = await moveOn(administrator, id, 'taken-up').expect(200);
+      expect((takenUp.body.proposal as Proposal).status).toBe('taken-up');
+      expect((await readProposal(author.agent, id)).status).toBe('taken-up');
+
+      await moveOn(administrator, id, 'done').expect(200);
+      expect(await readProposal(author.agent, id)).toMatchObject({
+        status: 'done',
+        declineReason: null,
+      });
+    });
+
+    it('is Declined from New or Taken up, with a reason its author reads', async () => {
+      const { agent: administrator } = await anAdministratorWhoProposes();
+      const author = await aProposer();
+      const fromNew = await aHandedOver(author.agent);
+      const fromTakenUp = await aHandedOver(author.agent);
+
+      await moveOn(administrator, fromNew, 'declined').expect(400);
+      await moveOn(administrator, fromNew, 'declined', '  ').expect(400);
+      await moveOn(administrator, fromNew, 'declined', 'Already on the plan.').expect(200);
+      expect(await readProposal(author.agent, fromNew)).toMatchObject({
+        status: 'declined',
+        declineReason: 'Already on the plan.',
+      });
+
+      await moveOn(administrator, fromTakenUp, 'taken-up').expect(200);
+      await moveOn(administrator, fromTakenUp, 'declined', 'Not for now.').expect(200);
+    });
+
+    it('refuses anything else as a conflict', async () => {
+      const { agent: administrator } = await anAdministratorWhoProposes();
+      const author = await aProposer();
+      const id = await aHandedOver(author.agent);
+
+      await moveOn(administrator, id, 'done').expect(409);
+      await moveOn(administrator, id, 'taken-up').expect(200);
+      await moveOn(administrator, id, 'taken-up').expect(409);
+      await moveOn(administrator, id, 'done').expect(200);
+      await moveOn(administrator, id, 'declined', 'Too late.').expect(409);
+      await moveOn(administrator, id, 'taken-up').expect(409);
+      await moveOn(administrator, id, 'new').expect(400);
+      await moveOn(administrator, id, 'draft').expect(400);
+
+      // A Draft has not been handed over, and nobody moves it on, its own author included.
+      const draft = await aDraft(administrator);
+      await moveOn(administrator, draft, 'taken-up').expect(409);
+    });
+
+    it('is decided by Administrators alone', async () => {
+      const author = await aProposer();
+      const { agent: administrator } = await anAdministrator();
+      const editor = await givenAMember(app, administrator, { role: 'editor' });
+      await letPropose(administrator, editor);
+      const id = await aHandedOver(author.agent);
+
+      await moveOn(author.agent, id, 'taken-up').expect(403);
+      await moveOn(editor.agent, id, 'taken-up').expect(403);
+      // The role alone does not reach the Proposals: the permission is a thing of its own.
+      await moveOn(administrator, id, 'taken-up').expect(403);
+      expect((await readProposal(author.agent, id)).status).toBe('new');
+    });
+  });
+
+  describe('the Proposals list', () => {
+    it('lists the handed-over New first, the latest first within each, and filters by status', async () => {
+      const administrator = await anAdministrator();
+      await letPropose(administrator.agent, administrator);
+      const author = await aProposer();
+
+      const done = await aHandedOver(author.agent);
+      app.clock.advanceBy(60_000);
+      const olderNew = await aHandedOver(author.agent, 'idea');
+      app.clock.advanceBy(60_000);
+      const takenUp = await aHandedOver(author.agent);
+      app.clock.advanceBy(60_000);
+      const declined = await aHandedOver(author.agent);
+      app.clock.advanceBy(60_000);
+      const newerNew = await aHandedOver(author.agent);
+      const draft = await aDraft(author.agent);
+
+      const move = (id: string, status: string, reason?: string) =>
+        administrator.agent.patch(`/api/proposals/${id}`).send({ status, reason }).expect(200);
+      await move(done, 'taken-up');
+      await move(done, 'done');
+      await move(takenUp, 'taken-up');
+      await move(declined, 'declined', 'No.');
+
+      const all = await listed(author.agent);
+      expect(all.handedOver.map((proposal) => proposal.id)).toEqual([
+        newerNew,
+        olderNew,
+        takenUp,
+        done,
+        declined,
+      ]);
+      expect(all.drafts.map((proposal) => proposal.id)).toEqual([draft]);
+
+      const onlyNew = await listed(author.agent, '?status=new');
+      expect(onlyNew.handedOver.map((proposal) => proposal.id)).toEqual([newerNew, olderNew]);
+      expect(onlyNew.drafts.map((proposal) => proposal.id)).toEqual([draft]);
+      const onlyDeclined = await listed(administrator.agent, '?status=declined');
+      expect(onlyDeclined.handedOver.map((proposal) => proposal.id)).toEqual([declined]);
+
+      await author.agent.get('/api/proposals?status=draft').expect(400);
+      await author.agent.get('/api/proposals?status=lost').expect(400);
+    });
+  });
 });
 
 describe('what the conversation is given', () => {
@@ -329,6 +629,13 @@ describe('what the conversation is given', () => {
       heard.push(structuredClone(conversation));
       yield 'Noted.';
     },
+    async summarise(conversation) {
+      heard.push(structuredClone(conversation));
+      return {
+        ...FAKE_SUMMARY[conversation.kind],
+        title: `Heard ${conversation.turns.length} turns`,
+      };
+    },
   };
 
   let app: TestApp;
@@ -337,6 +644,10 @@ describe('what the conversation is given', () => {
       build: BUILD,
       conversation: { method: listening, unavailable: null },
     });
+  });
+  afterEach(async () => {
+    heard.length = 0;
+    await app.reset();
   });
   afterAll(() => app.close());
 
@@ -364,12 +675,64 @@ describe('what the conversation is given', () => {
         model: { id: model.id, name: 'Iso Rivolta' },
         tavola: null,
       },
+      earlier: [],
       turns: [
         { speaker: 'author', text: 'Members could note their own car.' },
         { speaker: 'conversation', text: 'Noted.' },
         { speaker: 'author', text: 'For every Member.' },
       ],
     });
+  });
+
+  it('is the same when the Proposal is finished, with any change asked for last', async () => {
+    const administrator = await givenAnAdministrator(app);
+    const author = await givenAMember(app, administrator.agent);
+    await letPropose(administrator.agent, author);
+    const id = await aDraft(author.agent, 'fix');
+    await converse(author.agent, id, 'The drawing does not open.');
+
+    const finished = await summarise(author.agent, id, 'Say it is on a phone.');
+    expect(finished.title).toBe('Heard 3 turns');
+    expect(heard.at(-1)).toMatchObject({
+      kind: 'fix',
+      context: { pageAddress: '/' },
+      turns: [
+        { speaker: 'author', text: 'The drawing does not open.' },
+        { speaker: 'conversation', text: 'Noted.' },
+        { speaker: 'author', text: 'Say it is on a phone.' },
+      ],
+    });
+  });
+
+  it('includes the titles and statuses of the Proposals handed over before, and no Drafts', async () => {
+    const administrator = await givenAnAdministrator(app);
+    const entry = await letPropose(administrator.agent, administrator);
+    const author = await givenAMember(app, administrator.agent);
+    await letPropose(administrator.agent, author);
+    expect(entry.mayPropose).toBe(true);
+
+    const first = await aHandedOver(author.agent, 'fix');
+    app.clock.advanceBy(60_000);
+    await aHandedOver(administrator.agent, 'idea');
+    await administrator.agent
+      .patch(`/api/proposals/${first}`)
+      .send({ status: 'declined', reason: 'Works as meant.' })
+      .expect(200);
+    const someoneElsesDraft = await aDraft(administrator.agent);
+    await converse(administrator.agent, someoneElsesDraft, 'Half a thought.');
+
+    const id = await aDraft(author.agent, 'idea');
+    heard.length = 0;
+    await converse(author.agent, id, 'Members could note their own car.');
+    await summarise(author.agent, id);
+
+    const earlier = [
+      { kind: 'fix', title: 'Heard 2 turns', status: 'declined' },
+      { kind: 'idea', title: 'Heard 2 turns', status: 'new' },
+    ];
+    expect(heard).toHaveLength(2);
+    expect(heard[0]?.earlier).toEqual(earlier);
+    expect(heard[1]?.earlier).toEqual(earlier);
   });
 });
 

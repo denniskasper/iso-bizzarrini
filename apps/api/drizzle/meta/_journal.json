@@ -253,6 +253,13 @@
       "when": 1793452706198,
       "tag": "0035_proposals_and_who_may_propose",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793459500832,
+      "tag": "0036_proposals_are_handed_over_and_decided",
+      "breakpoints": true
     }
   ]
 }

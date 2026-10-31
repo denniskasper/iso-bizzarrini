@@ -185,6 +185,10 @@ const PROPOSERS_ONLY = new Set([
   'POST /api/proposals',
   'GET /api/proposals/:proposalId',
   'POST /api/proposals/:proposalId/turns',
+  'POST /api/proposals/:proposalId/summary',
+  'POST /api/proposals/:proposalId/hand-over',
+  'DELETE /api/proposals/:proposalId',
+  'PATCH /api/proposals/:proposalId',
 ]);
 
 describe('who may reach what', () => {

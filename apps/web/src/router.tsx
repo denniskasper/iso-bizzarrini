@@ -1,3 +1,4 @@
+import type { ProposalStatus } from '@ricambi/contracts';
 import {
   createRootRoute,
   createRoute,
@@ -16,6 +17,8 @@ import { MembershipPage } from '@/routes/membership-page';
 import { ModelPage } from '@/routes/model-page';
 import { NotFoundPage } from '@/routes/not-found-page';
 import { PrivacyPage } from '@/routes/privacy-page';
+import { ProposalPage } from '@/routes/proposal-page';
+import { ProposalsPage } from '@/routes/proposals-page';
 import { CatalogRunPage } from '@/routes/catalog-run-page';
 import { ReadingsPage } from '@/routes/readings-page';
 import { RemindersPage } from '@/routes/reminders-page';
@@ -54,6 +57,7 @@ const OUTSIDE_THE_GATE = [
   '/membership',
   '/reminders',
   '/readings',
+  '/proposals',
 ];
 
 function RootLayout() {
@@ -162,6 +166,32 @@ const catalogRunRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/readings/runs/$runId',
   component: CatalogRunPage,
+});
+
+/** Where a handed-over Proposal can stand, and so what the list can be narrowed to. */
+const HANDED_OVER: ProposalStatus[] = ['new', 'taken-up', 'done', 'declined'];
+
+/**
+ * **Every handed-over Proposal** (issue #153), and one of them whole. Outside the gate: they are
+ * behind the permission to propose, not behind a Membership, because proposing is not reading
+ * the archive. `status` narrows the list, in the address so a filtered list can be sent on.
+ */
+const proposalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/proposals',
+  component: ProposalsPage,
+  validateSearch: (search: Record<string, unknown>): { status?: ProposalStatus } => {
+    const status = search['status'];
+    return HANDED_OVER.includes(status as ProposalStatus)
+      ? { status: status as ProposalStatus }
+      : {};
+  },
+});
+
+const proposalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/proposals/$proposalId',
+  component: ProposalPage,
 });
 
 const clubRoute = createRoute({
@@ -312,6 +342,8 @@ export const router = createRouter({
     remindersRoute,
     readingsRoute,
     catalogRunRoute,
+    proposalsRoute,
+    proposalRoute,
     privacyRoute,
     membershipRoute,
     legalNoticeRoute,

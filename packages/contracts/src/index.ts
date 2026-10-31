@@ -2883,31 +2883,112 @@ export interface ProposalTurn {
   at: string;
 }
 
+/** Who an Idea is for (issue #153): the roles of the archive, and somebody who is not in it yet. */
+export type ProposalAudience = 'member' | 'editor' | 'administrator' | 'visitor';
+
+/** What every finished Proposal says, whichever its kind. */
+interface SummaryOfEither {
+  /** A few words the Proposal is listed by, and told to later conversations by. */
+  title: string;
+  /**
+   * **The author's own words, verbatim**: every turn they wrote, in order. Copied from the
+   * conversation by the archive rather than written by the model, so nothing in it is reworded.
+   */
+  authorsWords: string[];
+  /** Which model wrote this summary, so the developer can judge it. */
+  model: string;
+}
+
+/** A finished Fix: something is wrong. */
+export interface FixSummary extends SummaryOfEither {
+  kind: 'fix';
+  whatHappened: string;
+  whatWasExpected: string;
+  /** How to make it happen again, a step each, in order. Empty when nobody knows. */
+  steps: string[];
+  /** Where it happened, from what was on screen when the Proposal was started. */
+  where: string;
+}
+
+/** A finished Idea: something should be new. */
+export interface IdeaSummary extends SummaryOfEither {
+  kind: 'idea';
+  /** The problem, in the author's own terms. */
+  problem: string;
+  forWhom: ProposalAudience[];
+  whatItShouldDo: string;
+  decisions: string[];
+  openQuestions: string[];
+  /** Words the conversation found that are not yet Ricambi's terms, and what they were meant to mean. */
+  newTerms: { term: string; meaning: string }[];
+}
+
+/**
+ * **The finished Proposal** (issue #153): what the conversation ends on, in the fixed shape for
+ * its kind, returned by the conversation method as structured output rather than read out of its
+ * prose. In English, with names replaced by roles.
+ */
+export type ProposalSummary = FixSummary | IdeaSummary;
+
 /** A Proposal as listed: enough to find it again. */
-export interface ProposalSummary {
+export interface ProposalListing {
   id: string;
   kind: ProposalKind;
   status: ProposalStatus;
+  /** The summary's title, once there is a summary. */
+  title: string | null;
   context: ProposalContext;
   /** The author's first words, or `null` before they have written any. */
   opening: string | null;
-  /** ISO instants. */
+  /** Whether the person asking wrote it. */
+  mine: boolean;
+  /** ISO instants. `handedOverAt` is null while it is a Draft. */
   startedAt: string;
   updatedAt: string;
+  handedOverAt: string | null;
 }
 
 /** `GET /api/proposals/:proposalId` — one Proposal and the whole of its conversation. */
-export interface Proposal extends ProposalSummary {
+export interface Proposal extends ProposalListing {
   turns: ProposalTurn[];
+  /**
+   * The finished Proposal, or `null` until the author asks for it. Written again when they ask
+   * for a change, and set aside when they carry on the conversation after it.
+   */
+  summary: ProposalSummary | null;
+  /** Why it was Declined, which its author is shown. Null unless it was. */
+  declineReason: string | null;
 }
 
 export interface ProposalResponse {
   proposal: Proposal;
 }
 
-/** `GET /api/proposals` — the author's own Drafts, the latest first. */
+/**
+ * `GET /api/proposals` — the asker's own Drafts, the latest first, and every handed-over
+ * Proposal, New first. `?status=` keeps only the handed-over ones that stand there.
+ */
 export interface ProposalsResponse {
-  drafts: ProposalSummary[];
+  drafts: ProposalListing[];
+  handedOver: ProposalListing[];
+}
+
+/**
+ * `POST /api/proposals/:proposalId/summary` — the finished Proposal, written. With `change`, the
+ * author's ask for it to say something differently is kept as their turn first, and the summary
+ * is written again with it.
+ */
+export interface SummariseProposalRequest {
+  change?: string;
+}
+
+/**
+ * `PATCH /api/proposals/:proposalId` — an Administrator moving a handed-over Proposal on.
+ * `New → Taken up → Done`, and `Declined` from New or Taken up, with a reason.
+ */
+export interface ProposalStatusRequest {
+  status: Exclude<ProposalStatus, 'draft' | 'new'>;
+  reason?: string;
 }
 
 /**

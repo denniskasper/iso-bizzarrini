@@ -4,12 +4,13 @@ import { openGrifo } from './support/archive.js';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
- * **Proposing a Fix from a Tavola's page** (issue #152), in a real browser, against the fake
- * conversation, which answers everybody the same way. Who may propose, what a Draft records and
- * who is shown it are proved at the API seam; this is the panel beside the page, and an answer
- * arriving in it.
+ * **Proposing a Fix from a Tavola's page** (issues #152 and #153), in a real browser, against the
+ * fake conversation, which answers everybody the same way and finishes every Fix alike. Who may
+ * propose, what a Draft records, who is shown it and how its status may move are proved at the
+ * API seam; this is the panel beside the page, an answer arriving in it, the finished Proposal
+ * handed over, and its author seeing it Taken up.
  */
-test('somebody let propose starts a Fix from a Tavola’s page and is answered', async ({
+test('somebody let propose starts a Fix from a Tavola’s page, hands it over, and sees it taken up', async ({
   page,
   browser,
 }) => {
@@ -17,12 +18,15 @@ test('somebody let propose starts a Fix from a Tavola’s page and is answered',
   // nothing, so both projects can do it on the one server.
   await signIn(page);
   const roster = (await (await page.request.get('/api/roster')).json()) as RosterResponse;
-  const editor = roster.members.find((member) => member.email === PRACTICE.editor);
-  expect(editor).toBeDefined();
-  const granted = await page.request.patch(`/api/roster/${editor?.id}`, {
-    data: { mayPropose: true },
-  });
-  expect(granted.ok()).toBe(true);
+  // The Administrator lets themselves too: deciding about a Proposal means reading it first.
+  for (const email of [PRACTICE.editor, PRACTICE.administrator]) {
+    const member = roster.members.find((entry) => entry.email === email);
+    expect(member).toBeDefined();
+    const granted = await page.request.patch(`/api/roster/${member?.id}`, {
+      data: { mayPropose: true },
+    });
+    expect(granted.ok()).toBe(true);
+  }
 
   const context = await browser.newContext();
   const proposer = await context.newPage();
@@ -64,6 +68,32 @@ test('somebody let propose starts a Fix from a Tavola’s page and is answered',
   await expect(panel.getByTestId('conversation')).toContainText(
     'This is the practice conversation',
   );
+
+  // Finished: the summary in the shape of a Fix, the author's own words kept as written.
+  await panel.getByRole('button', { name: 'Finish' }).click();
+  const finished = panel.getByTestId('finished-proposal');
+  await expect(finished).toContainText('A practice Fix');
+  await expect(finished).toContainText('What was expected');
+  await expect(finished).toContainText('The numbers on this sheet are hard to read.');
+
+  await panel.getByRole('button', { name: 'Hand over' }).click();
+  const handedOver = panel.getByTestId('handed-over');
+  await expect(handedOver).toContainText('It is New');
+  const address = await handedOver
+    .getByRole('link', { name: 'Follow it on Proposals' })
+    .getAttribute('href');
+  expect(address).toMatch(/^\/proposals\//);
+
+  // An Administrator takes it up from its own page.
+  await page.goto(address ?? '');
+  await expect(page.getByTestId('proposal-status')).toHaveText('New');
+  await page.getByRole('button', { name: 'Take up' }).click();
+  await expect(page.getByTestId('proposal-status')).toHaveText('Taken up');
+
+  // Its author sees what became of it.
+  await proposer.goto(address ?? '');
+  await expect(proposer.getByTestId('proposal-status')).toHaveText('Taken up');
+  await expect(proposer.getByRole('heading', { level: 1 })).toHaveText('A practice Fix');
 
   await context.close();
 });

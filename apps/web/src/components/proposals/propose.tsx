@@ -1,16 +1,22 @@
-import type { Proposal, ProposalContext, ProposalKind, ProposalSummary } from '@ricambi/contracts';
+import type { Proposal, ProposalContext, ProposalKind, ProposalListing } from '@ricambi/contracts';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { Link } from '@tanstack/react-router';
+import { ContextList, FinishedProposal, Said } from '@/components/proposals/proposal-parts';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { ApiError, refusalText } from '@/lib/api';
 import {
   KIND_NAME,
   OPENING_QUESTION,
+  STATUS_NAME,
   useConverse,
+  useDiscard,
   useDrafts,
+  useHandOver,
   useOnScreen,
   useProposal,
   useStartProposal,
+  useSummarise,
 } from '@/lib/proposals';
 import { cn } from '@/lib/utils';
 
@@ -97,7 +103,7 @@ function ProposalPanel({
       {proposalId === null ? (
         <Choosing onOpen={onOpen} />
       ) : (
-        <Conversing key={proposalId} proposalId={proposalId} />
+        <Conversing key={proposalId} proposalId={proposalId} onDiscarded={() => onOpen(null)} />
       )}
     </aside>
   );
@@ -193,7 +199,7 @@ function DraftLink({
   draft,
   onOpen,
 }: {
-  draft: ProposalSummary;
+  draft: ProposalListing;
   onOpen: (proposalId: string) => void;
 }) {
   return (
@@ -214,7 +220,7 @@ function DraftLink({
   );
 }
 
-function Conversing({ proposalId }: { proposalId: string }) {
+function Conversing({ proposalId, onDiscarded }: { proposalId: string; onDiscarded: () => void }) {
   const read = useProposal(proposalId);
 
   if (read.isPending) {
@@ -227,25 +233,41 @@ function Conversing({ proposalId }: { proposalId: string }) {
       </div>
     );
   }
-  return <Conversation proposal={read.data.proposal} />;
+  return <Conversation proposal={read.data.proposal} onDiscarded={onDiscarded} />;
 }
 
-function Conversation({ proposal }: { proposal: Proposal }) {
+/**
+ * The conversation, and **the finished Proposal** at the end of it (issue #153). Before it is
+ * asked for, what is written carries the conversation on; once it is shown, what is written asks
+ * for it to say something differently, and Hand over is the one thing left to press.
+ */
+function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscarded: () => void }) {
   const converse = useConverse(proposal.id);
+  const summarise = useSummarise(proposal.id);
+  const handOver = useHandOver(proposal.id);
   const [text, setText] = useState('');
   const end = useRef<HTMLDivElement>(null);
 
+  const isDraft = proposal.status === 'draft';
+  const finished = proposal.summary;
+  const busy = converse.isPending || summarise.isPending || handOver.isPending;
+  const hasSaidSomething = proposal.turns.some((turn) => turn.speaker === 'author');
+
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
-  }, [proposal.turns.length, converse.answering]);
+  }, [proposal.turns.length, converse.answering, finished, summarise.isPending]);
 
   function send(event?: FormEvent) {
     event?.preventDefault();
     const said = text.trim();
-    if (said === '' || converse.isPending) {
+    if (said === '' || busy) {
       return;
     }
-    converse.mutate(said, { onSuccess: () => setText('') });
+    if (finished === null) {
+      converse.mutate(said, { onSuccess: () => setText('') });
+    } else {
+      summarise.mutate(said, { onSuccess: () => setText('') });
+    }
   }
 
   function sendOnModifiedEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -253,6 +275,8 @@ function Conversation({ proposal }: { proposal: Proposal }) {
       send();
     }
   }
+
+  const failure = [converse, summarise, handOver].find((mutation) => mutation.isError)?.error;
 
   return (
     <>
@@ -272,46 +296,135 @@ function Conversation({ proposal }: { proposal: Proposal }) {
               {converse.answering === '' ? '…' : converse.answering}
             </Said>
           )}
+          {summarise.isPending && (
+            <li className="tag" role="status">
+              Writing the finished Proposal…
+            </li>
+          )}
         </ol>
+
+        {finished !== null && !summarise.isPending && (
+          <section
+            aria-label="The finished Proposal"
+            className="mx-gutter mb-6 rounded-lg border border-line-strong bg-surface px-4 py-5"
+          >
+            <FinishedProposal summary={finished} />
+          </section>
+        )}
         <div ref={end} />
       </div>
 
-      <form onSubmit={send} className="border-t border-line px-gutter py-3">
-        {converse.isError && (
-          <div className="mb-2">
-            <Refusal>
-              {converse.error instanceof ApiError || !(converse.error instanceof Error)
-                ? refusalText(converse.error)
-                : converse.error.message}
-            </Refusal>
-          </div>
-        )}
-        <label htmlFor="proposal-turn" className="sr-only">
-          Your answer
-        </label>
-        <textarea
-          id="proposal-turn"
-          rows={3}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={sendOnModifiedEnter}
-          placeholder="Write in your own words, in German or English."
-          className={cn(
-            'block w-full resize-none rounded-md border border-line-strong bg-surface px-3 py-2',
-            'text-base text-text placeholder:text-faint',
+      {isDraft ? (
+        <form onSubmit={send} className="border-t border-line px-gutter py-3">
+          {failure !== undefined && (
+            <div className="mb-2">
+              <Refusal>
+                {failure instanceof ApiError || !(failure instanceof Error)
+                  ? refusalText(failure)
+                  : failure.message}
+              </Refusal>
+            </div>
           )}
-        />
-        <div className="mt-2 flex justify-end">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={converse.isPending || text.trim() === ''}
+          <label htmlFor="proposal-turn" className="sr-only">
+            {finished === null ? 'Your answer' : 'Ask for a change'}
+          </label>
+          <textarea
+            id="proposal-turn"
+            rows={finished === null ? 3 : 2}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={sendOnModifiedEnter}
+            placeholder={
+              finished === null
+                ? 'Write in your own words, in German or English.'
+                : 'Should it say something differently? Write what to change.'
+            }
+            className={cn(
+              'block w-full resize-none rounded-md border border-line-strong bg-surface px-3 py-2',
+              'text-base text-text placeholder:text-faint',
+            )}
+          />
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+            <Discard proposalId={proposal.id} disabled={busy} onDiscarded={onDiscarded} />
+            {finished === null ? (
+              <>
+                <Button disabled={busy || !hasSaidSomething} onClick={() => summarise.mutate(null)}>
+                  Finish
+                </Button>
+                <Button type="submit" variant="primary" disabled={busy || text.trim() === ''}>
+                  {converse.isPending ? 'Answering…' : 'Send'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="submit" disabled={busy || text.trim() === ''}>
+                  {summarise.isPending ? 'Writing…' : 'Change it'}
+                </Button>
+                <Button
+                  variant="primary"
+                  disabled={busy}
+                  onClick={() => handOver.mutate(undefined)}
+                >
+                  {handOver.isPending ? 'Handing over…' : 'Hand over'}
+                </Button>
+              </>
+            )}
+          </div>
+        </form>
+      ) : (
+        <div className="border-t border-line px-gutter py-4" data-testid="handed-over">
+          <p className="text-base text-text">
+            Handed over. It is {STATUS_NAME[proposal.status]}, and the developer will read it.
+          </p>
+          <Link
+            to="/proposals/$proposalId"
+            params={{ proposalId: proposal.id }}
+            className="mt-1 inline-flex min-h-control items-center text-sm text-accent-ink underline-offset-4 hover:underline"
           >
-            {converse.isPending ? 'Answering…' : 'Send'}
-          </Button>
+            Follow it on Proposals
+          </Link>
         </div>
-      </form>
+      )}
     </>
+  );
+}
+
+/**
+ * **Discarding a Draft**, in two presses: a false start should not linger, and a conversation
+ * somebody meant to keep should not vanish to a slip of the thumb.
+ */
+function Discard({
+  proposalId,
+  disabled,
+  onDiscarded,
+}: {
+  proposalId: string;
+  disabled: boolean;
+  onDiscarded: () => void;
+}) {
+  const discard = useDiscard(proposalId);
+  const [sure, setSure] = useState(false);
+
+  if (!sure) {
+    return (
+      <Button variant="ghost" className="mr-auto" disabled={disabled} onClick={() => setSure(true)}>
+        Discard
+      </Button>
+    );
+  }
+  return (
+    <span className="mr-auto flex items-center gap-2">
+      <Button
+        variant="danger"
+        disabled={disabled || discard.isPending}
+        onClick={() => discard.mutate(undefined, { onSuccess: onDiscarded })}
+      >
+        Discard this draft
+      </Button>
+      <Button variant="ghost" onClick={() => setSure(false)}>
+        Keep it
+      </Button>
+    </span>
   );
 }
 
@@ -324,56 +437,13 @@ function OnScreen({ kind, context }: { kind: ProposalKind; context: ProposalCont
       data-testid="proposal-context"
     >
       <p className="text-sm font-semibold text-text">A {KIND_NAME[kind]}, from</p>
-      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        {context.tavola !== null && (
-          <>
-            <dt className="text-muted">Tavola</dt>
-            <dd className="text-text">
-              <span className="tabular">{context.tavola.number}</span> {context.tavola.name}
-            </dd>
-          </>
-        )}
-        {context.model !== null && (
-          <>
-            <dt className="text-muted">Model</dt>
-            <dd className="text-text">{context.model.name}</dd>
-          </>
-        )}
-        <dt className="text-muted">Page</dt>
-        <dd className="tabular truncate text-text">{context.pageAddress}</dd>
-        <dt className="text-muted">Version</dt>
-        <dd className="tabular text-text">{context.version}</dd>
-      </dl>
+      <div className="mt-2">
+        <ContextList context={context} />
+      </div>
       <p className="mt-3 text-sm text-pretty text-muted" data-testid="no-names">
         Please do not name members. Say “a member” or what they do in the Club instead.
       </p>
     </section>
-  );
-}
-
-function Said({
-  speaker,
-  live = false,
-  children,
-}: {
-  speaker: 'author' | 'conversation';
-  live?: boolean;
-  children: string;
-}) {
-  return (
-    <li
-      data-speaker={speaker}
-      aria-live={live ? 'polite' : undefined}
-      className={cn(
-        'text-base text-pretty whitespace-pre-wrap',
-        speaker === 'author'
-          ? 'ml-8 rounded-lg bg-surface-sunken px-3 py-2 text-text'
-          : 'mr-4 text-text',
-      )}
-    >
-      <span className="sr-only">{speaker === 'author' ? 'You: ' : 'Answer: '}</span>
-      {children}
-    </li>
   );
 }
 
