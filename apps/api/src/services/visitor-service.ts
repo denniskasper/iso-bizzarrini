@@ -25,6 +25,15 @@ export interface VisitorService {
    */
   sample(tavolaId: string): Promise<VisitorSample>;
   /**
+   * Every Sample as the landing lists it, and nothing more: what a sitemap names (issue #133).
+   */
+  samples(): Promise<VisitorSampleListed[]>;
+  /**
+   * One Sample as the landing lists it, for the title and picture a shared link is previewed
+   * with (issue #133). `null` for any Tavola that is not a Sample, which is then named nowhere.
+   */
+  listedSample(tavolaId: string): Promise<VisitorSampleListed | null>;
+  /**
    * One letter to the Club office, answered to the Visitor. `from` is the network address the
    * request came from, which is all the limit below counts by.
    */
@@ -182,6 +191,15 @@ export function createVisitorService(dependencies: {
         })),
         open: { number: row.openNumber, listings },
       };
+    },
+
+    async samples() {
+      return (await visitorRepository.listSamples()).map(toListedSample);
+    },
+
+    async listedSample(tavolaId) {
+      const row = await visitorRepository.findSample(tavolaId);
+      return row ? toListedSample(row) : null;
     },
 
     async askToJoin(request, from) {

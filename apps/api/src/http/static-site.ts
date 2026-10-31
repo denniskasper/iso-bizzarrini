@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { EnvironmentMode } from '@ricambi/contracts';
 import express, { Router, type RequestHandler } from 'express';
+import type { Indexing } from './indexing.js';
+import { escapeMarkup, type VisitorPage, type VisitorPages } from './visitor-pages.js';
 
 /**
  * The built single-page app, served by the API — one deployable, not a service split (ADR 0008).
@@ -12,6 +14,8 @@ import express, { Router, type RequestHandler } from 'express';
 export function createStaticSiteHandler(options: {
   webDistPath: string | undefined;
   environmentMode: EnvironmentMode;
+  visitorPages: Pick<VisitorPages, 'describe'>;
+  indexing: Indexing;
 }): RequestHandler | undefined {
   if (!options.webDistPath) {
     return undefined;
@@ -28,6 +32,7 @@ export function createStaticSiteHandler(options: {
   // Read and stamped once: the file does not change while the process lives, and the answer to
   // "which environment is this" changes even less.
   const index = stampEnvironment(readFileSync(indexPath, 'utf8'), options.environmentMode);
+  const { visitorPages, indexing } = options;
 
   const router = Router();
 
@@ -44,13 +49,20 @@ export function createStaticSiteHandler(options: {
   router.use(express.static(root, { index: false, maxAge: '1h' }));
 
   // A deep link to a Position must survive a page reload, so unknown paths get the app itself.
-  router.get('/{*path}', (request, response, next) => {
+  // A Visitor page says what it is in the markup, since a link preview runs no script (issue #133).
+  router.get('/{*path}', async (request, response, next) => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       next();
       return;
     }
+    const page = await visitorPages.describe(request.path);
     response.setHeader('Cache-Control', 'no-store');
-    response.type('html').send(index);
+    if (!page) {
+      response.type('html').send(index.html(null));
+      return;
+    }
+    const indexed = indexing.lift(response);
+    response.type('html').send(describePage(index.html(page.title), page, indexed));
   });
 
   return router;
@@ -68,7 +80,10 @@ export function createStaticSiteHandler(options: {
  * Both markers are required. If the document has no `<html>` element or no `<title>`, this
  * refuses to serve rather than quietly serving an unmarked demo.
  */
-function stampEnvironment(html: string, mode: EnvironmentMode): string {
+function stampEnvironment(
+  html: string,
+  mode: EnvironmentMode,
+): { html: (pageTitle: string | null) => string } {
   const htmlTag = /<html\b([^>]*)>/i;
   const titleTag = /<title>([\s\S]*?)<\/title>/i;
 
@@ -80,10 +95,51 @@ function stampEnvironment(html: string, mode: EnvironmentMode): string {
   }
 
   const stamped = html.replace(htmlTag, `<html$1 data-environment-mode="${mode}">`);
-  if (mode === 'production') {
-    return stamped;
-  }
 
-  // DEMO first, because a browser tab truncates from the right.
-  return stamped.replace(titleTag, (_match, title: string) => `<title>DEMO — ${title}</title>`);
+  return {
+    // A page's own title goes before the app's name, which is what a reader recognises it by.
+    html: (pageTitle) =>
+      stamped.replace(titleTag, (_match, title: string) => {
+        const titled = pageTitle === null ? title : `${escapeMarkup(pageTitle)} — ${title}`;
+        // DEMO first, because a browser tab truncates from the right.
+        return `<title>${mode === 'production' ? titled : `DEMO — ${titled}`}</title>`;
+      }),
+  };
+}
+
+/**
+ * **The head a link preview reads**: the title already set, and the description and picture in
+ * the words both the Open Graph previews and search engines read. The built app's own `noindex`
+ * goes only where the response itself was let into the index.
+ */
+function describePage(html: string, page: VisitorPage, indexed: boolean): string {
+  const title = /<title>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '';
+  const description = /<meta\s+name="description"\s+content="([^"]*)"\s*\/?>/i;
+  const ownDescription = description.exec(html)?.[1] ?? null;
+  const said = page.description === null ? ownDescription : escapeMarkup(page.description);
+
+  const meta = (attribute: 'name' | 'property', key: string, content: string | null) =>
+    content === null ? [] : [`<meta ${attribute}="${key}" content="${content}" />`];
+  const image = page.image;
+  const tags = [
+    ...meta('property', 'og:type', 'website'),
+    ...meta('property', 'og:title', title),
+    ...meta('property', 'og:description', said),
+    ...meta('property', 'og:url', escapeMarkup(page.url)),
+    ...meta('property', 'og:image', image ? escapeMarkup(image.url) : null),
+    ...meta('property', 'og:image:width', image?.width ? String(image.width) : null),
+    ...meta('property', 'og:image:height', image?.height ? String(image.height) : null),
+    ...meta('name', 'twitter:card', image ? 'summary_large_image' : 'summary'),
+  ];
+
+  let described = html;
+  if (said !== null && ownDescription !== null) {
+    described = described.replace(description, `<meta name="description" content="${said}" />`);
+  } else if (said !== null) {
+    tags.unshift(...meta('name', 'description', said));
+  }
+  if (indexed) {
+    described = described.replace(/\s*<meta\s+name="robots"[^>]*>/i, '');
+  }
+  return described.replace(/<\/head>/i, `  ${tags.join('\n    ')}\n  </head>`);
 }

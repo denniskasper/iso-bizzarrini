@@ -3,6 +3,7 @@ import type { RequestHandler, Response } from 'express';
 import { z } from 'zod';
 import type { Gate, SignedIn } from '../access/gate.js';
 import { ForbiddenError, NotFoundError } from '../http/errors.js';
+import type { Indexing } from '../http/indexing.js';
 import { sendImage } from '../http/served-image.js';
 import type { SampleService } from '../services/sample-service.js';
 
@@ -22,8 +23,9 @@ export interface SampleController {
 export function createSampleController(dependencies: {
   gate: Gate;
   sampleService: SampleService;
+  indexing: Indexing;
 }): SampleController {
-  const { gate, sampleService } = dependencies;
+  const { gate, sampleService, indexing } = dependencies;
 
   /**
    * **Showing the archive to the public is an Administrator's decision** (ADR 0019), asked here in
@@ -68,6 +70,8 @@ export function createSampleController(dependencies: {
       if (!image) {
         throw new NotFoundError('No such drawing.');
       }
+      // A Sample's picture is found with its page (issue #133); an address that is none is not.
+      indexing.lift(response);
       sendImage(request, response, next, image, 'public');
     },
   };
