@@ -86,7 +86,7 @@ function RunRecord({ run }: { run: CatalogRun }) {
         role="status"
         data-testid="catalog-run-state"
       >
-        {stopping(run) ? 'Stopping before its next request.' : stateNamed(run.state)}
+        {stopping(run) ? 'Stopping before its next request.' : stateNamed(run)}
       </p>
       {run.failure && (
         <p className={`mt-2 text-pretty ${run.state === 'failed' ? 'text-alarm' : 'text-muted'}`}>
@@ -589,8 +589,9 @@ function SetAsideLine({ page }: { page: CatalogRunSetAsidePage }) {
   );
 }
 
-function stateNamed(state: CatalogRunState): string {
-  switch (state) {
+/** What a run's state means, owning up to any Tavola removed since it was read (issue #85). */
+function stateNamed(run: CatalogRun): string {
+  switch (run.state) {
     case 'estimating':
       return 'Being estimated. Nothing has been read.';
     case 'estimated':
@@ -598,7 +599,7 @@ function stateNamed(state: CatalogRunState): string {
     case 'running':
       return 'Reading. You can close this page; the run carries on.';
     case 'finished':
-      return 'Finished. Every Tavola it read is waiting to be checked.';
+      return `Finished. ${whatBecame(run, 'is waiting to be checked', 'are waiting to be checked')}`;
     case 'stopped-at-limit':
       return 'Stopped before the next sheet could pass the limit.';
     case 'stopped-at-usage-limit':
@@ -606,8 +607,25 @@ function stateNamed(state: CatalogRunState): string {
     case 'stopped-after-failures':
       return 'Stopped: the model failed or declined to answer. The server has logged what it said.';
     case 'stopped-by-administrator':
-      return 'Stopped. Every Tavola it read is kept.';
+      return `Stopped. ${whatBecame(run, 'is kept', 'are kept')}`;
     case 'failed':
       return 'Failed.';
   }
+}
+
+/** What became of the Tavole a run read: kept as `rest` says, or removed since. */
+function whatBecame(run: CatalogRun, one: string, rest: string): string {
+  const read = run.tavole.filter((tavola) => tavola.tavolaId !== null || tavola.removed !== null);
+  const removed = read.filter((tavola) => tavola.removed !== null).length;
+  if (removed === 0) {
+    return `Every Tavola it read ${one}.`;
+  }
+  if (removed === read.length) {
+    return removed === 1
+      ? 'The Tavola it read has been removed since.'
+      : `All ${removed} Tavole it read have been removed since.`;
+  }
+  const left = read.length - removed;
+  const gone = `${removed} ${removed === 1 ? 'Tavola' : 'Tavole'} removed since`;
+  return left === 1 ? `${gone}; the other ${one}.` : `${gone}; the other ${left} ${rest}.`;
 }
