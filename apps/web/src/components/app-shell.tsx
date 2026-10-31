@@ -61,13 +61,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Wordmark clubName={clubName} />
             </a>
-            {/* Its links wrap too, for an Administrator only: with Readings beside Roster and
-                Club they are wider than a phone on their own, and the row wrapping is no help. */}
+            {/* Its links wrap too, for an Administrator, and for anybody who may propose: with
+                Readings beside Roster and Club, or Proposals beside Propose, they are wider than
+                a phone on their own, and a row wider than the phone zooms the whole page out —
+                taking the Propose panel's Send button below the bottom of the screen. */}
             <div
               className={cn(
                 'ml-auto flex items-center gap-1',
                 // Anybody else's links keep their width, and the Club's name gives way to them.
-                isAdministrator ? 'flex-wrap justify-end' : 'shrink-0',
+                isAdministrator || account?.mayPropose ? 'flex-wrap justify-end' : 'shrink-0',
               )}
             >
               {/*
