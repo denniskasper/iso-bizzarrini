@@ -35,6 +35,7 @@ describe('the landing a Visitor reads', () => {
     expect(response.body).toEqual({
       landing: {
         models: [],
+        samples: [],
         fee: '0.00',
         currency: 'EUR',
         officeEmail: null,
@@ -86,7 +87,8 @@ describe('the landing a Visitor reads', () => {
     ]);
   });
 
-  // Nothing of a Tavola, not even its name, and no address to ask the archive for a Model by.
+  // Nothing of a Tavola that is not a Sample, not even its name, and no address to ask the archive
+  // for a Model by. The Samples are `visitor-samples.test.ts`'s.
   it('carries the Models and their counts and nothing else of the archive', async () => {
     const grifo = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
     await givenTavola(app.db, grifo.id, { number: '7', nameEn: 'Front suspension' });
@@ -99,7 +101,9 @@ describe('the landing a Visitor reads', () => {
       'models',
       'officeEmail',
       'requestForm',
+      'samples',
     ]);
+    expect(response.body.landing.samples).toEqual([]);
     expect(Object.keys(response.body.landing.models[0]).toSorted()).toEqual([
       'brand',
       'modelYears',

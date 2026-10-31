@@ -2212,6 +2212,8 @@ export interface VisitorModel {
 export interface Landing {
   /** Brand, then Model. Only Models with at least one Published Tavola, since those are covered. */
   models: VisitorModel[];
+  /** The Samples (issue #132), in the order an Administrator first showed them. */
+  samples: VisitorSampleListed[];
   /** The yearly fee, from the Club's record — the amount the Renewal asks a member for. */
   fee: string;
   currency: Currency;
@@ -2226,6 +2228,68 @@ export interface Landing {
 
 export interface LandingResponse {
   landing: Landing;
+}
+
+/**
+ * A Tavola as a Visitor is told it is (ADR 0019): **the factory's heading and nothing else** — its
+ * number, its two names and the car. Its own shape, like `VisitorModel`, so that a field added to
+ * the member's Tavola never reaches a Visitor by default.
+ */
+export interface VisitorTavola {
+  /** The Tavola's own id, because a Sample lives at its Tavola's own address. */
+  id: string;
+  number: string;
+  nameIt: string;
+  nameEn: string;
+  model: Pick<VisitorModel, 'brand' | 'name' | 'series' | 'modelYears'>;
+}
+
+/** A Sample as the landing lists it: which drawing, and the public copy to show of it. */
+export interface VisitorSampleListed {
+  tavola: VisitorTavola;
+  /** The smaller public copy (ADR 0019). The Scan stays behind sign-in. */
+  drawing: { url: string; width: number; height: number };
+}
+
+/**
+ * A number on a Sample: **where it is printed, and nothing about what sits there** unless it is
+ * the one open. No id, and no Sub-assembly or related numbers: those are the club's.
+ */
+export interface VisitorPosition {
+  /** As printed. */
+  number: string;
+  /** Where it is drawn, in the same fractions of the drawing as a member's Marks. */
+  marks: MarkPoint[];
+  /** The one number a Visitor may read the Parts at. Every other number is locked. */
+  open: boolean;
+}
+
+/**
+ * A Part listed at a Sample's open number, as the factory printed it: **these five, and nothing
+ * the club added** (ADR 0019) — no Note, Photograph, Specification, Fitment or Equivalent.
+ */
+export interface VisitorListing {
+  catalogNumber: string | null;
+  nameIt: string | null;
+  nameEn: string | null;
+  quantityPerCar: number | null;
+  catalogNote: string | null;
+}
+
+/**
+ * `GET /api/landing/samples/:tavolaId` — **a Sample, as a Visitor reads it** (issue #132), open
+ * to anybody. A 404 for a Tavola that is not a Sample, in the same words as for one that does not
+ * exist, so the answer says nothing about it.
+ */
+export interface VisitorSample extends VisitorSampleListed {
+  /** Every number on the sheet, in the order the factory printed them. */
+  positions: VisitorPosition[];
+  /** The open number, and what the factory listed at it, drawn Parts first. */
+  open: { number: string; listings: VisitorListing[] };
+}
+
+export interface VisitorSampleResponse {
+  sample: VisitorSample;
 }
 
 /**

@@ -55,6 +55,9 @@ const OPEN = new Set([
   // What a Visitor is shown (issue #128): the Models with their Published Tavola counts and the
   // fee, and nothing else of the archive, which `landing.test.ts` proves.
   'GET /api/landing',
+  // A Sample as a Visitor reads it (issue #132): the factory's Parts at its one open number, and
+  // a 404 for every Tavola that is not one, which `visitor-samples.test.ts` proves.
+  'GET /api/landing/samples/:shownTavolaId',
   // A Visitor asking the Club for membership (issue #131): one e-mail to the office and nothing
   // kept, behind a hidden field and a limit per address, which `membership-requests.test.ts` proves.
   'POST /api/membership-requests',

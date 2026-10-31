@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Landing, VisitorModel } from '@ricambi/contracts';
-import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Link, useRouterState } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { Mail } from '@/components/legal/reading';
+import { SampleShelf } from '@/components/samples/sample-shelf';
 import { SignInLink } from '@/components/sign-in-link';
 import { Button } from '@/components/ui/button';
 import { Field, Refusal, TextArea } from '@/components/ui/field';
@@ -23,6 +24,17 @@ import readThePart from '@/assets/landing/read-the-part.webp?url';
  */
 export function VisitorLanding() {
   const { data, isPending, isError } = useQuery({ queryKey: ['landing'], queryFn: api.landing });
+  const hash = useRouterState({ select: (state) => state.location.hash });
+
+  /**
+   * A locked number on a Sample leads here, to the way in (issue #132). The section is only on the
+   * page once the landing has been read, which is after the router has tried to scroll to it.
+   */
+  useEffect(() => {
+    if (data && hash !== '') {
+      document.getElementById(hash)?.scrollIntoView();
+    }
+  }, [data, hash]);
 
   return (
     <div className="animate-rise">
@@ -61,6 +73,21 @@ export function VisitorLanding() {
           </div>
         </section>
       </div>
+
+      {data && data.landing.samples.length > 0 && (
+        <section aria-labelledby="samples" className="mt-24 border-t border-line pt-16">
+          <h2 id="samples" className="text-3xl font-semibold text-balance">
+            Drawings from the archive
+          </h2>
+          <p className="mt-4 max-w-measure text-lg text-pretty text-muted">
+            A few of the factory’s drawings, shown as members see them, with one number on each open
+            to read.
+          </p>
+          <div className="mt-10">
+            <SampleShelf samples={data.landing.samples} />
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="members-only" className="mt-24 border-t border-line pt-16">
         <h2 id="members-only" className="text-3xl font-semibold text-balance">
