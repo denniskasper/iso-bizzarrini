@@ -163,6 +163,20 @@ export function assertSeedable(config: AppConfig): void {
   }
 }
 
+/**
+ * **The commands that move and fetch Proposals refuse Production** (issue #157), on top of
+ * `assertSafeForEnvironment`. Proposals belong to practice systems (ADR 0012, as amended): there
+ * are none in Production to take out, and none may be put in.
+ */
+export function assertProposalsBelongHere(config: AppConfig): void {
+  if (config.environmentMode === 'production') {
+    throw new EnvironmentSafetyError(
+      `"${config.environmentName}" is production, and Proposals belong to practice systems. ` +
+        'Run this against Integration or Development.',
+    );
+  }
+}
+
 /** A URL that only resolves on the machine it was typed on. */
 function namesNowhere(url: string): boolean {
   const { hostname } = new URL(url);

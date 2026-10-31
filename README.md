@@ -85,6 +85,8 @@ system and in production, and differs only by what it is handed.
 | `pnpm archive:load -- --source ../club-archive --dry-run` | load the Club's spreadsheets and scans — rehearse it first |
 | `pnpm catalog:read -- --pdf … --out … --brand … --model …` | read a scanned factory catalog into files for `archive:load` |
 | `pnpm roster:retention-sweep -- --dry-run` | who the daily retention sweep would delete (ADR 0007) — without the flag, it deletes them |
+| `pnpm proposals:fetch [-- <id>]` | the New Proposals on a practice system, or one in full with where its screenshots are |
+| `pnpm proposals:export -- --to <dir>` / `proposals:import -- --from <dir>` | move every Proposal and its screenshots to another practice system; import refuses one that has Proposals |
 
 Taking the fee through the platform is off unless an environment is given Stripe's keys; how to
 set that up, and what must be in place before a real member pays, is in
