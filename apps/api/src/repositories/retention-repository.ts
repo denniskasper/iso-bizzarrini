@@ -6,6 +6,8 @@ import {
   contributionPhotographs,
   contributions,
   memberships,
+  proposals,
+  proposalScreenshots,
   signInFailures,
 } from '../db/schema.js';
 
@@ -20,6 +22,8 @@ import {
 export interface ErasedAccount extends Erasure {
   /** Photographs that went with the Contributions removed. Their files are the caller's to clear. */
   removedPhotographIds: string[];
+  /** Screenshots that went with the Drafts removed. Their files are the caller's to clear too. */
+  removedScreenshotIds: string[];
 }
 
 export interface RetentionRepository {
@@ -118,6 +122,18 @@ export function createRetentionRepository(db: Db): RetentionRepository {
           eq(contributions.authorId, accountId),
         );
 
+        // **A Draft is its author's alone**, so it goes with them; what they handed over stays,
+        // as a published Contribution does, and its key to them lets go (issue #157).
+        const shownOnDrafts = await tx
+          .select({ id: proposalScreenshots.id })
+          .from(proposalScreenshots)
+          .innerJoin(proposals, eq(proposals.id, proposalScreenshots.proposalId))
+          .where(and(eq(proposals.authorId, accountId), eq(proposals.status, 'draft')));
+        await tx
+          .delete(proposals)
+          .where(and(eq(proposals.authorId, accountId), eq(proposals.status, 'draft')));
+        const removedScreenshotIds = shownOnDrafts.map((row) => row.id);
+
         // Kept against the address rather than the Account, so the Account going does not take
         // it: the last place the e-mail address would otherwise still be written down.
         await tx.delete(signInFailures).where(eq(signInFailures.email, account.email));
@@ -131,6 +147,7 @@ export function createRetentionRepository(db: Db): RetentionRepository {
           contributionsRemoved: unpublishedIds.length,
           paymentRecordsKept: paymentRecords.length,
           removedPhotographIds,
+          removedScreenshotIds,
         };
       });
     },

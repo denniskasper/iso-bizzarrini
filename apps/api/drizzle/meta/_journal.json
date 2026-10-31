@@ -267,6 +267,13 @@
       "when": 1793467091721,
       "tag": "0037_proposals_carry_screenshots",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793469178919,
+      "tag": "0038_proposals_outlive_their_authors",
+      "breakpoints": true
     }
   ]
 }
