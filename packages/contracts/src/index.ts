@@ -496,7 +496,81 @@ export interface TavolaResponse extends Sheet {
     publication: TavolaPublication | null;
     /** Empty for a Tavola recorded by hand, which nobody read off a table. */
     tableSheets: TableSheet[];
+    /**
+     * Whether it is shown to Visitors, and how (ADR 0019): `null` when it is not. **Only an
+     * Administrator is told**, so for everybody else the field is not there at all.
+     */
+    sample?: TavolaSample | null;
+    /**
+     * Whether it stopped being shown by itself, because its open number went (issue #130): `null`
+     * when it did not, or once it is shown again. Told to Administrators only, as `sample` is.
+     */
+    endedSample?: EndedSample | null;
   };
+}
+
+/**
+ * A Published Tavola an Administrator shows to Visitors (ADR 0019), as Administrators are told
+ * about it. What a Visitor reads of it is another shape, and a much smaller one.
+ */
+export interface TavolaSample {
+  /** The one number a Visitor may read the Parts at. Every other number is locked. */
+  open: { positionId: string; number: string };
+  /** ISO timestamp of when it was first shown. Opening another number does not move it. */
+  markedAt: string;
+  /** Who showed it, while their Account exists. */
+  markedBy: string | null;
+  /**
+   * **The smaller public copy** of the drawing: served to anybody, signed in or not, and sharp
+   * enough to read the numbers but not to print the sheet. The Scan itself stays private.
+   */
+  drawing: { url: string; width: number; height: number };
+}
+
+/**
+ * Why a Sample stopped being one without an Administrator stopping it. Its open number was
+ * removed: Ricambi has no other way for a Position to go.
+ */
+export type SampleEndReason = 'removed';
+
+/**
+ * **A Sample that ended by itself** (issue #130), as Administrators are told about it, so they can
+ * show the Tavola again with another number open. Its public copy is already deleted.
+ */
+export interface EndedSample {
+  /** The number that was open. It is no longer on the Tavola. */
+  openNumber: string;
+  /** ISO timestamp. */
+  endedAt: string;
+  reason: SampleEndReason;
+}
+
+/**
+ * `PUT /api/tavole/:tavolaId/sample` — an Administrator showing a Published Tavola to Visitors
+ * with this Position open, or opening another one on a Tavola already shown. Answers
+ * `SampleResponse`. `DELETE` on the same address stops showing it.
+ */
+export interface ShowToVisitorsRequest {
+  positionId: string;
+}
+
+export interface SampleResponse {
+  sample: TavolaSample;
+}
+
+/** Which Tavola a Sample is, in the list of them. */
+export type SampleTavola = Pick<TavolaSummary, 'id' | 'number' | 'nameIt' | 'nameEn'> & {
+  model: CatalogModel;
+};
+
+/** `GET /api/samples` — every Tavola shown to Visitors, in the order they were first shown. */
+export interface SamplesResponse {
+  samples: (TavolaSample & { tavola: SampleTavola })[];
+  /**
+   * Every Sample that ended by itself and has not been shown again or set aside since, most
+   * recent first. `DELETE /api/tavole/:tavolaId/sample` sets one aside.
+   */
+  ended: (EndedSample & { tavola: SampleTavola })[];
 }
 
 /**
@@ -2142,6 +2216,128 @@ export interface LegalNotice {
 
 export interface LegalNoticeResponse {
   legalNotice: LegalNotice;
+}
+
+/**
+ * One Model as a Visitor is shown it (ADR 0019): the car, and how far the archive goes for it.
+ *
+ * Its own shape rather than `CatalogModel` with a number added, so that a field added to what a
+ * member reads never reaches a Visitor by default. No id: there is no address a Visitor could
+ * use one at.
+ */
+export interface VisitorModel {
+  brand: string;
+  name: string;
+  series: string | null;
+  modelYears: string | null;
+  /** Published Tavole only. An Unchecked one is an Editor's and is not counted (ADR 0017). */
+  publishedTavole: number;
+}
+
+/**
+ * `GET /api/landing` — **what a Visitor is shown** (issue #128), open to anybody: the depth of
+ * the archive and none of its content, and what joining costs.
+ */
+export interface Landing {
+  /** Brand, then Model. Only Models with at least one Published Tavola, since those are covered. */
+  models: VisitorModel[];
+  /** The Samples (issue #132), in the order an Administrator first showed them. */
+  samples: VisitorSampleListed[];
+  /** The yearly fee, from the Club's record — the amount the Renewal asks a member for. */
+  fee: string;
+  currency: Currency;
+  /** The Club office's address from the Club record: where a Visitor writes without the form. */
+  officeEmail: string | null;
+  /**
+   * Whether a Visitor may ask to join through the form (issue #131): only where a letter would
+   * reach the Club office, so never without an office address or a transport that delivers.
+   */
+  requestForm: boolean;
+}
+
+export interface LandingResponse {
+  landing: Landing;
+}
+
+/**
+ * A Tavola as a Visitor is told it is (ADR 0019): **the factory's heading and nothing else** — its
+ * number, its two names and the car. Its own shape, like `VisitorModel`, so that a field added to
+ * the member's Tavola never reaches a Visitor by default.
+ */
+export interface VisitorTavola {
+  /** The Tavola's own id, because a Sample lives at its Tavola's own address. */
+  id: string;
+  number: string;
+  nameIt: string;
+  nameEn: string;
+  model: Pick<VisitorModel, 'brand' | 'name' | 'series' | 'modelYears'>;
+}
+
+/** A Sample as the landing lists it: which drawing, and the public copy to show of it. */
+export interface VisitorSampleListed {
+  tavola: VisitorTavola;
+  /** The smaller public copy (ADR 0019). The Scan stays behind sign-in. */
+  drawing: { url: string; width: number; height: number };
+}
+
+/**
+ * A number on a Sample: **where it is printed, and nothing about what sits there** unless it is
+ * the one open. No id, and no Sub-assembly or related numbers: those are the club's.
+ */
+export interface VisitorPosition {
+  /** As printed. */
+  number: string;
+  /** Where it is drawn, in the same fractions of the drawing as a member's Marks. */
+  marks: MarkPoint[];
+  /** The one number a Visitor may read the Parts at. Every other number is locked. */
+  open: boolean;
+}
+
+/**
+ * A Part listed at a Sample's open number, as the factory printed it: **these five, and nothing
+ * the club added** (ADR 0019) — no Note, Photograph, Specification, Fitment or Equivalent.
+ */
+export interface VisitorListing {
+  catalogNumber: string | null;
+  nameIt: string | null;
+  nameEn: string | null;
+  quantityPerCar: number | null;
+  catalogNote: string | null;
+}
+
+/**
+ * `GET /api/landing/samples/:shownTavolaId` — **a Sample, as a Visitor reads it** (issue #132), open
+ * to anybody. A 404 for a Tavola that is not a Sample, in the same words as for one that does not
+ * exist, so the answer says nothing about it.
+ */
+export interface VisitorSample extends VisitorSampleListed {
+  /** Every number on the sheet, in the order the factory printed them. */
+  positions: VisitorPosition[];
+  /** The open number, and what the factory listed at it, drawn Parts first. */
+  open: { number: string; listings: VisitorListing[] };
+}
+
+export interface VisitorSampleResponse {
+  sample: VisitorSample;
+}
+
+/**
+ * `POST /api/membership-requests` — **a Visitor asks the Club for membership** (issue #131). Sent
+ * to the Club office as one e-mail, answered to `email`, and kept nowhere in Ricambi. Answers 204.
+ */
+export interface MembershipRequest {
+  name: string;
+  email: string;
+  /** The car or cars the Visitor has, in their own words. */
+  cars?: string;
+  message?: string;
+  /** The Visitor agreed to their details going to the Club office, as the privacy statement says. */
+  consent: boolean;
+  /**
+   * The field a person never sees and a script fills in. Anything in it refuses the request, so a
+   * browser leaves it out or sends it empty.
+   */
+  website?: string;
 }
 
 /**

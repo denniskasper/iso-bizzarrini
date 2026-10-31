@@ -29,6 +29,7 @@ import { createRetentionController } from './controllers/retention-controller.js
 import { createRosterController } from './controllers/roster-controller.js';
 import { createRosterImportController } from './controllers/roster-import-controller.js';
 import { createScanController } from './controllers/scan-controller.js';
+import { createSampleController } from './controllers/sample-controller.js';
 import { createSearchController } from './controllers/search-controller.js';
 import { createSessionController } from './controllers/session-controller.js';
 import { createStatusController } from './controllers/status-controller.js';
@@ -37,6 +38,7 @@ import {
   type RawBodied,
 } from './controllers/subscription-controller.js';
 import { createTavolaController } from './controllers/tavola-controller.js';
+import { createVisitorController } from './controllers/visitor-controller.js';
 import type { Db } from './db/client.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { BreachedPasswordCheck } from './platform/breached-passwords.js';
@@ -58,11 +60,13 @@ import { createPositionRepository } from './repositories/position-repository.js'
 import { createReadingRepository } from './repositories/reading-repository.js';
 import { createCatalogRunRepository } from './repositories/catalog-run-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
+import { createSampleRepository } from './repositories/sample-repository.js';
 import { createScanRepository } from './repositories/scan-repository.js';
 import { createSignInFailureRepository } from './repositories/sign-in-failure-repository.js';
 import { createSystemRepository } from './repositories/system-repository.js';
 import { createSpecificationListRepository } from './repositories/specification-list-repository.js';
 import { createTavolaRepository } from './repositories/tavola-repository.js';
+import { createVisitorRepository } from './repositories/visitor-repository.js';
 import { API_MOUNT, createApiRouter, WEBHOOK_PATH } from './routes/api-router.js';
 import { createAccountService } from './services/account-service.js';
 import { createBulkPasteService } from './services/bulk-paste-service.js';
@@ -82,6 +86,7 @@ import { createSubAssemblyService } from './services/sub-assembly-service.js';
 import { createRetentionService } from './services/retention-service.js';
 import { createRosterImportService } from './services/roster-import-service.js';
 import { createRosterService } from './services/roster-service.js';
+import { createSampleService } from './services/sample-service.js';
 import { createScanService } from './services/scan-service.js';
 import { createCatalogRunService } from './services/catalog-run-service.js';
 import { createSearchService } from './services/search-service.js';
@@ -91,6 +96,7 @@ import {
   createSubscriptionService,
 } from './services/subscription-service.js';
 import { createTavolaService } from './services/tavola-service.js';
+import { createVisitorService } from './services/visitor-service.js';
 import { createFileStore, type FileStore } from './storage/file-store.js';
 import { createStaticSiteHandler } from './http/static-site.js';
 
@@ -259,6 +265,14 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     clubService,
     processorRepository,
   });
+  const visitorService = createVisitorService({
+    clock,
+    modelRepository,
+    visitorRepository: createVisitorRepository(db),
+    clubService,
+    emailSender,
+    logger,
+  });
   const subscriptionService = createSubscriptionService({
     db,
     clock,
@@ -284,7 +298,19 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   // nothing else: it asks what the query names and where those Parts are listed, and everything a
   // member then reads about one arrives when they open it on a drawing.
   const searchService = createSearchService({ partRepository, partRecordRepository });
-  const positionService = createPositionService({ tavolaRepository, positionRepository });
+  const sampleService = createSampleService({
+    tavolaRepository,
+    positionRepository,
+    sampleRepository: createSampleRepository(db),
+    fileStore,
+    clock,
+    logger,
+  });
+  const positionService = createPositionService({
+    tavolaRepository,
+    positionRepository,
+    sampleService,
+  });
   const subAssemblyService = createSubAssemblyService({
     positionRepository,
     partRepository,
@@ -348,6 +374,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const scanService = createScanService({
     tavolaRepository,
     scanRepository,
+    sampleService,
     fileStore,
     clock,
     logger,
@@ -382,13 +409,14 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const rosterImportController = createRosterImportController({ gate, rosterImportService });
   const clubController = createClubController({ gate, clubService });
   const legalController = createLegalController({ legalService });
+  const visitorController = createVisitorController({ visitorService });
   const searchController = createSearchController({ gate, searchService });
   const catalogController = createCatalogController({ gate, catalogService });
   const categoryController = createCategoryController({ gate, categoryService });
   const specificationListController = createSpecificationListController({
     specificationListService,
   });
-  const tavolaController = createTavolaController({ gate, tavolaService });
+  const tavolaController = createTavolaController({ gate, tavolaService, sampleService });
   const positionController = createPositionController({ positionService });
   const subAssemblyController = createSubAssemblyController({ subAssemblyService });
   const partController = createPartController({ gate, partService });
@@ -401,6 +429,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     contributionReviewService,
   });
   const scanController = createScanController({ scanService });
+  const sampleController = createSampleController({ gate, sampleService });
   const checkingController = createCheckingController({
     checkingService: createCheckingService({
       tavolaRepository,
@@ -480,6 +509,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       rosterImportController,
       clubController,
       legalController,
+      visitorController,
       searchController,
       catalogController,
       categoryController,
@@ -494,6 +524,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       contributionController,
       contributionReviewController,
       scanController,
+      sampleController,
       checkingController,
     }),
   );

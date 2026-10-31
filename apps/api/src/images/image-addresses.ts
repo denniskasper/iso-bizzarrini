@@ -42,3 +42,12 @@ export function photographImageUrl(photographId: string, variant: ImageVariant):
 export function tableSheetImageUrl(tavolaId: string, sheet: number): string {
   return `/api/tavole/${tavolaId}/table-sheets/${sheet}`;
 }
+
+/**
+ * A Sample's public copy of its drawing (ADR 0019) — **the one image address anybody may be
+ * served**, signed in or not. It names the copy rather than the Tavola or the Scan, so it says
+ * nothing about where the archive's own image is, and a new copy is a new address.
+ */
+export function sampleDrawingUrl(drawingId: string): string {
+  return `/api/sample-drawings/${drawingId}`;
+}

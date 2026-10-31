@@ -52,9 +52,21 @@ const OPEN = new Set([
   'GET /api/privacy',
   // Who is behind the platform (issue #9). Addressed to whoever lands here, member or not.
   'GET /api/legal-notice',
+  // What a Visitor is shown (issue #128): the Models with their Published Tavola counts and the
+  // fee, and nothing else of the archive, which `landing.test.ts` proves.
+  'GET /api/landing',
+  // A Sample as a Visitor reads it (issue #132): the factory's Parts at its one open number, and
+  // a 404 for every Tavola that is not one, which `visitor-samples.test.ts` proves.
+  'GET /api/landing/samples/:shownTavolaId',
+  // A Visitor asking the Club for membership (issue #131): one e-mail to the office and nothing
+  // kept, behind a hidden field and a limit per address, which `membership-requests.test.ts` proves.
+  'POST /api/membership-requests',
   // Where the payment provider delivers (issue #4). Nobody is signed in at it; what it is
   // behind is the provider's signature over the bytes, which `subscriptions.test.ts` proves.
   'POST /api/payments/webhook',
+  // A Sample's drawing (ADR 0019): a smaller copy made to be public, and gone when the Sample is.
+  // The Scan it was copied from stays behind the gate; `samples.test.ts` proves both.
+  'GET /api/sample-drawings/:drawingId',
 ]);
 
 /** An Administrator's, and behind the role rather than behind a Membership. */

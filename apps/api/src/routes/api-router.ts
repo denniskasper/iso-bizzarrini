@@ -18,6 +18,7 @@ import type { RosterImportController } from '../controllers/roster-import-contro
 import type { PartController } from '../controllers/part-controller.js';
 import type { PartRecordController } from '../controllers/part-record-controller.js';
 import type { PhotographController } from '../controllers/photograph-controller.js';
+import type { SampleController } from '../controllers/sample-controller.js';
 import type { ScanController } from '../controllers/scan-controller.js';
 import type { SearchController } from '../controllers/search-controller.js';
 import type { PositionController } from '../controllers/position-controller.js';
@@ -27,6 +28,7 @@ import type { SpecificationListController } from '../controllers/specification-l
 import type { SubAssemblyController } from '../controllers/sub-assembly-controller.js';
 import type { SubscriptionController } from '../controllers/subscription-controller.js';
 import type { TavolaController } from '../controllers/tavola-controller.js';
+import type { VisitorController } from '../controllers/visitor-controller.js';
 
 /** Where this router is mounted. Named once, so nothing has to agree with it by memory. */
 export const API_MOUNT = '/api';
@@ -67,6 +69,7 @@ export function createApiRouter(dependencies: {
   rosterImportController: RosterImportController;
   clubController: ClubController;
   legalController: LegalController;
+  visitorController: VisitorController;
   searchController: SearchController;
   catalogController: CatalogController;
   categoryController: CategoryController;
@@ -82,6 +85,7 @@ export function createApiRouter(dependencies: {
   contributionController: ContributionController;
   contributionReviewController: ContributionReviewController;
   scanController: ScanController;
+  sampleController: SampleController;
 }): Router {
   const {
     gate,
@@ -97,6 +101,7 @@ export function createApiRouter(dependencies: {
     rosterImportController,
     clubController,
     legalController,
+    visitorController,
     searchController,
     catalogController,
     categoryController,
@@ -112,6 +117,7 @@ export function createApiRouter(dependencies: {
     contributionController,
     contributionReviewController,
     scanController,
+    sampleController,
   } = dependencies;
 
   const router = Router();
@@ -136,12 +142,31 @@ export function createApiRouter(dependencies: {
   router.post('/password-setups/inspect', sessionController.inspectPasswordSetup);
   router.post('/password-setups', sessionController.setPassword);
 
+  // **A Sample's drawing** (ADR 0019): the one image anybody may be served, signed in or not. It
+  // is a smaller copy made for the purpose, at an address of its own; the Scan it was copied from
+  // stays behind the gate below with every other image (ADR 0006, ADR 0013).
+  router.get('/sample-drawings/:drawingId', sampleController.readDrawing);
+
   // **The platform's own legal pages** (issue #9): who is behind it, and what it keeps about a
   // person, for how long (ADR 0007) and in whose hands. Open, because neither is addressed to
   // members — a legal notice is for whoever lands here, and a privacy statement nobody can read
   // until they have handed over their address is not one. Neither says anything about anybody.
   router.get('/legal-notice', legalController.readLegalNotice);
   router.get('/privacy', legalController.readPrivacy);
+
+  // **What a Visitor is shown** (issue #128, ADR 0019): which Models the archive covers and how
+  // many Published Tavole each has, and what membership costs. The depth and none of the content,
+  // built from a shape of its own, so the archive below stays exactly as private as it was.
+  router.get('/landing', visitorController.readLanding);
+  // **A Sample, as a Visitor reads it** (issue #132): its public drawing, every number on it, and
+  // the factory's Parts at the one that is open, from a projection of its own. A Tavola that is
+  // not a Sample is a 404 here and stays behind the gate below, its name included. The parameter
+  // is not `:tavolaId`, which the gate below guards as the archive's.
+  router.get('/landing/samples/:shownTavolaId', visitorController.readSample);
+  // **Asking the Club for membership** (issue #131): one e-mail to the Club office, answered to
+  // the Visitor, and nothing of it kept here. Open, since asking to be let in cannot require
+  // already being in; a hidden field and a limit per address keep the junk out.
+  router.post('/membership-requests', visitorController.askToJoin);
 
   // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
   // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still
@@ -393,6 +418,13 @@ export function createApiRouter(dependencies: {
   router.get('/specification-names', specificationListController.listNames);
 
   router.get('/tavole/:tavolaId', tavolaController.read);
+  // **Showing a Published Tavola to Visitors** (ADR 0019, issue #129), with one number open: the
+  // same address marks it and opens another number, and `DELETE` stops showing it. An
+  // Administrator's decision, which the controller asks in its own words; Editors are refused
+  // as well as Members, by it and by the rule above.
+  router.put('/tavole/:tavolaId/sample', sampleController.show);
+  router.delete('/tavole/:tavolaId/sample', sampleController.stop);
+  router.get('/samples', sampleController.list);
   router.post('/models/:modelId/tavole', tavolaController.create);
   // Filing a sheet under a system, moving it, or taking it out — the one thing about a Tavola
   // that changes after it is recorded, because the list it is chosen from changes too.

@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { markFor, openADrawingOfYourOwn } from './support/archive.js';
+import { landed, PRACTICE, signInAs } from './support/gate.js';
 
 /**
  * **A Sub-assembly's outline on the drawing** (issue #113).
@@ -60,9 +61,13 @@ async function aSheetWithADoorLock(
   return { tavolaId, subAssemblyId };
 }
 
-async function outlined(page: Page, subAssemblyId: string): Promise<void> {
+async function outlined(
+  page: Page,
+  subAssemblyId: string,
+  corners: { x: number; y: number }[] = SQUARE,
+): Promise<void> {
   const response = await page.request.put(`/api/sub-assemblies/${subAssemblyId}/outline`, {
-    data: { corners: SQUARE },
+    data: { corners },
   });
   expect(response.ok()).toBe(true);
   await page.reload();
@@ -75,6 +80,17 @@ function outlineOf(page: Page): Locator {
 
 /** A place on the sheet, as fractions of it, clicked the way an Editor or a member clicks it. */
 async function clickTheSheetAt(page: Page, at: { x: number; y: number }): Promise<void> {
+  // The sheet glides to wherever it was last sent, and a click aimed at a place on it waits for
+  // it to arrive.
+  let last = '';
+  await expect
+    .poll(async () => {
+      const now = JSON.stringify(await page.getByTestId('drawing-marks').boundingBox());
+      const still = now === last;
+      last = now;
+      return still;
+    })
+    .toBe(true);
   const sheet = await page.getByTestId('drawing-marks').boundingBox();
   const frame = await page.getByTestId('drawing-frame').boundingBox();
   if (!sheet || !frame) {
@@ -158,7 +174,7 @@ test.describe('drawing an outline', () => {
 
     await page.getByRole('button', { name: 'Remove outline' }).click();
     await expect(page.getByRole('button', { name: 'Draw outline' })).toBeVisible();
-    expect(await readOutline(page, tavolaId)).toBeNull();
+    await expect.poll(() => readOutline(page, tavolaId)).toBeNull();
   });
 });
 
@@ -246,5 +262,141 @@ test.describe('seeing an outline', () => {
       expect(box.right).toBeCloseTo(0.8, 1);
       expect(box.bottom).toBeCloseTo(0.5, 1);
     }).toPass();
+  });
+});
+
+/**
+ * **Reshaping an outline already drawn** (issue #115): the corners are moved, added and taken off
+ * on the drawing itself, each change saved as it is made.
+ */
+test.describe('reshaping an outline', () => {
+  async function reshapeDoorLock(page: Page, name: string): Promise<string> {
+    const { tavolaId, subAssemblyId } = await aSheetWithADoorLock(page, name);
+    await outlined(page, subAssemblyId);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await page.getByRole('button', { name: 'Reshape outline' }).click();
+    await expect(page.getByTestId('outline-panel')).toContainText('Reshaping Door Lock');
+    await expect(page.getByTestId('outline-corner')).toHaveCount(4);
+    // The panel sits under the drawing, and pressing its button scrolled the page down to it,
+    // taking the drawing up under the header: back to the middle, where a hand can reach it.
+    await page
+      .getByTestId('drawing-frame')
+      .evaluate((frame) => frame.scrollIntoView({ block: 'center' }));
+    return tavolaId;
+  }
+
+  /** Where a place on the sheet is on the page, for a hand to press there. */
+  async function onThePage(page: Page, at: { x: number; y: number }) {
+    const sheet = await page.getByTestId('drawing-marks').boundingBox();
+    if (!sheet) {
+      throw new Error('The drawing is not on the page.');
+    }
+    return { x: sheet.x + sheet.width * at.x, y: sheet.y + sheet.height * at.y };
+  }
+
+  test('a corner is dragged to a new place, a side takes a new corner, and both are still there after a reload', async ({
+    page,
+  }) => {
+    const tavolaId = await reshapeDoorLock(page, 'outline-reshape-drag');
+
+    // Zoomed in about the corner first, which stays under the pointer: reshaping is for
+    // following a dense sheet closely.
+    const corner = await onThePage(page, { x: 0.2, y: 0.2 });
+    await page.mouse.move(corner.x, corner.y);
+    const magnification = page.getByTestId('drawing-magnification');
+    const before = await magnification.textContent();
+    await page.mouse.wheel(0, -400);
+    await expect.poll(() => magnification.textContent()).not.toBe(before);
+
+    const from = await onThePage(page, { x: 0.2, y: 0.2 });
+    const to = await onThePage(page, { x: 0.1, y: 0.12 });
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 4 });
+    await page.mouse.move(to.x, to.y, { steps: 4 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await readOutline(page, tavolaId))?.[0]?.x ?? NaN)
+      .toBeCloseTo(0.1, 1);
+
+    // The bottom side, from (0.5, 0.5) to (0.2, 0.5): a click halfway along it.
+    await page.getByRole('button', { name: 'Fit the whole drawing' }).click();
+    await expect(magnification).toHaveText('×1.0');
+    await clickTheSheetAt(page, { x: 0.35, y: 0.5 });
+    await expect(page.getByTestId('outline-corner')).toHaveCount(5);
+    await expect.poll(async () => (await readOutline(page, tavolaId))?.length).toBe(5);
+
+    await page.reload();
+    const corners = (await readOutline(page, tavolaId)) ?? [];
+    expect(corners[0]?.x).toBeCloseTo(0.1, 1);
+    expect(corners[0]?.y).toBeCloseTo(0.12, 1);
+    expect(corners[3]?.x).toBeCloseTo(0.35, 1);
+    expect(corners[3]?.y).toBeCloseTo(0.5, 2);
+  });
+
+  test('a corner is taken off, but never the one that would leave fewer than three', async ({
+    page,
+  }) => {
+    const tavolaId = await reshapeDoorLock(page, 'outline-reshape-remove');
+    const remove = page.getByRole('button', { name: 'Remove corner' });
+    await expect(remove).toBeDisabled();
+
+    await page.getByTestId('outline-corner').nth(1).click();
+    await remove.click();
+    await expect(page.getByTestId('outline-corner')).toHaveCount(3);
+    await expect.poll(async () => (await readOutline(page, tavolaId))?.length).toBe(3);
+
+    await page.getByTestId('outline-corner').nth(0).click();
+    await remove.click();
+    await expect(page.getByTestId('outline-panel')).toContainText(
+      'An outline keeps at least 3 corners.',
+    );
+    await expect(page.getByTestId('outline-corner')).toHaveCount(3);
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.reload();
+    expect(await readOutline(page, tavolaId)).toHaveLength(3);
+  });
+
+  test('Backspace while drawing takes back the last corner', async ({ page }) => {
+    await aSheetWithADoorLock(page, 'outline-undo');
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await page.getByRole('button', { name: 'Draw outline' }).click();
+
+    for (const corner of SQUARE.slice(0, 3)) {
+      await clickTheSheetAt(page, corner);
+    }
+    await expect(page.getByTestId('outline-draft')).toHaveAttribute('data-corners', '3');
+    await page.keyboard.press('Backspace');
+    await expect(page.getByTestId('outline-draft')).toHaveAttribute('data-corners', '2');
+    await page.getByRole('button', { name: 'Undo last corner' }).click();
+    await expect(page.getByTestId('outline-draft')).toHaveAttribute('data-corners', '1');
+  });
+});
+
+test.describe('a Mark outside its outline', () => {
+  /** A triangle in the top left that leaves `1`, at (0.3, 0.3), outside it. */
+  const MISSES_ONE = [
+    { x: 0.05, y: 0.05 },
+    { x: 0.25, y: 0.05 },
+    { x: 0.05, y: 0.25 },
+  ];
+
+  test('is named to an Editor, and a Member sees nothing of it', async ({ page }) => {
+    const { tavolaId, subAssemblyId } = await aSheetWithADoorLock(page, 'outline-outside');
+
+    await outlined(page, subAssemblyId);
+    await expect(page.getByTestId('sheet-sub-assembly')).toBeVisible();
+    await expect(page.getByTestId('outside-outline')).toHaveCount(0);
+
+    await outlined(page, subAssemblyId, MISSES_ONE);
+    await expect(page.getByTestId('outside-outline')).toHaveText('Outside its outline: 1');
+
+    await page.context().clearCookies();
+    await signInAs(page, PRACTICE.member);
+    await landed(page);
+    await page.goto(`/tavole/${tavolaId}`);
+    await expect(page.getByTestId('sheet-sub-assembly')).toBeVisible();
+    await expect(page.getByTestId('outside-outline')).toHaveCount(0);
   });
 });

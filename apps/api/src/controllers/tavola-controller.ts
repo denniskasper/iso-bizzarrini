@@ -2,6 +2,7 @@ import type { TavolaPublishedResponse, TavolaResponse } from '@ricambi/contracts
 import type { RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
+import type { SampleService } from '../services/sample-service.js';
 import type { TavolaService } from '../services/tavola-service.js';
 import { blankToNull, englishNameBody, required } from './fields.js';
 
@@ -43,13 +44,21 @@ export interface TavolaController {
 export function createTavolaController(dependencies: {
   gate: Gate;
   tavolaService: TavolaService;
+  sampleService: SampleService;
 }): TavolaController {
-  const { gate, tavolaService } = dependencies;
+  const { gate, tavolaService, sampleService } = dependencies;
 
   return {
     read: async (request, response) => {
       const { tavolaId } = tavolaIdParams.parse(request.params);
       const body: TavolaResponse = await tavolaService.readTavola(tavolaId);
+      // Whether it is shown to Visitors is the Administrators' business, and only theirs.
+      if (gate.whoIsSignedIn(response).account.role === 'administrator') {
+        [body.tavola.sample, body.tavola.endedSample] = await Promise.all([
+          sampleService.ofTavola(tavolaId),
+          sampleService.endedOf(tavolaId),
+        ]);
+      }
       response.json(body);
     },
 

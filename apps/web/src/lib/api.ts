@@ -34,6 +34,9 @@ import type {
   UnitWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  LandingResponse,
+  VisitorSampleResponse,
+  MembershipRequest,
   ReminderPlan,
   ReminderRun,
   MembershipStandingResponse,
@@ -97,6 +100,9 @@ import type {
   TavolaListingsResponse,
   TavolaPublishedResponse,
   TavolaResponse,
+  SampleResponse,
+  SamplesResponse,
+  ShowToVisitorsRequest,
   TavolaScan,
   TavolaSummary,
   TurnScanRequest,
@@ -237,6 +243,21 @@ export const api = {
    */
   legalNotice: () => request<LegalNoticeResponse>('/legal-notice'),
   privacy: () => request<PrivacyResponse>('/privacy'),
+
+  /**
+   * **What a Visitor is shown** (issue #128): the Models the archive covers with how many
+   * Published Tavole each has, and the yearly fee. Open to anybody, and nothing else of the
+   * archive is in it.
+   */
+  landing: () => request<LandingResponse>('/landing'),
+  /** One e-mail to the Club office, answered to the Visitor. Nothing of it is kept (issue #131). */
+  askToJoin: (asked: MembershipRequest) => send<void>('POST', '/membership-requests', asked),
+  /**
+   * **A Sample, as a Visitor reads it** (issue #132): its public drawing, every number on it, and
+   * the factory's Parts at the open one. A 404 for any Tavola that is not a Sample.
+   */
+  visitorSample: (tavolaId: string) =>
+    request<VisitorSampleResponse>(`/landing/samples/${encodeURIComponent(tavolaId)}`),
 
   /** The association's own record of its processors, agreements included. An Administrator's. */
   processors: () => request<ProcessorsResponse>('/processors'),
@@ -410,6 +431,18 @@ export const api = {
   /** An Editor's statement that an Unchecked Tavola says what the factory printed. */
   publishTavola: (tavolaId: string) =>
     send<TavolaPublishedResponse>('POST', `/tavole/${tavolaId}/publication`, {}),
+  /**
+   * Showing a Published Tavola to Visitors with this number open, or opening another number on
+   * one already shown (ADR 0019). An Administrator's decision, and so are the two below.
+   */
+  showToVisitors: (tavolaId: string, positionId: string) =>
+    send<SampleResponse>('PUT', `/tavole/${tavolaId}/sample`, {
+      positionId,
+    } satisfies ShowToVisitorsRequest),
+  stopShowingToVisitors: (tavolaId: string) =>
+    request<void>(`/tavole/${tavolaId}/sample`, { method: 'DELETE' }),
+  /** Every Tavola shown to Visitors, in the order they were first shown. */
+  samples: () => request<SamplesResponse>('/samples'),
   /** What an Editor checks a machine-read Tavola against (issue #34). An Editor's alone. */
   tavolaChecking: (tavolaId: string) =>
     request<TavolaCheckingResponse>(`/tavole/${tavolaId}/checking`),
@@ -786,6 +819,13 @@ export type {
   TavolaResponse,
   TavolaScan,
   TavolaPublication,
+  TavolaSample,
+  EndedSample,
+  SamplesResponse,
   TavolaState,
   TavolaSummary,
+  VisitorListing,
+  VisitorPosition,
+  VisitorSample,
+  VisitorSampleListed,
 } from '@ricambi/contracts';

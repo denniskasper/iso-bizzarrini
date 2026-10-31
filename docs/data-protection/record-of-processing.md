@@ -59,6 +59,16 @@ Art. 30(1) GDPR, drafted for Ricambi. **A draft for the association to adopt** â
 | Recipients | `<EMAIL_PROVIDER>`; for the digest, the treasurer's own mailbox, at the address set on the Reminders screen |
 | Erasure | Nothing sent is kept by Ricambi. What `<EMAIL_PROVIDER>` retains, and for how long, is in its agreement. |
 
+### 3a. A Visitor asking for membership
+
+| | |
+| --- | --- |
+| Purpose | Somebody who is not a member asks the Club to join, through the form on the landing page (issue #131). Offered only where Ricambi's e-mail transport delivers. |
+| Legal basis | Art. 6(1)(b), steps taken at the person's request before membership; they agree on the form to their details going to the Club office |
+| Data | Name, e-mail address, the car(s) and message they chose to write. The network address the request came from, held in the server's memory for an hour to limit how often one address may ask. |
+| Recipients | `<EMAIL_PROVIDER>`; the Club office's mailbox, at the address set on the Club screen |
+| Erasure | Nothing is stored by Ricambi and nothing of the request is written to its log. The letter is the Club office's to keep or delete like any other it receives. |
+
 ### 4. Contributions and their photographs
 
 | | |

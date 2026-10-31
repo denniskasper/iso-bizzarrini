@@ -8,6 +8,7 @@ import type {
   ProcessorRole,
   ReadingMethodKind,
   Role,
+  SampleEndReason,
   SourceCondition,
   TavolaState,
   TokenPurpose,
@@ -400,6 +401,69 @@ export const marks = pgTable(
     y: doublePrecision('y').notNull(),
   },
   (table) => [index('marks_position_id_index').on(table.positionId)],
+);
+
+/**
+ * A Sample is a Published Tavola an Administrator shows to Visitors (ADR 0019), with **one** of
+ * its Positions open. A row of its own keyed by the Tavola, so a Tavola is one at most and there is
+ * no limit on how many are.
+ *
+ * Its drawing is a **smaller public copy** of the Scan, made when it is marked and stored under a
+ * key of its own: never the Scan's files, which stay behind the authenticated route (ADR 0013).
+ * `drawingId` is in the copy's public address, and a new copy is a new id, so that address never
+ * changes what it points at.
+ *
+ * Removing the open Position ends it (issue #130): the row goes with the number, and an
+ * `ended_samples` row says that it did.
+ */
+export const samples = pgTable(
+  'samples',
+  {
+    tavolaId: uuid('tavola_id')
+      .primaryKey()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    /** The one number a Visitor may read. Always on the same Tavola, which the service checks. */
+    positionId: uuid('position_id')
+      .notNull()
+      .references(() => positions.id, { onDelete: 'cascade' }),
+    /** When it was first shown. Opening another number does not move it. */
+    markedAt: timestamp('marked_at', { withTimezone: true }).notNull(),
+    markedBy: uuid('marked_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    drawingId: uuid('drawing_id').notNull().unique(),
+    /** A key in the file store, under a prefix nothing but the public copies are kept in. */
+    drawingKey: text('drawing_key').notNull(),
+    drawingWidth: integer('drawing_width').notNull(),
+    drawingHeight: integer('drawing_height').notNull(),
+    drawingByteSize: integer('drawing_byte_size').notNull(),
+  },
+  (table) => [index('samples_position_id_index').on(table.positionId)],
+);
+
+/**
+ * **A Sample that stopped being one by itself** (issue #130): its open Position was removed, so
+ * there was nothing left for a Visitor to read. Kept so Administrators are told it ended and why,
+ * and can show the Tavola again with another number open — which, like stopping it, clears this.
+ *
+ * Nothing of the Sample is kept beyond the number it had open: its public copy is deleted with it.
+ */
+export const SAMPLE_END_REASONS = ['removed'] as const satisfies readonly SampleEndReason[];
+
+export const endedSamples = pgTable(
+  'ended_samples',
+  {
+    tavolaId: uuid('tavola_id')
+      .primaryKey()
+      .references(() => tavole.id, { onDelete: 'cascade' }),
+    /** The number that was open, as it was printed: the Position itself is gone. */
+    openNumber: text('open_number').notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+    reason: text('reason').notNull().$type<SampleEndReason>(),
+  },
+  (table) => [
+    check('ended_samples_reason_is_known', sql`${table.reason} in (${oneOf(SAMPLE_END_REASONS)})`),
+  ],
 );
 
 /**
@@ -1620,6 +1684,16 @@ export const scansRelations = relations(scans, ({ one }) => ({
   tavola: one(tavole, { fields: [scans.tavolaId], references: [tavole.id] }),
 }));
 
+export const endedSamplesRelations = relations(endedSamples, ({ one }) => ({
+  tavola: one(tavole, { fields: [endedSamples.tavolaId], references: [tavole.id] }),
+}));
+
+export const samplesRelations = relations(samples, ({ one }) => ({
+  tavola: one(tavole, { fields: [samples.tavolaId], references: [tavole.id] }),
+  position: one(positions, { fields: [samples.positionId], references: [positions.id] }),
+  marker: one(accounts, { fields: [samples.markedBy], references: [accounts.id] }),
+}));
+
 export type ModelRow = typeof models.$inferSelect;
 export type NewModelRow = typeof models.$inferInsert;
 export type CategoryRow = typeof categories.$inferSelect;
@@ -1627,6 +1701,9 @@ export type NewCategoryRow = typeof categories.$inferInsert;
 export type TavolaRow = typeof tavole.$inferSelect;
 export type NewTavolaRow = typeof tavole.$inferInsert;
 export type ScanRow = typeof scans.$inferSelect;
+export type SampleRow = typeof samples.$inferSelect;
+export type NewSampleRow = typeof samples.$inferInsert;
+export type EndedSampleRow = typeof endedSamples.$inferSelect;
 export type TableSheetRow = typeof tableSheets.$inferSelect;
 export type ReadingDoubtRow = typeof readingDoubts.$inferSelect;
 export type CatalogRunRow = typeof catalogRuns.$inferSelect;
