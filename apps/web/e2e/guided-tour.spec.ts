@@ -33,8 +33,17 @@ test('a link starts the tour, and it moves on when the page shows a step was don
   await page.screenshot({ path: info.outputPath('folded.png') });
   await tour.getByRole('button', { name: /Start a reading/ }).click();
 
+  await tour.getByRole('button', { name: 'Start over' }).click();
+  await expect(tour.getByTestId('tour-step')).toHaveText('Three new things to try');
+  await tour.getByRole('button', { name: 'Start' }).click();
+
   await tour.getByRole('button', { name: 'End tour' }).click();
   await expect(tour).toHaveCount(0);
+
+  // Ended, it can be taken again from the footer, from the beginning.
+  await page.getByRole('button', { name: 'Take the tour' }).click();
+  await expect(tour.getByTestId('tour-step')).toHaveText('Three new things to try');
+  await expect(page.getByRole('button', { name: 'Take the tour' })).toHaveCount(0);
 });
 
 test('signing out moves the tour on to the archive as a Visitor sees it', async ({

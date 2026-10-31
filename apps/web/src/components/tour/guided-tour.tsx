@@ -301,13 +301,38 @@ export function GuidedTour() {
           ) : (
             !go && <p className="text-sm text-muted">Waiting for you to do this on the page.</p>
           )}
+        </div>
+
+        {/* Quieter than the step's own action, on a line of their own. */}
+        <div className="mt-2 -mr-3 flex flex-wrap justify-end gap-1">
+          {state.step > 0 && (
+            <Button variant="ghost" className="px-3" onClick={start}>
+              Start over
+            </Button>
+          )}
           {!last && (
-            <Button variant="ghost" className="ml-auto px-3" onClick={end}>
+            <Button variant="ghost" className="px-3" onClick={end}>
               {state.step === 0 ? 'Not now' : 'End tour'}
             </Button>
           )}
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * **Taking the tour again**, from the footer of a practice system, for whoever ended it or wants
+ * to walk it from the start. Nothing while it is running: the panel has its own way to start over.
+ */
+export function TourLink({ className }: { className: string }) {
+  const { state, start } = useTour();
+  if (environmentMode() === 'production' || state) {
+    return null;
+  }
+  return (
+    <button type="button" className={className} onClick={start}>
+      Take the tour
+    </button>
   );
 }
