@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.9.0...v0.10.0) (2026-10-31)
+
+
+### New
+
+* **web:** a moving bar while a chosen catalog's pages are counted ([ebd4dc8](https://github.com/denniskasper/iso-bizzarrini/commit/ebd4dc84ab6c2761a756e73db9cadb0c6945ee3e))
+
+
+### Fixed
+
+* **club:** say "Saved." the first time a processor is named ([a042a99](https://github.com/denniskasper/iso-bizzarrini/commit/a042a99adb828993a33020aa57580e325697b015)), closes [#26](https://github.com/denniskasper/iso-bizzarrini/issues/26)
+* **readings:** a finished run no longer says a removed Tavola is waiting to be checked ([ad205e9](https://github.com/denniskasper/iso-bizzarrini/commit/ad205e91dad6a959e1167871b69144439f924614))
+
 ## [0.9.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.8.0...v0.9.0) (2026-10-31)
 
 
