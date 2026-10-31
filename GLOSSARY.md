@@ -309,3 +309,24 @@ _Avoid_: Build, revision, release number
 The deliberate act that gives Ricambi a new Version, and the thing it produces. Work that has
 been merged but not yet released still carries the Version of the Release it descends from.
 _Avoid_: Deploy, rollout, update
+
+**Production**:
+The system the members read: the archive itself, holding the roster and everything the Club
+has recorded. There is one.
+_Avoid_: Live, prod, the real system
+
+**Integration**:
+The practice system where the next Release is seen and tried before it reaches Production. Its
+catalog and its roster are invented, and nothing in it is ever copied from Production.
+_Avoid_: Preview, staging, demo, test system
+
+**Development**:
+A developer's own machine, running Ricambi to change it. Never reachable by anybody else.
+_Avoid_: Local, dev box, sandbox
+
+**Proposal**:
+What somebody hands the developers about Ricambi itself, worked out in conversation on
+Integration: a **Fix** when something is wrong, an **Idea** when something should be new. Carries
+their own notes and screenshots and the summary the conversation ends on. Changes nothing by
+itself; a developer decides what becomes of it.
+_Avoid_: Ticket, issue, feedback, request, suggestion, Contribution (that is about a Part)
