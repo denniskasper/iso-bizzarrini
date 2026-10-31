@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
-import { api, refusalText, type TavolaSample } from '@/lib/api';
+import { api, refusalText, type EndedSample, type TavolaSample } from '@/lib/api';
 import { writtenOn } from '@/lib/contributions';
 
 /**
@@ -43,12 +43,15 @@ export function useShowToVisitors(tavolaId: string, onShown: () => void) {
  */
 export function ShowToVisitors({
   sample,
+  ended,
   picking,
   onPick,
   onCancel,
   actions,
 }: {
   sample: TavolaSample | null;
+  /** Whether it stopped being shown by itself, because its open number was removed. */
+  ended: EndedSample | null;
   /** Whether a press on a circle is choosing the open number just now. */
   picking: boolean;
   onPick: () => void;
@@ -81,6 +84,13 @@ export function ShowToVisitors({
             open. Shown by {sample.markedBy ?? 'a former member'} on{' '}
             <time dateTime={sample.markedAt}>{writtenOn(sample.markedAt)}</time>.
           </p>
+        ) : ended ? (
+          <p className="mt-1 text-pretty" data-testid="sample-ended">
+            Visitors stopped seeing this drawing on{' '}
+            <time dateTime={ended.endedAt}>{writtenOn(ended.endedAt)}</time>: number{' '}
+            <span className="tabular font-semibold">{ended.openNumber}</span>, the one open to them,
+            was removed. Show it again with another number open, or dismiss this.
+          </p>
         ) : (
           <p className="mt-1 text-pretty text-muted">
             Visitors can’t see this drawing. Show it with one number open, so they can judge the
@@ -107,7 +117,14 @@ export function ShowToVisitors({
             </Button>
           </>
         ) : (
-          <Button onClick={onPick}>Show to Visitors</Button>
+          <>
+            <Button onClick={onPick}>Show to Visitors</Button>
+            {ended && (
+              <Button variant="ghost" disabled={stop.isPending} onClick={() => stop.mutate()}>
+                {stop.isPending ? 'Dismissing…' : 'Dismiss'}
+              </Button>
+            )}
+          </>
         )}
       </div>
 

@@ -1,6 +1,6 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { api, type MarkPoint, type Sheet } from '@/lib/api';
+import { api, type MarkPoint, type Sheet, type TavolaResponse } from '@/lib/api';
 import { useRereadListings } from '@/lib/parts';
 import { useRecordSheet } from '@/lib/positions';
 
@@ -66,6 +66,7 @@ export interface MarkingTool {
 }
 
 export function useMarkingTool(tavolaId: string): MarkingTool {
+  const queryClient = useQueryClient();
   const rereadListings = useRereadListings(tavolaId);
   const [on, setOn] = useState(false);
   const [number, setNumber] = useState('1');
@@ -107,9 +108,16 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     // The sheet, **and its index**: a Position removed does not take its Listings with it — they
     // stay on the Tavola with no number, which is a line the index beside the drawing prints
     // under a heading of its own. Leaving it stale would show them at a number that is gone.
-    onSuccess: (sheet) => {
+    // And whether Visitors see it: removing the number open to them ends the Sample (issue #130),
+    // which the sheet does not say, so an Administrator would read it as still shown.
+    onSuccess: (sheet, positionId) => {
+      const current = queryClient.getQueryData<TavolaResponse>(['tavola', tavolaId]);
       record(sheet);
       void rereadListings();
+      if (current?.tavola.sample?.open.positionId === positionId) {
+        void queryClient.invalidateQueries({ queryKey: ['tavola', tavolaId] });
+        void queryClient.invalidateQueries({ queryKey: ['samples'] });
+      }
     },
   });
 

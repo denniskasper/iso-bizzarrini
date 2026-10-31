@@ -501,6 +501,11 @@ export interface TavolaResponse extends Sheet {
      * Administrator is told**, so for everybody else the field is not there at all.
      */
     sample?: TavolaSample | null;
+    /**
+     * Whether it stopped being shown by itself, because its open number went (issue #130): `null`
+     * when it did not, or once it is shown again. Told to Administrators only, as `sample` is.
+     */
+    endedSample?: EndedSample | null;
   };
 }
 
@@ -523,6 +528,24 @@ export interface TavolaSample {
 }
 
 /**
+ * Why a Sample stopped being one without an Administrator stopping it. Its open number was
+ * removed: Ricambi has no other way for a Position to go.
+ */
+export type SampleEndReason = 'removed';
+
+/**
+ * **A Sample that ended by itself** (issue #130), as Administrators are told about it, so they can
+ * show the Tavola again with another number open. Its public copy is already deleted.
+ */
+export interface EndedSample {
+  /** The number that was open. It is no longer on the Tavola. */
+  openNumber: string;
+  /** ISO timestamp. */
+  endedAt: string;
+  reason: SampleEndReason;
+}
+
+/**
  * `PUT /api/tavole/:tavolaId/sample` — an Administrator showing a Published Tavola to Visitors
  * with this Position open, or opening another one on a Tavola already shown. Answers
  * `SampleResponse`. `DELETE` on the same address stops showing it.
@@ -535,13 +558,19 @@ export interface SampleResponse {
   sample: TavolaSample;
 }
 
+/** Which Tavola a Sample is, in the list of them. */
+export type SampleTavola = Pick<TavolaSummary, 'id' | 'number' | 'nameIt' | 'nameEn'> & {
+  model: CatalogModel;
+};
+
 /** `GET /api/samples` — every Tavola shown to Visitors, in the order they were first shown. */
 export interface SamplesResponse {
-  samples: (TavolaSample & {
-    tavola: Pick<TavolaSummary, 'id' | 'number' | 'nameIt' | 'nameEn'> & {
-      model: CatalogModel;
-    };
-  })[];
+  samples: (TavolaSample & { tavola: SampleTavola })[];
+  /**
+   * Every Sample that ended by itself and has not been shown again or set aside since, most
+   * recent first. `DELETE /api/tavole/:tavolaId/sample` sets one aside.
+   */
+  ended: (EndedSample & { tavola: SampleTavola })[];
 }
 
 /**

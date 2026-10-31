@@ -3,6 +3,7 @@ import { violates } from '../db/constraints.js';
 import { ConflictError, NotFoundError, ValidationError } from '../http/errors.js';
 import type { PositionRepository, PositionWithMarks } from '../repositories/position-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
+import type { SampleService } from './sample-service.js';
 import { toPosition, toSubAssembly } from './catalog-view.js';
 
 /**
@@ -54,8 +55,10 @@ export interface PositionService {
 export function createPositionService(dependencies: {
   tavolaRepository: TavolaRepository;
   positionRepository: PositionRepository;
+  /** A Sample whose open number is removed ends with it (issue #130). */
+  sampleService: Pick<SampleService, 'removingPosition'>;
 }): PositionService {
-  const { tavolaRepository, positionRepository } = dependencies;
+  const { tavolaRepository, positionRepository, sampleService } = dependencies;
 
   /**
    * **The whole sheet, re-read** — every number on it, what each is linked to, and the groups
@@ -176,7 +179,9 @@ export function createPositionService(dependencies: {
     async removePosition(positionId) {
       const tavolaId = await tavolaOfPosition(positionId);
       try {
-        await positionRepository.remove(positionId);
+        await sampleService.removingPosition(positionId, async () => {
+          await positionRepository.remove(positionId);
+        });
       } catch (error) {
         if (violates(error, 'contributions_position_id_positions_id_fk')) {
           // Marks and links go with the number; what a member wrote about it does not.

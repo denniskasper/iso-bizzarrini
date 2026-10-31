@@ -58,7 +58,7 @@ export function createSampleController(dependencies: {
 
     list: async (_request, response) => {
       anAdministrator(response);
-      const body: SamplesResponse = { samples: await sampleService.list() };
+      const body: SamplesResponse = await sampleService.list();
       response.json(body);
     },
 
