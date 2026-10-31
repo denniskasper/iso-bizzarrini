@@ -174,7 +174,7 @@ test.describe('drawing an outline', () => {
 
     await page.getByRole('button', { name: 'Remove outline' }).click();
     await expect(page.getByRole('button', { name: 'Draw outline' })).toBeVisible();
-    expect(await readOutline(page, tavolaId)).toBeNull();
+    await expect.poll(() => readOutline(page, tavolaId)).toBeNull();
   });
 });
 
