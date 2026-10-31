@@ -8,7 +8,7 @@ import {
   createEmailSender,
   createPaymentProvider,
 } from './composition/platform.js';
-import { configureConversation } from './composition/conversation.js';
+import { configureConversation, findMachineLogin } from './composition/conversation.js';
 import { configureReading } from './composition/reading.js';
 import { loadConfig } from './config/config.js';
 import { loadEnvFile } from './config/env-file.js';
@@ -71,6 +71,19 @@ if (config.seedPracticeArchive) {
 const paymentProvider = createPaymentProvider(config, systemClock);
 const emailSender = createEmailSender(config, logger);
 
+/**
+ * **What a Proposal's conversation is had with**, and if nothing, why (issue #156): said once at
+ * startup, where the developer running Ricambi on their own machine sees it.
+ */
+const conversation = configureConversation(config, {
+  machineLogin: await findMachineLogin(config),
+});
+if (conversation.unavailable !== null && config.environmentMode !== 'production') {
+  logger.warn({ why: conversation.unavailable }, 'Proposals are closed');
+} else if (conversation.method !== null) {
+  logger.info({ method: conversation.method.name }, 'Proposals are open');
+}
+
 const app = createApp({
   config,
   clock: systemClock,
@@ -79,7 +92,7 @@ const app = createApp({
   paymentProvider,
   breachedPasswords: createBreachedPasswordCheck(config, logger),
   reading: configureReading(config.reading),
-  conversation: configureConversation(config),
+  conversation,
   fileStore,
   logger,
 });

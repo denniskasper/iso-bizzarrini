@@ -1,6 +1,10 @@
 import type { AppConfig } from '../config/config.js';
 import { readBundledDocuments, type BundledDocument } from '../proposals/bundled-documents.js';
 import { createClaudeApiConversationMethod } from '../proposals/claude-api-conversation-method.js';
+import {
+  createClaudeSubscriptionConversationMethod,
+  machineLoginAvailable,
+} from '../proposals/claude-subscription-conversation-method.js';
 import type { ConversationMethod } from '../proposals/conversation-method.js';
 import { createFakeConversationMethod } from '../proposals/fake-conversation-method.js';
 
@@ -20,9 +24,38 @@ export interface ConfiguredConversation {
   readonly unavailable: string | null;
 }
 
+export interface ConversationCredentials {
+  /**
+   * Whether Claude Code on this machine is signed in with a Claude subscription, found by
+   * {@link findMachineLogin}. A token in the environment never counts.
+   */
+  machineLogin?: boolean;
+  /** The glossary, spec and ADRs, unless a test stands in for the image. */
+  documents?: () => BundledDocument[];
+}
+
+/**
+ * **Whether this machine's own Claude Code login is there to talk with** (issue #156). Not asked
+ * in Production, which has no conversation, nor where the fake one is named.
+ */
+export async function findMachineLogin(
+  config: Pick<AppConfig, 'environmentMode' | 'proposals'>,
+): Promise<boolean> {
+  if (config.environmentMode === 'production' || config.proposals.method === 'fake') {
+    return false;
+  }
+  return machineLoginAvailable();
+}
+
+/** Why a token handed in is not the subscription's credential (ADR 0012, as amended). */
+const TOKEN_REFUSED =
+  'CLAUDE_CODE_OAUTH_TOKEN is not accepted for Proposals: the subscription conversation runs ' +
+  'only on the Claude Code login already on this machine, so that nobody’s subscription is ' +
+  'handed to a server.';
+
 export function configureConversation(
   config: Pick<AppConfig, 'environmentMode' | 'proposals'>,
-  documents: () => BundledDocument[] = readBundledDocuments,
+  { machineLogin = false, documents = readBundledDocuments }: ConversationCredentials = {},
 ): ConfiguredConversation {
   if (config.environmentMode === 'production') {
     return {
@@ -30,10 +63,26 @@ export function configureConversation(
       unavailable: 'Proposals are for practice systems, and this is Production.',
     };
   }
+  if (config.proposals.method === 'fake') {
+    return { method: createFakeConversationMethod(), unavailable: null };
+  }
 
-  // Unnamed, the credential names it (issue #155): the key is only ever the conversation's.
-  const { apiKey } = config.proposals;
-  const kind = config.proposals.method ?? (apiKey === undefined ? undefined : 'api-key');
+  const { apiKey, tokenInEnvironment } = config.proposals;
+  // Exactly one credential, so which one pays is never a guess (issue #156).
+  if (apiKey !== undefined && machineLogin) {
+    return {
+      method: null,
+      unavailable:
+        'There are both PROPOSALS_ANTHROPIC_API_KEY and a Claude Code login on this machine. ' +
+        'Remove the one that is not meant to pay for Proposals: the key, or the login with ' +
+        '`claude auth logout`.',
+    };
+  }
+
+  // Unnamed, the credential names it (issues #155, #156).
+  const kind =
+    config.proposals.method ??
+    (apiKey !== undefined ? 'api-key' : machineLogin ? 'subscription' : undefined);
 
   switch (kind) {
     case undefined:
@@ -41,7 +90,9 @@ export function configureConversation(
         method: null,
         unavailable:
           'No conversation method is configured. Set PROPOSALS_ANTHROPIC_API_KEY as a secret, ' +
-          'or PROPOSALS_METHOD=fake.',
+          'sign in to Claude Code on this machine with `claude auth login`, or set ' +
+          'PROPOSALS_METHOD=fake.' +
+          (tokenInEnvironment ? ` ${TOKEN_REFUSED}` : ''),
       };
     case 'api-key': {
       if (apiKey === undefined) {
@@ -52,25 +103,48 @@ export function configureConversation(
             'PROPOSALS_ANTHROPIC_API_KEY as a secret.',
         };
       }
-      // Read once, here, so an image built without them says so rather than a conversation
-      // carrying on without the glossary it is meant to hold words against.
-      let bundled: BundledDocument[];
-      try {
-        bundled = documents();
-      } catch {
+      const bundled = bundledOrWhy(documents);
+      return typeof bundled === 'string'
+        ? { method: null, unavailable: bundled }
+        : {
+            method: createClaudeApiConversationMethod({ apiKey, documents: bundled }),
+            unavailable: null,
+          };
+    }
+    case 'subscription': {
+      if (tokenInEnvironment) {
+        return { method: null, unavailable: TOKEN_REFUSED };
+      }
+      if (!machineLogin) {
         return {
           method: null,
           unavailable:
-            'The glossary, the spec and the ADRs are not where the server reads them from. ' +
-            'The image was built without them.',
+            'PROPOSALS_METHOD is subscription, and Claude Code is not signed in on this machine ' +
+            'with a Claude subscription. Sign in with `claude auth login`.',
         };
       }
-      return {
-        method: createClaudeApiConversationMethod({ apiKey, documents: bundled }),
-        unavailable: null,
-      };
+      const bundled = bundledOrWhy(documents);
+      return typeof bundled === 'string'
+        ? { method: null, unavailable: bundled }
+        : {
+            method: createClaudeSubscriptionConversationMethod({ documents: bundled }),
+            unavailable: null,
+          };
     }
-    case 'fake':
-      return { method: createFakeConversationMethod(), unavailable: null };
+  }
+}
+
+/**
+ * Read once, here, so an image built without them says so rather than a conversation carrying on
+ * without the glossary it is meant to hold words against.
+ */
+function bundledOrWhy(documents: () => BundledDocument[]): BundledDocument[] | string {
+  try {
+    return documents();
+  } catch {
+    return (
+      'The glossary, the spec and the ADRs are not where the server reads them from. ' +
+      'The image was built without them.'
+    );
   }
 }

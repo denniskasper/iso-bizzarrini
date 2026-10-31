@@ -245,11 +245,15 @@ const environmentSchema = z.object({
 
   /**
    * **What a Proposal's conversation is had with** (issue #152), on a practice system only:
-   * `api-key`, Claude through PROPOSALS_ANTHROPIC_API_KEY (issue #155), or `fake`, which answers
-   * fixed text. Unset, the key decides: with it the conversation is `api-key`, without it there is
-   * none and nobody is shown Propose.
+   * `api-key`, Claude through PROPOSALS_ANTHROPIC_API_KEY (issue #155); `subscription`, Claude
+   * through this machine's own Claude Code login, in Development (issue #156); or `fake`, which
+   * answers fixed text. Unset, the one credential there is decides; with neither, or both, there
+   * is none and nobody is shown Propose.
    */
-  PROPOSALS_METHOD: z.preprocess(blankAsUnset, z.enum(['api-key', 'fake']).optional()),
+  PROPOSALS_METHOD: z.preprocess(
+    blankAsUnset,
+    z.enum(['api-key', 'subscription', 'fake']).optional(),
+  ),
   /**
    * The conversation's own Anthropic API key, kept in a workspace of its own with a monthly limit.
    * **Production refuses to start with it** (ADR 0012, as amended). Never shown, logged or written.
@@ -331,6 +335,11 @@ export type ConversationMethodKind = NonNullable<Environment['PROPOSALS_METHOD']
 export interface ProposalSettings {
   method: ConversationMethodKind | undefined;
   apiKey: string | undefined;
+  /**
+   * Whether a subscription token was handed in through the environment. The `subscription`
+   * conversation refuses it, and takes only the machine's own login (ADR 0012, as amended).
+   */
+  tokenInEnvironment: boolean;
 }
 
 export type ReadingMethodKind = NonNullable<Environment['READING_METHOD']>;
@@ -409,6 +418,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     proposals: {
       method: env.PROPOSALS_METHOD,
       apiKey: env.PROPOSALS_ANTHROPIC_API_KEY,
+      tokenInEnvironment: env.CLAUDE_CODE_OAUTH_TOKEN !== undefined,
     },
   };
 }
