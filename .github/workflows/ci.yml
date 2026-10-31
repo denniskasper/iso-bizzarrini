@@ -187,7 +187,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ricambi/web exec playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      # A shard is a run of tests in file order, desktop first, and Playwright cuts them into
+      # equal counts. The tests at the front are the slow ones (the Catalog run's above all), so
+      # equal counts left the first machine a minute behind the rest. These are counts measured
+      # on CI to give each machine the same time; they are read as proportions, so new tests
+      # are shared out the same way. Playwright's own variable, not a documented option: were it
+      # dropped, the split would go back to equal counts, and nothing would fail. Six numbers,
+      # one per shard, or Playwright refuses to start.
       - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+        env:
+          PWTEST_SHARD_WEIGHTS: '44:76:79:70:80:65'
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
