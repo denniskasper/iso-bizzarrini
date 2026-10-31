@@ -58,6 +58,12 @@ services:
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
+      # **What a Proposal's conversation is had with** (issue #155): Claude, through the
+      # conversation's own key in a workspace with a monthly limit
+      # (`docs/operations/proposals.md`). Unset, nobody is shown Propose. Never the reading key.
+      PROPOSALS_METHOD: ${PROPOSALS_METHOD:-}
+      PROPOSALS_ANTHROPIC_API_KEY: ${PROPOSALS_ANTHROPIC_API_KEY:-}
+
       # The scans, on the volume below. Never inside the image: a container that keeps the
       # drawings in its own filesystem loses them on the next deployment.
       FILE_STORAGE_PATH: /app/data

@@ -1,4 +1,6 @@
 import type { AppConfig } from '../config/config.js';
+import { readBundledDocuments, type BundledDocument } from '../proposals/bundled-documents.js';
+import { createClaudeApiConversationMethod } from '../proposals/claude-api-conversation-method.js';
 import type { ConversationMethod } from '../proposals/conversation-method.js';
 import { createFakeConversationMethod } from '../proposals/fake-conversation-method.js';
 
@@ -20,6 +22,7 @@ export interface ConfiguredConversation {
 
 export function configureConversation(
   config: Pick<AppConfig, 'environmentMode' | 'proposals'>,
+  documents: () => BundledDocument[] = readBundledDocuments,
 ): ConfiguredConversation {
   if (config.environmentMode === 'production') {
     return {
@@ -28,12 +31,45 @@ export function configureConversation(
     };
   }
 
-  switch (config.proposals.method) {
+  // Unnamed, the credential names it (issue #155): the key is only ever the conversation's.
+  const { apiKey } = config.proposals;
+  const kind = config.proposals.method ?? (apiKey === undefined ? undefined : 'api-key');
+
+  switch (kind) {
     case undefined:
       return {
         method: null,
-        unavailable: 'No conversation method is configured. Set PROPOSALS_METHOD.',
+        unavailable:
+          'No conversation method is configured. Set PROPOSALS_ANTHROPIC_API_KEY as a secret, ' +
+          'or PROPOSALS_METHOD=fake.',
       };
+    case 'api-key': {
+      if (apiKey === undefined) {
+        return {
+          method: null,
+          unavailable:
+            'PROPOSALS_METHOD is api-key, and there is no API key. Set ' +
+            'PROPOSALS_ANTHROPIC_API_KEY as a secret.',
+        };
+      }
+      // Read once, here, so an image built without them says so rather than a conversation
+      // carrying on without the glossary it is meant to hold words against.
+      let bundled: BundledDocument[];
+      try {
+        bundled = documents();
+      } catch {
+        return {
+          method: null,
+          unavailable:
+            'The glossary, the spec and the ADRs are not where the server reads them from. ' +
+            'The image was built without them.',
+        };
+      }
+      return {
+        method: createClaudeApiConversationMethod({ apiKey, documents: bundled }),
+        unavailable: null,
+      };
+    }
     case 'fake':
       return { method: createFakeConversationMethod(), unavailable: null };
   }

@@ -8,6 +8,8 @@
 .tmp
 .claude
 docs
+!docs/spec.md
+!docs/adr
 .env
 .env.*
 !.env.example

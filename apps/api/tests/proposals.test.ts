@@ -12,7 +12,12 @@ import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { configureConversation } from '../src/composition/conversation.js';
 import { loadConfig } from '../src/config/config.js';
-import type { Conversation, ConversationMethod } from '../src/proposals/conversation-method.js';
+import {
+  ConversationPausedError,
+  ConversationUnavailableError,
+  type Conversation,
+  type ConversationMethod,
+} from '../src/proposals/conversation-method.js';
 import { FAKE_ANSWER, FAKE_SUMMARY } from '../src/proposals/fake-conversation-method.js';
 import { givenModel, givenPhotographImage, givenTavola } from './support/fixtures.js';
 import { givenAMember, givenAnAdministrator, type RecruitedMember } from './support/roster.js';
@@ -941,6 +946,101 @@ describe('a screenshot larger than Proposals accept', () => {
   });
 });
 
+describe('a conversation that cannot answer', () => {
+  /** What the method fails with, and how much it writes first. */
+  let failure: { error: Error; after: string[] } = { error: new Error('unset'), after: [] };
+  const failing: ConversationMethod = {
+    name: 'A conversation that fails as it is told to',
+    async *answer() {
+      yield* failure.after;
+      throw failure.error;
+    },
+    async summarise() {
+      throw failure.error;
+    },
+  };
+
+  let app: TestApp;
+  beforeAll(async () => {
+    app = await startTestApp({ conversation: { method: failing, unavailable: null } });
+  });
+  afterEach(() => app.reset());
+  afterAll(() => app.close());
+
+  async function aTalkedDraft(): Promise<{ agent: TestAgent; id: string }> {
+    const administrator = await givenAnAdministrator(app);
+    const author = await givenAMember(app, administrator.agent);
+    await letPropose(administrator.agent, author);
+    const id = await aDraft(author.agent);
+    return { agent: author.agent, id };
+  }
+
+  it('says Proposals are paused until next month when the month’s limit is spent', async () => {
+    failure = { error: new ConversationPausedError(), after: [] };
+    const { agent, id } = await aTalkedDraft();
+
+    const answered = await agent
+      .post(`/api/proposals/${id}/turns`)
+      .send({ text: 'The drawing does not open.', screenshots: [] })
+      .expect(503);
+    expect(answered.body.error).toMatchObject({
+      code: 'proposals_paused',
+      message: expect.stringMatching(/paused until next month/),
+    });
+
+    const finished = await agent.post(`/api/proposals/${id}/summary`).send({}).expect(503);
+    expect(finished.body.error.code).toBe('proposals_paused');
+
+    // What the author wrote is kept, to carry on with next month.
+    expect((await readProposal(agent, id)).turns.map((turn) => turn.text)).toEqual([
+      'The drawing does not open.',
+    ]);
+  });
+
+  it('says so on the stream when the limit is reached mid-answer', async () => {
+    failure = { error: new ConversationPausedError(), after: ['Which '] };
+    const { agent, id } = await aTalkedDraft();
+
+    const events = await converse(agent, id, 'The drawing does not open.');
+    expect(events.at(-1)).toEqual({
+      type: 'failed',
+      message: expect.stringMatching(/paused until next month/),
+    });
+  });
+
+  it('says it is unavailable for anything else, which is not the same', async () => {
+    failure = { error: new ConversationUnavailableError('The API answered 529.'), after: [] };
+    const { agent, id } = await aTalkedDraft();
+
+    const answered = await agent
+      .post(`/api/proposals/${id}/turns`)
+      .send({ text: 'The drawing does not open.', screenshots: [] })
+      .expect(502);
+    expect(answered.body.error.code).toBe('conversation_unavailable');
+    expect(answered.body.error.message).not.toMatch(/paused|529/);
+
+    const finished = await agent.post(`/api/proposals/${id}/summary`).send({}).expect(502);
+    expect(finished.body.error.code).toBe('conversation_unavailable');
+  });
+});
+
+describe('a conversation with the API key', () => {
+  it('runs on the api-key method wherever the key is set on a practice system', () => {
+    const configured = configureConversation(
+      loadConfig({
+        NODE_ENV: 'test',
+        ENVIRONMENT_NAME: 'test',
+        DATABASE_URL: 'postgres://unused-in-tests/the-connection-is-injected',
+        PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-test-not-a-real-key',
+      }),
+    );
+
+    expect(configured.unavailable).toBeNull();
+    expect(configured.method?.name).toBe('Claude (claude-opus-5-5) with an API key');
+    expect(configured.method?.name).not.toContain('sk-ant');
+  });
+});
+
 describe('a conversation that is not there', () => {
   let app: TestApp;
   beforeAll(async () => {
@@ -969,6 +1069,17 @@ describe('a conversation that is not there', () => {
 
     expect(configureConversation(settings({})).unavailable).toMatch(/PROPOSALS_METHOD/);
     expect(configureConversation(settings({ PROPOSALS_METHOD: 'fake' })).unavailable).toBeNull();
+    expect(configureConversation(settings({ PROPOSALS_METHOD: 'api-key' })).unavailable).toMatch(
+      /PROPOSALS_ANTHROPIC_API_KEY/,
+    );
+    expect(
+      configureConversation(
+        settings({ PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-test-not-a-key' }),
+        () => {
+          throw new Error('ENOENT');
+        },
+      ).unavailable,
+    ).toMatch(/built without them/);
     expect(
       configureConversation(
         settings({
