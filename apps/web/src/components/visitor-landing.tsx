@@ -1,8 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import type { VisitorModel } from '@ricambi/contracts';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import type { Landing, VisitorModel } from '@ricambi/contracts';
+import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
+import { Mail } from '@/components/legal/reading';
 import { SignInLink } from '@/components/sign-in-link';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
+import { Field, Refusal, TextArea } from '@/components/ui/field';
+import { api, refusalText } from '@/lib/api';
 import chooseACar from '@/assets/landing/choose-a-car.webp?url';
 import openTheDrawing from '@/assets/landing/open-the-drawing.webp?url';
 import readThePart from '@/assets/landing/read-the-part.webp?url';
@@ -112,7 +116,153 @@ export function VisitorLanding() {
           here.
         </p>
       </section>
+
+      {data && <AskToJoin landing={data.landing} />}
     </div>
+  );
+}
+
+/**
+ * **The way in for somebody who is not a member yet** (issue #131): a request to the Club office,
+ * which answers it and, if the Club accepts, adds them to the roster as it adds everybody.
+ *
+ * On a desk the words sit beside the form on the same grid as the opening, so what happens to a
+ * request is read before anything is typed. The form is offered only where a letter would reach
+ * the office; otherwise the office's own address takes its place, and without one there is no way
+ * in to offer beyond what the page has already said.
+ */
+function AskToJoin({ landing }: { landing: Landing }) {
+  const { officeEmail, requestForm } = landing;
+  if (!requestForm && officeEmail === null) {
+    return null;
+  }
+
+  return (
+    <section
+      aria-labelledby="ask-to-join"
+      className="mt-24 border-t border-line pt-16 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-x-16"
+    >
+      <div className="max-w-measure">
+        <h2 id="ask-to-join" className="text-3xl font-semibold text-balance">
+          Ask the Club to join
+        </h2>
+        <p className="mt-4 text-lg text-pretty text-muted">
+          The Club office reads every request and answers it by e-mail. If the Club takes you on, an
+          Administrator adds you to Ricambi and you are sent a link to choose your password.
+        </p>
+      </div>
+      <div className="mt-10 lg:mt-0">
+        {requestForm ? (
+          <RequestForm />
+        ) : (
+          <p className="max-w-measure text-lg text-pretty" data-testid="office-address">
+            Write to the Club office at <Mail address={officeEmail ?? ''} />, with your name and the
+            car or cars you have.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RequestForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [cars, setCars] = useState('');
+  const [message, setMessage] = useState('');
+  const [consent, setConsent] = useState(false);
+  // The field a person never sees. A script fills in whatever it finds, and is refused for it.
+  const [website, setWebsite] = useState('');
+  const ask = useMutation({ mutationFn: api.askToJoin });
+
+  if (ask.isSuccess) {
+    return (
+      <div role="status" className="max-w-measure animate-rise" data-testid="request-sent">
+        <p className="text-3xl font-semibold text-balance">Request sent to the Club office.</p>
+        <p className="mt-4 text-lg text-pretty text-muted">
+          The office answers by e-mail, to <span className="tabular">{email}</span>. Ricambi has
+          kept no copy of it.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="flex max-w-xl flex-col gap-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        ask.mutate({ name, email, cars, message, consent, website });
+      }}
+    >
+      <Field
+        label="Your name"
+        autoComplete="name"
+        required
+        maxLength={200}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <Field
+        label="E-mail address"
+        type="email"
+        autoComplete="email"
+        required
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        hint="The office answers you here."
+      />
+      <Field
+        label="Your car or cars"
+        maxLength={500}
+        value={cars}
+        onChange={(event) => setCars(event.target.value)}
+        hint="Optional. Model, series and year, if you know them."
+      />
+      <TextArea
+        label="Message"
+        rows={4}
+        maxLength={5000}
+        value={message}
+        onChange={(event) => setMessage(event.target.value)}
+        hint="Optional."
+      />
+      <div aria-hidden="true" className="sr-only">
+        <label>
+          Website
+          <input
+            tabIndex={-1}
+            autoComplete="off"
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+          />
+        </label>
+      </div>
+      <label className="flex items-start gap-3 text-pretty">
+        <input
+          type="checkbox"
+          required
+          checked={consent}
+          onChange={(event) => setConsent(event.target.checked)}
+          className="mt-1 size-5 shrink-0 accent-accent"
+        />
+        <span>
+          Send these details to the Club office, which uses them only to answer me. The{' '}
+          <Link to="/privacy" className="text-accent-ink underline underline-offset-4">
+            privacy statement
+          </Link>{' '}
+          says what happens to them.
+        </span>
+      </label>
+
+      {ask.isError && <Refusal>{refusalText(ask.error)}</Refusal>}
+
+      <div>
+        <Button type="submit" variant="primary" size="lg" disabled={ask.isPending}>
+          {ask.isPending ? 'Sending…' : 'Send the request'}
+        </Button>
+      </div>
+    </form>
   );
 }
 

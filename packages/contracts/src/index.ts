@@ -2170,10 +2170,36 @@ export interface Landing {
   /** The yearly fee, from the Club's record — the amount the Renewal asks a member for. */
   fee: string;
   currency: Currency;
+  /** The Club office's address from the Club record: where a Visitor writes without the form. */
+  officeEmail: string | null;
+  /**
+   * Whether a Visitor may ask to join through the form (issue #131): only where a letter would
+   * reach the Club office, so never without an office address or a transport that delivers.
+   */
+  requestForm: boolean;
 }
 
 export interface LandingResponse {
   landing: Landing;
+}
+
+/**
+ * `POST /api/membership-requests` — **a Visitor asks the Club for membership** (issue #131). Sent
+ * to the Club office as one e-mail, answered to `email`, and kept nowhere in Ricambi. Answers 204.
+ */
+export interface MembershipRequest {
+  name: string;
+  email: string;
+  /** The car or cars the Visitor has, in their own words. */
+  cars?: string;
+  message?: string;
+  /** The Visitor agreed to their details going to the Club office, as the privacy statement says. */
+  consent: boolean;
+  /**
+   * The field a person never sees and a script fills in. Anything in it refuses the request, so a
+   * browser leaves it out or sends it empty.
+   */
+  website?: string;
 }
 
 /**

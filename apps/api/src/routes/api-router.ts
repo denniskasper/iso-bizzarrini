@@ -150,6 +150,10 @@ export function createApiRouter(dependencies: {
   // many Published Tavole each has, and what membership costs. The depth and none of the content,
   // built from a shape of its own, so the archive below stays exactly as private as it was.
   router.get('/landing', visitorController.readLanding);
+  // **Asking the Club for membership** (issue #131): one e-mail to the Club office, answered to
+  // the Visitor, and nothing of it kept here. Open, since asking to be let in cannot require
+  // already being in; a hidden field and a limit per address keep the junk out.
+  router.post('/membership-requests', visitorController.askToJoin);
 
   // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
   // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still
