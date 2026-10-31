@@ -28,6 +28,7 @@ import type { SpecificationListController } from '../controllers/specification-l
 import type { SubAssemblyController } from '../controllers/sub-assembly-controller.js';
 import type { SubscriptionController } from '../controllers/subscription-controller.js';
 import type { TavolaController } from '../controllers/tavola-controller.js';
+import type { VisitorController } from '../controllers/visitor-controller.js';
 
 /** Where this router is mounted. Named once, so nothing has to agree with it by memory. */
 export const API_MOUNT = '/api';
@@ -68,6 +69,7 @@ export function createApiRouter(dependencies: {
   rosterImportController: RosterImportController;
   clubController: ClubController;
   legalController: LegalController;
+  visitorController: VisitorController;
   searchController: SearchController;
   catalogController: CatalogController;
   categoryController: CategoryController;
@@ -99,6 +101,7 @@ export function createApiRouter(dependencies: {
     rosterImportController,
     clubController,
     legalController,
+    visitorController,
     searchController,
     catalogController,
     categoryController,
@@ -150,6 +153,11 @@ export function createApiRouter(dependencies: {
   // until they have handed over their address is not one. Neither says anything about anybody.
   router.get('/legal-notice', legalController.readLegalNotice);
   router.get('/privacy', legalController.readPrivacy);
+
+  // **What a Visitor is shown** (issue #128, ADR 0019): which Models the archive covers and how
+  // many Published Tavole each has, and what membership costs. The depth and none of the content,
+  // built from a shape of its own, so the archive below stays exactly as private as it was.
+  router.get('/landing', visitorController.readLanding);
 
   // **Keeping the roster and the Club** — an Administrator's, and behind the role rather than
   // behind a Membership. Above the archive's own gate below, so a lapsed Administrator can still

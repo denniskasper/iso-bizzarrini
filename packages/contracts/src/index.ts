@@ -2190,6 +2190,38 @@ export interface LegalNoticeResponse {
 }
 
 /**
+ * One Model as a Visitor is shown it (ADR 0019): the car, and how far the archive goes for it.
+ *
+ * Its own shape rather than `CatalogModel` with a number added, so that a field added to what a
+ * member reads never reaches a Visitor by default. No id: there is no address a Visitor could
+ * use one at.
+ */
+export interface VisitorModel {
+  brand: string;
+  name: string;
+  series: string | null;
+  modelYears: string | null;
+  /** Published Tavole only. An Unchecked one is an Editor's and is not counted (ADR 0017). */
+  publishedTavole: number;
+}
+
+/**
+ * `GET /api/landing` — **what a Visitor is shown** (issue #128), open to anybody: the depth of
+ * the archive and none of its content, and what joining costs.
+ */
+export interface Landing {
+  /** Brand, then Model. Only Models with at least one Published Tavola, since those are covered. */
+  models: VisitorModel[];
+  /** The yearly fee, from the Club's record — the amount the Renewal asks a member for. */
+  fee: string;
+  currency: Currency;
+}
+
+export interface LandingResponse {
+  landing: Landing;
+}
+
+/**
  * What a processor does for the association. Five, because those are the five the privacy
  * statement has to account for — `error-tracking` among them so that "nobody" is something the
  * statement says on purpose (ADR 0011).

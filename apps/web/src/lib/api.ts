@@ -34,6 +34,7 @@ import type {
   UnitWrittenResponse,
   TavolaCategoryRequest,
   ClubResponse,
+  LandingResponse,
   ReminderPlan,
   ReminderRun,
   MembershipStandingResponse,
@@ -240,6 +241,13 @@ export const api = {
    */
   legalNotice: () => request<LegalNoticeResponse>('/legal-notice'),
   privacy: () => request<PrivacyResponse>('/privacy'),
+
+  /**
+   * **What a Visitor is shown** (issue #128): the Models the archive covers with how many
+   * Published Tavole each has, and the yearly fee. Open to anybody, and nothing else of the
+   * archive is in it.
+   */
+  landing: () => request<LandingResponse>('/landing'),
 
   /** The association's own record of its processors, agreements included. An Administrator's. */
   processors: () => request<ProcessorsResponse>('/processors'),
