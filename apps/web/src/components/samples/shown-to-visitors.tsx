@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { api } from '@/lib/api';
+import { writtenOn } from '@/lib/contributions';
 
 /**
  * **What the public sees of the archive** (ADR 0019): every Tavola shown to Visitors and the one
@@ -48,6 +49,37 @@ export function ShownToVisitors({ className }: { className?: string }) {
             </li>
           ))}
         </ul>
+      )}
+      {data.ended.length > 0 && (
+        <div className="mt-8" data-testid="ended-samples">
+          <h3 className="font-semibold">No longer shown</h3>
+          <p className="mt-1 max-w-measure text-pretty text-muted">
+            The number open to Visitors was removed, so they stopped seeing these drawings. Open one
+            to show it again with another number.
+          </p>
+          <ul className="mt-4 border-t border-line">
+            {data.ended.map((ended) => (
+              <li key={ended.tavola.id} className="border-b border-line">
+                <Link
+                  to="/tavole/$tavolaId"
+                  params={{ tavolaId: ended.tavola.id }}
+                  className="flex min-h-control items-baseline justify-between gap-6 py-3 hover:text-accent-ink"
+                  data-testid="ended-sample"
+                >
+                  <span>
+                    {ended.tavola.model.brand} {ended.tavola.model.name}, Tavola{' '}
+                    <span className="tabular">{ended.tavola.number}</span>
+                    <span className="block text-sm text-muted">{ended.tavola.nameEn}</span>
+                  </span>
+                  <span className="shrink-0 text-sm text-muted">
+                    Number <span className="tabular text-text">{ended.openNumber}</span> removed{' '}
+                    <time dateTime={ended.endedAt}>{writtenOn(ended.endedAt)}</time>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );
