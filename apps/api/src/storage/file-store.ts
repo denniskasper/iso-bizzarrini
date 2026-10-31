@@ -136,3 +136,8 @@ export function photographKeyPrefix(photographId: string): string {
 export function sampleDrawingKeyPrefix(drawingId: string): string {
   return join('sample-drawings', drawingId);
 }
+
+/** Where one screenshot shown with a Proposal lives (issue #154). The id is the whole path. */
+export function proposalScreenshotKeyPrefix(screenshotId: string): string {
+  return join('proposal-screenshots', screenshotId);
+}

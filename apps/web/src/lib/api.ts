@@ -61,10 +61,12 @@ import type {
   RosterEntryResponse,
   ProposalAnswerEvent,
   ProposalResponse,
+  ProposalScreenshotResponse,
   ProposalsResponse,
   ProposalStatus,
   ProposalStatusRequest,
   SummariseProposalRequest,
+  ProposalTurnRequest,
   StartProposalRequest,
   RosterImportPlan,
   RosterImportRequest,
@@ -756,14 +758,14 @@ export const api = {
    */
   converse: async (
     proposalId: string,
-    text: string,
+    turn: ProposalTurnRequest,
     heard: (event: ProposalAnswerEvent) => void,
   ): Promise<void> => {
     const response = await fetch(`/api/proposals/${proposalId}/turns`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(turn),
     });
     if (!response.ok || response.body === null) {
       const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
@@ -789,6 +791,21 @@ export const api = {
       }
     }
   },
+
+  /**
+   * A screenshot pasted or picked onto a Draft (issue #154), waiting there until a turn sends it,
+   * and one taken off again. The picture is the body, as a Photograph's is.
+   */
+  showScreenshot: (proposalId: string, file: File) =>
+    request<ProposalScreenshotResponse>(`/proposals/${proposalId}/screenshots`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  removeScreenshot: (proposalId: string, screenshotId: string) =>
+    request<ProposalResponse>(`/proposals/${proposalId}/screenshots/${screenshotId}`, {
+      method: 'DELETE',
+    }),
 
   /** The drawing turned a quarter, its Marks with it. The upload stays as it arrived. */
   turnScan: (tavolaId: string, direction: QuarterTurn) =>

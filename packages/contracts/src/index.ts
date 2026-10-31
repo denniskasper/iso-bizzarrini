@@ -2881,6 +2881,22 @@ export interface ProposalTurn {
   text: string;
   /** ISO instant. */
   at: string;
+  /** What the author showed with it, in the order they added them. Always empty for an answer. */
+  screenshots: ProposalScreenshot[];
+}
+
+/**
+ * **A screenshot the author showed** (issue #154), and what they said about it. Served only to
+ * those with the permission, and a Draft's only to its author.
+ */
+export interface ProposalScreenshot {
+  id: string;
+  /** The author's own words about it, kept as they wrote them, or `null`. */
+  note: string | null;
+  width: number;
+  height: number;
+  displayUrl: string;
+  previewUrl: string;
 }
 
 /** Who an Idea is for (issue #153): the roles of the archive, and somebody who is not in it yet. */
@@ -2958,6 +2974,16 @@ export interface Proposal extends ProposalListing {
   summary: ProposalSummary | null;
   /** Why it was Declined, which its author is shown. Null unless it was. */
   declineReason: string | null;
+  /** Screenshots added to a Draft and not yet sent with a turn, in the order they were added. */
+  unsent: ProposalScreenshot[];
+}
+
+/**
+ * `POST /api/proposals/:proposalId/screenshots` — the picture itself is the body, as a
+ * Photograph's is. It waits on the Draft until a turn sends it.
+ */
+export interface ProposalScreenshotResponse {
+  screenshot: ProposalScreenshot;
 }
 
 export interface ProposalResponse {
@@ -3005,6 +3031,8 @@ export interface StartProposalRequest {
 /** `POST /api/proposals/:proposalId/turns` — what the author writes next. */
 export interface ProposalTurnRequest {
   text: string;
+  /** Unsent screenshots of this Draft to send with it, each with an optional note. */
+  screenshots?: { id: string; note?: string | null }[];
 }
 
 /**

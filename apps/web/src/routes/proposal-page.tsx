@@ -1,7 +1,12 @@
 import type { Proposal } from '@ricambi/contracts';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
-import { ContextList, FinishedProposal, Said } from '@/components/proposals/proposal-parts';
+import {
+  ContextList,
+  FinishedProposal,
+  Said,
+  Screenshots,
+} from '@/components/proposals/proposal-parts';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
@@ -82,7 +87,10 @@ function Whole({ proposal }: { proposal: Proposal }) {
           {proposal.summary === null ? (
             <p className="text-muted">There is no finished Proposal yet.</p>
           ) : (
-            <FinishedProposal summary={proposal.summary} />
+            <FinishedProposal
+              summary={proposal.summary}
+              screenshots={proposal.turns.flatMap((turn) => turn.screenshots)}
+            />
           )}
           <h2 className="mt-10 text-sm font-semibold text-muted">Started from</h2>
           <div className="mt-2">
@@ -103,6 +111,11 @@ function Whole({ proposal }: { proposal: Proposal }) {
                 author={proposal.mine ? 'You' : 'The author'}
               >
                 {turn.text}
+                {turn.screenshots.length > 0 && (
+                  <div className="mt-3">
+                    <Screenshots screenshots={turn.screenshots} />
+                  </div>
+                )}
               </Said>
             ))}
           </ol>

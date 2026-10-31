@@ -455,6 +455,8 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     logger,
     proposalService: createProposalService({
       clock,
+      fileStore,
+      logger,
       conversation: proposalsOpen ? conversation.method : null,
       version: build.version,
       proposalRepository: createProposalRepository(db),
@@ -535,6 +537,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       uncheckedTavolaGuard,
       maxScanBytes: config.files.maxScanBytes,
       maxPhotographBytes: config.files.maxPhotographBytes,
+      maxScreenshotBytes: config.files.maxScreenshotBytes,
       statusController,
       sessionController,
       rosterController,

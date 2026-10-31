@@ -182,6 +182,16 @@ const environmentSchema = z.object({
     .default(25 * 1024 * 1024),
 
   /**
+   * The largest screenshot somebody proposing may show (issue #154). A phone's or a laptop's
+   * screen as a PNG is a few megabytes; anything past this is not a screenshot.
+   */
+  MAX_SCREENSHOT_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
+
+  /**
    * The largest catalog PDF an Administrator may upload to be read (issue #57). The factory's
    * catalog scanned whole runs to a few hundred pages of A3, so this one upload is allowed far
    * more than a scan of one sheet.
@@ -291,6 +301,7 @@ export interface AppConfig {
     storagePath: string;
     maxScanBytes: number;
     maxPhotographBytes: number;
+    maxScreenshotBytes: number;
     maxCatalogBytes: number;
   };
   /** What the retention sweep applies and the privacy statement quotes (ADR 0007). */
@@ -378,6 +389,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       storagePath: resolve(env.FILE_STORAGE_PATH),
       maxScanBytes: env.MAX_SCAN_BYTES,
       maxPhotographBytes: env.MAX_PHOTOGRAPH_BYTES,
+      maxScreenshotBytes: env.MAX_SCREENSHOT_BYTES,
       maxCatalogBytes: env.MAX_CATALOG_BYTES,
     },
     retention: {

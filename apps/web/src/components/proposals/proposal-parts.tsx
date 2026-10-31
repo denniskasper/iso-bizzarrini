@@ -1,14 +1,29 @@
-import type { ProposalContext, ProposalSpeaker, ProposalSummary } from '@ricambi/contracts';
+import type {
+  ProposalContext,
+  ProposalScreenshot,
+  ProposalSpeaker,
+  ProposalSummary,
+} from '@ricambi/contracts';
+import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import { AUDIENCE_NAME } from '@/lib/proposals';
 import { cn } from '@/lib/utils';
 
 /**
  * **The finished Proposal** (issue #153), in the fixed shape for its kind: what the developer
  * reads and turns into an issue. The author's own words come last and verbatim, set apart from
- * the summary's, so nobody mistakes the one for the other.
+ * the summary's, so nobody mistakes the one for the other; then what they showed (issue #154),
+ * each screenshot with their note.
  */
-export function FinishedProposal({ summary }: { summary: ProposalSummary }) {
+export function FinishedProposal({
+  summary,
+  screenshots,
+}: {
+  summary: ProposalSummary;
+  /** Every screenshot sent with the conversation, in the order the author showed them. */
+  screenshots: ProposalScreenshot[];
+}) {
   return (
     <div data-testid="finished-proposal">
       <h3 className="display text-3xl text-pretty">{summary.title}</h3>
@@ -57,6 +72,11 @@ export function FinishedProposal({ summary }: { summary: ProposalSummary }) {
             ))}
           </ul>
         </Part>
+        {screenshots.length > 0 && (
+          <Part name="What the author showed">
+            <Screenshots screenshots={screenshots} />
+          </Part>
+        )}
       </dl>
       <p className="tag mt-4">Written by {summary.model}</p>
     </div>
@@ -131,7 +151,7 @@ export function Said({
   live?: boolean;
   /** Who the author is to whoever is reading. */
   author?: string;
-  children: string;
+  children: ReactNode;
 }) {
   return (
     <li
@@ -147,5 +167,82 @@ export function Said({
       <span className="sr-only">{speaker === 'author' ? `${author}: ` : 'Answer: '}</span>
       {children}
     </li>
+  );
+}
+
+/**
+ * **What the author showed** (issue #154): each screenshot with their note beside it, kept as
+ * they wrote it. With `onRemove`, each can be taken off its Draft.
+ */
+export function Screenshots({
+  screenshots,
+  onRemove,
+  disabled = false,
+}: {
+  screenshots: ProposalScreenshot[];
+  onRemove?: (screenshotId: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <ul className="space-y-3" data-testid="screenshots">
+      {screenshots.map((shot, index) => (
+        <li key={shot.id}>
+          <Shown
+            screenshot={shot}
+            label={`Screenshot ${index + 1}`}
+            disabled={disabled}
+            onRemove={onRemove && (() => onRemove(shot.id))}
+          >
+            {shot.note !== null && (
+              <p className="text-sm text-pretty whitespace-pre-wrap text-muted">{shot.note}</p>
+            )}
+          </Shown>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * One screenshot, the picture first and whole: what the author means is in it. Opens larger in
+ * a tab of its own; taken off the Draft with the button beside it, where it may be.
+ */
+export function Shown({
+  screenshot,
+  label,
+  disabled = false,
+  onRemove,
+  children,
+}: {
+  screenshot: ProposalScreenshot;
+  label: string;
+  disabled?: boolean;
+  onRemove?: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <figure className="flex items-start gap-3" data-testid="screenshot">
+      <a
+        href={screenshot.displayUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="photograph size-24 shrink-0 rounded-md"
+      >
+        <img src={screenshot.previewUrl} alt={label} />
+      </a>
+      <figcaption className="min-w-0 flex-1">{children}</figcaption>
+      {onRemove !== undefined && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={`Remove ${label.toLowerCase()}`}
+          disabled={disabled}
+          onClick={onRemove}
+        >
+          <X />
+        </Button>
+      )}
+    </figure>
   );
 }
