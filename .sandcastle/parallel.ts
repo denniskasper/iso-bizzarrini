@@ -408,26 +408,50 @@ async function ciPasses(pr: number): Promise<boolean> {
   return hostStatus('gh', ['pr', 'checks', String(pr), '--watch', '--interval', '30']) === 0;
 }
 
-function rerunFailed(pr: number, sha: string): void {
-  const runs = JSON.parse(
-    host('gh', [
-      'run',
-      'list',
-      '--commit',
-      sha,
-      '--json',
-      'databaseId,conclusion',
-      '--limit',
-      '20',
-    ]),
-  ) as { databaseId: number; conclusion: string }[];
-  for (const run of runs.filter((run) => run.conclusion === 'failure')) {
+/**
+ * Re-runs the failed jobs of every failed run on the head, and waits for those runs themselves.
+ * Not for `gh pr checks`: for a moment after a re-run, GitHub lists only the checks that passed,
+ * and a watch that starts then reports green while the failed job is still running again.
+ */
+async function rerunPasses(pr: number, sha: string): Promise<boolean> {
+  const failed = (
+    JSON.parse(
+      host('gh', [
+        'run',
+        'list',
+        '--commit',
+        sha,
+        '--json',
+        'databaseId,conclusion,attempt',
+        '--limit',
+        '20',
+      ]),
+    ) as { databaseId: number; conclusion: string; attempt: number }[]
+  ).filter((run) => run.conclusion === 'failure');
+  for (const run of failed) {
     host('gh', ['run', 'rerun', String(run.databaseId), '--failed']);
   }
-  log(
-    `PR #${pr}`,
-    `re-running ${runs.filter((run) => run.conclusion === 'failure').length} failed run(s) once`,
-  );
+  log(`PR #${pr}`, `re-running ${failed.length} failed run(s) once`);
+
+  for (const run of failed) {
+    // About an hour: the browser suite takes some twenty minutes, and a queue can add to it.
+    for (let poll = 0; ; poll += 1) {
+      if (poll === 120) {
+        return false;
+      }
+      await pause(30_000);
+      const now = JSON.parse(
+        host('gh', ['run', 'view', String(run.databaseId), '--json', 'attempt,status,conclusion']),
+      ) as { attempt: number; status: string; conclusion: string };
+      if (now.attempt > run.attempt && now.status === 'completed') {
+        if (now.conclusion !== 'success') {
+          return false;
+        }
+        break;
+      }
+    }
+  }
+  return true;
 }
 
 function comment(pr: number, text: string): void {
@@ -461,8 +485,7 @@ async function merge(pr: number): Promise<Merged> {
     log(scope, 'waiting for CI');
     let green = await ciPasses(pr);
     if (!green) {
-      rerunFailed(pr, state.headRefOid);
-      green = await ciPasses(pr);
+      green = (await rerunPasses(pr, state.headRefOid)) && (await ciPasses(pr));
     }
     if (!green) {
       comment(pr, 'CI fails, and failed again when re-run. Left for a person.');
