@@ -20,9 +20,9 @@ export interface ListedProposal {
 
 /**
  * Proposals and their conversations (issue #152), **and the one rule about who is shown a
- * Draft**: its author, and nobody else; once handed over, everybody who may propose (#153). The rule is in the statement rather than in a filter
- * applied afterwards, as a waiting Contribution's is, so no query on anybody else's behalf ever
- * returns somebody's Draft.
+ * Draft**: its author, and nobody else; once handed over, everybody who may propose (#153). The
+ * rule is in the statement rather than in a filter applied afterwards, as a waiting
+ * Contribution's is, so no query on anybody else's behalf ever returns somebody's Draft.
  */
 export interface ProposalRepository {
   add(proposal: NewProposalRow): Promise<ProposalRow>;
@@ -39,8 +39,11 @@ export interface ProposalRepository {
   listHandedOver(status: HandedOverStatus | null): Promise<ListedProposal[]>;
   /** What was handed over before, by kind, title and status, the oldest first. */
   listEarlier(): Promise<{ kind: ProposalRow['kind']; title: string; status: HandedOverStatus }[]>;
-  /** The finished Proposal, kept on a Draft. */
-  keepSummary(id: string, summary: ProposalSummary): Promise<ProposalRow>;
+  /**
+   * The finished Proposal, kept on the Draft, if it still is one. Null where it is not: a summary
+   * written while the author hands over never replaces the one they handed over.
+   */
+  keepSummary(id: string, summary: ProposalSummary): Promise<ProposalRow | null>;
   /**
    * The Draft made New, if it still is a Draft with a summary. Null where it is not, so two
    * presses at once hand it over once.
@@ -157,12 +160,9 @@ export function createProposalRepository(db: DbSession): ProposalRepository {
       const [row] = await db
         .update(proposals)
         .set({ summary })
-        .where(eq(proposals.id, id))
+        .where(and(eq(proposals.id, id), eq(proposals.status, 'draft')))
         .returning();
-      if (!row) {
-        throw new Error('Keeping a summary found no Proposal.');
-      }
-      return row;
+      return row ?? null;
     },
 
     async handOver(id, at) {

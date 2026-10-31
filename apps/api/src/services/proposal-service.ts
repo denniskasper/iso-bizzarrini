@@ -267,7 +267,13 @@ export function createProposalService(dependencies: {
         throw new Error(`The conversation finished a ${written.kind} as a ${proposal.kind}.`);
       }
       const summary = { ...written, authorsWords } as ProposalSummary;
-      return whole(proposer, await proposalRepository.keepSummary(proposalId, summary));
+      const kept = await proposalRepository.keepSummary(proposalId, summary);
+      if (kept === null) {
+        throw new ConflictError(
+          'This Proposal has been handed over, and its conversation is over.',
+        );
+      }
+      return whole(proposer, kept);
     },
 
     async handOver(proposer, proposalId) {
