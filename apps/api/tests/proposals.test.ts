@@ -190,6 +190,29 @@ describe('proposing, on a practice system', () => {
       });
     });
 
+    it('names an Unchecked Tavola only for somebody who may see it', async () => {
+      const { agent: administrator } = await anAdministrator();
+      const member = await givenAMember(app, administrator);
+      await letPropose(administrator, member);
+      const model = await givenModel(app.db, { brand: 'Iso', name: 'Grifo' });
+      const tavola = await givenTavola(app.db, model.id, { number: '7', state: 'unchecked' });
+      const start = { kind: 'fix', pageAddress: `/tavole/${tavola.id}`, tavolaId: tavola.id };
+
+      const asMember = await member.agent.post('/api/proposals').send(start).expect(201);
+      expect((asMember.body.proposal as Proposal).context).toMatchObject({
+        model: null,
+        tavola: null,
+      });
+
+      const editor = await givenAMember(app, administrator, { role: 'editor' });
+      await letPropose(administrator, editor);
+      const asEditor = await editor.agent.post('/api/proposals').send(start).expect(201);
+      expect((asEditor.body.proposal as Proposal).context.tavola).toMatchObject({
+        id: tavola.id,
+        number: '7',
+      });
+    });
+
     it('is either a Fix or an Idea', async () => {
       const proposer = await aProposer();
       await proposer.agent
@@ -410,5 +433,11 @@ describe('proposing, in Production', () => {
     const session = (await member.agent.get('/api/session').expect(200)).body as SessionResponse;
     expect(session.account?.mayPropose).toBe(false);
     await member.agent.get('/api/proposals').expect(403);
+
+    // Withdrawing stays allowed, so nothing granted elsewhere can be left standing here.
+    await administrator.agent
+      .patch(`/api/roster/${member.entry.id}`)
+      .send({ mayPropose: false })
+      .expect(200);
   });
 });
