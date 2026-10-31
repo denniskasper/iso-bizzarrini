@@ -51,6 +51,11 @@ export function createRosterService(dependencies: {
   logger: Logger;
   /** Days a renewing member reads past their Paid-through while the payment is confirmed. */
   renewalGraceDays: number;
+  /**
+   * Whether anybody may be let propose here: not in Production (issue #152, ADR 0012 as
+   * amended). Left out, nobody may, which is what the commands that never grant it want.
+   */
+  mayLetPropose?: boolean;
 }): RosterService {
   const { clock, accountRepository, accountService, logger, renewalGraceDays } = dependencies;
 
@@ -159,9 +164,17 @@ export function createRosterService(dependencies: {
         throw new ValidationError('A member needs a name.');
       }
 
+      // Withdrawing is always allowed, so that nothing granted can be left standing.
+      if (fields.mayPropose === true && dependencies.mayLetPropose !== true) {
+        throw new ConflictError(
+          'Proposals are for practice systems, and this is Production: nobody here may propose.',
+        );
+      }
+
       await accountRepository.correct(account.id, {
         ...(name === undefined ? {} : { name }),
         ...(fields.role === undefined ? {} : { role: fields.role }),
+        ...(fields.mayPropose === undefined ? {} : { mayPropose: fields.mayPropose }),
       });
 
       return read(account.id);
@@ -270,5 +283,6 @@ function toRosterEntry(
     invitationSentAt: invitation?.issuedAt.toISOString() ?? null,
     invitationExpiresAt: invitation?.expiresAt.toISOString() ?? null,
     addedAt: account.addedAt.toISOString(),
+    mayPropose: account.mayPropose,
   };
 }

@@ -74,6 +74,19 @@ export function assertSafeForEnvironment(assembled: {
       );
     }
 
+    // **Proposals run the other way** (ADR 0012, as amended; issue #152). The conversation is for
+    // practice systems, its key is billed to a workspace kept for developing Ricambi, and the
+    // Club's records do not name it for Production. Refusing the key makes all three true by
+    // construction, where a switch hiding the Propose button would be one edit away from false.
+    if (config.proposals.apiKey !== undefined) {
+      throw new EnvironmentSafetyError(
+        `"${config.environmentName}" is production and will not start with ` +
+          'PROPOSALS_ANTHROPIC_API_KEY set. Proposals are for practice systems: the conversation ' +
+          'is billed to a workspace kept for developing Ricambi, and members never meet it. ' +
+          'Unset it.',
+      );
+    }
+
     // An invitation carries a link, and a link needs a hostname. A production system that has
     // not been told its own is one that mails a hundred members a link to somebody's laptop —
     // discovered by the first member who cannot get in, days after the roster went out.

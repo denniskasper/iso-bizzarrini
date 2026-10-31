@@ -232,6 +232,17 @@ const environmentSchema = z.object({
   CLAUDE_CODE_OAUTH_TOKEN: z.preprocess(blankAsUnset, z.string().min(1).optional()),
   /** The Anthropic API key, as a secret. Billed per use. Never shown, logged or written. */
   ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+
+  /**
+   * **What a Proposal's conversation is had with** (issue #152), on a practice system only. Just
+   * `fake` for now, which answers fixed text. Unset means none, and nobody is shown Propose.
+   */
+  PROPOSALS_METHOD: z.preprocess(blankAsUnset, z.enum(['fake']).optional()),
+  /**
+   * The conversation's own Anthropic API key, kept in a workspace of its own with a monthly limit.
+   * **Production refuses to start with it** (ADR 0012, as amended). Never shown, logged or written.
+   */
+  PROPOSALS_ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -294,6 +305,19 @@ export interface AppConfig {
    * refused at startup: the rest of the archive does not depend on reading.
    */
   reading: ReadingSettings;
+  /**
+   * The conversation method named, and its credential as it was found. Which may talk is
+   * `composition/conversation.ts`'s to decide; that Production holds no credential is
+   * `assertSafeForEnvironment`'s.
+   */
+  proposals: ProposalSettings;
+}
+
+export type ConversationMethodKind = NonNullable<Environment['PROPOSALS_METHOD']>;
+
+export interface ProposalSettings {
+  method: ConversationMethodKind | undefined;
+  apiKey: string | undefined;
 }
 
 export type ReadingMethodKind = NonNullable<Environment['READING_METHOD']>;
@@ -367,6 +391,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       method: env.READING_METHOD,
       subscriptionToken: env.CLAUDE_CODE_OAUTH_TOKEN,
       apiKey: env.ANTHROPIC_API_KEY,
+    },
+    proposals: {
+      method: env.PROPOSALS_METHOD,
+      apiKey: env.PROPOSALS_ANTHROPIC_API_KEY,
     },
   };
 }

@@ -338,6 +338,12 @@
    * column of single words on a laptop; the drawing keeps everything else.
    */
   --width-part-panel: 28rem;
+  /*
+   * **A Proposal's conversation, beside the page it is about** (issue #152). Narrower than the
+   * facing page, because the page is what is being talked about and has to stay readable; below
+   * `sm` the conversation takes the screen instead.
+   */
+  --width-proposal-panel: 26rem;
   /* How far it stands off the circle it describes, and off the edges of the stage. */
   --spacing-card-offset: 1rem;
   --spacing-card-edge: 0.75rem;

@@ -59,6 +59,10 @@ import type {
   RecordPaymentRequest,
   RenewalResponse,
   RosterEntryResponse,
+  ProposalAnswerEvent,
+  ProposalResponse,
+  ProposalsResponse,
+  StartProposalRequest,
   RosterImportPlan,
   RosterImportRequest,
   RosterResponse,
@@ -720,6 +724,55 @@ export const api = {
       headers: { 'Content-Type': file.type },
       body: file,
     }),
+  /**
+   * **Proposing** (issue #152): the proposer's own Drafts, one of them whole, and a new one
+   * started with what is on screen.
+   */
+  proposals: () => request<ProposalsResponse>('/proposals'),
+  proposal: (proposalId: string) => request<ProposalResponse>(`/proposals/${proposalId}`),
+  startProposal: (start: StartProposalRequest) =>
+    send<ProposalResponse>('POST', '/proposals', start),
+  /**
+   * A turn, and its answer **as it is written**: one event per line, each handed to `heard` as
+   * it arrives. A refusal before the answer begins is thrown as any other; a failure after it is
+   * the stream's own last event.
+   */
+  converse: async (
+    proposalId: string,
+    text: string,
+    heard: (event: ProposalAnswerEvent) => void,
+  ): Promise<void> => {
+    const response = await fetch(`/api/proposals/${proposalId}/turns`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok || response.body === null) {
+      const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
+      throw new ApiError(
+        response.status,
+        body?.error.code ?? 'unknown_error',
+        body?.error.message ?? `The archive answered with ${response.status}.`,
+      );
+    }
+
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    let pending = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      pending += value;
+      const lines = pending.split('\n');
+      pending = lines.pop() ?? '';
+      for (const line of lines.filter((line) => line !== '')) {
+        heard(JSON.parse(line) as ProposalAnswerEvent);
+      }
+    }
+  },
+
   /** The drawing turned a quarter, its Marks with it. The upload stays as it arrived. */
   turnScan: (tavolaId: string, direction: QuarterTurn) =>
     send<{ scan: TavolaScan }>('POST', `/tavole/${tavolaId}/scan/turns`, {

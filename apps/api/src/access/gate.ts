@@ -36,7 +36,17 @@ export interface SignedIn {
    * === null` branch that had to keep asking whether a request had a name behind it. What puts
    * the first Administrator on an empty roster now is `composition/first-administrator.ts`.
    */
-  account: { id: string; name: string; email: string; role: Role };
+  account: {
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    /**
+     * Whether they may propose (issue #152): granted by an Administrator, on a system where
+     * Proposals are open. A capability beside the role, never implied by it.
+     */
+    mayPropose: boolean;
+  };
   /** Whether they may read: a Paid-through that has not passed, or grace past it (issue #17). */
   membershipIsLive: boolean;
   /** ISO date — the last day of grace, while they are reading on it. Null otherwise. */
@@ -77,6 +87,11 @@ export interface Gate {
    * is read, and what that costs (issue #55) — where a refusal would say there is something.
    */
   hiddenFromAllButAdministrators: RequestHandler;
+  /**
+   * Those an Administrator has let propose, on a system where Proposals are open (issue #152).
+   * Deliberately **not** behind `requireLiveMembership`: proposing is not reading the archive.
+   */
+  requireProposer: RequestHandler;
   /** Who this request is, or null. Reads the cookie; makes no promises about what they may do. */
   identify(cookieHeader: string | undefined): Promise<SignedIn | null>;
   /** Who a handler behind one of the `require` middlewares is serving. */
@@ -190,6 +205,12 @@ export function createGate(dependencies: {
     hiddenFromAllButAdministrators: requiring((who) => {
       if (who.account.role !== 'administrator') {
         throw new NotFoundError();
+      }
+    }),
+
+    requireProposer: requiring((who) => {
+      if (!who.account.mayPropose) {
+        throw new ForbiddenError('Proposing is for those an Administrator has let propose.');
       }
     }),
 

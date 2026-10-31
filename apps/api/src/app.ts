@@ -5,6 +5,7 @@ import { createGate } from './access/gate.js';
 import { createUncheckedTavolaGuard } from './access/unchecked-tavole.js';
 import { createPasswordHasher, type PasswordHasher } from './access/passwords.js';
 import { assertSafeForEnvironment } from './composition/environment-safety.js';
+import type { ConfiguredConversation } from './composition/conversation.js';
 import type { ConfiguredReading } from './composition/reading.js';
 import { createReminders } from './composition/reminder-run.js';
 import type { AppConfig } from './config/config.js';
@@ -21,6 +22,7 @@ import { createPartController } from './controllers/part-controller.js';
 import { createPartRecordController } from './controllers/part-record-controller.js';
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
+import { createProposalController } from './controllers/proposal-controller.js';
 import { createSpecificationListController } from './controllers/specification-list-controller.js';
 import { createSubAssemblyController } from './controllers/sub-assembly-controller.js';
 import { createReadingController } from './controllers/reading-controller.js';
@@ -57,6 +59,7 @@ import { createPartRecordRepository } from './repositories/part-record-repositor
 import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
+import { createProposalRepository } from './repositories/proposal-repository.js';
 import { createReadingRepository } from './repositories/reading-repository.js';
 import { createCatalogRunRepository } from './repositories/catalog-run-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
@@ -81,6 +84,7 @@ import { createPartRecordService } from './services/part-record-service.js';
 import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
+import { createProposalService } from './services/proposal-service.js';
 import { createSpecificationListService } from './services/specification-list-service.js';
 import { createSubAssemblyService } from './services/sub-assembly-service.js';
 import { createRetentionService } from './services/retention-service.js';
@@ -122,6 +126,11 @@ export interface AppDependencies {
    * hand in the method they want reported, or the fake one, as they hand in an e-mail sender.
    */
   reading: ConfiguredReading;
+  /**
+   * What a Proposal's conversation is had with (issue #152): the second edge that talks to a
+   * model, and on a practice system only. Tests hand in the fake, or one that listens.
+   */
+  conversation: ConfiguredConversation;
   logger?: Logger;
   /**
    * How hard passwords are to store. Defaults to the recommended cost, which is deliberately a
@@ -171,7 +180,7 @@ export type RicambiApp = Express & {
 };
 
 export function createApp(dependencies: AppDependencies): RicambiApp {
-  const { config, clock, db, emailSender, paymentProvider, reading } = dependencies;
+  const { config, clock, db, emailSender, paymentProvider, reading, conversation } = dependencies;
 
   // Before anything else. A non-production environment that could reach a real member or a real
   // mandate does not get to exist, and neither does a production one that has not been told the
@@ -203,9 +212,17 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
   const scanRepository = createScanRepository(db);
   const retentionRepository = createRetentionRepository(db);
 
+  const build = dependencies.build ?? readBuild();
+  /**
+   * **Whether anybody may propose here** (issue #152): a practice system with a conversation to
+   * be had. Where not, nobody is told they may and every Proposal address is refused, whatever
+   * an Administrator once granted.
+   */
+  const proposalsOpen = config.environmentMode !== 'production' && conversation.method !== null;
+
   const statusService = createStatusService({
     clock,
-    build: dependencies.build ?? readBuild(),
+    build,
     environmentName: config.environmentName,
     environmentMode: config.environmentMode,
     systemRepository,
@@ -224,6 +241,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     emailSender,
     publicUrl: config.publicUrl,
     renewalGraceDays: config.renewalGraceDays,
+    proposalsOpen,
   });
   const devSignInAs = config.session.devSignInAs;
   const gate = createGate({
@@ -245,6 +263,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     accountService,
     logger,
     renewalGraceDays: config.renewalGraceDays,
+    mayLetPropose: config.environmentMode !== 'production',
   });
   /**
    * **Handed the database itself rather than repositories**, like bulk paste and for the same
@@ -431,6 +450,18 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     contributionReviewService,
   });
   const scanController = createScanController({ scanService });
+  const proposalController = createProposalController({
+    gate,
+    logger,
+    proposalService: createProposalService({
+      clock,
+      conversation: proposalsOpen ? conversation.method : null,
+      version: build.version,
+      proposalRepository: createProposalRepository(db),
+      modelRepository,
+      tavolaRepository,
+    }),
+  });
   const indexing = createIndexing(config.environmentMode);
   const visitorPages = createVisitorPages({
     visitorService,
@@ -532,6 +563,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       scanController,
       sampleController,
       checkingController,
+      proposalController,
     }),
   );
   app.use(API_MOUNT, notFoundHandler);

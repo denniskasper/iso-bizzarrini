@@ -6,6 +6,9 @@ import type {
   MarkPoint,
   MembershipGrant,
   ProcessorRole,
+  ProposalKind,
+  ProposalSpeaker,
+  ProposalStatus,
   ReadingMethodKind,
   Role,
   SampleEndReason,
@@ -1183,6 +1186,12 @@ export const accounts = pgTable(
     sessionEpoch: integer('session_epoch').notNull().default(0),
     /** From the injected clock. When an Administrator put this person on the roster. */
     addedAt: timestamp('added_at', { withTimezone: true }).notNull(),
+    /**
+     * **Whether an Administrator has let them propose** (issue #152). A capability of its own
+     * beside the role, so somebody can propose without being made an Editor. Never set in
+     * Production, which refuses to grant it.
+     */
+    mayPropose: boolean('may_propose').notNull().default(false),
   },
   (table) => [check('accounts_role_is_one_of_three', sql`${table.role} in (${oneOf(ROLES)})`)],
 );
@@ -1589,6 +1598,88 @@ export const contributionPhotographs = pgTable(
   ],
 );
 
+export const PROPOSAL_KINDS = ['fix', 'idea'] as const satisfies readonly ProposalKind[];
+export const PROPOSAL_STATUSES = [
+  'draft',
+  'new',
+  'taken-up',
+  'done',
+  'declined',
+] as const satisfies readonly ProposalStatus[];
+export const PROPOSAL_SPEAKERS = [
+  'author',
+  'conversation',
+] as const satisfies readonly ProposalSpeaker[];
+
+/**
+ * **A Fix or an Idea, worked out in conversation** (issue #152), on a practice system.
+ *
+ * **Kept apart from the practice data**: nothing here refers to a Model or a Tavola, because a
+ * practice archive is re-seeded and a Proposal outlives what it was about. What was on screen is
+ * written down as it was, ids and names both.
+ */
+export const proposals = pgTable(
+  'proposals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Whose it is. A person's Drafts go with them when their Account does. */
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().$type<ProposalKind>(),
+    status: text('status').notNull().$type<ProposalStatus>().default('draft'),
+
+    /** The page the author was on, path and query. */
+    pageAddress: text('page_address').notNull(),
+    /** The Version of Ricambi that was running. */
+    version: text('version').notNull(),
+    modelId: uuid('model_id'),
+    modelName: text('model_name'),
+    tavolaId: uuid('tavola_id'),
+    tavolaNumber: text('tavola_number'),
+    tavolaName: text('tavola_name'),
+
+    /** From the injected clock. */
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** When the last turn was said, or when it was started. What the Drafts are listed by. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('proposals_author_id_index').on(table.authorId),
+    check('proposals_kind_is_fix_or_idea', sql`${table.kind} in (${oneOf(PROPOSAL_KINDS)})`),
+    check('proposals_status_is_one_of_five', sql`${table.status} in (${oneOf(PROPOSAL_STATUSES)})`),
+    check(
+      'proposals_tavola_is_named_whole',
+      sql`(${table.tavolaId} is null) = (${table.tavolaNumber} is null)`,
+    ),
+  ],
+);
+
+/** One turn of a Proposal's conversation. Never edited: what was said stays said. */
+export const proposalTurns = pgTable(
+  'proposal_turns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    proposalId: uuid('proposal_id')
+      .notNull()
+      .references(() => proposals.id, { onDelete: 'cascade' }),
+    /** From `0`, without gaps. Unique, so two turns written at once cannot take one place. */
+    sequence: integer('sequence').notNull(),
+    speaker: text('speaker').notNull().$type<ProposalSpeaker>(),
+    text: text('text').notNull(),
+    /** From the injected clock. */
+    at: timestamp('at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('proposal_turns_one_turn_a_place').on(table.proposalId, table.sequence),
+    check('proposal_turns_sequence_is_a_place', sql`${table.sequence} >= 0`),
+    check(
+      'proposal_turns_speaker_is_one_of_two',
+      sql`${table.speaker} in (${oneOf(PROPOSAL_SPEAKERS)})`,
+    ),
+  ],
+);
+
 export const accountsRelations = relations(accounts, ({ many }) => ({
   memberships: many(memberships),
   tokens: many(accountTokens),
@@ -1752,3 +1843,7 @@ export type ContributionRow = typeof contributions.$inferSelect;
 export type NewContributionRow = typeof contributions.$inferInsert;
 export type ContributionPhotographRow = typeof contributionPhotographs.$inferSelect;
 export type NewContributionPhotographRow = typeof contributionPhotographs.$inferInsert;
+export type ProposalRow = typeof proposals.$inferSelect;
+export type NewProposalRow = typeof proposals.$inferInsert;
+export type ProposalTurnRow = typeof proposalTurns.$inferSelect;
+export type NewProposalTurnRow = typeof proposalTurns.$inferInsert;

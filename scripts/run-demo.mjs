@@ -35,6 +35,9 @@ const environment = {
   READING_METHOD: 'fake',
   CLAUDE_CODE_OAUTH_TOKEN: '',
   ANTHROPIC_API_KEY: '',
+  // Proposals are tried against the practice conversation, which answers fixed text (issue #152).
+  PROPOSALS_METHOD: 'fake',
+  PROPOSALS_ANTHROPIC_API_KEY: '',
 };
 
 run('pnpm', ['setup']);

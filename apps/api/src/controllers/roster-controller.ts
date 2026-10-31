@@ -27,6 +27,7 @@ const newMemberBody = z.object({
 const correctMemberBody = z.object({
   name: z.string().trim().min(1, 'A member needs a name').optional(),
   role: z.enum(ROLES).optional(),
+  mayPropose: z.boolean().optional(),
 });
 
 /**
