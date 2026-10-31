@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.9.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.8.0...v0.9.0) (2026-10-31)
+
+
+### New
+
+* **115:** Editors reshape a Sub-assembly's outline, and are warned when a Mark falls outside it ([5c32120](https://github.com/denniskasper/iso-bizzarrini/commit/5c32120bf6bed455f54c70fbbf3ec67a608836c7))
+* **128:** a Visitor's landing says what Ricambi is, the cars it covers and the fee ([0225dfa](https://github.com/denniskasper/iso-bizzarrini/commit/0225dfa61e9d097c88a8a3a470ecf9effbf6f011))
+* **129:** an Administrator can show a Published Tavola to Visitors as a Sample ([aa2ef0f](https://github.com/denniskasper/iso-bizzarrini/commit/aa2ef0fe5625facb88ca032995797e3f744112da))
+* **130:** a Sample ends when its open number is removed, and Administrators are told ([3078a5a](https://github.com/denniskasper/iso-bizzarrini/commit/3078a5a6787273a01d6b83f918c809d53745e459))
+* **131:** a Visitor can ask the Club for membership from the landing page ([2d78101](https://github.com/denniskasper/iso-bizzarrini/commit/2d78101bae271a55baccf775e1935be613df0859))
+* **132:** a Visitor can open a Sample and read its open number ([5bd5b7b](https://github.com/denniskasper/iso-bizzarrini/commit/5bd5b7b8ceaddb60ee93622e0cde099f606c30ee))
+* **133:** search engines find the Samples, and a shared link shows its drawing ([5f2e2a6](https://github.com/denniskasper/iso-bizzarrini/commit/5f2e2a6fc085ca5dc1321e55665e1bc402cf2e03))
+
+
+### Fixed
+
+* **115:** save an outline's reshaping changes in the order they were made ([63278fd](https://github.com/denniskasper/iso-bizzarrini/commit/63278fd853b267e7083f646e6f273d4d207c31c0))
+* **130:** the drawing says it stopped being shown once its open number is removed ([af3fa72](https://github.com/denniskasper/iso-bizzarrini/commit/af3fa723b11b0d79c055adba26c57d12a0485588))
+* **web:** the Club office's address is a target a hand can hit ([a780324](https://github.com/denniskasper/iso-bizzarrini/commit/a7803240055baafe12c2f33544a42be3f7837f74))
+
 ## [0.8.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.7.1...v0.8.0) (2026-10-30)
 
 
