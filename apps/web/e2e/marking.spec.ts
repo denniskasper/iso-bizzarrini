@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn, openFirstDrawing } from './support/archive.js';
+import {
+  aFrameLater,
+  markFor,
+  openADrawingOfYourOwn,
+  openFirstDrawing,
+} from './support/archive.js';
 
 /**
  * The numbered circles, and the tool that puts them there.
@@ -92,6 +97,8 @@ test.describe('reading the circles on a drawing', () => {
       await page.getByRole('button', { name: 'Zoom in' }).click();
     }
     await expect(page.getByTestId('drawing-magnification')).not.toHaveText('×1.0');
+    // The readout can already show an earlier press while the last one is still to be painted.
+    await aFrameLater(page);
 
     const magnified = await whereOnTheSheet(page, four);
     expect(magnified.x).toBeCloseTo(fitted.x, 2);

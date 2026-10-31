@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signIn } from './gate.js';
 
 /** The Model the practice archive leaves undrawn, which is where a test's own sheet goes. */
@@ -39,6 +39,19 @@ export async function openFirstDrawing(page: Page): Promise<void> {
   const drawing = drawingOf(page);
   await expect(drawing).toBeVisible();
   await expectTheSheetIsDrawn(drawing);
+}
+
+/**
+ * One frame later, which is when the viewer has put what was just done on the glass.
+ *
+ * The viewer paints a zoom or a drag on the next animation frame, not in the event that asked for
+ * it (`move` in `drawing-viewer.tsx`). Measured straight after a click or a drag, the sheet can
+ * still be where it was — or, measuring two things, the sheet in one place and a circle on it in
+ * another. The callbacks of a frame run in the order they were asked for, so this one runs after
+ * the viewer's paint, and anything measured once it is done is what a member sees.
+ */
+export async function aFrameLater(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => done())));
 }
 
 /** Rendered, not merely requested: a 404 image is "visible" too. */
@@ -116,6 +129,20 @@ export async function borrowAnImage(page: Page): Promise<Buffer> {
 }
 
 /**
+ * A name of a test's own that its retry can set itself up under again.
+ *
+ * A Tavola number is unique within a Model and nothing here deletes one, so a retry that asks for
+ * the sheet its first attempt already made is refused, and dies in setup before it reaches what
+ * it is testing. Each retry gets its own name instead. A test that reads the name again later
+ * passes it through here too; a name already made for this attempt comes back unchanged.
+ */
+export function forThisAttempt(named: string): string {
+  const { retry } = test.info();
+  const suffix = `-retry${retry}`;
+  return retry === 0 || named.endsWith(suffix) ? named : `${named}${suffix}`;
+}
+
+/**
  * A drawing of this test's own, opened and ready to be marked up.
  *
  * **Tests that write need a sheet nobody else is writing on.** This suite runs its files in
@@ -127,6 +154,7 @@ export async function borrowAnImage(page: Page): Promise<Buffer> {
  * itself — see `borrowAnImage` for why nothing is committed here to get one.
  */
 export async function openADrawingOfYourOwn(page: Page, named: string): Promise<Locator> {
+  const number = forThisAttempt(named);
   await signIn(page);
 
   const models = (await (await page.request.get('/api/models')).json()) as {
@@ -142,19 +170,23 @@ export async function openADrawingOfYourOwn(page: Page, named: string): Promise<
 
   const sheet = await borrowAnImage(page);
 
-  const created = (await (
-    await page.request.post(`/api/models/${model(UNDRAWN_MODEL).id}/tavole`, {
-      data: {
-        number: named,
-        nameIt: 'Foglio di prova',
-        nameEn: 'Practice sheet',
-        category: 'Brakes',
-        catalogSection: '',
-        catalogGroup: '',
-        catalogSubgroup: '',
-      },
-    })
-  ).json()) as { tavola: { id: string } };
+  const answer = await page.request.post(`/api/models/${model(UNDRAWN_MODEL).id}/tavole`, {
+    data: {
+      number,
+      nameIt: 'Foglio di prova',
+      nameEn: 'Practice sheet',
+      category: 'Brakes',
+      catalogSection: '',
+      catalogGroup: '',
+      catalogSubgroup: '',
+    },
+  });
+  if (!answer.ok()) {
+    throw new Error(
+      `Tavola ${number} could not be made: ${answer.status()} ${await answer.text()}`,
+    );
+  }
+  const created = (await answer.json()) as { tavola: { id: string } };
 
   await page.request.put(`/api/tavole/${created.tavola.id}/scan`, {
     headers: { 'Content-Type': 'image/webp' },
@@ -162,7 +194,7 @@ export async function openADrawingOfYourOwn(page: Page, named: string): Promise<
   });
 
   await page.goto(`/tavole/${created.tavola.id}`);
-  const drawing = page.getByRole('img', { name: new RegExp(`Tavola ${named} `) });
+  const drawing = page.getByRole('img', { name: new RegExp(`Tavola ${number} `) });
   await expect(drawing).toBeVisible();
   await expectTheSheetIsDrawn(drawing);
   return drawing;

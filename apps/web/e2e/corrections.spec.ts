@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openADrawingOfYourOwn, placeMarks } from './support/archive.js';
+import { forThisAttempt, openADrawingOfYourOwn, placeMarks } from './support/archive.js';
 
 /**
  * Correcting a Part, and correcting where it is listed.
@@ -61,7 +61,7 @@ async function recordAPart(
 test('a correction made at one number is read at another', async ({ page }, info) => {
   // Every sheet name in this suite is its own: a Tavola number is unique within a Model, so two
   // files reaching for one is a 409 in a helper rather than a failure anybody can read.
-  const named = `correcting-${info.project.name}`;
+  const named = forThisAttempt(`correcting-${info.project.name}`);
   const part = `Throttle bracket ${info.project.name}`;
 
   await aSheetWithTwoNumbers(page, named);
@@ -107,7 +107,7 @@ test('a correction made at one number is read at another', async ({ page }, info
  * itself about where a component sits, which is the exact failure the drawn flag exists to avoid.
  */
 test('a listing corrected where it sits leaves the number it was at', async ({ page }, info) => {
-  const named = `where-${info.project.name}`;
+  const named = forThisAttempt(`where-${info.project.name}`);
   const part = `Bracket screw ${info.project.name}`;
 
   await aSheetWithTwoNumbers(page, named);

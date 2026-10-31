@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn } from './support/archive.js';
+import { forThisAttempt, markFor, openADrawingOfYourOwn } from './support/archive.js';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
@@ -13,7 +13,7 @@ import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 test('a Visitor lands, opens a Sample, reads its open number and is led to join', async ({
   page,
 }, info) => {
-  const named = `visit-${info.project.name}`;
+  const named = forThisAttempt(`visit-${info.project.name}`);
   await openADrawingOfYourOwn(page, named);
   const tavolaId = new URL(page.url()).pathname.split('/').at(-1) ?? '';
 
