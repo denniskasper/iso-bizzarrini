@@ -10,7 +10,11 @@ import { today, yearsOn, type Clock } from '../platform/clock.js';
 import type { Logger } from '../platform/logger.js';
 import type { AccountRepository } from '../repositories/account-repository.js';
 import type { RetentionRepository } from '../repositories/retention-repository.js';
-import { photographKeyPrefix, type FileStore } from '../storage/file-store.js';
+import {
+  photographKeyPrefix,
+  proposalScreenshotKeyPrefix,
+  type FileStore,
+} from '../storage/file-store.js';
 
 /**
  * Retention and erasure (ADR 0007): **the personal data goes and the knowledge stays.**
@@ -83,10 +87,15 @@ export function createRetentionService(dependencies: {
       return null;
     }
 
-    const { removedPhotographIds, ...counts } = erased;
+    const { removedPhotographIds, removedScreenshotIds, ...counts } = erased;
     for (const photographId of removedPhotographIds) {
       await fileStore.remove(photographKeyPrefix(photographId)).catch((error: unknown) => {
         logger.warn({ err: error, photographId }, 'Could not remove an erased member’s photograph');
+      });
+    }
+    for (const screenshotId of removedScreenshotIds) {
+      await fileStore.remove(proposalScreenshotKeyPrefix(screenshotId)).catch((error: unknown) => {
+        logger.warn({ err: error, screenshotId }, 'Could not remove an erased member’s screenshot');
       });
     }
 

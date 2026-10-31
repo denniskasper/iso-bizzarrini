@@ -6,6 +6,8 @@ import {
   contributionPhotographs,
   contributions,
   memberships,
+  proposals,
+  proposalScreenshots,
   signInFailures,
 } from '../db/schema.js';
 
@@ -20,6 +22,8 @@ import {
 export interface ErasedAccount extends Erasure {
   /** Photographs that went with the Contributions removed. Their files are the caller's to clear. */
   removedPhotographIds: string[];
+  /** Screenshots shown with their Proposals, which go with the Account. Their files likewise. */
+  removedScreenshotIds: string[];
 }
 
 export interface RetentionRepository {
@@ -122,6 +126,14 @@ export function createRetentionRepository(db: Db): RetentionRepository {
         // it: the last place the e-mail address would otherwise still be written down.
         await tx.delete(signInFailures).where(eq(signInFailures.email, account.email));
 
+        // Their Proposals cascade with the Account (issue #154), and the screenshots with them;
+        // read first, because the files under them are not the database's to remove.
+        const screenshots = await tx
+          .select({ id: proposalScreenshots.id })
+          .from(proposalScreenshots)
+          .innerJoin(proposals, eq(proposals.id, proposalScreenshots.proposalId))
+          .where(eq(proposals.authorId, accountId));
+
         // The rest is the schema's: tokens cascade, and every reference to this person from a
         // Contribution or somebody else's payment record goes to null.
         await tx.delete(accounts).where(eq(accounts.id, accountId));
@@ -131,6 +143,7 @@ export function createRetentionRepository(db: Db): RetentionRepository {
           contributionsRemoved: unpublishedIds.length,
           paymentRecordsKept: paymentRecords.length,
           removedPhotographIds,
+          removedScreenshotIds: screenshots.map((row) => row.id),
         };
       });
     },

@@ -7,6 +7,8 @@ import type {
   SessionResponse,
 } from '@ricambi/contracts';
 import { eq } from 'drizzle-orm';
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import sharp from 'sharp';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -452,6 +454,22 @@ describe('proposing, on a practice system', () => {
       await author.agent.delete(`/api/proposals/${id}/screenshots/${kept.id}`).expect(409);
       await show(author.agent, id, await givenPhotographImage()).expect(409);
       await author.agent.get(kept.displayUrl).expect(200);
+    });
+
+    it('goes, files and all, with an author who is erased (ADR 0007)', async () => {
+      const { agent: administrator } = await anAdministrator();
+      const author = await aProposer();
+      const id = await aDraft(author.agent);
+      const waiting = await aScreenshot(author.agent, id);
+      const sent = await aScreenshot(author.agent, id);
+      await converse(author.agent, id, 'See this.', [{ id: sent.id }]);
+
+      await administrator.delete(`/api/roster/${author.entry.id}`).expect(200);
+
+      // Other tests here leave theirs behind; only this author's are asked after.
+      const left = await readdir(join(app.filesPath, 'proposal-screenshots'));
+      expect(left).not.toContain(waiting.id);
+      expect(left).not.toContain(sent.id);
     });
 
     it('is served only to those with the permission, and a Draft’s only to its author', async () => {
