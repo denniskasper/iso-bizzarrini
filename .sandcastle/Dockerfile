@@ -1,10 +1,12 @@
 FROM node:22-bookworm
 
-# Install system dependencies
+# Install system dependencies. Poppler (`pdfinfo`, `pdftoppm`) because the API suite reads
+# catalog PDFs with it, and an agent that cannot run those tests can only guess at them.
 RUN apt-get update && apt-get install -y \
   git \
   curl \
   jq \
+  poppler-utils \
   && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
