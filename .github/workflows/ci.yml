@@ -31,8 +31,63 @@ env:
   E2E_DATABASE_URL: postgres://ricambi:ricambi@localhost:5432/ricambi_e2e
 
 jobs:
+  # **Code CI has already seen green is not tested again.** A pull request is tested as the
+  # commit it would merge into (`refs/pull/N/merge`), and `green` below leaves a marker named
+  # after that commit's tree when every seam has passed. Merged while `main` stood still, the
+  # merge commit has the same tree, so the push to `main` finds the marker and goes straight to
+  # the preview: the code it deploys is byte for byte the code that passed.
+  #
+  # A Release merge (ADR 0016) changes nothing but the Version and the changelog, and the
+  # release pull request is never tested itself. For a push that changes only those, the tree
+  # looked up is its parent's, the code the Release is cut from.
+  #
+  # Only pushes to `main` are let through this way. A pull request is always tested in full.
+  already-green:
+    name: Already tested?
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      tree: ${{ steps.tree.outputs.tree }}
+      green: ${{ steps.lookup.outputs.green }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+      - id: tree
+        run: echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+      - id: lookup
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tree="$(git rev-parse 'HEAD^{tree}')"
+          changed="$(git diff --name-only HEAD^1 HEAD)"
+          others="$(grep -vxE 'CHANGELOG\.md|\.release-please-manifest\.json|package\.json' <<<"$changed" || true)"
+          # Every line package.json gains or loses is its "version".
+          package_lines="$(git diff -U0 HEAD^1 HEAD -- package.json | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' || true)"
+          if [ -n "$changed" ] && [ -z "$others" ] &&
+            { [ -z "$package_lines" ] || ! grep -qvE '^[-+][[:space:]]*"version":' <<<"$package_lines"; }; then
+            tree="$(git rev-parse 'HEAD^1^{tree}')"
+            echo "Only the Version and the changelog changed, so this looks for its parent's tree, $tree."
+          fi
+          # A marker counts only from a run of this repository, never from a fork's. When the
+          # question cannot be asked, the answer is no and everything is tested.
+          count="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=green-tree-$tree" \
+            --jq "[.artifacts[] | select(.expired == false and .workflow_run.head_repository_id == $GITHUB_REPOSITORY_ID)] | length" \
+            || echo 0)"
+          if [ "$count" -gt 0 ]; then
+            echo "green=true" >> "$GITHUB_OUTPUT"
+            echo "Tree $tree has passed CI before, so this push goes straight to the preview." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "green=false" >> "$GITHUB_OUTPUT"
+          fi
+
   check:
     name: Typecheck, lint and format
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,6 +103,8 @@ jobs:
 
   api-tests:
     name: API seam (real HTTP, real Postgres)
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -84,9 +141,20 @@ jobs:
           path: apps/api/test-results/
           if-no-files-found: ignore
 
+  # Split across four machines, each with its own Postgres and its own built app, running a
+  # quarter of the tests one at a time. One machine ran them all in 17 minutes; four keep the
+  # browser seam about as long as the API seam. Standard runners cost nothing for a public
+  # repository.
   e2e-tests:
-    name: Browser seam (Playwright against the built app)
+    name: Browser seam (${{ matrix.shard }}/4)
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
+    strategy:
+      # Every quarter runs to the end, so one failure shows all the others with it.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         # The official image, from Google's mirror of Docker Hub. Runners share addresses, and
@@ -114,11 +182,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ricambi/web exec playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
-      - run: pnpm test:e2e
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             apps/web/playwright-report/
             apps/web/test-results/
@@ -126,6 +194,8 @@ jobs:
 
   image:
     name: Container image builds
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -146,12 +216,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # The marker `already-green` looks for: this tree passed every seam. Kept as long as a pull
+  # request is likely to wait between its last run and its merge.
+  green:
+    name: Mark the tree as tested
+    needs: [already-green, check, api-tests, e2e-tests, image]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ github.sha }}" > tested-commit.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: green-tree-${{ needs.already-green.outputs.tree }}
+          path: tested-commit.txt
+          retention-days: 14
+
   deploy-preview:
     name: Deploy the preview
-    # Only what is on main, and only once every seam has passed: the preview is what people are
-    # shown, so it never runs anything CI has not seen green.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, api-tests, e2e-tests, image]
+    # Only what is on main, and only once every seam has passed, here or on a tree CI has
+    # already seen green: the preview is what people are shown, so it never runs anything CI
+    # has not seen green.
+    if: >-
+      !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      (needs.already-green.outputs.green == 'true' || (needs.check.result == 'success' &&
+      needs.api-tests.result == 'success' && needs.e2e-tests.result == 'success' &&
+      needs.image.result == 'success'))
+    needs: [already-green, check, api-tests, e2e-tests, image]
     runs-on: ubuntu-latest
     steps:
       # The Dokploy panel is not on the public internet, so the runner joins the tailnet it is on
