@@ -10,7 +10,7 @@ import type {
 import sharp from 'sharp';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { configureConversation } from '../src/composition/conversation.js';
+import { configureConversation, findMachineLogin } from '../src/composition/conversation.js';
 import { loadConfig } from '../src/config/config.js';
 import {
   ConversationPausedError,
@@ -1041,6 +1041,117 @@ describe('a conversation with the API key', () => {
   });
 });
 
+describe('a conversation on this machine’s Claude subscription', () => {
+  const settings = (env: Record<string, string>) =>
+    loadConfig({
+      NODE_ENV: 'test',
+      ENVIRONMENT_NAME: 'test',
+      DATABASE_URL: 'postgres://unused-in-tests/the-connection-is-injected',
+      ...env,
+    });
+
+  it('runs on the subscription method where Claude Code is signed in and there is no key', () => {
+    const configured = configureConversation(settings({}), { machineLogin: true });
+
+    expect(configured.unavailable).toBeNull();
+    expect(configured.method?.name).toBe(
+      'Claude (claude-opus-5-5) with this machine’s Claude Code login',
+    );
+    expect(
+      configureConversation(settings({ PROPOSALS_METHOD: 'subscription' }), { machineLogin: true })
+        .unavailable,
+    ).toBeNull();
+  });
+
+  it('refuses a token handed in through the environment, and says why', () => {
+    const token = 'sk-ant-oat01-test-not-a-real-token';
+
+    for (const env of [
+      { CLAUDE_CODE_OAUTH_TOKEN: token } as Record<string, string>,
+      { CLAUDE_CODE_OAUTH_TOKEN: token, PROPOSALS_METHOD: 'subscription' },
+    ]) {
+      const configured = configureConversation(settings(env), { machineLogin: false });
+      expect(configured.method).toBeNull();
+      expect(configured.unavailable).toMatch(/CLAUDE_CODE_OAUTH_TOKEN is not accepted/);
+      expect(configured.unavailable).toMatch(/login already on this machine/);
+      expect(configured.unavailable).not.toContain(token);
+    }
+    // Not even beside the login: the token is never the conversation's to sign in with.
+    expect(
+      configureConversation(settings({ CLAUDE_CODE_OAUTH_TOKEN: token }), { machineLogin: true }),
+    ).toMatchObject({ method: null, unavailable: expect.stringMatching(/not accepted/) });
+  });
+
+  it('leaves a token alone where the key is the conversation’s credential', () => {
+    const configured = configureConversation(
+      settings({
+        CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-test-not-a-real-token',
+        PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-test-not-a-key',
+      }),
+    );
+
+    expect(configured.unavailable).toBeNull();
+    expect(configured.method?.name).toBe('Claude (claude-opus-5-5) with an API key');
+  });
+
+  it('is unavailable with both credentials, or neither, and says why', () => {
+    const key = 'sk-ant-test-not-a-key';
+    for (const method of [undefined, 'api-key', 'subscription']) {
+      const configured = configureConversation(
+        settings({
+          PROPOSALS_ANTHROPIC_API_KEY: key,
+          ...(method === undefined ? {} : { PROPOSALS_METHOD: method }),
+        }),
+        { machineLogin: true },
+      );
+      expect(configured.method).toBeNull();
+      expect(configured.unavailable).toMatch(/both PROPOSALS_ANTHROPIC_API_KEY and a Claude Code/);
+      expect(configured.unavailable).not.toContain(key);
+    }
+
+    const neither = configureConversation(settings({}), { machineLogin: false });
+    expect(neither.method).toBeNull();
+    expect(neither.unavailable).toMatch(/PROPOSALS_ANTHROPIC_API_KEY/);
+    expect(neither.unavailable).toMatch(/claude auth login/);
+    expect(
+      configureConversation(settings({ PROPOSALS_METHOD: 'subscription' }), {
+        machineLogin: false,
+      }).unavailable,
+    ).toMatch(/not signed in on this machine/);
+  });
+
+  it('hides the Propose button where it is unavailable', async () => {
+    const app = await startTestApp({
+      conversation: configureConversation(settings({ PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-x' }), {
+        machineLogin: true,
+      }),
+    });
+    try {
+      const administrator = await givenAnAdministrator(app);
+      const member = await givenAMember(app, administrator.agent);
+      await letPropose(administrator.agent, member);
+
+      const session = (await member.agent.get('/api/session').expect(200)).body as SessionResponse;
+      expect(session.account?.mayPropose).toBe(false);
+      await member.agent.get('/api/proposals').expect(403);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('is never looked for in Production, nor where the fake conversation is named', async () => {
+    expect(
+      await findMachineLogin(
+        settings({
+          ENVIRONMENT_MODE: 'production',
+          PUBLIC_URL: 'https://ricambi.example',
+        }),
+      ),
+    ).toBe(false);
+    expect(await findMachineLogin(settings({ PROPOSALS_METHOD: 'fake' }))).toBe(false);
+  });
+});
+
 describe('a conversation that is not there', () => {
   let app: TestApp;
   beforeAll(async () => {
@@ -1073,12 +1184,11 @@ describe('a conversation that is not there', () => {
       /PROPOSALS_ANTHROPIC_API_KEY/,
     );
     expect(
-      configureConversation(
-        settings({ PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-test-not-a-key' }),
-        () => {
+      configureConversation(settings({ PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-test-not-a-key' }), {
+        documents: () => {
           throw new Error('ENOENT');
         },
-      ).unavailable,
+      }).unavailable,
     ).toMatch(/built without them/);
     expect(
       configureConversation(

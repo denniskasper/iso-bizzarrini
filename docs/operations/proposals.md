@@ -19,6 +19,23 @@ Every request carries the playbook and the glossary, the product spec and the AD
 Version running, which the image is built with. Those are cached for an hour, so an author who
 takes their time does not pay to send them again each turn. Expect roughly $1–3 a conversation.
 
+## In Development, on the developer's own subscription
+
+On the developer's machine the conversation can run on the **`subscription` method** instead:
+the same model, playbook, documents and finished Proposal, through the Claude Agent SDK on the
+Claude Code login already on the machine, with every tool switched off, so it can only talk. It
+costs no API money; it draws on the plan's limits.
+
+1. Sign in to Claude Code with the subscription: `claude auth login`.
+2. Leave `PROPOSALS_ANTHROPIC_API_KEY` unset. With both the key and a login, neither is used.
+3. Start the API (`pnpm dev`). Its log says `Proposals are open`, or `Proposals are closed` and
+   why.
+
+It accepts only that login. A token in `CLAUDE_CODE_OAUTH_TOKEN` is refused, and every key and
+token is taken out of Claude Code's environment, so a server, which has no signed-in Claude Code,
+can never run Proposals on somebody's subscription (ADR 0012, as amended). The Agent SDK is a
+development dependency and is not in the image.
+
 ## Giving Integration the key
 
 1. **A workspace of its own.** In the Anthropic Console of `<ANTHROPIC_ORGANISATION>`, create a
