@@ -21,6 +21,7 @@ test('choosing a catalog shows how many pages it has, and a range past them cann
   const chosen = page.getByTestId('catalog-chosen');
   await expect(chosen).toContainText('catalog.pdf');
   await expect(chosen).toContainText('5 pages');
+  await expect(page.getByTestId('catalog-counting')).toHaveCount(0);
 
   await page.getByLabel('Model').selectOption({ index: 1 });
   await page.getByLabel('From page').fill('2');
