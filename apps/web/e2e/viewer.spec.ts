@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { drawingOf, openFirstDrawing } from './support/archive.js';
+import { aFrameLater, drawingOf, openFirstDrawing } from './support/archive.js';
 
 /**
  * Reading a drawing — the surface the whole product is for, and the one thing at this seam that
@@ -109,6 +109,7 @@ async function zoomIn(page: Page, presses: number): Promise<void> {
   for (let press = 0; press < presses; press += 1) {
     await page.getByRole('button', { name: 'Zoom in' }).click();
   }
+  await aFrameLater(page);
 }
 
 /**
@@ -133,6 +134,7 @@ async function dragBy(page: Page, by: Point, times = 1): Promise<void> {
     await page.mouse.move(from.x + by.x, from.y + by.y, { steps: 8 });
     await page.mouse.up();
   }
+  await aFrameLater(page);
 }
 
 /**

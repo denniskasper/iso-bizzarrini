@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { borrowAnImage, openADrawingOfYourOwn } from './support/archive.js';
+import { borrowAnImage, forThisAttempt, openADrawingOfYourOwn } from './support/archive.js';
 import { landed, PRACTICE, signInAs } from './support/gate.js';
 
 /**
@@ -80,7 +80,7 @@ test.describe('an Editor with something waiting', () => {
   test('is told so in the chrome, fills the gap from what the member wrote, and publishes it', async ({
     page,
   }, info) => {
-    const named = `review-${info.project.name}`;
+    const named = forThisAttempt(`review-${info.project.name}`);
     const tavolaId = await aMemberHasWritten(page, named, {
       text: 'This is the dust shield.\nMine is stamped on the back.',
       photograph: true,
@@ -143,7 +143,7 @@ test.describe('an Editor with something waiting', () => {
   test('discards one only after being asked again, and then nobody reads it', async ({
     page,
   }, info) => {
-    const named = `discard-${info.project.name}`;
+    const named = forThisAttempt(`discard-${info.project.name}`);
     const tavolaId = await aMemberHasWritten(page, named, { text: 'Cheap parts at my shop.' });
 
     await become(page, PRACTICE.editor);

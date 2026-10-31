@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openADrawingOfYourOwn, openGrifo } from './support/archive.js';
+import { forThisAttempt, openADrawingOfYourOwn, openGrifo } from './support/archive.js';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
@@ -140,7 +140,7 @@ test.describe('filing a drawing', () => {
   test('moves it between Categories, and never loses one filed under none', async ({
     page,
   }, testInfo) => {
-    const number = `C8 ${testInfo.project.name}`;
+    const number = forThisAttempt(`C8 ${testInfo.project.name}`);
     await openADrawingOfYourOwn(page, number);
 
     // It was recorded under Brakes; an Editor decides it is the steering after all.
