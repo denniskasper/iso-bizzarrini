@@ -70,7 +70,7 @@ const STEPS: Step[] = [
           <b className="tabular">2</b>.
         </li>
         <li>
-          Press <b>Estimate the cost</b>, enter <b className="tabular">2</b> as the spending limit,
+          Press <b>Estimate the cost</b>, enter <b className="tabular">5</b> as the spending limit,
           then <b>Start reading</b>.
         </li>
       </ol>
