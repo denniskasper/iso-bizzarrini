@@ -36,7 +36,7 @@ test('somebody let propose starts a Fix from a Tavola’s page and is answered',
   await proposer.getByTestId('propose').click();
   const panel = proposer.getByTestId('proposal-panel');
   await expect(panel.getByText('What do you bring?')).toBeVisible();
-  await panel.getByRole('button', { name: /^Fix/ }).click();
+  await panel.getByRole('button', { name: 'Fix Something is wrong.' }).click();
 
   // What was on screen is attached without typing it, beside the line about names.
   const attached = panel.getByTestId('proposal-context');

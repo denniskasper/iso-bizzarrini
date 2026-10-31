@@ -294,6 +294,12 @@ describe('proposing, on a practice system', () => {
       const read = (await author.agent.get(`/api/proposals/${id}`).expect(200)).body
         .proposal as Proposal;
       expect(read.opening).toBe('The drawing does not open.');
+      // The Drafts list names it by the same words, read beside each Draft in one query.
+      const listed = (await author.agent.get('/api/proposals').expect(200))
+        .body as ProposalsResponse;
+      expect(listed.drafts.find((draft) => draft.id === id)?.opening).toBe(
+        'The drawing does not open.',
+      );
       expect(read.turns.map((turn) => [turn.sequence, turn.speaker, turn.text])).toEqual([
         [0, 'author', 'The drawing does not open.'],
         [1, 'conversation', FAKE_ANSWER],

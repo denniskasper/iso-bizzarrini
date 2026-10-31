@@ -37,12 +37,18 @@ export interface ProposalRepository {
 }
 
 export function createProposalRepository(db: DbSession): ProposalRepository {
-  /** What the author wrote first, read beside each Draft rather than once per row. */
+  /**
+   * What the author wrote first, read beside each Draft rather than once per row. Spelled out
+   * with qualified names: in a select from one table, Drizzle writes its columns unqualified, so
+   * `proposals.id` inside this subquery would be read as the turn's own `id` and match nothing.
+   */
+  const turn = sql.identifier('opening_turn');
+  const column = (name: string) => sql`${turn}.${sql.identifier(name)}`;
   const opening = sql<string | null>`(
-    select ${proposalTurns.text} from ${proposalTurns}
-    where ${proposalTurns.proposalId} = ${proposals.id}
-      and ${proposalTurns.speaker} = 'author'
-    order by ${proposalTurns.sequence}
+    select ${column(proposalTurns.text.name)} from ${proposalTurns} as ${turn}
+    where ${column(proposalTurns.proposalId.name)} = ${proposals}.${sql.identifier(proposals.id.name)}
+      and ${column(proposalTurns.speaker.name)} = 'author'
+    order by ${column(proposalTurns.sequence.name)}
     limit 1
   )`;
 
