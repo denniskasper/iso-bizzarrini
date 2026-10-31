@@ -2277,7 +2277,7 @@ export interface VisitorListing {
 }
 
 /**
- * `GET /api/landing/samples/:tavolaId` — **a Sample, as a Visitor reads it** (issue #132), open
+ * `GET /api/landing/samples/:shownTavolaId` — **a Sample, as a Visitor reads it** (issue #132), open
  * to anybody. A 404 for a Tavola that is not a Sample, in the same words as for one that does not
  * exist, so the answer says nothing about it.
  */
