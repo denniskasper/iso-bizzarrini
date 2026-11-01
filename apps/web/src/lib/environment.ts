@@ -18,3 +18,19 @@ export function environmentMode(): EnvironmentMode {
     ? 'production'
     : 'non-production';
 }
+
+/**
+ * **Which system this is** (GLOSSARY): Production, Integration or Development. Development is a
+ * page `vite dev` served and marked, on a developer's own machine. Any other system that is not
+ * Production is a practice system, and reads as Integration.
+ */
+export type EnvironmentSystem = 'production' | 'integration' | 'development';
+
+export function environmentSystem(): EnvironmentSystem {
+  if (environmentMode() === 'production') {
+    return 'production';
+  }
+  return document.documentElement.dataset.environmentSystem === 'development'
+    ? 'development'
+    : 'integration';
+}
