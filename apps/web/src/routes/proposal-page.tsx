@@ -14,6 +14,7 @@ import { KIND_NAME, OPENING_QUESTION, useDecide, useProposal } from '@/lib/propo
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { StatusTag } from '@/routes/proposals-page';
+import { Written } from '@/components/proposals/written';
 
 /**
  * **One handed-over Proposal** (issue #153): where it stands and why, the finished Proposal, what
@@ -110,7 +111,7 @@ function Whole({ proposal }: { proposal: Proposal }) {
                 speaker={turn.speaker}
                 author={proposal.mine ? 'You' : 'The author'}
               >
-                {turn.text}
+                {turn.speaker === 'conversation' ? <Written text={turn.text} /> : turn.text}
                 {turn.screenshots.length > 0 && (
                   <div className="mt-3">
                     <Screenshots screenshots={turn.screenshots} />

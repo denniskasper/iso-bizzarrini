@@ -72,18 +72,40 @@ test('somebody let propose starts a Fix from a Tavola’s page, hands it over, a
   await expect(unsent.getByRole('img', { name: 'Screenshot 1 to send' })).toBeVisible();
   await panel.getByLabel('Note on screenshot 1').fill('The circle at the top left');
 
-  await panel.getByLabel('Your answer').fill('The numbers on this sheet are hard to read.');
+  // Its own words on each project: both sign in as the one Editor on the one server, and the
+  // Draft opened again further on must be this run's, not the other project's.
+  const said = `The numbers on this sheet are hard to read on ${test.info().project.name}.`;
+  await panel.getByLabel('Your answer').fill(said);
+  // The answer is held back, to see the field while it is awaited.
+  let answerMay: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (answerMay = resolve));
+  await proposer.route(
+    '**/api/proposals/*/turns',
+    async (route) => {
+      await held;
+      await route.continue();
+    },
+    { times: 1 },
+  );
   // Exactly: “Remove screenshot 1 to send” is a button whose name holds “Send” too.
   await panel.getByRole('button', { name: 'Send', exact: true }).click();
+  // Sent, the words leave the field at once: left there, they read as not sent.
+  await expect(panel.getByLabel('Your answer')).toHaveValue('');
+  answerMay();
 
   const conversation = panel.getByTestId('conversation');
-  await expect(conversation).toContainText('The numbers on this sheet are hard to read.');
+  await expect(conversation).toContainText(said);
   // Sent, it is the turn's, with its note.
   const sent = conversation.getByTestId('turn-screenshots');
   await expect(sent.getByRole('img', { name: 'Screenshot 1' })).toBeVisible();
   await expect(sent).toContainText('The circle at the top left');
   await expect(unsent).toHaveCount(0);
   await expect(conversation).toContainText('This is the practice conversation');
+  // The answer is written in Markdown, and shown formatted rather than as its marks.
+  const answer = conversation.locator('[data-speaker="conversation"]').last();
+  await expect(answer.getByRole('listitem')).toHaveCount(2);
+  await expect(answer.locator('strong')).toHaveText('What did you expect to happen instead?');
+  await expect(answer).not.toContainText('**');
   await expect(panel.getByRole('button', { name: 'Send', exact: true })).toBeVisible();
 
   // Closed and opened again, the Draft is there to carry on.
@@ -91,7 +113,7 @@ test('somebody let propose starts a Fix from a Tavola’s page, hands it over, a
   await expect(panel).toHaveCount(0);
   await proposer.getByTestId('propose').click();
   const drafts = panel.getByTestId('drafts');
-  await drafts.getByText('The numbers on this sheet are hard to read.').first().click();
+  await drafts.getByText(said).first().click();
   await expect(panel.getByTestId('conversation')).toContainText(
     'This is the practice conversation',
   );
@@ -101,7 +123,7 @@ test('somebody let propose starts a Fix from a Tavola’s page, hands it over, a
   const finished = panel.getByTestId('finished-proposal');
   await expect(finished).toContainText('A practice Fix');
   await expect(finished).toContainText('What was expected');
-  await expect(finished).toContainText('The numbers on this sheet are hard to read.');
+  await expect(finished).toContainText(said);
   await expect(finished.getByRole('img', { name: 'Screenshot 1' })).toBeVisible();
   await expect(finished).toContainText('The circle at the top left');
 

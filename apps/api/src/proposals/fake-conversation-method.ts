@@ -7,8 +7,10 @@ import type { ConversationMethod } from './conversation-method.js';
  * advice.
  */
 export const FAKE_ANSWER =
-  'Thank you. This is the practice conversation, which answers everybody the same way. ' +
-  'What did you expect to happen instead?';
+  'Thank you. This is the practice conversation, which answers everybody the same way.\n\n' +
+  'Two things, as the real one would ask them:\n\n' +
+  '- **What did you expect to happen instead?**\n' +
+  '- Where were you when it happened?';
 
 /** The model the fake's summaries say wrote them. */
 export const FAKE_MODEL = 'The fake conversation';
