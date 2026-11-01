@@ -259,6 +259,12 @@ const environmentSchema = z.object({
    * **Production refuses to start with it** (ADR 0012, as amended). Never shown, logged or written.
    */
   PROPOSALS_ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  /**
+   * The monthly spend limit set on the conversation's workspace at the provider, in US dollars,
+   * so an Administrator is shown this month's estimate against it. Told, not read: Ricambi has
+   * no credential that could read the provider's billing. Unset, the estimate stands alone.
+   */
+  PROPOSALS_MONTHLY_LIMIT_USD: z.preprocess(blankAsUnset, z.coerce.number().positive().optional()),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -340,6 +346,8 @@ export interface ProposalSettings {
    * conversation refuses it, and takes only the machine's own login (ADR 0012, as amended).
    */
   tokenInEnvironment: boolean;
+  /** The provider's monthly limit for the conversation, in US dollars, where it is told. */
+  monthlyLimitUsd: number | null;
 }
 
 export type ReadingMethodKind = NonNullable<Environment['READING_METHOD']>;
@@ -419,6 +427,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       method: env.PROPOSALS_METHOD,
       apiKey: env.PROPOSALS_ANTHROPIC_API_KEY,
       tokenInEnvironment: env.CLAUDE_CODE_OAUTH_TOKEN !== undefined,
+      monthlyLimitUsd: env.PROPOSALS_MONTHLY_LIMIT_USD ?? null,
     },
   };
 }

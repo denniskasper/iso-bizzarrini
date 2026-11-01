@@ -87,6 +87,7 @@ export default defineConfig({
       ANTHROPIC_API_KEY: '',
       // The practice conversation (issue #152), which answers fixed text: no model either.
       PROPOSALS_METHOD: 'fake',
+      PROPOSALS_MONTHLY_LIMIT_USD: '25',
       PROPOSALS_ANTHROPIC_API_KEY: '',
       // The scans this run ingests, thrown away with the rest of the run's output.
       FILE_STORAGE_PATH: fileURLToPath(new URL('./test-results/files', import.meta.url)),

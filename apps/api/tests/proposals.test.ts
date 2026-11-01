@@ -17,6 +17,7 @@ import {
   ConversationUnavailableError,
   type Conversation,
   type ConversationMethod,
+  type ConversationUsage,
 } from '../src/proposals/conversation-method.js';
 import { FAKE_ANSWER, FAKE_SUMMARY } from '../src/proposals/fake-conversation-method.js';
 import { givenModel, givenPhotographImage, givenTavola } from './support/fixtures.js';
@@ -792,6 +793,7 @@ describe('what the conversation is given', () => {
   const heard: Conversation[] = [];
   const listening: ConversationMethod = {
     name: 'A conversation that writes down what it was given',
+    priced: false,
     async *answer(conversation) {
       heard.push(structuredClone(conversation));
       yield 'Noted.';
@@ -951,6 +953,7 @@ describe('a conversation that cannot answer', () => {
   let failure: { error: Error; after: string[] } = { error: new Error('unset'), after: [] };
   const failing: ConversationMethod = {
     name: 'A conversation that fails as it is told to',
+    priced: false,
     async *answer() {
       yield* failure.after;
       throw failure.error;
@@ -1234,5 +1237,113 @@ describe('proposing, in Production', () => {
       .patch(`/api/roster/${member.entry.id}`)
       .send({ mayPropose: false })
       .expect(200);
+  });
+});
+
+describe('what the conversations cost', () => {
+  /** A priced conversation whose every answer costs a dime and every summary a nickel. */
+  const priced: ConversationMethod = {
+    name: 'A conversation that says what it cost',
+    priced: true,
+    async *answer(_conversation, used) {
+      used?.(usage('answer', 0.1));
+      yield 'Noted.';
+    },
+    async summarise(conversation, used) {
+      used?.(usage('summary', 0.05));
+      return FAKE_SUMMARY[conversation.kind];
+    },
+  };
+
+  function usage(request: ConversationUsage['request'], estimatedUsd: number): ConversationUsage {
+    return {
+      request,
+      model: 'claude-sonnet-5-5',
+      inputTokens: 0,
+      cacheWriteTokens: 0,
+      cacheReadTokens: 0,
+      outputTokens: 0,
+      estimatedUsd,
+    };
+  }
+
+  async function startedWith(method: ConversationMethod): Promise<TestApp> {
+    return startTestApp({
+      build: BUILD,
+      env: { PROPOSALS_MONTHLY_LIMIT_USD: '25' },
+      conversation: { method, unavailable: null },
+    });
+  }
+
+  it('is told to an Administrator: this month, last month, the limit, and each Proposal’s', async () => {
+    const app = await startedWith(priced);
+    try {
+      const administrator = await givenAnAdministrator(app);
+      await letPropose(administrator.agent, administrator);
+      const editor = await givenAMember(app, administrator.agent);
+      await letPropose(administrator.agent, editor);
+
+      // Two answers and a summary: $0.25, handed over.
+      const id = await aDraft(editor.agent);
+      await converse(editor.agent, id, 'The numbers are hard to read.');
+      await converse(editor.agent, id, 'On a phone.');
+      await summarise(editor.agent, id);
+      await editor.agent.post(`/api/proposals/${id}/hand-over`).expect(200);
+
+      // One answer last month: $0.10, on a Draft of the Administrator's.
+      const now = app.clock.now();
+      app.clock.setTo(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15)));
+      const earlier = await aDraft(administrator.agent, 'idea');
+      await converse(administrator.agent, earlier, 'Members could note their own car.');
+      // And one this month on a Draft discarded afterwards: $0.10, still paid for.
+      app.clock.setTo(now);
+      const discarded = await aDraft(administrator.agent);
+      await converse(administrator.agent, discarded, 'Never mind.');
+      await administrator.agent.delete(`/api/proposals/${discarded}`).expect(204);
+
+      const seen = await listed(administrator.agent);
+      expect(seen.costs).toEqual({
+        thisMonthUsd: 0.35,
+        lastMonthUsd: 0.1,
+        conversationsThisMonth: 1,
+        monthlyLimitUsd: 25,
+      });
+      expect(seen.handedOver.map((proposal) => proposal.estimatedCostUsd)).toEqual([0.25]);
+      expect(seen.drafts.map((proposal) => proposal.estimatedCostUsd)).toEqual([0.1]);
+      expect((await readProposal(administrator.agent, id)).estimatedCostUsd).toBe(0.25);
+
+      // Somebody else let propose reads the Proposals, and none of the money.
+      const theirs = await listed(editor.agent);
+      expect(theirs.costs).toBeNull();
+      expect(theirs.handedOver.map((proposal) => proposal.estimatedCostUsd)).toEqual([null]);
+      expect((await readProposal(editor.agent, id)).estimatedCostUsd).toBeNull();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('is nothing where the conversation is not billed by the request', async () => {
+    const app = await startedWith({
+      name: 'A conversation on somebody’s subscription',
+      priced: false,
+      async *answer() {
+        yield 'Noted.';
+      },
+      async summarise(conversation) {
+        return FAKE_SUMMARY[conversation.kind];
+      },
+    });
+    try {
+      const administrator = await givenAnAdministrator(app);
+      await letPropose(administrator.agent, administrator);
+      const id = await aDraft(administrator.agent);
+      await converse(administrator.agent, id, 'The numbers are hard to read.');
+
+      const seen = await listed(administrator.agent);
+      expect(seen.costs).toBeNull();
+      expect(seen.drafts.map((proposal) => proposal.estimatedCostUsd)).toEqual([null]);
+    } finally {
+      await app.close();
+    }
   });
 });

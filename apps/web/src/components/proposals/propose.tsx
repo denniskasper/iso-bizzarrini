@@ -30,6 +30,7 @@ import {
   KIND_NAME,
   OPENING_QUESTION,
   STATUS_NAME,
+  usd,
   useConverse,
   useDiscard,
   useDrafts,
@@ -163,6 +164,16 @@ function Choosing({ onOpen }: { onOpen: (proposalId: string) => void }) {
         <div className="mt-3">
           <Refusal>{refusalText(start.error)}</Refusal>
         </div>
+      )}
+      {/* For an Administrator only, and only once there is a month's figure to go by. */}
+      {drafts.data?.costs && drafts.data.costs.conversationsThisMonth > 0 && (
+        <p className="mt-3 text-sm text-muted" data-testid="typical-cost">
+          A conversation costs about{' '}
+          <span className="tabular">
+            {usd(drafts.data.costs.thisMonthUsd / drafts.data.costs.conversationsThisMonth)}
+          </span>{' '}
+          this month.
+        </p>
       )}
 
       <h3 className="label mt-10">Your drafts</h3>

@@ -1,8 +1,8 @@
-import type { ProposalListing, ProposalStatus } from '@ricambi/contracts';
+import type { ProposalCosts, ProposalListing, ProposalStatus } from '@ricambi/contracts';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
-import { KIND_NAME, STATUS_NAME, useProposals } from '@/lib/proposals';
+import { KIND_NAME, STATUS_NAME, usd, useProposals } from '@/lib/proposals';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +37,8 @@ export function ProposalsPage() {
       <p className="mt-4 max-w-measure text-lg text-pretty text-muted">
         Every Fix and Idea handed over, and what became of it. New ones are at the top.
       </p>
+
+      {proposals.data?.costs && <Costs costs={proposals.data.costs} />}
 
       <div
         role="group"
@@ -108,8 +110,80 @@ function ProposalRow({ proposal }: { proposal: ProposalListing }) {
             , handed over <span className="tabular">{proposal.handedOverAt.slice(0, 10)}</span>
           </>
         )}
+        {proposal.estimatedCostUsd !== null && (
+          <>
+            , about <span className="tabular">{usd(proposal.estimatedCostUsd)}</span>
+          </>
+        )}
       </span>
     </Link>
+  );
+}
+
+/**
+ * **What the conversations cost**, for an Administrator: this month against the provider's
+ * limit where Ricambi is told it, last month beside it, and what one conversation comes to. The
+ * one figure that matters gets the one bar; the rest is plain text.
+ */
+function Costs({ costs }: { costs: ProposalCosts }) {
+  const { thisMonthUsd, lastMonthUsd, conversationsThisMonth, monthlyLimitUsd } = costs;
+  const share = monthlyLimitUsd === null ? null : Math.min(thisMonthUsd / monthlyLimitUsd, 1);
+  return (
+    <section
+      aria-labelledby="proposal-costs-heading"
+      className="mt-8 max-w-measure border-y border-line py-5"
+      data-testid="proposal-costs"
+    >
+      <h2 id="proposal-costs-heading" className="text-sm font-semibold text-muted">
+        What the conversations cost
+      </h2>
+      <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-4">
+        <div>
+          <dt className="text-sm text-muted">This month</dt>
+          <dd className="mt-1 text-2xl text-text">
+            about <span className="tabular">{usd(thisMonthUsd)}</span>
+            {monthlyLimitUsd !== null && (
+              <span className="text-base text-muted">
+                {' '}
+                of <span className="tabular">{usd(monthlyLimitUsd)}</span>
+              </span>
+            )}
+          </dd>
+          {share !== null && (
+            <dd className="mt-2 h-1 rounded-full bg-line" aria-hidden="true">
+              <span
+                className="block h-1 rounded-full bg-mark"
+                style={{ width: `${Math.max(share * 100, share > 0 ? 2 : 0)}%` }}
+              />
+            </dd>
+          )}
+        </div>
+        <div>
+          <dt className="text-sm text-muted">Last month</dt>
+          <dd className="mt-1 text-2xl text-text">
+            about <span className="tabular">{usd(lastMonthUsd)}</span>
+          </dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="sr-only">Conversations this month</dt>
+          <dd className="text-sm text-muted">
+            <span className="tabular">{conversationsThisMonth}</span>{' '}
+            {conversationsThisMonth === 1 ? 'conversation' : 'conversations'} this month
+            {conversationsThisMonth > 0 && (
+              <>
+                , about{' '}
+                <span className="tabular">{usd(thisMonthUsd / conversationsThisMonth)}</span> each
+              </>
+            )}
+            .
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-sm text-pretty text-muted">
+        Estimated at list prices from what Ricambi sent. The bill itself is in the Anthropic
+        Console.
+      </p>
+    </section>
   );
 }
 

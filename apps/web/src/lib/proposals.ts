@@ -72,6 +72,14 @@ export const OPENING_QUESTION: Record<ProposalKind, string> = {
 export const KIND_NAME: Record<ProposalKind, string> = { fix: 'Fix', idea: 'Idea' };
 
 /**
+ * **An estimated cost, as it is shown**: to the cent, and never more exact than the estimate
+ * is. Something spent that rounds to nothing is "under $0.01", not "$0.00".
+ */
+export function usd(amount: number): string {
+  return amount > 0 && amount < 0.005 ? 'under $0.01' : `$${amount.toFixed(2)}`;
+}
+
+/**
  * One turn sent and its answer **as it is written**. `answering` is the answer so far, while it
  * is; once whole, both turns join the Proposal as kept and the Drafts are read again.
  */

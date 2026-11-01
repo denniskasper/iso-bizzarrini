@@ -18,14 +18,28 @@ import type {
 export interface ConversationMethod {
   /** What the conversation is had with, for an operator. Never a credential. */
   readonly name: string;
-  /** The next answer, as it is written. Ends when the answer does. */
-  answer(conversation: Conversation): AsyncIterable<string>;
+  /**
+   * Whether each request is billed, and so has a cost worth keeping: the API key's are, and the
+   * fake's (at nothing); a subscription's are not.
+   */
+  readonly priced: boolean;
+  /**
+   * The next answer, as it is written. Ends when the answer does. `used` is told what the
+   * request used, where it is priced, once the provider has said.
+   */
+  answer(
+    conversation: Conversation,
+    used?: (usage: ConversationUsage) => void,
+  ): AsyncIterable<string>;
   /**
    * **The finished Proposal**, as structured output in the fixed shape for the conversation's
    * kind, naming the model that wrote it. The author's own words are not the method's to write:
    * the archive copies them from the turns, so they stay verbatim.
    */
-  summarise(conversation: Conversation): Promise<WrittenSummary>;
+  summarise(
+    conversation: Conversation,
+    used?: (usage: ConversationUsage) => void,
+  ): Promise<WrittenSummary>;
 }
 
 /** What the method writes of a finished Proposal: everything but the author's own words. */

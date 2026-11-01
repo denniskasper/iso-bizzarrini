@@ -122,9 +122,11 @@ export function createProposalController(dependencies: {
   const { gate, proposalService, logger } = dependencies;
 
   function proposer(response: Response): Proposer {
+    const { account } = gate.whoIsSignedIn(response);
     return {
-      accountId: gate.whoIsSignedIn(response).account.id,
+      accountId: account.id,
       seesUnchecked: gate.seesUnchecked(response),
+      isAdministrator: account.role === 'administrator',
     };
   }
 

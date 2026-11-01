@@ -107,8 +107,9 @@ export function createClaudeApiConversationMethod(
 
   return {
     name: `Claude (${CONVERSATION_MODEL}) with an API key`,
+    priced: true,
 
-    async *answer(conversation) {
+    async *answer(conversation, used) {
       try {
         const stream = client.messages.stream({
           model: CONVERSATION_MODEL,
@@ -123,7 +124,9 @@ export function createClaudeApiConversationMethod(
           }
         }
         const finished = await stream.finalMessage();
-        options.onUsage?.(usageOf('answer', finished.usage));
+        const spent = usageOf('answer', finished.usage);
+        options.onUsage?.(spent);
+        used?.(spent);
         if (finished.stop_reason === 'refusal') {
           throw new ConversationUnavailableError('The model declined to answer.');
         }
@@ -132,7 +135,7 @@ export function createClaudeApiConversationMethod(
       }
     },
 
-    async summarise(conversation) {
+    async summarise(conversation, used) {
       let response;
       try {
         response = await client.messages.parse({
@@ -151,7 +154,9 @@ export function createClaudeApiConversationMethod(
       } catch (error) {
         throw classify(error);
       }
-      options.onUsage?.(usageOf('summary', response.usage));
+      const spent = usageOf('summary', response.usage);
+      options.onUsage?.(spent);
+      used?.(spent);
 
       if (response.stop_reason === 'refusal') {
         throw new ConversationUnavailableError('The model declined to write the Proposal.');

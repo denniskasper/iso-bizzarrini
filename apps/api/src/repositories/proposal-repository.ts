@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   exists,
+  gte,
   inArray,
   isNotNull,
   isNull,
@@ -14,6 +15,7 @@ import {
 } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
+  proposalMonthlyCosts,
   proposals,
   proposalScreenshots,
   proposalTurns,
@@ -60,6 +62,24 @@ export interface ProposalRepository {
    * written while the author hands over never replaces the one they handed over.
    */
   keepSummary(id: string, summary: ProposalSummary): Promise<ProposalRow | null>;
+  /**
+   * What one request cost, in millionths of a dollar, added to the Proposal's own total and to
+   * the month (`YYYY-MM`, UTC) it was made in.
+   */
+  addCost(id: string, microUsd: number, month: string): Promise<void>;
+  /**
+   * What was spent in two months, and how many of the Proposals started since `since` were
+   * priced: those whose conversation is billed by the request.
+   */
+  costs(
+    thisMonth: string,
+    lastMonth: string,
+    since: Date,
+  ): Promise<{
+    thisMonthMicroUsd: number;
+    lastMonthMicroUsd: number;
+    conversationsThisMonth: number;
+  }>;
   /**
    * The Draft made New, if it still is a Draft with a summary and no screenshot waiting to be
    * sent (issue #154). Null where it is not, so two presses at once hand it over once.
@@ -209,6 +229,44 @@ export function createProposalRepository(db: DbSession): ProposalRepository {
         .where(and(eq(proposals.id, id), eq(proposals.status, 'draft')))
         .returning();
       return row ?? null;
+    },
+
+    async addCost(id, microUsd, month) {
+      await db
+        .update(proposals)
+        .set({
+          estimatedCostMicroUsd: sql`coalesce(${proposals.estimatedCostMicroUsd}, 0) + ${microUsd}`,
+        })
+        .where(eq(proposals.id, id));
+      await db
+        .insert(proposalMonthlyCosts)
+        .values({ month, estimatedCostMicroUsd: microUsd })
+        .onConflictDoUpdate({
+          target: proposalMonthlyCosts.month,
+          set: {
+            estimatedCostMicroUsd: sql`${proposalMonthlyCosts.estimatedCostMicroUsd} + ${microUsd}`,
+          },
+        });
+    },
+
+    async costs(thisMonth, lastMonth, since) {
+      const [months, [counted]] = await Promise.all([
+        db
+          .select()
+          .from(proposalMonthlyCosts)
+          .where(inArray(proposalMonthlyCosts.month, [thisMonth, lastMonth])),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(proposals)
+          .where(and(isNotNull(proposals.estimatedCostMicroUsd), gte(proposals.startedAt, since))),
+      ]);
+      const spent = (month: string) =>
+        months.find((row) => row.month === month)?.estimatedCostMicroUsd ?? 0;
+      return {
+        thisMonthMicroUsd: spent(thisMonth),
+        lastMonthMicroUsd: spent(lastMonth),
+        conversationsThisMonth: counted?.count ?? 0,
+      };
     },
 
     async handOver(id, at) {
