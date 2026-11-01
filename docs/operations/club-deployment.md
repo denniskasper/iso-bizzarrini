@@ -247,6 +247,39 @@ taken.** A backup nobody has restored is a hope.
 6. **Remove the service and its volumes** in Dokploy. Real data does not linger in a test.
 7. Record the date, the backup restored, and who did it.
 
+## The Club's infra repository
+
+Most of what makes this host work is written on the host and nowhere else: the Docker daemon's
+log driver and the journal's retention ([`log-retention.md`](log-retention.md)), Traefik's
+static configuration, the backup script and its schedule, and how each Dokploy service is set
+up. A VPS promises nothing about its disk, so **once the Club's server exists, the Club's GitHub
+organisation holds a private repository, `infra`**, beside Ricambi and the Club's website, and
+every one of those settings is kept there ([ADR 0009](../adr/0009-deployment.md), as amended).
+
+What goes into it:
+
+- **The host's own files**, as they are on the host and at the same paths:
+  `/etc/docker/daemon.json`, `/etc/systemd/journald.conf.d/retention.conf`,
+  `/etc/dokploy/traefik/traefik.yml` and anything beside it that was changed by hand, any
+  `logrotate` entry, the backup script and the timer or crontab that runs it.
+- **Each Dokploy service**: its name, project, repository, branch, compose path, domain and
+  port, and whether it deploys automatically.
+- **The names of each service's environment variables**, and where each value is kept. Not the
+  values.
+- **The record** this procedure asks for: who ran the checklist, which backup was restored, and
+  when.
+
+What never goes into it: **a password, a key or a token** — `POSTGRES_PASSWORD`,
+`SESSION_SECRET`, the SMTP and Stripe credentials, the backup encryption key. They stay in
+Dokploy's environment editor, and the backup key with `<KEY_HOLDERS>`. Being private does not
+make a repository a place for secrets: it is cloned, forked and read by whoever is given access.
+Hostnames may be written there; that repository, unlike this one, is the Club's alone.
+
+**A change on the host is a commit in `infra`.** Edit the file in the repository, then copy it to
+the host, never the other way round. If somebody changes something on the host first, commit it
+the same day. The pairing of Traefik's idle window with `POOLING_CLIENT_IDLE_WINDOW_MS` (ADR 0009)
+is the reason: a change to one that nobody can see is how the other gets left behind.
+
 ## The non-production system beside it
 
 The second Compose service on the same host is the one Editors practise in and the board
@@ -288,6 +321,8 @@ None of this can be done from the repository, and the archive does not open with
       over a private network, as the preview's is.
 - [ ] **The processor agreement with the hosting provider**, signed before any member's data is
       on the host — and the hosting provider named as a Processor on the Club's screen.
+- [ ] **The `infra` repository** in the Club's GitHub organisation, private, holding the host's
+      settings as [the section above](#the-clubs-infra-repository) lists, and nobody's secret.
 - [ ] **The Compose services in Dokploy**: the Club's, from `docker/club/compose.yml`, and the
       non-production system's, from `docker/preview/compose.yml`, each with its own secrets.
 - [ ] **DNS**: `<RICAMBI_HOST>` and `<PRACTICE_HOST>` pointing at the host.
