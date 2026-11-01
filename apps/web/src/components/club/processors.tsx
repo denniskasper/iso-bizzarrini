@@ -39,7 +39,7 @@ export function Processors() {
 
   return (
     <section className="mt-16 border-t border-line pt-8" data-testid="processors">
-      <h2 className="text-2xl font-semibold text-balance">Who handles members’ data</h2>
+      <h2 className="text-2xl text-balance">Who handles members’ data</h2>
       <p className="mt-4 text-pretty text-muted">
         The companies that run part of Ricambi for the Club. The privacy statement names each one
         written here; whether its agreement is signed is the Club’s own record and is not published.

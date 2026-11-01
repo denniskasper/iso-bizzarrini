@@ -1,7 +1,7 @@
 /*
  * Settles what the document is before first paint: which theme it wears, and which environment
  * it belongs to. Both have to be decided here — the theme so the archive never flashes the
- * wrong one at someone working in a dark garage, the environment so a practice system is never
+ * wrong one at someone who chose dark for a dim garage, the environment so a practice system is never
  * for an instant indistinguishable from the real archive.
  *
  * A separate file rather than an inline script on purpose: the API serves this app behind a
@@ -30,14 +30,16 @@
     document.title = (development ? 'DEV — ' : 'DEMO — ') + document.title;
   }
 
+  /*
+   * **Light unless the member chose dark** (ADR 0020): a white page in the graphite frame, as on
+   * the Club website, whatever the device's own setting is. A choice made with the theme button
+   * is remembered and outranks the default.
+   */
   try {
-    var stored = localStorage.getItem(STORAGE_KEY);
-    var explicit = stored === 'light' || stored === 'dark';
-    var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-    var theme = explicit ? stored : prefersLight ? 'light' : 'dark';
+    var theme = localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light';
     document.documentElement.classList.toggle('dark', theme === 'dark');
     document.documentElement.style.colorScheme = theme;
   } catch {
-    /* No localStorage or matchMedia — the default dark class in the markup stands. */
+    /* No localStorage — the light page in the markup stands. */
   }
 })();

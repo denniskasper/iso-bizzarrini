@@ -35,7 +35,7 @@ export function SignInPage() {
     return (
       <div className="mx-auto max-w-measure animate-rise text-center">
         <Roundel className="mx-auto size-7 text-muted" />
-        <h1 className="mt-8 text-3xl font-semibold">You are signed in.</h1>
+        <h1 className="mt-8 text-3xl">You are signed in.</h1>
         <Button variant="primary" size="lg" className="mt-10" onClick={goOn}>
           Go to the archive
         </Button>
@@ -50,7 +50,7 @@ export function SignInPage() {
   return (
     <div className="mx-auto max-w-measure animate-rise">
       <Roundel className="size-7 text-muted" />
-      <h1 className="mt-8 text-4xl font-semibold text-balance">Sign in</h1>
+      <h1 className="mt-8 text-4xl text-balance">Sign in</h1>
       <p className="mt-6 text-lg text-pretty text-muted">
         The scanned drawings are the Club's, and members contribute what they know on the
         understanding that only the Club can see them. So nothing here is served to a browser that
@@ -124,7 +124,7 @@ function ForgottenPassword({ email: known, onBack }: { email: string; onBack: ()
     return (
       <div className="mx-auto max-w-measure animate-rise">
         <Roundel className="size-7 text-muted" />
-        <h1 className="mt-8 text-4xl font-semibold text-balance">Check your e-mail.</h1>
+        <h1 className="mt-8 text-4xl text-balance">Check your e-mail.</h1>
         <p className="mt-6 text-lg text-pretty text-muted">
           If <span className="tabular">{email}</span> is on the Club's roster, a link to choose a
           new password is on its way to it. The link works once, and stops working after a couple of
@@ -143,7 +143,7 @@ function ForgottenPassword({ email: known, onBack }: { email: string; onBack: ()
   return (
     <div className="mx-auto max-w-measure animate-rise">
       <Roundel className="size-7 text-muted" />
-      <h1 className="mt-8 text-4xl font-semibold text-balance">Forgotten your password?</h1>
+      <h1 className="mt-8 text-4xl text-balance">Forgotten your password?</h1>
       <p className="mt-6 text-lg text-pretty text-muted">
         Give the address the Club has for you and we will send a link that lets you choose a new
         one. Nobody at the Club ever sees what you choose.

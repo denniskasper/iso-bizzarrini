@@ -32,9 +32,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div ref={chrome} className="sticky top-0 z-10" data-chrome>
         <EnvironmentBanner />
 
-        {/* On the page's own surface, ruled off by a hairline: the chrome is the thinnest thing
-            on the screen, so the first thing seen is what the page is about. */}
-        <header className="border-b border-line bg-surface">
+        {/* The Club website's graphite, in either theme (ADR 0020): `chrome` gives the header the
+            dark theme's values, so everything in it is measured against graphite. */}
+        <header className="chrome border-b border-line bg-surface-raised">
           {/*
             **It wraps for an Administrator and not for anybody else**, which is a narrower rule
             than it looks and is load-bearing rather than tidy.
@@ -154,7 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t border-line bg-surface-raised">
+      <footer className="chrome border-t border-line bg-surface-raised">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-2 px-gutter py-4">
           <ServiceStatusStrip />
           {/* On every screen, signed in or not: who is behind the platform and what it keeps

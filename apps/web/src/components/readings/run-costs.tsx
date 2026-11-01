@@ -86,7 +86,7 @@ function Time({ record, only }: { record: CatalogRunCostRecord; only: boolean })
   return (
     <div className="mt-8" data-testid="run-cost-record">
       {!only && (
-        <h3 className="text-lg font-medium text-text">
+        <h3 className="text-lg text-text">
           {record.time === 1 ? 'Started' : `Continued, time ${record.time}`}:{' '}
           <span className="tabular">{dollars(record.total)}</span>
         </h3>

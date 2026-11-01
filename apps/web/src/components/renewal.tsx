@@ -41,7 +41,7 @@ export function RenewalScreen() {
   return (
     <div className="mx-auto max-w-measure animate-rise">
       <Roundel className="size-7 text-muted" />
-      <h1 className="mt-8 text-4xl font-semibold text-balance">
+      <h1 className="mt-8 text-4xl text-balance">
         {paidThrough === null
           ? 'The Club has no Membership recorded for you.'
           : 'Your Membership has run out.'}
@@ -87,9 +87,7 @@ export function RenewalScreen() {
         </div>
       )}
       {payOnline && renewal.isSuccess && (
-        <h2 className="mt-14 border-t border-line pt-10 text-2xl font-semibold">
-          Or pay by bank transfer
-        </h2>
+        <h2 className="mt-14 border-t border-line pt-10 text-2xl">Or pay by bank transfer</h2>
       )}
       {renewal.isSuccess && <HowToPay renewal={renewal.data.renewal} />}
       {renewal.isError && (

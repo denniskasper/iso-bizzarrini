@@ -25,7 +25,7 @@ export function ReadingPage({
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-14">
-      <h2 className="text-2xl font-semibold text-balance">{title}</h2>
+      <h2 className="text-2xl text-balance">{title}</h2>
       <div className="mt-5 flex flex-col gap-4 text-pretty text-text">{children}</div>
     </section>
   );

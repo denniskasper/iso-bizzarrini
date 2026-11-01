@@ -64,7 +64,7 @@ function FromLink({ token }: { token: string }) {
   return (
     <div className="mx-auto max-w-measure animate-rise">
       <Roundel className="size-7 text-muted" />
-      <h1 className="mt-8 text-4xl font-semibold text-balance">
+      <h1 className="mt-8 text-4xl text-balance">
         {invitation ? `Welcome, ${link.data.name}.` : 'Choose a new password.'}
       </h1>
       <p className="mt-6 text-lg text-pretty text-muted">
@@ -139,7 +139,7 @@ function Dead({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-measure animate-rise">
       <Roundel className="size-7 text-muted" />
-      <h1 className="mt-8 text-4xl font-semibold text-balance">That link has stopped working.</h1>
+      <h1 className="mt-8 text-4xl text-balance">That link has stopped working.</h1>
       <p className="mt-6 text-lg text-pretty text-muted">{children}</p>
       <Button asChild variant="outline" size="lg" className="mt-10">
         <SignInLink>Go to signing in</SignInLink>

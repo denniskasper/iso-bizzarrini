@@ -292,7 +292,7 @@ function ListedPart({
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
-        <h4 className="text-lg font-semibold text-pretty">{heading}</h4>
+        <h4 className="text-lg text-pretty">{heading}</h4>
         {listing.quantityPerCar !== null && (
           <p className="shrink-0 text-sm text-muted">
             <span className="sr-only">Quantity </span>

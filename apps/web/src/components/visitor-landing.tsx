@@ -57,7 +57,7 @@ export function VisitorLanding() {
         </header>
 
         <section aria-labelledby="covered" className="mt-24 lg:mt-0">
-          <h2 id="covered" className="text-3xl font-semibold text-balance">
+          <h2 id="covered" className="text-3xl text-balance">
             The cars it covers
           </h2>
           <p className="mt-4 max-w-measure text-lg text-pretty text-muted">
@@ -76,7 +76,7 @@ export function VisitorLanding() {
 
       {data && data.landing.samples.length > 0 && (
         <section aria-labelledby="samples" className="mt-24 border-t border-line pt-16">
-          <h2 id="samples" className="text-3xl font-semibold text-balance">
+          <h2 id="samples" className="text-3xl text-balance">
             Drawings from the archive
           </h2>
           <p className="mt-4 max-w-measure text-lg text-pretty text-muted">
@@ -90,7 +90,7 @@ export function VisitorLanding() {
       )}
 
       <section aria-labelledby="members-only" className="mt-24 border-t border-line pt-16">
-        <h2 id="members-only" className="text-3xl font-semibold text-balance">
+        <h2 id="members-only" className="text-3xl text-balance">
           The archive is members-only.
         </h2>
         <p className="mt-4 max-w-measure text-lg text-pretty text-muted">
@@ -99,7 +99,7 @@ export function VisitorLanding() {
           see it.
         </p>
 
-        <h3 className="mt-16 text-xl font-semibold">How a member finds a part</h3>
+        <h3 className="mt-16 text-xl">How a member finds a part</h3>
         <ol className="mt-10 space-y-16">
           {STEPS.map((step, index) => (
             <li key={step.title}>
@@ -122,7 +122,7 @@ export function VisitorLanding() {
           ))}
         </ol>
 
-        <h3 className="mt-20 text-xl font-semibold">What a member reads</h3>
+        <h3 className="mt-20 text-xl">What a member reads</h3>
         <dl className="mt-8 grid max-w-4xl gap-x-12 sm:grid-cols-2">
           {DETAIL.map((row) => (
             <div key={row.term} className="border-t border-line py-5">
@@ -134,7 +134,7 @@ export function VisitorLanding() {
       </section>
 
       <section aria-labelledby="fee" className="mt-24 border-t border-line pt-16">
-        <h2 id="fee" className="text-3xl font-semibold text-balance">
+        <h2 id="fee" className="text-3xl text-balance">
           What membership costs
         </h2>
         {data && <Fee fee={data.landing.fee} currency={data.landing.currency} />}
@@ -170,7 +170,7 @@ function AskToJoin({ landing }: { landing: Landing }) {
       className="mt-24 border-t border-line pt-16 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-x-16"
     >
       <div className="max-w-measure">
-        <h2 id="ask-to-join" className="text-3xl font-semibold text-balance">
+        <h2 id="ask-to-join" className="text-3xl text-balance">
           Ask the Club to join
         </h2>
         <p className="mt-4 text-lg text-pretty text-muted">

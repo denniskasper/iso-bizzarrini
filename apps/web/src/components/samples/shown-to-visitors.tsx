@@ -52,7 +52,7 @@ export function ShownToVisitors({ className }: { className?: string }) {
       )}
       {data.ended.length > 0 && (
         <div className="mt-8" data-testid="ended-samples">
-          <h3 className="font-semibold">No longer shown</h3>
+          <h3>No longer shown</h3>
           <p className="mt-1 max-w-measure text-pretty text-muted">
             The number open to Visitors was removed, so they stopped seeing these drawings. Open one
             to show it again with another number.

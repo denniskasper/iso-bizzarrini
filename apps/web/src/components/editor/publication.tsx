@@ -49,7 +49,7 @@ export function UncheckedBand({
       data-testid="unchecked-band"
     >
       <div className="max-w-measure">
-        <h2 id="unchecked" className="text-lg font-semibold">
+        <h2 id="unchecked" className="text-lg">
           Unchecked
         </h2>
         <p className="mt-1 text-pretty text-muted">

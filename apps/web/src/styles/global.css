@@ -3,11 +3,10 @@
 /*
  * Self-hosted, so no request ever leaves for a font and no consent is owed for one, which is
  * the same rule the Club site is being rebuilt to satisfy. Latin only: this platform is English.
- * The display face is used light and at size, so it ships in two weights and no more.
+ * The heading face is the Club website's Raleway at its one weight, 500, and ships in no other.
  */
 @import '@fontsource-variable/open-sans/wght.css';
-@import '@fontsource/barlow-condensed/latin-300.css';
-@import '@fontsource/barlow-condensed/latin-400.css';
+@import '@fontsource/raleway/latin-500.css';
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-500.css';
 @import '@fontsource/ibm-plex-mono/latin-600.css';
@@ -33,6 +32,17 @@
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every heading is the Club website's: Raleway 500, the only weight it ships in. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 500;
   }
 
   /* Every number in this archive is an identifier. Tabular figures keep columns of them
@@ -71,14 +81,13 @@
 
 @layer components {
   /*
-   * Display lettering: the tall condensed capital, light, at poster size. **For the few words a
-   * screen is about** — a car's name, the archive's front door — and never for anything that has
-   * to be read in a sentence. Size is the caller's; the face, case and weight are this.
+   * Display lettering: the heading face at poster size. **For the few words a screen is about**
+   * — a car's name, the archive's front door — and never for anything that has to be read in a
+   * sentence. Size is the caller's; the face and weight are this.
    */
   .display {
     font-family: var(--font-display);
-    font-weight: 300;
-    text-transform: uppercase;
+    font-weight: 500;
     letter-spacing: var(--tracking-display);
   }
 
@@ -88,6 +97,8 @@
    * a form shouting. One class, so every label in the archive is the same label.
    */
   .label {
+    /* Interface type, and Open Sans like the rest of it, even where it names a section. */
+    font-family: var(--font-sans);
     font-size: var(--text-sm);
     line-height: var(--text-sm--line-height);
     font-weight: 600;
@@ -510,7 +521,7 @@
     cursor: grabbing;
   }
 
-  /* The corner chosen to take off is pressed, so it wears the champagne of what is pressed. */
+  /* The corner chosen to take off is pressed, so it wears the teal of what is pressed. */
   .outline-corner[data-selected='true'] {
     r: calc(var(--drawing-px, 1px) * 7);
     fill: var(--accent);
@@ -598,8 +609,8 @@
    *
    * It recedes what was not named rather than painting what was in a second colour, which is the
    * navigator's move about what is not in view — and for the same reason: "the bright ones are the
-   * ones you asked for" needs no legend, and ice blue already means "the Position
-   * being pointed at". Two things wearing it would leave a member working out which is which.
+   * ones you asked for" needs no legend, and the Mark's ultramarine already means "the
+   * Position being pointed at". Two things wearing it would leave a member working out which is which.
    *
    * The weight is `--mark-receded`, argued and measured in the token file. Every circle here is
    * still exactly as hittable as it was, and this is a state the member switched on and can
@@ -1213,8 +1224,8 @@
 
   /*
    * **The guided tour** (temporary, `components/tour`): docked in a corner beside the page and
-   * never over the middle of it, because what it points at is the page. Its edge wears the ice
-   * blue of what points, and it floats on the card's shadow because, like the card, it is the
+   * never over the middle of it, because what it points at is the page. Its edge wears the
+   * Mark's ultramarine, of what points, and it floats on the card's shadow because, like the card, it is the
    * one thing not part of the sheet. A phone gets it across the bottom, clear of the home bar.
    */
   .tour {
