@@ -638,7 +638,8 @@ export interface ReadingSetup {
  * Where a Catalog run stands (issues #57, #58, #59, #65). `estimating`: uploaded, and being
  * priced page by page on the server. `estimated`: uploaded and priced, nothing read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
  * stopped: before the next sheet could pass the spending limit, at the subscription plan's usage
- * limit, when the provider refused at the Monthly limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
+ * limit, when the provider refused at the Monthly limit, after the model failed or declined to
+ * answer, or because an Administrator pressed Stop.
  * A stopped run can be continued. `failed` is the end of it, with the reason.
  */
 export type CatalogRunState =

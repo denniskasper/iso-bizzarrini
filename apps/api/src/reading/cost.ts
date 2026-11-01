@@ -98,7 +98,8 @@ export interface CostRecord {
   /**
    * Why the run stopped before it had read everything: the next sheet could have passed the
    * spending limit, the subscription's usage limit was reached, the provider refused at the
-   * Monthly limit, the method could not get an answer, or a person asked it to stop. `null` where it did not stop.
+   * Monthly limit, the method could not get an answer, or a person asked it to stop. `null` where
+   * it did not stop.
    */
   stopped: 'spending-limit' | 'usage-limit' | 'monthly-limit' | 'method-failed' | 'asked' | null;
   tavole: {

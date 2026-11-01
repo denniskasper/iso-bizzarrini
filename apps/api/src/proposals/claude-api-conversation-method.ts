@@ -224,8 +224,8 @@ function messagesOf(turns: ConversationTurn[]): Anthropic.MessageParam[] {
 /**
  * **What went wrong, as one of the two things the archive tells an author.** The Monthly limit is
  * the provider refusing a well-formed request until the month turns
- * (`platform/claude-monthly-limit.ts`); everything else is the conversation being unavailable. Never carries the
- * request, and so never the key.
+ * (`platform/claude-monthly-limit.ts`); everything else is the conversation being unavailable.
+ * Never carries the request, and so never the key.
  */
 function classify(error: unknown): Error {
   if (error instanceof ConversationUnavailableError) {
