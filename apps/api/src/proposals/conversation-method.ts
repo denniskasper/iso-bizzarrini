@@ -65,6 +65,22 @@ export interface ConversationScreenshot {
 }
 
 /**
+ * **What one request to the provider used**, and what that cost at its list prices: told to the
+ * server's log so the cost of Proposals can be checked against what was expected of it. Never
+ * shown to the author.
+ */
+export interface ConversationUsage {
+  request: 'answer' | 'summary';
+  model: string;
+  inputTokens: number;
+  cacheWriteTokens: number;
+  cacheReadTokens: number;
+  outputTokens: number;
+  /** In US dollars, rounded to a hundredth of a cent. */
+  estimatedUsd: number;
+}
+
+/**
  * **This month's spending limit is reached** (issue #155): the provider refuses every request
  * until the month turns. Told to the author as Proposals being paused, which is what it is, and
  * kept apart from {@link ConversationUnavailableError}, which is something to tell the developer.

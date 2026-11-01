@@ -7,6 +7,7 @@ import {
   type Conversation,
   type ConversationMethod,
   type ConversationTurn,
+  type ConversationUsage,
 } from './conversation-method.js';
 import { factsOf, PLAYBOOK, SUMMARY_SCHEMA, WRITE_THE_PROPOSAL } from './playbook.js';
 
@@ -18,6 +19,20 @@ import { factsOf, PLAYBOOK, SUMMARY_SCHEMA, WRITE_THE_PROPOSAL } from './playboo
  */
 export const CONVERSATION_MODEL = 'claude-sonnet-5-5';
 export const CONVERSATION_EFFORT = 'high';
+
+/**
+ * **What the conversation's tokens cost, as the provider lists them**, in dollars per million.
+ * Whoever changes the model checks these again at the source and moves the date. The documents
+ * are cached for an hour, which is written at twice the input price and read at a tenth of it.
+ */
+export const CONVERSATION_PRICES = {
+  checkedOn: '2026-11-01',
+  source: 'https://platform.claude.com/docs/en/about-claude/pricing',
+  input: 2,
+  cacheWrite: 4,
+  cacheRead: 0.2,
+  output: 10,
+};
 
 /** The ceiling on an answer and on a summary, thinking included. */
 const MAX_TOKENS = 16000;
@@ -41,6 +56,29 @@ export interface ClaudeApiConversationOptions {
   /** Only for a test standing in for the API. */
   baseURL?: string;
   maxRetries?: number;
+  /** Told what each request used, for the server's log. */
+  onUsage?: (usage: ConversationUsage) => void;
+}
+
+function usageOf(request: ConversationUsage['request'], usage: Anthropic.Usage): ConversationUsage {
+  const inputTokens = usage.input_tokens;
+  const cacheWriteTokens = usage.cache_creation_input_tokens ?? 0;
+  const cacheReadTokens = usage.cache_read_input_tokens ?? 0;
+  const outputTokens = usage.output_tokens;
+  const perMillion =
+    inputTokens * CONVERSATION_PRICES.input +
+    cacheWriteTokens * CONVERSATION_PRICES.cacheWrite +
+    cacheReadTokens * CONVERSATION_PRICES.cacheRead +
+    outputTokens * CONVERSATION_PRICES.output;
+  return {
+    request,
+    model: CONVERSATION_MODEL,
+    inputTokens,
+    cacheWriteTokens,
+    cacheReadTokens,
+    outputTokens,
+    estimatedUsd: Math.round(perMillion / 100) / 10_000,
+  };
 }
 
 export function createClaudeApiConversationMethod(
@@ -85,6 +123,7 @@ export function createClaudeApiConversationMethod(
           }
         }
         const finished = await stream.finalMessage();
+        options.onUsage?.(usageOf('answer', finished.usage));
         if (finished.stop_reason === 'refusal') {
           throw new ConversationUnavailableError('The model declined to answer.');
         }
@@ -112,6 +151,7 @@ export function createClaudeApiConversationMethod(
       } catch (error) {
         throw classify(error);
       }
+      options.onUsage?.(usageOf('summary', response.usage));
 
       if (response.stop_reason === 'refusal') {
         throw new ConversationUnavailableError('The model declined to write the Proposal.');
