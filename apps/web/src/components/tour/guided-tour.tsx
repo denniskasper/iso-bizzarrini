@@ -3,21 +3,21 @@ import { useEffect, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { environmentMode } from '@/lib/environment';
 import { useSession } from '@/lib/session';
-import { NEWEST_TOUR, useTour, type TourName } from '@/lib/tour';
+import { tourNamed, useTour, type TourName } from '@/lib/tour';
 import { cn } from '@/lib/utils';
 
 /**
  * **A guided tour of what is new, for a tester on the practice system.** Temporary: delete this
  * folder, `lib/tour.ts` and the one line in the app shell once it has been walked.
  *
- * There are two, each of what was new when it was written: Proposals, which a link ending in
- * `?tour` starts, and the earlier one about reading, `?tour=reading`, kept for a tester who has
- * not walked it yet. Never in production. It waits beside the page rather than over it: each
+ * There are three, each of what was new when it was written: Spending, which a link ending in
+ * `?tour` starts, and the earlier ones, `?tour=proposals` and `?tour=reading`, kept for a tester
+ * who has not walked them yet. Never in production. It waits beside the page rather than over it: each
  * step says what to do on the screen as it is, and moves on by itself once the screen shows it
  * was done, so the tester is using Ricambi and not a slideshow of it.
  */
 
-type Part = 'read' | 'show' | 'visit' | 'fix' | 'idea' | 'follow';
+type Part = 'read' | 'show' | 'visit' | 'fix' | 'idea' | 'follow' | 'month' | 'start' | 'limit';
 
 interface Where {
   path: string;
@@ -26,6 +26,7 @@ interface Where {
   known: boolean;
   /** Whether an Administrator has let this Account propose. */
   mayPropose: boolean;
+  isAdministrator: boolean;
 }
 
 interface Step {
@@ -311,7 +312,127 @@ const PROPOSALS_STEPS: Step[] = [
   },
 ];
 
+const SPENDING_STEPS: Step[] = [
+  {
+    part: null,
+    title: 'Something new: Spending',
+    body: (where) => (
+      <>
+        <p>
+          What Ricambi spends on Claude, for Proposals’ conversations and for reading the catalogue,
+          is now in one place, against the <b>Monthly limit</b>: the most it may spend in a calendar
+          month. About five minutes:
+        </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5">
+          <li>Read this month’s spending.</li>
+          <li>See what is left before starting a reading.</li>
+          <li>Learn what happens when the month’s limit is reached.</li>
+        </ol>
+        {where.known && !where.isAdministrator && (
+          <p className="mt-3 font-semibold">
+            Spending is for Administrators only. Sign in as one to walk this tour.
+          </p>
+        )}
+      </>
+    ),
+    next: 'Start',
+  },
+  {
+    part: 'month',
+    title: 'Open Spending',
+    body: (
+      <p>
+        Press <b>Spending</b> at the top. It is there for Administrators only.
+      </p>
+    ),
+    go: {
+      to: '/spending',
+      label: 'Go to Spending',
+      unless: (where) => where.path === '/spending',
+    },
+    done: (where) => where.path === '/spending',
+  },
+  {
+    part: 'month',
+    title: 'This month, at a glance',
+    body: (
+      <>
+        <p>
+          The large figure is what this month has cost so far, with a bar against the Monthly limit.
+          Beneath it, what went to Proposals and what to Catalog runs, and the past twelve months.
+        </p>
+        <p className="mt-3">
+          These are Ricambi’s own estimates at list prices. The bill itself is in the Claude
+          Console, linked at the top. Where nothing is billed, as on a developer’s own subscription,
+          the figures say what it <i>would have cost</i>, and there is no bar.
+        </p>
+      </>
+    ),
+    next: 'Next',
+  },
+  {
+    part: 'start',
+    title: 'Before starting a reading',
+    body: (
+      <>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>
+            Choose any catalogue PDF, a Model and a page or two, and press <b>Estimate the cost</b>.
+          </li>
+          <li>Under the spending limit, read what is left of this month’s Monthly limit.</li>
+          <li>Enter a limit larger than that, and read the warning.</li>
+        </ol>
+        <p className="mt-3">
+          You don’t need to start it: a reading here costs real money. The warning never stops you;
+          the Monthly limit itself does, at the provider.
+        </p>
+        <p className="mt-3 text-muted">
+          Nothing shows where no Monthly limit is known, or where nothing is billed.
+        </p>
+      </>
+    ),
+    go: {
+      to: '/readings',
+      label: 'Go to Readings',
+      unless: (where) => where.path === '/readings',
+    },
+    next: 'I’ve seen it',
+  },
+  {
+    part: 'limit',
+    title: 'When the month runs out',
+    body: (
+      <p>
+        A reading that reaches the Monthly limit stops, as it does at its own limit, and says so:
+        <b> Stopped: this month’s limit on spending with Claude is reached.</b> Everything read so
+        far is kept, and <b>Continue reading</b> carries it on next month, or once the limit is
+        raised.
+      </p>
+    ),
+    next: 'Next',
+  },
+  {
+    part: null,
+    title: 'That’s all of it',
+    body: (
+      <p>
+        Spending stays at the top for Administrators, and the Proposals page links to it. Anything
+        unclear or wrong along the way: reply to the e-mail this tour came with.
+      </p>
+    ),
+    next: 'End the tour',
+  },
+];
+
 const TOURS: Record<TourName, { steps: Step[]; parts: { part: Part; name: string }[] }> = {
+  spending: {
+    steps: SPENDING_STEPS,
+    parts: [
+      { part: 'month', name: 'This month' },
+      { part: 'start', name: 'Starting' },
+      { part: 'limit', name: 'At the limit' },
+    ],
+  },
   proposals: {
     steps: PROPOSALS_STEPS,
     parts: [
@@ -332,7 +453,7 @@ const TOURS: Record<TourName, { steps: Step[]; parts: { part: Part; name: string
 
 export function GuidedTour() {
   const { state, start, end, goTo, fold } = useTour();
-  const { signedIn, isPending, account } = useSession();
+  const { signedIn, isPending, account, isAdministrator } = useSession();
   const path = useRouterState({ select: (router) => router.location.pathname });
 
   // A link ending in `?tour` starts it from the beginning, and is then forgotten, so reloading
@@ -343,7 +464,7 @@ export function GuidedTour() {
     }
     const url = new URL(window.location.href);
     if (url.searchParams.has('tour')) {
-      start(url.searchParams.get('tour') === 'reading' ? 'reading' : NEWEST_TOUR);
+      start(tourNamed(url.searchParams.get('tour')));
       url.searchParams.delete('tour');
       window.history.replaceState(window.history.state, '', url);
     }
@@ -356,6 +477,7 @@ export function GuidedTour() {
     signedIn,
     known: !isPending,
     mayPropose: account?.mayPropose ?? false,
+    isAdministrator,
   };
   const finished = step?.done?.(where) ?? false;
 
@@ -492,6 +614,9 @@ export function TourLink({ className }: { className: string }) {
   }
   return (
     <>
+      <button type="button" className={className} onClick={() => start('spending')}>
+        Tour: Spending
+      </button>
       <button type="button" className={className} onClick={() => start('proposals')}>
         Tour: Proposals
       </button>
