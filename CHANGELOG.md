@@ -5,6 +5,7 @@
 
 ### New
 
+* **191:** Spending shows what Catalog runs spent, in the month each request was answered ([f637626](https://github.com/denniskasper/iso-bizzarrini/commit/f637626de644f5fc8ffbf92c849c40ef6a869742))
 * **192:** starting or continuing a Catalog run shows what is left of the Monthly limit ([977abd0](https://github.com/denniskasper/iso-bizzarrini/commit/977abd06e7bc7e526b868e7b16e2437a8efe927c))
 
 ## [0.14.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.13.0...v0.14.0) (2026-11-01)
