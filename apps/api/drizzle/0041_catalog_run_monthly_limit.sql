@@ -1,0 +1,2 @@
+ALTER TABLE "catalog_runs" DROP CONSTRAINT "catalog_runs_state_is_known";--> statement-breakpoint
+ALTER TABLE "catalog_runs" ADD CONSTRAINT "catalog_runs_state_is_known" CHECK ("catalog_runs"."state" in ('estimating', 'estimated', 'running', 'finished', 'stopped-at-limit', 'stopped-at-usage-limit', 'stopped-at-monthly-limit', 'stopped-after-failures', 'stopped-by-administrator', 'failed'));

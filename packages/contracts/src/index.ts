@@ -638,7 +638,7 @@ export interface ReadingSetup {
  * Where a Catalog run stands (issues #57, #58, #59, #65). `estimating`: uploaded, and being
  * priced page by page on the server. `estimated`: uploaded and priced, nothing read. `running`: reading on the server, whether or not anybody is watching. Then `finished`, or
  * stopped: before the next sheet could pass the spending limit, at the subscription plan's usage
- * limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
+ * limit, when the provider refused at the Monthly limit, after the model failed or declined to answer, or because an Administrator pressed Stop.
  * A stopped run can be continued. `failed` is the end of it, with the reason.
  */
 export type CatalogRunState =
@@ -648,6 +648,7 @@ export type CatalogRunState =
   | 'finished'
   | 'stopped-at-limit'
   | 'stopped-at-usage-limit'
+  | 'stopped-at-monthly-limit'
   | 'stopped-after-failures'
   | 'stopped-by-administrator'
   | 'failed';
@@ -805,9 +806,10 @@ export interface CatalogRunCostRecord {
   total: number;
   /**
    * Why it stopped before it had read everything: the spending limit, the plan's usage limit, the
-   * model failing or declining, or an Administrator asking. `null` where it did not stop.
+   * Monthly limit, the model failing or declining, or an Administrator asking. `null` where it
+   * did not stop.
    */
-  stopped: 'spending-limit' | 'usage-limit' | 'method-failed' | 'asked' | null;
+  stopped: 'spending-limit' | 'usage-limit' | 'monthly-limit' | 'method-failed' | 'asked' | null;
   tavole: {
     number: string;
     finished: boolean;

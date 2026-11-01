@@ -128,6 +128,7 @@ function pagesRead(run: CatalogRun): string {
 const STOPPED: CatalogRunState[] = [
   'stopped-at-limit',
   'stopped-at-usage-limit',
+  'stopped-at-monthly-limit',
   'stopped-after-failures',
   'stopped-by-administrator',
 ];
@@ -604,6 +605,11 @@ function stateNamed(run: CatalogRun): string {
       return 'Stopped before the next sheet could pass the limit.';
     case 'stopped-at-usage-limit':
       return 'Stopped at the subscription’s usage limit. Continue once the plan reads again.';
+    case 'stopped-at-monthly-limit':
+      return (
+        'Stopped: this month’s limit on spending with Claude is reached. Continue next month, ' +
+        'or once the Monthly limit is raised.'
+      );
     case 'stopped-after-failures':
       return 'Stopped: the model failed or declined to answer. The server has logged what it said.';
     case 'stopped-by-administrator':

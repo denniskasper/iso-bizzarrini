@@ -43,6 +43,7 @@ export interface CatalogRunWithModel {
 export const STOPPED_STATES = [
   'stopped-at-limit',
   'stopped-at-usage-limit',
+  'stopped-at-monthly-limit',
   'stopped-after-failures',
   'stopped-by-administrator',
 ] as const satisfies readonly CatalogRunState[];

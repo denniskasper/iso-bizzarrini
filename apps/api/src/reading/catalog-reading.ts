@@ -18,6 +18,7 @@ import { markDoubts, proposeMarks, type MarkDoubt, type ProposedMark } from './m
 import { PRICE_LIST, priceOf } from './price-list.js';
 import {
   ReadingMethodError,
+  MonthlyLimitReached,
   UsageLimitReached,
   type NumberReading,
   type ReadingMethod,
@@ -200,6 +201,8 @@ export async function readCatalogInto(options: CatalogReadingOptions): Promise<C
   const stopOn = (error: unknown) => {
     if (error instanceof UsageLimitReached) {
       stopped = 'usage-limit';
+    } else if (error instanceof MonthlyLimitReached) {
+      stopped = 'monthly-limit';
     } else if (error instanceof ReadingMethodError) {
       stopped = 'method-failed';
     } else {

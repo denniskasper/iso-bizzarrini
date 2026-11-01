@@ -106,6 +106,18 @@ export class UsageLimitReached extends Error {
 }
 
 /**
+ * **The provider will read no more this month**: it refused a request because the Monthly limit is
+ * reached (`platform/claude-monthly-limit.ts`). The run stops cleanly, as it does at its own
+ * limit, and is continued once the month turns or the limit is raised.
+ */
+export class MonthlyLimitReached extends Error {
+  constructor() {
+    super('This month’s limit on spending with Claude is reached.');
+    this.name = 'MonthlyLimitReached';
+  }
+}
+
+/**
  * **The method could not get an answer**: the request failed after the method's own retries, or
  * the model declined it or answered with something that could not be read. Its message is written
  * never to carry a request, and so never a credential. A run stops cleanly on one rather than ask

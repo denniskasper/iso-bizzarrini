@@ -93,6 +93,8 @@ function stateNamed(state: CatalogRunState): string {
       return 'stopped at its limit';
     case 'stopped-at-usage-limit':
       return 'stopped at the usage limit';
+    case 'stopped-at-monthly-limit':
+      return 'stopped at this month’s limit';
     case 'stopped-after-failures':
       return 'stopped after the model failed';
     case 'stopped-by-administrator':

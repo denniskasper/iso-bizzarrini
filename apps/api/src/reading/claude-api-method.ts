@@ -2,6 +2,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import type { z } from 'zod';
 import {
+  fetchWithoutRetryAtTheMonthlyLimit,
+  isMonthlyLimitRefusal,
+} from '../platform/claude-monthly-limit.js';
+import {
   CLAUDE_MODEL,
   EXPECTED_OUTPUT,
   EXPECTED_TRANSLATION_INPUT,
@@ -23,17 +27,18 @@ import {
   translationSchema,
   type Effort,
 } from './claude-requests.js';
-import type {
-  Answer,
-  NumberCrop,
-  NumberReading,
-  NumbersBothWays,
-  ReadingMethod,
-  RequestEstimate,
-  SheetEstimate,
-  SheetIdentity,
-  SheetImage,
-  TableReading,
+import {
+  MonthlyLimitReached,
+  type Answer,
+  type NumberCrop,
+  type NumberReading,
+  type NumbersBothWays,
+  type ReadingMethod,
+  type RequestEstimate,
+  type SheetEstimate,
+  type SheetIdentity,
+  type SheetImage,
+  type TableReading,
 } from './reading-method.js';
 
 /**
@@ -45,7 +50,8 @@ import type {
  *
  * There is deliberately **no fallback to another model**. A sheet read by a different model than
  * the one the Tavola records would make that record untrue, and the record is how a Tavola read
- * by a method that proves bad is found again. A refusal stops the run and says so.
+ * by a method that proves bad is found again. A refusal stops the run and says so; one at the
+ * Monthly limit is `MonthlyLimitReached`, which stops it cleanly, and is never asked again.
  */
 export interface ClaudeApiOptions {
   apiKey: string;
@@ -59,6 +65,7 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     apiKey: options.apiKey,
     baseURL: options.baseURL,
     maxRetries: options.maxRetries ?? 2,
+    fetch: fetchWithoutRetryAtTheMonthlyLimit(),
   });
 
   function requestFor<Schema extends z.ZodType>(
@@ -106,7 +113,7 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
     try {
       response = await client.messages.parse(request);
     } catch (error) {
-      throw new ReadingMethodError(describe(error));
+      throw failureOf(error);
     }
 
     if (response.stop_reason === 'refusal') {
@@ -134,7 +141,7 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
       const { model, messages, output_config } = request;
       return (await client.messages.countTokens({ model, messages, output_config })).input_tokens;
     } catch (error) {
-      throw new ReadingMethodError(describe(error));
+      throw failureOf(error);
     }
   }
 
@@ -228,6 +235,16 @@ export function createClaudeApiReadingMethod(options: ClaudeApiOptions): Reading
       return { value: numberReadingsOf(crops, answer.value), tokens: answer.tokens };
     },
   };
+}
+
+/**
+ * The provider refusing at the Monthly limit stops the run as its own limit does; anything else
+ * is a failure.
+ */
+function failureOf(error: unknown): Error {
+  return isMonthlyLimitRefusal(error)
+    ? new MonthlyLimitReached()
+    : new ReadingMethodError(describe(error));
 }
 
 /** What went wrong, in words that never carry the request — and so never the key. */
