@@ -389,6 +389,13 @@ describe('the commands, in Production', () => {
     PUBLIC_URL: 'https://ricambi.example',
     DATABASE_URL: 'postgres://nowhere.invalid/never-reached',
     SESSION_SECRET: 'a-session-secret-long-enough-for-the-schema',
+    // Each command reads the repository's `.env` and keeps only what is not already set here.
+    // A developer's file may turn on dev sign-in, a logged inbox or a Proposals key, and
+    // production refuses each of those before it reaches the refusal these tests are about. So
+    // all three are set here to what a properly configured production has.
+    DEV_SIGN_IN_AS: '',
+    EMAIL_TRANSPORT: 'none',
+    PROPOSALS_ANTHROPIC_API_KEY: '',
   };
 
   it.each([
