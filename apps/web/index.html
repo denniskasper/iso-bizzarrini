@@ -11,6 +11,15 @@
     />
     <title>Ricambi</title>
     <!--
+      A practice system's icons by default, the roundel in Integration's colour: public/theme.js
+      points these at Production's, or Development's, once it knows which system this is. An
+      archive that fails to say so wears a practice icon, never the other way round.
+    -->
+    <link rel="icon" href="/practice/integration/favicon.ico" sizes="32x32" data-icon />
+    <link rel="icon" href="/practice/integration/favicon.svg" type="image/svg+xml" data-icon />
+    <link rel="apple-touch-icon" href="/practice/integration/apple-touch-icon.png" data-icon />
+    <link rel="manifest" href="/practice/integration/manifest.webmanifest" data-icon />
+    <!--
       Render-blocking and deliberately not inline: the API serves this app under a
       Content-Security-Policy of `script-src 'self'`, which blocks inline scripts. See
       public/theme.js.

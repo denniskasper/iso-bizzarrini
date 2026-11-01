@@ -31,6 +31,22 @@
   }
 
   /*
+   * The icons follow the system, so a practice system saved to a home screen can never pass for
+   * the archive (ADR 0020). The markup links Integration's tinted roundel; Production gets the
+   * Club's emblem and the off-white roundel, Development the roundel in its own band's colour.
+   * Decided here while Production and Integration share one build.
+   */
+  var mode = document.documentElement.dataset.environmentMode;
+  var system = document.documentElement.dataset.environmentSystem;
+  var icons =
+    mode === 'production'
+      ? '/'
+      : '/practice/' + (system === 'development' ? 'development' : 'integration') + '/';
+  document.querySelectorAll('link[data-icon]').forEach(function (link) {
+    link.setAttribute('href', link.getAttribute('href').replace('/practice/integration/', icons));
+  });
+
+  /*
    * **Light unless the member chose dark** (ADR 0020): a white page in the graphite frame, as on
    * the Club website, whatever the device's own setting is. A choice made with the theme button
    * is remembered and outranks the default.
