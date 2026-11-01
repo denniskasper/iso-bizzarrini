@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.13.0...v0.14.0) (2026-11-01)
+
+
+### New
+
+* **189:** Administrators see this month's spending on Claude against the Monthly limit ([f101e77](https://github.com/denniskasper/iso-bizzarrini/commit/f101e77e6b4e6ecd4a2728d8a2cd7fcb16785400))
+* **190:** a Catalog run reading with an API key stops cleanly at the Monthly limit ([5b4a1e2](https://github.com/denniskasper/iso-bizzarrini/commit/5b4a1e2dfe5f55d58d1cb704851b6e802bbed257))
+
 ## [0.13.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.12.0...v0.13.0) (2026-11-01)
 
 
