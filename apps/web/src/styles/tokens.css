@@ -202,6 +202,13 @@
   --shadow-card: 0 0.75rem 2rem oklch(0 0 0 / 0.5);
 }
 
+/* Text with no colour of its own inherits the body's, which on a white page is the light ink:
+   in the graphite chrome it takes the chrome's. */
+.chrome {
+  color: var(--text);
+  color-scheme: dark;
+}
+
 /* ---------------------------------------------------------------------------
  * The type step
  *
