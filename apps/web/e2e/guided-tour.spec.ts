@@ -4,7 +4,8 @@ import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
  * **The guided tours** (temporary): a tester's walk through what is new on the practice system,
- * Proposals from a bare `?tour` link, and the earlier one about reading from `?tour=reading`.
+ * Spending from a bare `?tour` link, and the earlier ones from `?tour=proposals` and
+ * `?tour=reading`.
  * Delete with `components/tour`. What a browser alone can say: that a link starts it, that it
  * waits for the page and moves on by itself, and that it survives signing out, which is how it
  * reaches the archive as a Visitor sees it.
@@ -85,14 +86,14 @@ test('a Tavola 51 that was not loaded can be skipped, on to showing a drawing', 
   await expect(tour.getByTestId('tour-step')).toHaveText('Show a drawing to Visitors');
 });
 
-test('a bare link starts the Proposals tour, which keeps clear of the answer being written', async ({
+test('a link starts the Proposals tour, which keeps clear of the answer being written', async ({
   page,
   browser,
 }, info) => {
   // Somebody not let propose is told whom to ask.
   await signInAs(page, PRACTICE.member);
   await landed(page);
-  await page.goto('/?tour');
+  await page.goto('/?tour=proposals');
   const tour = page.getByTestId('tour');
   await expect(tour.getByTestId('tour-step')).toHaveText('Something new: Proposals');
   await expect(tour).toContainText('Ask the developer to let you propose');
@@ -113,7 +114,7 @@ test('a bare link starts the Proposals tour, which keeps clear of the answer bei
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
   await signIn(page);
-  await page.goto('/?tour');
+  await page.goto('/?tour=proposals');
   await expect(tour.getByTestId('tour-step')).toHaveText('Something new: Proposals');
   await expect(tour).not.toContainText('Ask the developer');
   await tour.getByRole('button', { name: 'Start' }).click();
@@ -153,4 +154,43 @@ test('a bare link starts the Proposals tour, which keeps clear of the answer bei
   await tour.getByRole('button', { name: 'End tour' }).click();
   await expect(page.getByRole('button', { name: 'Tour: Proposals' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tour: reading and Visitors' })).toBeVisible();
+});
+
+test('a bare link starts the Spending tour, for Administrators, which moves on at Spending', async ({
+  page,
+}, info) => {
+  // Somebody who is not an Administrator is told the tour is not for them.
+  await signInAs(page, PRACTICE.member);
+  await landed(page);
+  await page.goto('/?tour');
+  const tour = page.getByTestId('tour');
+  await expect(tour.getByTestId('tour-step')).toHaveText('Something new: Spending');
+  await expect(tour).toContainText('Spending is for Administrators only');
+  await tour.getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+
+  await signIn(page);
+  await page.goto('/?tour');
+  await expect(tour.getByTestId('tour-step')).toHaveText('Something new: Spending');
+  await expect(tour).not.toContainText('Administrators only');
+  await tour.getByRole('button', { name: 'Start' }).click();
+
+  await expect(tour.getByTestId('tour-step')).toHaveText('Open Spending');
+  await tour.getByRole('link', { name: 'Go to Spending' }).click();
+  await expect(page).toHaveURL(/\/spending$/);
+  await expect(tour.getByTestId('tour-step')).toHaveText('This month, at a glance');
+  await page.screenshot({ path: info.outputPath('spending.png') });
+
+  await tour.getByRole('button', { name: 'Next' }).click();
+  await expect(tour.getByTestId('tour-step')).toHaveText('Before starting a reading');
+  await tour.getByRole('link', { name: 'Go to Readings' }).click();
+  await expect(page).toHaveURL(/\/readings$/);
+  await tour.getByRole('button', { name: 'I’ve seen it' }).click();
+
+  await expect(tour.getByTestId('tour-step')).toHaveText('When the month runs out');
+  await tour.getByRole('button', { name: 'Next' }).click();
+  await tour.getByRole('button', { name: 'End the tour' }).click();
+  await expect(tour).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tour: Spending' })).toBeVisible();
 });

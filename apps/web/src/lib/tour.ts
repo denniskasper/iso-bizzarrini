@@ -12,8 +12,14 @@ import { useCallback, useSyncExternalStore } from 'react';
  * Which tour: each walks through what was new when it was written. The newest is the one a bare
  * `?tour` link starts; an earlier one is kept for a tester who has not walked it yet.
  */
-export type TourName = 'proposals' | 'reading';
-export const NEWEST_TOUR: TourName = 'proposals';
+export type TourName = 'spending' | 'proposals' | 'reading';
+export const NEWEST_TOUR: TourName = 'spending';
+const TOUR_NAMES: readonly TourName[] = ['spending', 'proposals', 'reading'];
+
+/** The tour a name stands for: an unknown one is the newest. */
+export function tourNamed(name: string | null): TourName {
+  return TOUR_NAMES.find((tour) => tour === name) ?? NEWEST_TOUR;
+}
 
 export interface TourState {
   tour: TourName;
@@ -64,7 +70,7 @@ function parse(raw: string | null): TourState | null {
     // A tour begun before there were two is the reading one, which was the only one then.
     return typeof value.step === 'number'
       ? {
-          tour: value.tour === 'proposals' ? 'proposals' : 'reading',
+          tour: TOUR_NAMES.find((tour) => tour === value.tour) ?? 'reading',
           step: value.step,
           folded: value.folded === true,
         }
