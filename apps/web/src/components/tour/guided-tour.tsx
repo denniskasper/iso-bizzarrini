@@ -3,31 +3,35 @@ import { useEffect, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { environmentMode } from '@/lib/environment';
 import { useSession } from '@/lib/session';
-import { useTour } from '@/lib/tour';
+import { NEWEST_TOUR, useTour, type TourName } from '@/lib/tour';
 import { cn } from '@/lib/utils';
 
 /**
  * **A guided tour of what is new, for a tester on the practice system.** Temporary: delete this
  * folder, `lib/tour.ts` and the one line in the app shell once it has been walked.
  *
- * It starts from a link ending in `?tour`, and never in production. It waits beside the page
- * rather than over it: each step says what to do on the screen as it is, and moves on by itself
- * once the screen shows it was done, so the tester is using Ricambi and not a slideshow of it.
+ * There are two, each of what was new when it was written: Proposals, which a link ending in
+ * `?tour` starts, and the earlier one about reading, `?tour=reading`, kept for a tester who has
+ * not walked it yet. Never in production. It waits beside the page rather than over it: each
+ * step says what to do on the screen as it is, and moves on by itself once the screen shows it
+ * was done, so the tester is using Ricambi and not a slideshow of it.
  */
 
-type Part = 'read' | 'show' | 'visit';
+type Part = 'read' | 'show' | 'visit' | 'fix' | 'idea' | 'follow';
 
 interface Where {
   path: string;
   signedIn: boolean;
   /** Whether who this is has been answered yet: signed out is not known until it has. */
   known: boolean;
+  /** Whether an Administrator has let this Account propose. */
+  mayPropose: boolean;
 }
 
 interface Step {
   part: Part | null;
   title: string;
-  body: ReactNode;
+  body: ReactNode | ((where: Where) => ReactNode);
   /** Somewhere to go for this step, unless already there. */
   go?: { to: string; label: string; unless: (where: Where) => boolean };
   /** The screen showing this step was done. Without one, the tester says so. */
@@ -40,7 +44,7 @@ interface Step {
 
 const onTavola = (where: Where) => where.path.startsWith('/tavole/');
 
-const STEPS: Step[] = [
+const READING_STEPS: Step[] = [
   {
     part: null,
     title: 'Three new things to try',
@@ -186,15 +190,149 @@ const STEPS: Step[] = [
   },
 ];
 
-const PARTS: { part: Part; name: string }[] = [
-  { part: 'read', name: 'Read' },
-  { part: 'show', name: 'Show' },
-  { part: 'visit', name: 'Visit' },
+const onProposals = (where: Where) => where.path.startsWith('/proposals');
+
+const PROPOSALS_STEPS: Step[] = [
+  {
+    part: null,
+    title: 'Something new: Proposals',
+    body: (where) => (
+      <>
+        <p>
+          You can now hand the developer a <b>Fix</b> or an <b>Idea</b> from inside Ricambi. You
+          talk it through with Claude, who asks until it is clear, and you hand it over when it is.
+          About twenty minutes:
+        </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5">
+          <li>Propose a Fix, with a screenshot.</li>
+          <li>Work out an Idea.</li>
+          <li>Follow what becomes of them.</li>
+        </ol>
+        <p className="mt-3">Propose is only here, on the practice archive.</p>
+        {where.known && !where.mayPropose && (
+          <p className="mt-3 font-semibold">
+            You don’t see Propose at the top yet. Ask the developer to let you propose, then reload
+            this page.
+          </p>
+        )}
+      </>
+    ),
+    next: 'Start',
+  },
+  {
+    part: 'fix',
+    title: 'Propose a Fix',
+    body: (
+      <>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>
+            Open a page where something is wrong, unclear or slow: a Tavola, the search, anything.
+          </li>
+          <li>
+            Press <b>Propose</b> at the top, and choose <b>Fix</b>.
+          </li>
+          <li>Say what is wrong, in your own words, and answer what Claude asks.</li>
+        </ol>
+        <p className="mt-3">
+          On a phone the conversation fills the screen and this tour waits behind it. Press{' '}
+          <b>Close</b> to come back: what you wrote is kept.
+        </p>
+      </>
+    ),
+    go: { to: '/', label: 'Go to the catalogue', unless: (where) => where.path !== '/proposals' },
+    next: 'I’ve started it',
+  },
+  {
+    part: 'fix',
+    title: 'Show a screenshot',
+    body: (
+      <p>
+        Take a screenshot of what you mean and paste it into the answer box, or press{' '}
+        <b>Add screenshots</b>. Write a note beside it saying what to look at. It is sent with your
+        next answer.
+      </p>
+    ),
+    next: 'It’s sent',
+  },
+  {
+    part: 'fix',
+    title: 'Finish and hand over',
+    body: (
+      <p>
+        When you have said it all, press <b>Finish</b>. Claude writes the Fix out the way the
+        developer reads it, with your own words kept beneath. If something is not right, say so and
+        it is written again. Then press <b>Hand over</b>.
+      </p>
+    ),
+    next: 'It’s handed over',
+  },
+  {
+    part: 'idea',
+    title: 'Work out an Idea',
+    body: (
+      <>
+        <p>
+          Press <b>Propose</b> again and choose <b>Idea</b>: something Ricambi could do, or do
+          differently. Claude asks it through with you: who it is for, what happens today, what it
+          would change, and where it clashes with how Ricambi works. Push back where it is wrong.
+        </p>
+        <p className="mt-3">
+          Stop whenever you like: <b>Close</b> keeps it under <b>Your drafts</b> to carry on later.
+          Finish and hand it over as before.
+        </p>
+      </>
+    ),
+    next: 'It’s handed over',
+  },
+  {
+    part: 'follow',
+    title: 'Follow what becomes of them',
+    body: (
+      <p>
+        <b>Proposals</b> lists what you have handed over. Each is <b>New</b> until the developer
+        takes it up, then <b>Taken up</b>, and in the end <b>Done</b>, or <b>Declined</b> with the
+        reason. Open one to read it as the developer does.
+      </p>
+    ),
+    go: { to: '/proposals', label: 'Go to Proposals', unless: onProposals },
+    done: (where) => where.path.startsWith('/proposals/'),
+  },
+  {
+    part: null,
+    title: 'That’s all of it',
+    body: (
+      <p>
+        Propose stays at the top of every page. Use it whenever something bothers you or an idea
+        comes: there is no wrong one, and the developer reads them all. Anything about this tour
+        itself: reply to the e-mail it came with.
+      </p>
+    ),
+    next: 'End the tour',
+  },
 ];
+
+const TOURS: Record<TourName, { steps: Step[]; parts: { part: Part; name: string }[] }> = {
+  proposals: {
+    steps: PROPOSALS_STEPS,
+    parts: [
+      { part: 'fix', name: 'Fix' },
+      { part: 'idea', name: 'Idea' },
+      { part: 'follow', name: 'Follow' },
+    ],
+  },
+  reading: {
+    steps: READING_STEPS,
+    parts: [
+      { part: 'read', name: 'Read' },
+      { part: 'show', name: 'Show' },
+      { part: 'visit', name: 'Visit' },
+    ],
+  },
+};
 
 export function GuidedTour() {
   const { state, start, end, goTo, fold } = useTour();
-  const { signedIn, isPending } = useSession();
+  const { signedIn, isPending, account } = useSession();
   const path = useRouterState({ select: (router) => router.location.pathname });
 
   // A link ending in `?tour` starts it from the beginning, and is then forgotten, so reloading
@@ -205,14 +343,20 @@ export function GuidedTour() {
     }
     const url = new URL(window.location.href);
     if (url.searchParams.has('tour')) {
-      start();
+      start(url.searchParams.get('tour') === 'reading' ? 'reading' : NEWEST_TOUR);
       url.searchParams.delete('tour');
       window.history.replaceState(window.history.state, '', url);
     }
   }, [start]);
 
-  const step = state ? STEPS[state.step] : undefined;
-  const where: Where = { path, signedIn, known: !isPending };
+  const tour = state ? TOURS[state.tour] : undefined;
+  const step = state ? tour?.steps[state.step] : undefined;
+  const where: Where = {
+    path,
+    signedIn,
+    known: !isPending,
+    mayPropose: account?.mayPropose ?? false,
+  };
   const finished = step?.done?.(where) ?? false;
 
   useEffect(() => {
@@ -221,18 +365,19 @@ export function GuidedTour() {
     }
   }, [state, finished, goTo]);
 
-  if (environmentMode() === 'production' || !state || !step) {
+  if (environmentMode() === 'production' || !state || !tour || !step) {
     return null;
   }
+  const { steps, parts } = tour;
 
-  const last = state.step === STEPS.length - 1;
+  const last = state.step === steps.length - 1;
   const advance = () => (last ? end() : goTo(state.step + 1));
-  const nextPart = STEPS.findIndex(
+  const nextPart = steps.findIndex(
     (later, index) => index > state.step && later.part !== null && later.part !== step.part,
   );
   const go = step.go && !step.go.unless(where) ? step.go : null;
-  const reached = step.part ? PARTS.findIndex((part) => part.part === step.part) : -1;
-  const partsDone = last ? PARTS.length : reached;
+  const reached = step.part ? parts.findIndex((part) => part.part === step.part) : -1;
+  const partsDone = last ? parts.length : reached;
 
   if (state.folded) {
     return (
@@ -255,7 +400,7 @@ export function GuidedTour() {
     <aside aria-label="Guided tour" className="tour" data-testid="tour">
       <div className="flex items-start justify-between gap-4 pt-4 pl-5">
         <ol className="flex flex-1 gap-1.5" aria-label="Parts of the tour">
-          {PARTS.map(({ part, name }, index) => (
+          {parts.map(({ part, name }, index) => (
             <li
               key={part}
               className="flex-1"
@@ -293,7 +438,9 @@ export function GuidedTour() {
         <h2 className="display text-3xl" data-testid="tour-step">
           {step.title}
         </h2>
-        <div className="mt-2 text-sm text-pretty">{step.body}</div>
+        <div className="mt-2 text-sm text-pretty">
+          {typeof step.body === 'function' ? step.body(where) : step.body}
+        </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           {go ? (
@@ -318,7 +465,7 @@ export function GuidedTour() {
             </Button>
           )}
           {state.step > 0 && (
-            <Button variant="ghost" className="px-3" onClick={start}>
+            <Button variant="ghost" className="px-3" onClick={() => start(state.tour)}>
               Start over
             </Button>
           )}
@@ -334,8 +481,9 @@ export function GuidedTour() {
 }
 
 /**
- * **Taking the tour again**, from the footer of a practice system, for whoever ended it or wants
- * to walk it from the start. Nothing while it is running: the panel has its own way to start over.
+ * **Taking a tour**, from the footer of a practice system, for whoever ended one, wants to walk
+ * it from the start, or has not walked the earlier one yet. Nothing while one is running: the
+ * panel has its own way to start over.
  */
 export function TourLink({ className }: { className: string }) {
   const { state, start } = useTour();
@@ -343,8 +491,13 @@ export function TourLink({ className }: { className: string }) {
     return null;
   }
   return (
-    <button type="button" className={className} onClick={start}>
-      Take the tour
-    </button>
+    <>
+      <button type="button" className={className} onClick={() => start('proposals')}>
+        Tour: Proposals
+      </button>
+      <button type="button" className={className} onClick={() => start('reading')}>
+        Tour: reading and Visitors
+      </button>
+    </>
   );
 }
