@@ -137,6 +137,8 @@ const HIDDEN_FROM_ALL_BUT_ADMINISTRATORS = new Set([
   'GET /api/tavole/:removing/removal',
   // What Ricambi has spent on Claude, against the Monthly limit (issue #189).
   'GET /api/spending',
+  // What is left of this month's Monthly limit, for starting a Catalog run (issue #192).
+  'GET /api/spending/left',
 ]);
 
 /** Signed in is enough. It is what a lapsed member is shown instead of the archive. */

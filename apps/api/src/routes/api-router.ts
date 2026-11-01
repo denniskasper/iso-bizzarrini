@@ -212,6 +212,8 @@ export function createApiRouter(dependencies: {
   // **Spending** (issue #189): what Ricambi has spent on Claude this month and the eleven before,
   // against the Monthly limit. As hidden as the Readings section, on every system.
   router.get('/spending', gate.hiddenFromAllButAdministrators, spendingController.read);
+  // What is left of this month's Monthly limit, for starting a Catalog run (issue #192).
+  router.get('/spending/left', gate.hiddenFromAllButAdministrators, spendingController.left);
   // **A Catalog run** (issue #57): the catalog uploaded and priced, before anything is read. The
   // role is checked before the body is read, so nobody else can even send a catalog here. The
   // catalog is as private as a Scan, and served to nobody but an Administrator.

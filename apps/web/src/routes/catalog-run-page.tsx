@@ -9,6 +9,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { Estimating } from '@/components/readings/estimating';
 import { RunCosts } from '@/components/readings/run-costs';
+import { MonthlyLimitLeft } from '@/components/readings/monthly-limit-left';
 import { StartRun } from '@/components/readings/start-run';
 import { Working } from '@/components/readings/working';
 import { AdministratorsOnly } from '@/components/roster/administrators-only';
@@ -222,6 +223,10 @@ function Continue({ run }: { run: CatalogRun }) {
   const [limit, setLimit] = useState('');
   const dollarsGiven = Number(limit);
   const raising = limit !== '';
+  // What it could spend from here, on the limit given or the one it has, for the Monthly limit's
+  // warning (issue #192). Nothing until a limit is typed where one is needed.
+  const limitAhead = raising ? dollarsGiven : needsRaise ? null : run.limit;
+  const room = limitAhead !== null && limitAhead > 0 ? limitAhead - run.spent : null;
 
   return (
     <form
@@ -248,6 +253,8 @@ function Continue({ run }: { run: CatalogRun }) {
           }}
         />
       )}
+
+      <MonthlyLimitLeft room={room} />
 
       {carryOn.error && <Refusal>{refusalText(carryOn.error)}</Refusal>}
 

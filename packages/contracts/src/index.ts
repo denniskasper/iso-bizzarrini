@@ -3020,6 +3020,26 @@ export interface SpendingResponse {
   monthlyLimitUsd: number | null;
 }
 
+/**
+ * `GET /api/spending/left` — **what is left of this month's Monthly limit** (issue #192), for the
+ * screens that start and continue a Catalog run, an Administrator's alone. `null` where no Monthly
+ * limit is known, or where the Reading method is not billed: nothing is said, and nothing warned.
+ */
+export interface MonthlyLimitLeftResponse {
+  left: MonthlyLimitLeft | null;
+}
+
+/** This month's Monthly limit, what was billed against it, from Spending's figures, and the rest. */
+export interface MonthlyLimitLeft {
+  /** `YYYY-MM`, the calendar month in UTC. */
+  month: string;
+  monthlyLimitUsd: number;
+  /** What was billed this month, every purpose. What was only priced does not count. */
+  spentUsd: number;
+  /** The limit less what was billed, and never less than nothing. */
+  leftUsd: number;
+}
+
 /** `GET /api/proposals/:proposalId` — one Proposal and the whole of its conversation. */
 export interface Proposal extends ProposalListing {
   turns: ProposalTurn[];
