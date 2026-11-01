@@ -10,8 +10,14 @@ import {
 } from './conversation-method.js';
 import { factsOf, PLAYBOOK, SUMMARY_SCHEMA, WRITE_THE_PROPOSAL } from './playbook.js';
 
-/** One model, at its default effort, with no picker (issue #150). */
-export const CONVERSATION_MODEL = 'claude-opus-5-5';
+/**
+ * One model, with no picker (issue #150): Sonnet 5.5, at about half Opus's price, at `high`
+ * effort, its own default, named so that it does not move when the default does. Grilling an
+ * Idea needs judgment, and at the number of conversations a practice system has, the effort is
+ * worth more than the cents it costs.
+ */
+export const CONVERSATION_MODEL = 'claude-sonnet-5-5';
+export const CONVERSATION_EFFORT = 'high';
 
 /** The ceiling on an answer and on a summary, thinking included. */
 const MAX_TOKENS = 16000;
@@ -69,6 +75,7 @@ export function createClaudeApiConversationMethod(
         const stream = client.messages.stream({
           model: CONVERSATION_MODEL,
           max_tokens: MAX_TOKENS,
+          output_config: { effort: CONVERSATION_EFFORT },
           system: systemFor(conversation),
           messages: messagesOf(conversation.turns),
         });
@@ -97,7 +104,10 @@ export function createClaudeApiConversationMethod(
             ...messagesOf(conversation.turns),
             { role: 'user', content: WRITE_THE_PROPOSAL },
           ],
-          output_config: { format: zodOutputFormat(SUMMARY_SCHEMA[conversation.kind]) },
+          output_config: {
+            effort: CONVERSATION_EFFORT,
+            format: zodOutputFormat(SUMMARY_SCHEMA[conversation.kind]),
+          },
         });
       } catch (error) {
         throw classify(error);

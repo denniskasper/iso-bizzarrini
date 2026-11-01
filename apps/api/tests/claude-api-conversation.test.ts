@@ -162,7 +162,7 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
     return pieces;
   }
 
-  it('streams the answer as it is written, on Opus 5.5 at its default effort', async () => {
+  it('streams the answer as it is written, on Sonnet 5.5 at high effort', async () => {
     const api = await givenTheApi({ stream: ['Wer ', 'trägt es ', 'ein?'] });
 
     expect(await heard(methodFor(api.url).answer(conversation))).toEqual([
@@ -173,8 +173,8 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
 
     const [request] = api.received;
     expect(request?.headers['x-api-key']).toBe(KEY);
-    expect(request?.body).toMatchObject({ model: 'claude-opus-5-5', stream: true });
-    expect(request?.body.output_config?.effort).toBeUndefined();
+    expect(request?.body).toMatchObject({ model: 'claude-sonnet-5-5', stream: true });
+    expect(request?.body.output_config?.effort).toBe('high');
   });
 
   it('sends the playbook, then the documents cached for an hour, then this Proposal’s facts', async () => {
@@ -239,8 +239,9 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
 
     const summary = await methodFor(api.url).summarise(conversation);
 
-    expect(summary).toEqual({ kind: 'idea', ...idea, model: 'claude-opus-5-5' });
+    expect(summary).toEqual({ kind: 'idea', ...idea, model: 'claude-sonnet-5-5' });
     const [request] = api.received;
+    expect(request?.body.output_config?.effort).toBe('high');
     expect(request?.body.output_config?.format?.type).toBe('json_schema');
     expect(JSON.stringify(request?.body.output_config?.format?.schema)).toContain('forWhom');
     expect(request?.body.system[1]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
@@ -261,7 +262,7 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
 
     const summary = await methodFor(api.url).summarise({ ...conversation, kind: 'fix' });
 
-    expect(summary).toEqual({ kind: 'fix', ...fix, model: 'claude-opus-5-5' });
+    expect(summary).toEqual({ kind: 'fix', ...fix, model: 'claude-sonnet-5-5' });
     expect(JSON.stringify(api.received[0]?.body.output_config?.format?.schema)).toContain(
       'whatWasExpected',
     );

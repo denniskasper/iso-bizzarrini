@@ -53,7 +53,12 @@ describe('a Proposal’s conversation with Claude through this machine’s login
     };
   }
 
-  const init = { type: 'system', subtype: 'init', apiKeySource: 'none', model: 'claude-opus-5-5' };
+  const init = {
+    type: 'system',
+    subtype: 'init',
+    apiKeySource: 'none',
+    model: 'claude-sonnet-5-5',
+  };
   const delta = (text: string) => ({
     type: 'stream_event',
     event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
@@ -105,7 +110,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
     return pieces;
   }
 
-  it('streams the answer as it is written, on Opus 5.5', async () => {
+  it('streams the answer as it is written, on Sonnet 5.5 at high effort', async () => {
     const claude = givenClaudeCode(
       init,
       delta('Wer '),
@@ -120,10 +125,10 @@ describe('a Proposal’s conversation with Claude through this machine’s login
       'ein?',
     ]);
     expect(claude.asked[0]?.options).toMatchObject({
-      model: 'claude-opus-5-5',
+      model: 'claude-sonnet-5-5',
       includePartialMessages: true,
     });
-    expect(claude.asked[0]?.options.effort).toBeUndefined();
+    expect(claude.asked[0]?.options.effort).toBe('high');
   });
 
   it('switches every tool off, and nothing of the machine’s own setup can bring one back', async () => {
@@ -238,7 +243,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
 
     const summary = await methodFor(claude.query).summarise(conversation);
 
-    expect(summary).toEqual({ kind: 'idea', ...idea, model: 'claude-opus-5-5' });
+    expect(summary).toEqual({ kind: 'idea', ...idea, model: 'claude-sonnet-5-5' });
     const { options, messages } = claude.asked[0] ?? {};
     expect(options?.outputFormat?.type).toBe('json_schema');
     expect(JSON.stringify(options?.outputFormat?.schema)).toContain('forWhom');
@@ -259,7 +264,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
 
     const summary = await methodFor(claude.query).summarise({ ...conversation, kind: 'fix' });
 
-    expect(summary).toEqual({ kind: 'fix', ...fix, model: 'claude-opus-5-5' });
+    expect(summary).toEqual({ kind: 'fix', ...fix, model: 'claude-sonnet-5-5' });
     expect(JSON.stringify(claude.asked[0]?.options.outputFormat?.schema)).toContain(
       'whatWasExpected',
     );
@@ -293,7 +298,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
 
   it('names itself by the model and the login, never by a credential', () => {
     const method = createClaudeSubscriptionConversationMethod({ documents, env: ENV });
-    expect(method.name).toBe('Claude (claude-opus-5-5) with this machine’s Claude Code login');
+    expect(method.name).toBe('Claude (claude-sonnet-5-5) with this machine’s Claude Code login');
   });
 });
 
