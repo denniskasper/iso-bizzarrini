@@ -62,9 +62,25 @@ proxy's `forward_auth` that ADR 0006 once described.
   and Dokploy's generated Traefik configuration sets no servers transport. The API holds an
   idle connection for 95 seconds. **Setting `idleConnTimeout` above ninety seconds in Dokploy's
   Traefik configuration means raising `POOLING_CLIENT_IDLE_WINDOW_MS` too**; that configuration
-  is not in this repository, so nothing here fails when somebody does.
+  is not in this repository, so nothing here fails when somebody does. It is kept in the Club's
+  `infra` repository (amended below), where the change is at least a commit somebody can read.
 - **The non-production system runs on the same host**, as a second Dokploy service from
   [`docker/preview/compose.yml`](../../docker/preview/compose.yml), with its own database and
   volume. It cannot reach a member (ADR 0012), and it holds no copy of the archive.
 - **The platform is one more thing to keep patched.** Dokploy and its Traefik are updated from
   Dokploy's panel, which should be reachable only over a private network, as the preview's is.
+
+## Amended: the server's settings live in the Club's `infra` repository
+
+Decided on 2026-11-01. **Once the Club's server exists, the Club's GitHub organisation holds a
+private repository, `infra`, and the server's settings are kept in it**: the Docker daemon's log
+driver, the journal's retention, Traefik's static configuration, the backup script and its
+schedule, and how each Dokploy service is set up. Until now each of those was written on the
+host and described only in prose here, so a host that was lost took them with it, and a change
+to one of them (Traefik's `idleConnTimeout` above all) left no trace anybody could review.
+
+**What stays true.** Secrets stay in Dokploy's environment editor, and the backup key with the
+people who hold it; `infra` holds the names of the variables and where each value is kept, never
+the values. This repository still names no host: `infra` is the Club's own and may. The
+procedures stay here, in [`club-deployment.md`](../operations/club-deployment.md) and
+[`log-retention.md`](../operations/log-retention.md); `infra` holds what they produce.

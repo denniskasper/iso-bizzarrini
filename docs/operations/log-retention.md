@@ -22,6 +22,10 @@ actually decided.
 
 ## Setting it up
 
+On the Club's server, every file written below is kept in the Club's `infra` repository as well,
+at the same path, and changed there first
+([`club-deployment.md`](club-deployment.md#the-clubs-infra-repository)).
+
 1. **Send every container's log to the journal.** In `/etc/docker/daemon.json`:
 
    ```json
