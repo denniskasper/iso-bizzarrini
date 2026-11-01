@@ -190,6 +190,12 @@ _Avoid_: Comment, post, submission, suggestion, edit
 The association whose roster decides who may read the archive. Eligibility comes from the
 Club, never from the platform.
 
+**Board**:
+The Club's elected officers, who decide what the platform cannot decide for itself: who handles
+members' data, how long it is kept, the rules for passwords. Appoints Administrators; holds no
+role on the platform as such.
+_Avoid_: Vorstand, management, committee
+
 **Visitor**:
 Somebody reading Ricambi without signing in. Sees the Samples, which Models the archive covers
 and how much of each, and how to join the Club; nothing else of the archive.
@@ -323,6 +329,11 @@ _Avoid_: Preview, staging, demo, test system
 **Development**:
 A developer's own machine, running Ricambi to change it. Never reachable by anybody else.
 _Avoid_: Local, dev box, sandbox
+
+**Developer**:
+Whoever changes Ricambi itself. May also hold an Account, as anybody may, but being a Developer
+grants nothing on the platform.
+_Avoid_: Maintainer, operator, admin
 
 **Proposal**:
 What somebody hands the developers about Ricambi itself, worked out in conversation on
