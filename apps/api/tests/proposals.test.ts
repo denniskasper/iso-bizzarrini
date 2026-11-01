@@ -1113,15 +1113,28 @@ describe('a conversation on this machine’s Claude subscription', () => {
   });
 
   it('is never looked for in Production, nor where the fake conversation is named', async () => {
+    const asked: string[] = [];
+    const lookup = async () => {
+      asked.push('asked');
+      return true;
+    };
     expect(
       await findMachineLogin(
-        settings({
-          ENVIRONMENT_MODE: 'production',
-          PUBLIC_URL: 'https://ricambi.example',
-        }),
+        settings({ ENVIRONMENT_MODE: 'production', PUBLIC_URL: 'https://ricambi.example' }),
+        lookup,
       ),
     ).toBe(false);
-    expect(await findMachineLogin(settings({ PROPOSALS_METHOD: 'fake' }))).toBe(false);
+    expect(await findMachineLogin(settings({ PROPOSALS_METHOD: 'fake' }), lookup)).toBe(false);
+    expect(asked).toEqual([]);
+  });
+
+  it('is looked for where catalog reading runs on it, even with the fake conversation', async () => {
+    expect(
+      await findMachineLogin(
+        settings({ PROPOSALS_METHOD: 'fake', READING_METHOD: 'subscription' }),
+        async () => true,
+      ),
+    ).toBe(true);
   });
 });
 

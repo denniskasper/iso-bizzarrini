@@ -9,9 +9,11 @@ import { machineLoginAvailable } from '../platform/claude-code.js';
  */
 export async function findMachineLogin(
   config: Pick<AppConfig, 'environmentMode' | 'proposals' | 'reading'>,
+  /** Asks Claude Code, unless a test stands in for it. */
+  available: () => Promise<boolean> = machineLoginAvailable,
 ): Promise<boolean> {
   const reading = config.reading.method === 'subscription';
   const conversation =
     config.environmentMode !== 'production' && config.proposals.method !== 'fake';
-  return (reading || conversation) && machineLoginAvailable();
+  return (reading || conversation) && available();
 }

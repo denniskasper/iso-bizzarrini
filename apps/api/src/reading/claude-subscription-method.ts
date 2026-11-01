@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {
   agentQuery,
   machineLoginEnvironment,
-  machineLoginOptions,
+  isolatedSessionOptions,
   USAGE_LIMIT,
   type AgentQuery,
 } from '../platform/claude-code.js';
@@ -133,7 +133,7 @@ export function createClaudeSubscriptionReadingMethod(
       for await (const line of query({
         prompt: prompt(),
         options: {
-          ...machineLoginOptions(env),
+          ...isolatedSessionOptions(env),
           model: CLAUDE_MODEL,
           effort,
           systemPrompt: SYSTEM_PROMPT,
@@ -157,9 +157,11 @@ export function createClaudeSubscriptionReadingMethod(
       if (error instanceof ReadingMethodError) {
         throw error;
       }
+      const said = error instanceof Error ? firstLine(error.message) : '';
       throw new ReadingMethodError(
-        'Claude Code could not be started, or stopped without an answer. Is it signed in on ' +
-          'this machine with `claude auth login`?',
+        'Claude Code could not be started, or stopped without an answer' +
+          (said ? ` (${said})` : '') +
+          '. Is it signed in on this machine with `claude auth login`?',
       );
     }
 

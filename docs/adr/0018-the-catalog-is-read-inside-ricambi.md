@@ -18,10 +18,9 @@ the server in the background and survives the page being closed and the server r
 command stays, as a developer tool built on the same reading code.
 
 **"It starts on the subscription ... and moves to an API key" is replaced.** The server reads with
-the one credential it is configured with, as a secret: a subscription login while Ricambi is a
-prototype, and the Club's own API key once the Club has one (amended below: a server reads only
-with an API key). Switching is a configuration change, not a code change. Neither or both
-configured means no run can start, and Ricambi says why.
+the one credential it is configured with, as a secret: an API key (amended below). Switching
+is a configuration change, not a code change. Neither or both configured means no run can start,
+and Ricambi says why.
 
 **Amended 2026-11-01 (issue #151): a server reads only with an API key.** The subscription login
 stays on the developer's machine, for Development, through the Agent SDK and the Claude Code

@@ -74,6 +74,16 @@ export function assertSafeForEnvironment(assembled: {
       );
     }
 
+    // A subscription is the developer's own, on their own machine (ADR 0012, as amended; issue
+    // #151). The image already refuses it; this holds for a process started any other way.
+    if (config.reading.method === 'subscription') {
+      throw new EnvironmentSafetyError(
+        `"${config.environmentName}" is production and will not start with ` +
+          'READING_METHOD=subscription. Production reads only with the Club’s own API key: ' +
+          'set READING_METHOD=api-key and ANTHROPIC_API_KEY, or none.',
+      );
+    }
+
     // **Proposals run the other way** (ADR 0012, as amended; issue #152). The conversation is for
     // practice systems, its key is billed to a workspace kept for developing Ricambi, and the
     // Club's records do not name it for Production. Refusing the key makes all three true by

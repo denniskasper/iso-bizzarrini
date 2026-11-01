@@ -165,6 +165,12 @@ describe('production and the fake Reading method', () => {
     expect(() => assertSafe({ READING_METHOD: 'fake' })).toThrow(/READING_METHOD=fake/);
   });
 
+  it('refuses a subscription even from a process not built as a server, naming api-key', () => {
+    expect(() => assertSafe({ READING_METHOD: 'subscription' })).toThrow(
+      /READING_METHOD=subscription.*READING_METHOD=api-key/,
+    );
+  });
+
   it('starts with a method that really reads, or with none', () => {
     expect(() =>
       assertSafe({ READING_METHOD: 'api-key', ANTHROPIC_API_KEY: 'sk-ant-api03-made-up' }),

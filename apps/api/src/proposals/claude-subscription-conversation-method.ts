@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {
   agentQuery,
   machineLoginEnvironment,
-  machineLoginOptions,
+  isolatedSessionOptions,
   USAGE_LIMIT,
   type AgentQuery,
 } from '../platform/claude-code.js';
@@ -64,7 +64,7 @@ export function createClaudeSubscriptionConversationMethod(
 
   function optionsFor(conversation: Conversation): Options {
     return {
-      ...machineLoginOptions(env),
+      ...isolatedSessionOptions(env),
       model: CONVERSATION_MODEL,
       effort: CONVERSATION_EFFORT,
       systemPrompt: [

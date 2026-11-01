@@ -97,7 +97,7 @@ export async function agentQuery(): Promise<AgentQuery | null> {
  * machine's own configuration that could bring one back, nothing kept of the session, run in a
  * directory with nothing in it, and signed in only with the machine's login.
  */
-export function machineLoginOptions(env: NodeJS.ProcessEnv): Options {
+export function isolatedSessionOptions(env: NodeJS.ProcessEnv): Options {
   return {
     tools: [],
     allowedTools: [],
