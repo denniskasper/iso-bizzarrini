@@ -28,12 +28,19 @@ an Idea of about eight answers and a screenshot or two comes to roughly **$0.35*
 more each time the author comes back after more than an hour, when the cache is written again.
 Ten to twenty conversations a month: about **$4–8**.
 
-An **Administrator** sees the estimates on the **Proposals** page: this month's and last month's,
-by the month each request was made in, how many conversations and what one comes to, and each
-Proposal's own beside it. Nobody else let propose sees any of it, and there is nothing to see on
-the developer's subscription, which is not billed by the request. A Draft discarded afterwards
-still counts in its month. Set `PROPOSALS_MONTHLY_LIMIT_USD` to the workspace's limit to show
-this month against it; Ricambi is told the limit and cannot read it, so change both together.
+An **Administrator** sees each Proposal's own estimate beside it, and in the Propose panel what
+a conversation comes to this month. The month itself is on **Spending**, in the admin
+navigation: this month's spending against the Monthly limit, by what it was for, and the past
+twelve months, by the calendar month in UTC each request was made in. Nobody else sees any of
+it, and there is nothing to see on the developer's subscription, which is not billed by the
+request. A Draft discarded afterwards still counts in its month.
+
+**The Monthly limit** is `ANTHROPIC_MONTHLY_LIMIT_USD`, the workspace's spend limit in the
+Console, which holds Proposals and catalog reading together (ADR 0012, "Amended: one Monthly
+limit"). Ricambi is told the limit and cannot read it, so **change both together**: the spend
+limit in the Console, and the setting. Unset, Spending says no Monthly limit is known. Its old
+name, `PROPOSALS_MONTHLY_LIMIT_USD`, is refused: a server still given it does not start, and
+says to use the new one.
 
 Each request says what it used in the server's log, as `A Proposal’s conversation used`: input,
 cache-write, cache-read and output tokens, and `estimatedUsd` at the list prices in
@@ -68,13 +75,13 @@ Integration has **one key** for Proposals and catalog reading alike.
    Proposals and Catalog runs. That limit is what stops them, and their cost is known in advance.
 3. **The key.** Create an API key in that workspace, and nowhere else. It is shown once.
 4. **The secrets.** In Dokploy, open the Integration service's environment editor and add the
-   key under both names, with the reading method and the limit from step 2:
+   key under both names, with the reading method and the Monthly limit from step 2:
 
    ```
    PROPOSALS_ANTHROPIC_API_KEY=<the key>
    ANTHROPIC_API_KEY=<the key>
    READING_METHOD=api-key
-   PROPOSALS_MONTHLY_LIMIT_USD=100
+   ANTHROPIC_MONTHLY_LIMIT_USD=100
    ```
 
    Never `PROPOSALS_ANTHROPIC_API_KEY` on the Club's Production service, which would refuse to
@@ -93,7 +100,8 @@ Proposals are **paused until next month**, and what they wrote is kept. That is 
 it is told apart from the conversation being **unavailable**, which is: a refused key, the API
 not reached, or the model declining to answer. The server's log says which.
 
-Raising the limit in the Console lets the conversation carry on at once.
+Raising the limit in the Console lets the conversation carry on at once. Raise
+`ANTHROPIC_MONTHLY_LIMIT_USD` with it, so Spending measures against the limit that holds.
 
 ## The Processor record
 

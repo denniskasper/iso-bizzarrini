@@ -29,6 +29,7 @@ import { SearchPage } from '@/routes/search-page';
 import { SetPasswordPage } from '@/routes/set-password-page';
 import { SignInPage } from '@/routes/sign-in-page';
 import { SpecificationsPage } from '@/routes/specifications-page';
+import { SpendingPage } from '@/routes/spending-page';
 import { SubAssemblyPage } from '@/routes/sub-assembly-page';
 import { TavolaPage } from '@/routes/tavola-page';
 
@@ -58,6 +59,7 @@ const OUTSIDE_THE_GATE = [
   '/reminders',
   '/readings',
   '/proposals',
+  '/spending',
 ];
 
 function RootLayout() {
@@ -159,6 +161,16 @@ const readingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/readings',
   component: ReadingsPage,
+});
+
+/**
+ * What Ricambi has spent on Claude, against the Monthly limit (issue #189). An Administrator's,
+ * outside the gate with Readings, on every system.
+ */
+const spendingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/spending',
+  component: SpendingPage,
 });
 
 /** One Catalog run as it reads, and once it has (issue #58). An Administrator's, like Readings. */
@@ -341,6 +353,7 @@ export const router = createRouter({
     clubRoute,
     remindersRoute,
     readingsRoute,
+    spendingRoute,
     catalogRunRoute,
     proposalsRoute,
     proposalRoute,

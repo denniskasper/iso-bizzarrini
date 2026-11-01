@@ -2971,16 +2971,49 @@ export interface ProposalListing {
 }
 
 /**
- * **What the conversations cost** (`GET /api/proposals`), for an Administrator: estimated at list
- * prices from what Ricambi sent, by the month a Proposal was started in. The bill itself is the
- * provider's.
+ * **What the conversations cost this month** (`GET /api/proposals`), for an Administrator, so
+ * the Propose panel can say what one comes to. The month against the Monthly limit is Spending's.
  */
 export interface ProposalCosts {
   thisMonthUsd: number;
-  lastMonthUsd: number;
   /** Proposals started this month that cost anything to work out. */
   conversationsThisMonth: number;
-  /** The provider's monthly limit, as Ricambi is told it; null where it is not. */
+}
+
+/**
+ * **What an amount of spending on Claude was for** (issue #189): a Proposal's conversation.
+ * Catalog runs join it later.
+ */
+export type SpendingPurpose = 'proposal-conversations';
+
+/** One calendar month's spending, in UTC, estimated in US dollars at list prices. */
+export interface SpendingMonth {
+  /** `YYYY-MM`. */
+  month: string;
+  /** What it was for, every purpose named, nothing spent being `0`. */
+  byPurpose: Record<SpendingPurpose, number>;
+  totalUsd: number;
+  /**
+   * Whether it was billed. False where everything in it was only priced at list prices, as a
+   * subscription's or the practice method's is, and its figures read "would have cost". A month
+   * with nothing in it is billed where what this system spends on is.
+   */
+  billed: boolean;
+}
+
+/**
+ * `GET /api/spending` — **what Ricambi has spent on Claude** (issue #189), for an Administrator
+ * only: Ricambi's own estimates at list prices, recorded month by month as it is spent. The bill
+ * itself is in the provider's Console.
+ */
+export interface SpendingResponse {
+  thisMonth: SpendingMonth;
+  /** The last twelve calendar months, this one first. */
+  months: SpendingMonth[];
+  /**
+   * **The Monthly limit**, the Console workspace's spend limit as Ricambi is told it
+   * (`ANTHROPIC_MONTHLY_LIMIT_USD`); null where it is not.
+   */
   monthlyLimitUsd: number | null;
 }
 

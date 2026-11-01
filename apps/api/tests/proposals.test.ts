@@ -795,6 +795,7 @@ describe('what the conversation is given', () => {
   const listening: ConversationMethod = {
     name: 'A conversation that writes down what it was given',
     priced: false,
+    billed: false,
     async *answer(conversation) {
       heard.push(structuredClone(conversation));
       yield 'Noted.';
@@ -955,6 +956,7 @@ describe('a conversation that cannot answer', () => {
   const failing: ConversationMethod = {
     name: 'A conversation that fails as it is told to',
     priced: false,
+    billed: false,
     async *answer() {
       yield* failure.after;
       throw failure.error;
@@ -1228,6 +1230,7 @@ describe('what the conversations cost', () => {
   const priced: ConversationMethod = {
     name: 'A conversation that says what it cost',
     priced: true,
+    billed: true,
     async *answer(_conversation, used) {
       used?.(usage('answer', 0.1));
       yield 'Noted.';
@@ -1253,12 +1256,11 @@ describe('what the conversations cost', () => {
   async function startedWith(method: ConversationMethod): Promise<TestApp> {
     return startTestApp({
       build: BUILD,
-      env: { PROPOSALS_MONTHLY_LIMIT_USD: '25' },
       conversation: { method, unavailable: null },
     });
   }
 
-  it('is told to an Administrator: this month, last month, the limit, and each Proposal’s', async () => {
+  it('is told to an Administrator: this month’s, and each Proposal’s', async () => {
     const app = await startedWith(priced);
     try {
       const administrator = await givenAnAdministrator(app);
@@ -1285,12 +1287,8 @@ describe('what the conversations cost', () => {
       await administrator.agent.delete(`/api/proposals/${discarded}`).expect(204);
 
       const seen = await listed(administrator.agent);
-      expect(seen.costs).toEqual({
-        thisMonthUsd: 0.35,
-        lastMonthUsd: 0.1,
-        conversationsThisMonth: 1,
-        monthlyLimitUsd: 25,
-      });
+      // The month against the Monthly limit is Spending's: here, what one conversation comes to.
+      expect(seen.costs).toEqual({ thisMonthUsd: 0.35, conversationsThisMonth: 1 });
       expect(seen.handedOver.map((proposal) => proposal.estimatedCostUsd)).toEqual([0.25]);
       expect(seen.drafts.map((proposal) => proposal.estimatedCostUsd)).toEqual([0.1]);
       expect((await readProposal(administrator.agent, id)).estimatedCostUsd).toBe(0.25);
@@ -1309,6 +1307,7 @@ describe('what the conversations cost', () => {
     const app = await startedWith({
       name: 'A conversation on somebody’s subscription',
       priced: false,
+      billed: false,
       async *answer() {
         yield 'Noted.';
       },

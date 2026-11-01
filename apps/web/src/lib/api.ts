@@ -50,6 +50,7 @@ import type {
   ErasureResponse,
   PrivacyResponse,
   RetentionReport,
+  SpendingResponse,
   CorrectClubRequest,
   CorrectMemberRequest,
   InspectPasswordSetupRequest,
@@ -315,6 +316,8 @@ export const api = {
 
   /** What this server reads the factory catalog with (issue #55). An Administrator's alone. */
   readingSetup: () => request<ReadingSetup>('/reading-method'),
+  /** What Ricambi has spent on Claude, against the Monthly limit (issue #189). An Administrator's. */
+  spending: () => request<SpendingResponse>('/spending'),
   /**
    * A catalog uploaded and priced (issue #57). The PDF is the body, as a scan is; the Model and
    * the pages to read travel in the address, because there is nothing else on the request.

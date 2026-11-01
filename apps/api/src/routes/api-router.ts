@@ -13,6 +13,7 @@ import type { ContributionReviewController } from '../controllers/contribution-r
 import type { ReadingController } from '../controllers/reading-controller.js';
 import type { ReminderController } from '../controllers/reminder-controller.js';
 import type { RetentionController } from '../controllers/retention-controller.js';
+import type { SpendingController } from '../controllers/spending-controller.js';
 import type { RosterController } from '../controllers/roster-controller.js';
 import type { RosterImportController } from '../controllers/roster-import-controller.js';
 import type { PartController } from '../controllers/part-controller.js';
@@ -89,6 +90,7 @@ export function createApiRouter(dependencies: {
   scanController: ScanController;
   sampleController: SampleController;
   proposalController: ProposalController;
+  spendingController: SpendingController;
 }): Router {
   const {
     gate,
@@ -122,6 +124,7 @@ export function createApiRouter(dependencies: {
     scanController,
     sampleController,
     proposalController,
+    spendingController,
   } = dependencies;
 
   const router = Router();
@@ -206,6 +209,9 @@ export function createApiRouter(dependencies: {
   // role like the roster, and not there at all for anybody else: how the catalog is read, and
   // what it costs, is not something a Member is told exists.
   router.get('/reading-method', gate.hiddenFromAllButAdministrators, readingController.readMethod);
+  // **Spending** (issue #189): what Ricambi has spent on Claude this month and the eleven before,
+  // against the Monthly limit. As hidden as the Readings section, on every system.
+  router.get('/spending', gate.hiddenFromAllButAdministrators, spendingController.read);
   // **A Catalog run** (issue #57): the catalog uploaded and priced, before anything is read. The
   // role is checked before the body is read, so nobody else can even send a catalog here. The
   // catalog is as private as a Scan, and served to nobody but an Administrator.

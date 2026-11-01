@@ -108,6 +108,7 @@ export function createClaudeApiConversationMethod(
   return {
     name: `Claude (${CONVERSATION_MODEL}) with an API key`,
     priced: true,
+    billed: true,
 
     async *answer(conversation, used) {
       try {
