@@ -2,11 +2,11 @@ import { expect, test } from '@playwright/test';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
- * **Spending**, in a real browser (issues #189, #191). The figures — this month, the split, the twelve
- * months, the limit and whether anything was billed — are proved at the API seam. What is here
- * is that an Administrator finds the page and reads its four parts as this suite's server has
- * them: the practice methods bill nothing, so the month would have cost and has no bar, and no
- * Monthly limit is known (`playwright.config.ts`).
+ * **Spending**, in a real browser (issues #189, #191). The figures — this month, the split, the
+ * twelve months, the limit and whether anything was billed — are proved at the API seam. What is
+ * here is that an Administrator finds the page and reads its four parts as this suite's server
+ * has them: the practice methods bill nothing, so the month would have cost and has no bar, and
+ * no Monthly limit is known (`playwright.config.ts`).
  */
 test('an Administrator reads this month, what it was for, the twelve months and the Console', async ({
   page,
