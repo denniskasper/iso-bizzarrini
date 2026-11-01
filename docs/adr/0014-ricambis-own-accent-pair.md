@@ -1,4 +1,10 @@
+---
+status: superseded by ADR 0020
+---
+
 # Ricambi's accent is its own pair, not the Club's teal
+
+> **Superseded by [ADR 0020](0020-ricambi-wears-the-club-websites-identity.md)** (2026-11-01): Ricambi takes the Club website's teal, white page, heading face and logo. Kept as the record of why the accent was once split.
 
 Ricambi's surfaces, rules, text and body face are still the Club's, measured from its site. Its
 accent is not. The Club's one teal is replaced by a pair with separate jobs: **champagne** for
