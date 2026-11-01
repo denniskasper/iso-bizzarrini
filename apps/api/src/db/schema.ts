@@ -1651,6 +1651,12 @@ export const proposals = pgTable(
     summary: jsonb('summary').$type<ProposalSummary>(),
     /** Why an Administrator Declined it, which its author is shown. Only ever on a Declined one. */
     declineReason: text('decline_reason'),
+    /**
+     * **What working it out cost**, estimated in millionths of a US dollar at list prices from
+     * what each request used, added to as it is answered and finished. Null where the
+     * conversation is not billed by the request, and on those from before costs were kept.
+     */
+    estimatedCostMicroUsd: integer('estimated_cost_micro_usd'),
 
     /** From the injected clock. */
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
@@ -1677,6 +1683,17 @@ export const proposals = pgTable(
     ),
   ],
 );
+
+/**
+ * **What the conversations cost, month by month**, estimated in millionths of a US dollar,
+ * added to when each request is answered. Kept apart from the Proposals, so that a Draft
+ * discarded afterwards still counts in the month its conversation was paid for.
+ */
+export const proposalMonthlyCosts = pgTable('proposal_monthly_costs', {
+  /** The calendar month, UTC, as `YYYY-MM`. */
+  month: text('month').primaryKey(),
+  estimatedCostMicroUsd: integer('estimated_cost_micro_usd').notNull(),
+});
 
 /** One turn of a Proposal's conversation. Never edited: what was said stays said. */
 export const proposalTurns = pgTable(

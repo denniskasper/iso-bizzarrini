@@ -1,5 +1,5 @@
 import type { FixSummary, IdeaSummary } from '@ricambi/contracts';
-import type { ConversationMethod } from './conversation-method.js';
+import type { ConversationMethod, ConversationUsage } from './conversation-method.js';
 
 /**
  * What the fake says to everything: a question of the kind the real conversation asks, so a
@@ -54,13 +54,30 @@ export const FAKE_SUMMARY: {
 export function createFakeConversationMethod(): ConversationMethod {
   return {
     name: FAKE_MODEL,
-    async *answer() {
+    // Priced, at nothing: so a practice system shows its costs as the real one does, and they
+    // are nought.
+    priced: true,
+    async *answer(_conversation, used) {
       for (const piece of FAKE_ANSWER.match(/\S+\s*/g) ?? []) {
         yield piece;
       }
+      used?.(nothingUsed('answer'));
     },
-    async summarise({ kind }) {
+    async summarise({ kind }, used) {
+      used?.(nothingUsed('summary'));
       return structuredClone(FAKE_SUMMARY[kind]);
     },
+  };
+}
+
+function nothingUsed(request: ConversationUsage['request']): ConversationUsage {
+  return {
+    request,
+    model: FAKE_MODEL,
+    inputTokens: 0,
+    cacheWriteTokens: 0,
+    cacheReadTokens: 0,
+    outputTokens: 0,
+    estimatedUsd: 0,
   };
 }

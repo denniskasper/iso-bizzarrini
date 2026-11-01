@@ -2962,6 +2962,26 @@ export interface ProposalListing {
   startedAt: string;
   updatedAt: string;
   handedOverAt: string | null;
+  /**
+   * What working it out cost, estimated in US dollars at list prices from what was sent. Told to
+   * an Administrator only, and null where nothing was recorded: a conversation on somebody's
+   * subscription, which is not billed by the request, or one from before costs were kept.
+   */
+  estimatedCostUsd: number | null;
+}
+
+/**
+ * **What the conversations cost** (`GET /api/proposals`), for an Administrator: estimated at list
+ * prices from what Ricambi sent, by the month a Proposal was started in. The bill itself is the
+ * provider's.
+ */
+export interface ProposalCosts {
+  thisMonthUsd: number;
+  lastMonthUsd: number;
+  /** Proposals started this month that cost anything to work out. */
+  conversationsThisMonth: number;
+  /** The provider's monthly limit, as Ricambi is told it; null where it is not. */
+  monthlyLimitUsd: number | null;
 }
 
 /** `GET /api/proposals/:proposalId` — one Proposal and the whole of its conversation. */
@@ -2997,6 +3017,8 @@ export interface ProposalResponse {
 export interface ProposalsResponse {
   drafts: ProposalListing[];
   handedOver: ProposalListing[];
+  /** Null for anybody but an Administrator, and where the conversation is not priced. */
+  costs: ProposalCosts | null;
 }
 
 /**

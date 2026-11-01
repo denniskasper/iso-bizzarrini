@@ -187,7 +187,8 @@ describe('Proposals on a practice system', () => {
         password: A_GOOD_PASSWORD,
       });
       const after = await read(ada, handedOver);
-      expect(after).toEqual({ ...before, mine: false });
+      // As an Administrator, she is told what it cost too: nothing, on the fake conversation.
+      expect(after).toEqual({ ...before, mine: false, estimatedCostUsd: 0 });
       expect(await pictures(ada, after)).toEqual(served);
     });
   });
@@ -214,6 +215,12 @@ describe('Proposals on a practice system', () => {
       await say(author.agent, draft, 'Look at this.', [{ id: sent.id }]);
       await aScreenshot(author.agent, draft);
 
+      // What working it out cost goes with it.
+      await app.db
+        .update(proposals)
+        .set({ estimatedCostMicroUsd: 350_000 })
+        .where(eq(proposals.id, takenUp));
+
       const ids = [takenUp, declined, draft];
       const before = await inTurn(ids, (id) => read(author.agent, id));
       const served = await inTurn(before, (proposal) => pictures(author.agent, proposal));
@@ -237,6 +244,11 @@ describe('Proposals on a practice system', () => {
       expect(after).toEqual(before);
       expect(after.map((proposal) => proposal.status)).toEqual(['taken-up', 'declined', 'draft']);
       expect(after[1]?.declineReason).toBe('Not for now.');
+      const [costed] = await app.db
+        .select({ cost: proposals.estimatedCostMicroUsd })
+        .from(proposals)
+        .where(eq(proposals.id, takenUp));
+      expect(costed?.cost).toBe(350_000);
       expect(await inTurn(after, (proposal) => pictures(again.agent, proposal))).toEqual(served);
     });
 

@@ -144,11 +144,23 @@ test('somebody let propose starts a Fix from a Tavola’s page, hands it over, a
   await expect(shown).toContainText('The circle at the top left');
   await administrator.getByRole('button', { name: 'Take up' }).click();
   await expect(administrator.getByTestId('proposal-status')).toHaveText('Taken up');
+  // The Administrator is told what it cost, and what the month's conversations have, against
+  // the limit: nothing, on the fake conversation.
+  await expect(administrator.getByTestId('proposal-cost')).toHaveText('$0.00');
+  await administrator.getByTestId('proposals-link').click();
+  const costs = administrator.getByTestId('proposal-costs');
+  await expect(costs).toContainText('This month');
+  await expect(costs).toContainText('of $25.00');
+  await administrator.screenshot({ path: test.info().outputPath('costs.png') });
 
-  // Its author sees what became of it.
+  // Its author sees what became of it, and none of the money.
   await proposer.goto(address ?? '');
   await expect(proposer.getByTestId('proposal-status')).toHaveText('Taken up');
   await expect(proposer.getByRole('heading', { level: 1 })).toHaveText('A practice Fix');
+  await expect(proposer.getByTestId('proposal-cost')).toHaveCount(0);
+  await proposer.getByTestId('proposals-link').click();
+  await expect(proposer.getByTestId('proposals')).toBeVisible();
+  await expect(proposer.getByTestId('proposal-costs')).toHaveCount(0);
 
   await context.close();
 });

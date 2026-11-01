@@ -459,6 +459,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       logger,
       conversation: proposalsOpen ? conversation.method : null,
       version: build.version,
+      monthlyLimitUsd: config.proposals.monthlyLimitUsd,
       proposalRepository: createProposalRepository(db),
       modelRepository,
       tavolaRepository,

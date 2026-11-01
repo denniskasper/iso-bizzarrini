@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   Proposal,
   ProposalContext,
+  ProposalCosts,
   ProposalKind,
   ProposalListing,
   ProposalScreenshot,
@@ -28,6 +29,7 @@ import {
   type Conversation,
   type ConversationMethod,
   type ConversationScreenshot,
+  type ConversationUsage,
 } from '../proposals/conversation-method.js';
 import type { ModelRepository } from '../repositories/model-repository.js';
 import type {
@@ -44,6 +46,8 @@ export interface Proposer {
   accountId: string;
   /** Whether they are shown Unchecked Tavole (ADR 0017), so a Draft names none they are not. */
   seesUnchecked: boolean;
+  /** Whether they are told what the conversations cost: an Administrator only. */
+  isAdministrator: boolean;
 }
 
 export interface StartProposal {
@@ -81,7 +85,11 @@ export interface ProposalService {
   list(
     proposer: Proposer,
     status: HandedOverStatus | null,
-  ): Promise<{ drafts: ProposalListing[]; handedOver: ProposalListing[] }>;
+  ): Promise<{
+    drafts: ProposalListing[];
+    handedOver: ProposalListing[];
+    costs: ProposalCosts | null;
+  }>;
   read(proposer: Proposer, proposalId: string): Promise<Proposal>;
   /**
    * The author's turn kept, then answered: each piece of the answer is handed to `heard` as it is
@@ -134,6 +142,8 @@ export function createProposalService(dependencies: {
   conversation: ConversationMethod | null;
   /** The Version this server is, written onto every Draft started on it. */
   version: string;
+  /** The provider's monthly limit for the conversations, as Ricambi is told it, if it is. */
+  monthlyLimitUsd: number | null;
   proposalRepository: ProposalRepository;
   modelRepository: ModelRepository;
   tavolaRepository: TavolaRepository;
@@ -144,6 +154,7 @@ export function createProposalService(dependencies: {
     logger,
     conversation,
     version,
+    monthlyLimitUsd,
     proposalRepository,
     modelRepository,
     tavolaRepository,
@@ -155,6 +166,25 @@ export function createProposalService(dependencies: {
       throw new NotFoundError('There is no such Proposal of yours.');
     }
     return proposal;
+  }
+
+  /**
+   * **What a request costs, kept**: `used` adds up what the method says each request used, and
+   * `keep` adds it to the Proposal and to this month once the request is over, answered or not,
+   * since the provider bills what was sent either way.
+   */
+  function paying(proposalId: string) {
+    let microUsd = 0;
+    return {
+      used: (usage: ConversationUsage) => {
+        microUsd += Math.round(usage.estimatedUsd * 1_000_000);
+      },
+      keep: async () => {
+        if (microUsd > 0) {
+          await proposalRepository.addCost(proposalId, microUsd, monthOf(clock.now()));
+        }
+      },
+    };
   }
 
   /** One this proposer may read: their own, or one handed over. */
@@ -282,6 +312,20 @@ export function createProposalService(dependencies: {
     return { model: null, tavola: null };
   }
 
+  /** This month's and last month's, by the calendar month in UTC. */
+  async function costs(): Promise<ProposalCosts> {
+    const now = clock.now();
+    const thisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const spent = await proposalRepository.costs(monthOf(thisMonth), monthOf(lastMonth), thisMonth);
+    return {
+      thisMonthUsd: spent.thisMonthMicroUsd / 1_000_000,
+      lastMonthUsd: spent.lastMonthMicroUsd / 1_000_000,
+      conversationsThisMonth: spent.conversationsThisMonth,
+      monthlyLimitUsd,
+    };
+  }
+
   return {
     async start(proposer, request) {
       const { model, tavola } = await onScreen(proposer, request);
@@ -296,6 +340,8 @@ export function createProposalService(dependencies: {
         tavolaId: tavola?.id ?? null,
         tavolaNumber: tavola?.number ?? null,
         tavolaName: tavola?.name ?? null,
+        // Kept from the start where the conversation is billed, so it counts as one this month.
+        estimatedCostMicroUsd: conversation?.priced ? 0 : null,
         startedAt: now,
         updatedAt: now,
       });
@@ -310,6 +356,7 @@ export function createProposalService(dependencies: {
       return {
         drafts: drafts.map((listed) => listingOf(proposer, listed)),
         handedOver: handedOver.map((listed) => listingOf(proposer, listed)),
+        costs: proposer.isAdministrator && conversation?.priced ? await costs() : null,
       };
     },
 
@@ -337,13 +384,16 @@ export function createProposalService(dependencies: {
       await proposalRepository.sendScreenshots(proposalId, asked.id, sent);
 
       let answer = '';
+      const cost = paying(proposalId);
       try {
-        for await (const piece of method.answer(await told(proposal))) {
+        for await (const piece of method.answer(await told(proposal), cost.used)) {
           answer += piece;
           heard(piece);
         }
       } catch (error) {
         throw refusalOf(error, proposalId);
+      } finally {
+        await cost.keep();
       }
 
       const answered = await proposalRepository.addTurn({
@@ -419,10 +469,13 @@ export function createProposalService(dependencies: {
       }
 
       let written;
+      const cost = paying(proposalId);
       try {
-        written = await method.summarise(conversation);
+        written = await method.summarise(conversation, cost.used);
       } catch (error) {
         throw refusalOf(error, proposalId);
+      } finally {
+        await cost.keep();
       }
       if (written.kind !== proposal.kind) {
         throw new Error(`The conversation finished a ${written.kind} as a ${proposal.kind}.`);
@@ -535,7 +588,16 @@ function listingOf(proposer: Proposer, { proposal, opening }: ListedProposal): P
     startedAt: proposal.startedAt.toISOString(),
     updatedAt: proposal.updatedAt.toISOString(),
     handedOverAt: proposal.handedOverAt?.toISOString() ?? null,
+    estimatedCostUsd:
+      proposer.isAdministrator && proposal.estimatedCostMicroUsd !== null
+        ? proposal.estimatedCostMicroUsd / 1_000_000
+        : null,
   };
+}
+
+/** The calendar month an instant falls in, in UTC, as `YYYY-MM`. */
+function monthOf(instant: Date): string {
+  return instant.toISOString().slice(0, 7);
 }
 
 function turnOf(turn: ProposalTurnRow, screenshots: ProposalScreenshotRow[]): ProposalTurn {

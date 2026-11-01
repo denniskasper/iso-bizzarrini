@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
-import { KIND_NAME, OPENING_QUESTION, useDecide, useProposal } from '@/lib/proposals';
+import { KIND_NAME, OPENING_QUESTION, usd, useDecide, useProposal } from '@/lib/proposals';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { StatusTag } from '@/routes/proposals-page';
@@ -66,6 +66,15 @@ function Whole({ proposal }: { proposal: Proposal }) {
           {proposal.handedOverAt !== null && (
             <>
               , handed over <span className="tabular">{proposal.handedOverAt.slice(0, 10)}</span>
+            </>
+          )}
+          {proposal.estimatedCostUsd !== null && (
+            <>
+              , cost about{' '}
+              <span className="tabular" data-testid="proposal-cost">
+                {usd(proposal.estimatedCostUsd)}
+              </span>{' '}
+              to work out
             </>
           )}
         </span>
