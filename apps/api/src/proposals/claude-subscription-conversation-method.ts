@@ -4,7 +4,7 @@ import type { Options, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-a
 import { z } from 'zod';
 import { claudeCli, type ClaudeCli } from '../reading/claude-subscription-method.js';
 import type { BundledDocument } from './bundled-documents.js';
-import { CONVERSATION_MODEL } from './claude-api-conversation-method.js';
+import { CONVERSATION_EFFORT, CONVERSATION_MODEL } from './claude-api-conversation-method.js';
 import {
   ConversationUnavailableError,
   type Conversation,
@@ -117,6 +117,7 @@ export function createClaudeSubscriptionConversationMethod(
   function optionsFor(conversation: Conversation): Options {
     return {
       model: CONVERSATION_MODEL,
+      effort: CONVERSATION_EFFORT,
       systemPrompt: [
         PLAYBOOK,
         `Ricambi's glossary, product spec and decisions, as of the Version running:\n\n${documents}`,

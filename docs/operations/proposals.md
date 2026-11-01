@@ -7,7 +7,7 @@ given what the conversation needs. Production never has it: it refuses to start 
 
 ## What the conversation is had with
 
-Integration's conversation runs on the **`api-key` method**: Claude Opus 5.5, at its default
+Integration's conversation runs on the **`api-key` method**: Claude Sonnet 5.5, at `high`
 effort, through the Anthropic API, with the conversation's own key in
 `PROPOSALS_ANTHROPIC_API_KEY`. With the key set, that is the method; `PROPOSALS_METHOD` need not
 be set. Without it, nobody is shown Propose, and the status says why.
@@ -17,7 +17,18 @@ limited apart, so a long conversation can never stop a Catalog run, nor the othe
 
 Every request carries the playbook and the glossary, the product spec and the ADRs of the
 Version running, which the image is built with. Those are cached for an hour, so an author who
-takes their time does not pay to send them again each turn. Expect roughly $1–3 a conversation.
+takes their time does not pay to send them again each turn.
+
+**What it costs.** About 30,000 tokens of documents, written to the cache once and read back on
+every later turn, are half of it; the conversation itself and the answers are the rest. A Fix or
+an Idea of about eight answers and a screenshot or two comes to roughly **$0.35**, and **$0.13**
+more each time the author comes back after more than an hour, when the cache is written again.
+Ten to twenty conversations a month: about **$4–8**.
+
+Each request says what it used in the server's log, as `A Proposal’s conversation used`: input,
+cache-write, cache-read and output tokens, and `estimatedUsd` at the list prices in
+`CONVERSATION_PRICES` (`apps/api/src/proposals/claude-api-conversation-method.ts`). Check the
+estimate against those lines, and the prices against the provider's list when the model changes.
 
 ## In Development, on the developer's own subscription
 
@@ -40,8 +51,8 @@ development dependency and is not in the image.
 
 1. **A workspace of its own.** In the Anthropic Console of `<ANTHROPIC_ORGANISATION>`, create a
    workspace for developing Ricambi, `<PROPOSALS_WORKSPACE>`. Nothing else uses it.
-2. **A monthly limit.** Give the workspace a monthly spend limit of the equivalent of **€20** to
-   start with. That limit is what stops the conversation, and its cost is known in advance.
+2. **A monthly limit.** Give the workspace a monthly spend limit of **$25** to start with: a busy
+   month's conversations, several times over. That limit is what stops the conversation, and its cost is known in advance.
 3. **The key.** Create an API key in that workspace, and nowhere else. It is shown once.
 4. **The secret.** In Dokploy, open the Integration service's environment editor and add
    `PROPOSALS_ANTHROPIC_API_KEY=<the key>`. Never on the Club's Production service, which would

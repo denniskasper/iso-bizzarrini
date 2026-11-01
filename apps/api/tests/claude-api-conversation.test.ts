@@ -10,6 +10,7 @@ import {
   ConversationPausedError,
   ConversationUnavailableError,
   type Conversation,
+  type ConversationUsage,
 } from '../src/proposals/conversation-method.js';
 import { PLAYBOOK } from '../src/proposals/playbook.js';
 
@@ -75,7 +76,12 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
               content: [{ type: 'text', text: JSON.stringify(reply.json) }],
               stop_reason: 'end_turn',
               stop_sequence: null,
-              usage: { input_tokens: 1500, output_tokens: 300 },
+              usage: {
+                input_tokens: 1500,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 30000,
+                output_tokens: 300,
+              },
             }),
           );
         }
@@ -99,7 +105,12 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
           content: [],
           stop_reason: null,
           stop_sequence: null,
-          usage: { input_tokens: 1500, output_tokens: 1 },
+          usage: {
+            input_tokens: 1500,
+            cache_creation_input_tokens: 30000,
+            cache_read_input_tokens: 0,
+            output_tokens: 1,
+          },
         },
       },
       { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
@@ -151,8 +162,23 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
     ],
   };
 
-  const methodFor = (url: string) =>
-    createClaudeApiConversationMethod({ apiKey: KEY, documents, baseURL: url, maxRetries: 0 });
+  const methodFor = (url: string, onUsage?: (usage: ConversationUsage) => void) =>
+    createClaudeApiConversationMethod({
+      apiKey: KEY,
+      documents,
+      baseURL: url,
+      maxRetries: 0,
+      onUsage,
+    });
+
+  /** A finished Fix, in its shape, as the API would write it. */
+  const FIX_SHAPED = {
+    title: 'The drawing does not open',
+    whatHappened: 'Nothing happens when the drawing is pressed.',
+    whatWasExpected: 'The drawing opens.',
+    steps: ['Open Tavola 84.', 'Press the drawing.'],
+    where: 'Tavola 84',
+  };
 
   async function heard(answer: AsyncIterable<string>): Promise<string[]> {
     const pieces: string[] = [];
@@ -162,7 +188,7 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
     return pieces;
   }
 
-  it('streams the answer as it is written, on Opus 5.5 at its default effort', async () => {
+  it('streams the answer as it is written, on Sonnet 5.5 at high effort', async () => {
     const api = await givenTheApi({ stream: ['Wer ', 'trägt es ', 'ein?'] });
 
     expect(await heard(methodFor(api.url).answer(conversation))).toEqual([
@@ -173,8 +199,8 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
 
     const [request] = api.received;
     expect(request?.headers['x-api-key']).toBe(KEY);
-    expect(request?.body).toMatchObject({ model: 'claude-opus-5-5', stream: true });
-    expect(request?.body.output_config?.effort).toBeUndefined();
+    expect(request?.body).toMatchObject({ model: 'claude-sonnet-5-5', stream: true });
+    expect(request?.body.output_config?.effort).toBe('high');
   });
 
   it('sends the playbook, then the documents cached for an hour, then this Proposal’s facts', async () => {
@@ -239,8 +265,9 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
 
     const summary = await methodFor(api.url).summarise(conversation);
 
-    expect(summary).toEqual({ kind: 'idea', ...idea, model: 'claude-opus-5-5' });
+    expect(summary).toEqual({ kind: 'idea', ...idea, model: 'claude-sonnet-5-5' });
     const [request] = api.received;
+    expect(request?.body.output_config?.effort).toBe('high');
     expect(request?.body.output_config?.format?.type).toBe('json_schema');
     expect(JSON.stringify(request?.body.output_config?.format?.schema)).toContain('forWhom');
     expect(request?.body.system[1]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
@@ -261,10 +288,45 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
 
     const summary = await methodFor(api.url).summarise({ ...conversation, kind: 'fix' });
 
-    expect(summary).toEqual({ kind: 'fix', ...fix, model: 'claude-opus-5-5' });
+    expect(summary).toEqual({ kind: 'fix', ...fix, model: 'claude-sonnet-5-5' });
     expect(JSON.stringify(api.received[0]?.body.output_config?.format?.schema)).toContain(
       'whatWasExpected',
     );
+  });
+
+  it('tells what each request used, and what it cost at list prices', async () => {
+    const used: ConversationUsage[] = [];
+    const answering = await givenTheApi({ stream: ['Ja.'] });
+    await heard(methodFor(answering.url, (usage) => used.push(usage)).answer(conversation));
+    await new Promise((resolve) => server?.close(resolve));
+    const finishing = await givenTheApi({ json: { ...FIX_SHAPED } });
+    await methodFor(finishing.url, (usage) => used.push(usage)).summarise({
+      ...conversation,
+      kind: 'fix',
+    });
+
+    expect(used).toEqual([
+      {
+        request: 'answer',
+        model: 'claude-sonnet-5-5',
+        inputTokens: 1500,
+        cacheWriteTokens: 30000,
+        cacheReadTokens: 0,
+        outputTokens: 30,
+        // 1,500 × $2 + 30,000 × $4 (an hour's cache, twice the input price) + 30 × $10, per million.
+        estimatedUsd: 0.1233,
+      },
+      {
+        request: 'summary',
+        model: 'claude-sonnet-5-5',
+        inputTokens: 1500,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 30000,
+        outputTokens: 300,
+        // 1,500 × $2 + 30,000 × $0.20 + 300 × $10, per million.
+        estimatedUsd: 0.012,
+      },
+    ]);
   });
 
   it('reports the workspace’s spending limit as paused, while answering and while finishing', async () => {

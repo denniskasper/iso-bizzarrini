@@ -1036,7 +1036,7 @@ describe('a conversation with the API key', () => {
     );
 
     expect(configured.unavailable).toBeNull();
-    expect(configured.method?.name).toBe('Claude (claude-opus-5-5) with an API key');
+    expect(configured.method?.name).toBe('Claude (claude-sonnet-5-5) with an API key');
     expect(configured.method?.name).not.toContain('sk-ant');
   });
 });
@@ -1055,7 +1055,7 @@ describe('a conversation on this machine’s Claude subscription', () => {
 
     expect(configured.unavailable).toBeNull();
     expect(configured.method?.name).toBe(
-      'Claude (claude-opus-5-5) with this machine’s Claude Code login',
+      'Claude (claude-sonnet-5-5) with this machine’s Claude Code login',
     );
     expect(
       configureConversation(settings({ PROPOSALS_METHOD: 'subscription' }), { machineLogin: true })
@@ -1091,7 +1091,7 @@ describe('a conversation on this machine’s Claude subscription', () => {
     );
 
     expect(configured.unavailable).toBeNull();
-    expect(configured.method?.name).toBe('Claude (claude-opus-5-5) with an API key');
+    expect(configured.method?.name).toBe('Claude (claude-sonnet-5-5) with an API key');
   });
 
   it('is unavailable with both credentials, or neither, and says why', () => {

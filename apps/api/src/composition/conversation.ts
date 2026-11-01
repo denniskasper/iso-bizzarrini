@@ -5,7 +5,7 @@ import {
   createClaudeSubscriptionConversationMethod,
   machineLoginAvailable,
 } from '../proposals/claude-subscription-conversation-method.js';
-import type { ConversationMethod } from '../proposals/conversation-method.js';
+import type { ConversationMethod, ConversationUsage } from '../proposals/conversation-method.js';
 import { createFakeConversationMethod } from '../proposals/fake-conversation-method.js';
 
 /**
@@ -32,6 +32,11 @@ export interface ConversationCredentials {
   machineLogin?: boolean;
   /** The glossary, spec and ADRs, unless a test stands in for the image. */
   documents?: () => BundledDocument[];
+  /**
+   * Told what each request to the API used, and its price, for the server's log. The
+   * subscription is not billed by the request, so it tells nothing.
+   */
+  onUsage?: (usage: ConversationUsage) => void;
 }
 
 /**
@@ -55,7 +60,7 @@ const TOKEN_REFUSED =
 
 export function configureConversation(
   config: Pick<AppConfig, 'environmentMode' | 'proposals'>,
-  { machineLogin = false, documents = readBundledDocuments }: ConversationCredentials = {},
+  { machineLogin = false, documents = readBundledDocuments, onUsage }: ConversationCredentials = {},
 ): ConfiguredConversation {
   if (config.environmentMode === 'production') {
     return {
@@ -107,7 +112,7 @@ export function configureConversation(
       return typeof bundled === 'string'
         ? { method: null, unavailable: bundled }
         : {
-            method: createClaudeApiConversationMethod({ apiKey, documents: bundled }),
+            method: createClaudeApiConversationMethod({ apiKey, documents: bundled, onUsage }),
             unavailable: null,
           };
     }

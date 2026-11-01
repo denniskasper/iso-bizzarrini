@@ -77,6 +77,8 @@ const emailSender = createEmailSender(config, logger);
  */
 const conversation = configureConversation(config, {
   machineLogin: await findMachineLogin(config),
+  // One line per request, so what Proposals cost can be read off the log.
+  onUsage: (usage) => logger.info(usage, 'A Proposal’s conversation used'),
 });
 if (conversation.unavailable !== null && config.environmentMode !== 'production') {
   logger.warn({ why: conversation.unavailable }, 'Proposals are closed');
