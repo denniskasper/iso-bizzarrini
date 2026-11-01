@@ -200,7 +200,7 @@ export function createCatalogRunService(dependencies: {
       directory = await mkdtemp(join(tmpdir(), 'ricambi-catalog-run-'));
       // A request a server before this one sent and never heard back from was paid for all the
       // same, and counts against what is left of the limit.
-      await catalogRunRepository.cutOff(runId);
+      await catalogRunRepository.cutOff(runId, clock.now());
       const found = await catalogRunRepository.findById(runId);
       const catalog = found && (await fileStore.open(found.run.catalogKey));
       if (!found || !catalog) {

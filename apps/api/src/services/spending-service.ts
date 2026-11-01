@@ -1,15 +1,10 @@
 import type { SpendingMonth, SpendingPurpose, SpendingResponse } from '@ricambi/contracts';
 import { SPENDING_PURPOSES } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
-import type { SpendingRepository } from '../repositories/spending-repository.js';
+import { monthOf, type SpendingRepository } from '../repositories/spending-repository.js';
 
 /** How many calendar months Spending shows, this one included. */
 const MONTHS_SHOWN = 12;
-
-/** The calendar month an instant falls in, in UTC, as the provider counts it: `YYYY-MM`. */
-export function monthOf(instant: Date): string {
-  return instant.toISOString().slice(0, 7);
-}
 
 export interface SpendingService {
   read(): Promise<SpendingResponse>;

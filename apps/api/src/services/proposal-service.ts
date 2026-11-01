@@ -38,7 +38,7 @@ import type {
   ProposalRepository,
 } from '../repositories/proposal-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
-import { monthOf } from './spending-service.js';
+import { monthOf } from '../repositories/spending-repository.js';
 import { proposalScreenshotKeyPrefix, type FileStore } from '../storage/file-store.js';
 import { discardImageFiles, openStoredImage, storeImageFiles } from '../storage/stored-images.js';
 

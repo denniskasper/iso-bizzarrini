@@ -8,6 +8,7 @@ export const CONSOLE_COST_URL = 'https://platform.claude.com/cost';
 /** What each purpose is called, in the order Spending lists them. */
 export const PURPOSE_NAME: Record<SpendingPurpose, string> = {
   'proposal-conversations': 'Proposals’ conversations',
+  'catalog-runs': 'Catalog runs',
 };
 
 /**

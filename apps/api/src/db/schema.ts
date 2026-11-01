@@ -1690,6 +1690,7 @@ export const proposals = pgTable(
 
 export const SPENDING_PURPOSES = [
   'proposal-conversations',
+  'catalog-runs',
 ] as const satisfies readonly SpendingPurpose[];
 
 /**

@@ -129,6 +129,15 @@ A continued run has a record for each time it read. **Who did what** lists who s
 continued or stopped it, or removed a Tavola it read, and when. Runs, their costs and their Reading method are shown to
 Administrators only.
 
+**Month by month, a run's spending is on Spending**, in the admin navigation, as **Catalog runs**
+beside Proposals' conversations, and in the month's total against the Monthly limit. Each request
+counts in the calendar month, UTC, in which it was answered, as the provider counts it: a run
+started on 30 November and continued on 2 December counts partly in each, and the two parts add
+up to the run's own total. A run on a subscription or the practice method counts as what it would
+have cost. Runs from before Spending counted them by month count whole in the month they started.
+A month's figure is never reduced: removing a Tavola, reading one again or deleting a run leaves
+what was spent where it was.
+
 The cost is the token counts each response reports, multiplied by the price list in
 `apps/api/src/reading/price-list.ts`. Nothing asks the provider's billing, so nothing needs an
 admin credential. When the prices change, a developer checks them at the source the list names,

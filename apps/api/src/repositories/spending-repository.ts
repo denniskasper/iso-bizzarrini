@@ -21,6 +21,11 @@ export interface SpendingRepository {
   since(month: string): Promise<SpendingAmount[]>;
 }
 
+/** The calendar month an instant falls in, in UTC, as the provider counts it: `YYYY-MM`. */
+export function monthOf(instant: Date): string {
+  return instant.toISOString().slice(0, 7);
+}
+
 /** What one request cost, added to its month. Only ever added to. */
 export async function addSpending(db: DbSession, amount: SpendingAmount): Promise<void> {
   const { month, purpose, billed, microUsd } = amount;

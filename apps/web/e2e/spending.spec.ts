@@ -2,11 +2,11 @@ import { expect, test } from '@playwright/test';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
- * **Spending**, in a real browser (issue #189). The figures — this month, the split, the twelve
- * months, the limit and whether anything was billed — are proved at the API seam. What is here
- * is that an Administrator finds the page and reads its four parts as this suite's server has
- * them: the practice methods bill nothing, so the month would have cost and has no bar, and no
- * Monthly limit is known (`playwright.config.ts`).
+ * **Spending**, in a real browser (issues #189, #191). The figures — this month, the split, the
+ * twelve months, the limit and whether anything was billed — are proved at the API seam. What is
+ * here is that an Administrator finds the page and reads its four parts as this suite's server
+ * has them: the practice methods bill nothing, so the month would have cost and has no bar, and
+ * no Monthly limit is known (`playwright.config.ts`).
  */
 test('an Administrator reads this month, what it was for, the twelve months and the Console', async ({
   page,
@@ -23,11 +23,13 @@ test('an Administrator reads this month, what it was for, the twelve months and 
   await expect(page.getByRole('meter')).toHaveCount(0);
 
   await expect(page.getByTestId('spending-split')).toContainText('Proposals’ conversations');
+  await expect(page.getByTestId('spending-split')).toContainText('Catalog runs');
 
   const months = page.getByTestId('spending-months');
   await expect(months.getByRole('columnheader')).toHaveText([
     'Month',
     'Proposals’ conversations',
+    'Catalog runs',
     'Total',
   ]);
   await expect(months.locator('tbody tr')).toHaveCount(12);
