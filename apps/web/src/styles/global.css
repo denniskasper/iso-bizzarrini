@@ -1258,4 +1258,20 @@
       width: 18rem;
     }
   }
+
+  /*
+   * While somebody proposes, the Propose panel holds the right of the screen, and the tour's
+   * corner with it. Wide enough for both, the tour crosses to the other corner; narrower, it
+   * steps aside until the panel is closed, rather than cover the answer being written.
+   */
+  body:has([data-testid='proposal-panel']) .tour {
+    display: none;
+  }
+
+  @media (min-width: 64rem) {
+    body:has([data-testid='proposal-panel']) .tour {
+      display: block;
+      inset-inline: --spacing(6) auto;
+    }
+  }
 }

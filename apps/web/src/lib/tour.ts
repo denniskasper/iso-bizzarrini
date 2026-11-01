@@ -8,7 +8,15 @@ import { useCallback, useSyncExternalStore } from 'react';
  * the archive as a Visitor sees it, which means signed out — and a signed-out request is nobody
  * the server could remember a step for.
  */
+/**
+ * Which tour: each walks through what was new when it was written. The newest is the one a bare
+ * `?tour` link starts; an earlier one is kept for a tester who has not walked it yet.
+ */
+export type TourName = 'proposals' | 'reading';
+export const NEWEST_TOUR: TourName = 'proposals';
+
 export interface TourState {
+  tour: TourName;
   step: number;
   /** Folded down to one line, so the drawing underneath can be read. */
   folded: boolean;
@@ -53,8 +61,13 @@ function parse(raw: string | null): TourState | null {
   }
   try {
     const value = JSON.parse(raw) as Partial<TourState>;
+    // A tour begun before there were two is the reading one, which was the only one then.
     return typeof value.step === 'number'
-      ? { step: value.step, folded: value.folded === true }
+      ? {
+          tour: value.tour === 'proposals' ? 'proposals' : 'reading',
+          step: value.step,
+          folded: value.folded === true,
+        }
       : null;
   } catch {
     return null;
@@ -66,9 +79,14 @@ export function useTour() {
   const raw = useSyncExternalStore(subscribe, read, () => null);
   const state = parse(raw);
 
-  const start = useCallback(() => write({ step: 0, folded: false }), []);
+  const start = useCallback((tour: TourName) => write({ tour, step: 0, folded: false }), []);
   const end = useCallback(() => write(null), []);
-  const goTo = useCallback((step: number) => write({ step, folded: false }), []);
+  const goTo = useCallback((step: number) => {
+    const current = parse(read());
+    if (current) {
+      write({ ...current, step, folded: false });
+    }
+  }, []);
   const fold = useCallback((folded: boolean) => {
     const current = parse(read());
     if (current) {
