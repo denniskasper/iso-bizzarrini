@@ -59,6 +59,12 @@ One Administrator-started pass over one uploaded catalog PDF for one Model. It i
 before it starts, held to its limit, can stop and be continued, and is recorded.
 _Avoid_: Reading (that is one pass over one Table sheet), import, job, batch
 
+**Monthly limit**:
+The most Ricambi's use of Claude may cost in one calendar month, Proposals and Catalog runs
+together. Set in the provider's account; Ricambi is only told it. Not a Catalog run's own limit,
+which an Administrator gives the run when starting it.
+_Avoid_: Budget, quota, cap, spending limit (that is a Catalog run's)
+
 **Category**:
 The system of the car a Tavola belongs to — Brakes, Electrical, Fuel. Groups tavole within a
 Model and across Models. A name, never a code. The list is maintained by an Administrator; an
