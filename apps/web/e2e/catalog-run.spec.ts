@@ -84,6 +84,8 @@ test('an Administrator starts a run, watches it finish and opens a Tavola it rea
   await expect(page.getByTestId('catalog-estimate')).toBeVisible();
 
   await page.getByLabel('Spending limit, in dollars').fill('1');
+  // The practice method bills nothing, so nothing is said of the Monthly limit (issue #192).
+  await expect(page.getByTestId('monthly-limit-left')).toHaveCount(0);
   await page.getByRole('button', { name: 'Start reading' }).click();
 
   await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {
@@ -131,10 +133,20 @@ test('an Editor corrects a Part on an Unchecked Tavola, and its row shows the co
  * cost a cent and could cost at most 2.6 cents, so a limit of $0.12 for pages 2 to 4 reads Tavola
  * 102 and stops before 103, never reaching pages 3 and 4 (issue #64). Raised to a dollar, the run
  * reads 103 and 104 and finishes, with nothing left to read.
+ *
+ * On the way, **what is left of the Monthly limit** (issue #192). This suite's server bills
+ * nothing and knows no Monthly limit, so the figure is served as a billed system with fifty cents
+ * left would serve it; the figure itself is proved at the API seam. The $0.12 is within it and
+ * draws no warning; the dollar is not, and is warned of and continued with all the same.
  */
 test('an Administrator raises the limit of a stopped run and continues it to the end', async ({
   page,
 }) => {
+  await page.route('**/api/spending/left', (route) =>
+    route.fulfill({
+      json: { left: { month: '2026-11', monthlyLimitUsd: 5, spentUsd: 4.5, leftUsd: 0.5 } },
+    }),
+  );
   await signIn(page);
   await page.getByRole('link', { name: 'Readings' }).click();
 
@@ -150,6 +162,9 @@ test('an Administrator raises the limit of a stopped run and continues it to the
   await expect(page.getByTestId('catalog-estimate')).toBeVisible();
 
   await page.getByLabel('Spending limit, in dollars').fill('0.12');
+  const left = page.getByTestId('monthly-limit-left');
+  await expect(left).toContainText('$0.50 left of this month’s Monthly limit of $5.00');
+  await expect(page.getByTestId('monthly-limit-warning')).toHaveCount(0);
   await page.getByRole('button', { name: 'Start reading' }).click();
 
   await expect(page.getByTestId('catalog-run-state')).toContainText('Stopped', {
@@ -161,6 +176,9 @@ test('an Administrator raises the limit of a stopped run and continues it to the
   await expect(page.getByTestId('run-unreached')).toContainText('Pages 3, 4');
 
   await page.getByLabel('New spending limit, in dollars').fill('1');
+  await expect(page.getByTestId('monthly-limit-warning')).toContainText(
+    'more than is left this month',
+  );
   await page.getByRole('button', { name: 'Raise the limit and continue' }).click();
 
   await expect(page.getByTestId('catalog-run-state')).toContainText('Finished', {

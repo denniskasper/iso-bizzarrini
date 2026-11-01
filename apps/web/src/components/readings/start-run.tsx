@@ -2,6 +2,7 @@ import type { CatalogRun } from '@ricambi/contracts';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { MonthlyLimitLeft } from '@/components/readings/monthly-limit-left';
 import { Field, Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
 import { useStartCatalogRun } from '@/lib/readings';
@@ -47,6 +48,8 @@ export function StartRun({ run }: { run: CatalogRun }) {
           setLimit(event.target.value);
         }}
       />
+
+      <MonthlyLimitLeft room={dollars > 0 ? dollars : null} />
 
       {start.error && <Refusal>{refusalText(start.error)}</Refusal>}
 

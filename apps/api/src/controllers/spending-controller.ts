@@ -1,10 +1,12 @@
-import type { SpendingResponse } from '@ricambi/contracts';
+import type { MonthlyLimitLeftResponse, SpendingResponse } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import type { SpendingService } from '../services/spending-service.js';
 
 /** **Spending** (issue #189): what Ricambi has spent on Claude, for an Administrator. */
 export interface SpendingController {
   read: RequestHandler;
+  /** What is left of this month's Monthly limit (issue #192). */
+  left: RequestHandler;
 }
 
 export function createSpendingController(dependencies: {
@@ -14,6 +16,10 @@ export function createSpendingController(dependencies: {
   return {
     read: async (_request, response) => {
       const body: SpendingResponse = await spendingService.read();
+      response.json(body);
+    },
+    left: async (_request, response) => {
+      const body: MonthlyLimitLeftResponse = await spendingService.left();
       response.json(body);
     },
   };

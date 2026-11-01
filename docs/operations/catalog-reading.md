@@ -87,6 +87,12 @@ limit stopped it, continue next month, or once the limit has been raised in the 
 continued run does not ask again about a page it has placed, and does not read a finished Tavola
 again. A Tavola it stopped in the middle of is read again whole.
 
+**Starting or continuing a run shows what is left of this month's Monthly limit**: the limit less
+what was billed this month, from Spending's figures. Where the run's limit, less what it has
+already spent, is more than that, it warns that the run may stop at the Monthly limit first, and
+starts it all the same: Ricambi only estimates, and the provider's limit is what stops a run.
+Nothing is shown without `ANTHROPIC_MONTHLY_LIMIT_USD`, or where the Reading method is not billed.
+
 Every deployment restarts the server. A run left reading is carried on by the next server from
 its last finished step, and its page says the server continued it.
 

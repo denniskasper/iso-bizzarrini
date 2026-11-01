@@ -475,6 +475,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       billedHere:
         (reading.method !== null && reading.method.charged) ||
         (proposalsOpen && conversation.method !== null && conversation.method.billed),
+      readingBilled: reading.method !== null && reading.method.charged,
     }),
   });
   const indexing = createIndexing(config.environmentMode);
