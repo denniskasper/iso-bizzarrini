@@ -269,6 +269,8 @@ function stoppedNamed({ stopped }: CatalogRunCostRecord): string {
       return 'It stopped before the next request could pass the limit.';
     case 'usage-limit':
       return 'It stopped at the subscription’s usage limit.';
+    case 'monthly-limit':
+      return 'It stopped because this month’s limit on spending with Claude is reached.';
     case 'method-failed':
       return 'It stopped when the model failed or declined to answer.';
     case 'asked':

@@ -1,5 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import {
+  fetchWithoutRetryAtTheMonthlyLimit,
+  isMonthlyLimitRefusal,
+} from '../platform/claude-monthly-limit.js';
 import type { BundledDocument } from './bundled-documents.js';
 import {
   ConversationPausedError,
@@ -88,6 +92,7 @@ export function createClaudeApiConversationMethod(
     apiKey: options.apiKey,
     baseURL: options.baseURL,
     maxRetries: options.maxRetries ?? 2,
+    fetch: fetchWithoutRetryAtTheMonthlyLimit(),
   });
   const documents = options.documents
     .map((document) => `<document path="${document.path}">\n${document.text}\n</document>`)
@@ -217,16 +222,16 @@ function messagesOf(turns: ConversationTurn[]): Anthropic.MessageParam[] {
 }
 
 /**
- * **What went wrong, as one of the two things the archive tells an author.** The workspace's
- * monthly limit is the provider refusing a well-formed request with a usage-limit message, until
- * the date it names; everything else is the conversation being unavailable. Never carries the
- * request, and so never the key.
+ * **What went wrong, as one of the two things the archive tells an author.** The Monthly limit is
+ * the provider refusing a well-formed request until the month turns
+ * (`platform/claude-monthly-limit.ts`); everything else is the conversation being unavailable.
+ * Never carries the request, and so never the key.
  */
 function classify(error: unknown): Error {
   if (error instanceof ConversationUnavailableError) {
     return error;
   }
-  if (error instanceof Anthropic.BadRequestError && /usage limits?/i.test(error.message)) {
+  if (isMonthlyLimitRefusal(error)) {
     return new ConversationPausedError();
   }
   if (error instanceof Anthropic.AuthenticationError) {

@@ -74,14 +74,18 @@ A run stops cleanly, and keeps every Tavola it has finished:
 
 - before the next request could pass its spending limit;
 - at the subscription's usage limit;
+- at the **Monthly limit**, when the provider refuses to read more on an API key this month,
+  whether at the limit set in the Console or at the account's own cap. It is not asked again: its
+  page says this month's limit is reached;
 - when the model fails or declines to answer, rather than asking again at the Club's expense
   (what it said is in the server's log, not on the page);
 - when an Administrator presses **Stop reading**.
 
 **Continue reading** carries it on from where it stopped. Where the limit stopped it, give a
-higher limit first. What it has already spent counts against the new limit. A continued run does
-not ask again about a page it has placed, and does not read a finished Tavola again. A Tavola it
-stopped in the middle of is read again whole.
+higher limit first. What it has already spent counts against the new limit. Where the Monthly
+limit stopped it, continue next month, or once the limit has been raised in the Console. A
+continued run does not ask again about a page it has placed, and does not read a finished Tavola
+again. A Tavola it stopped in the middle of is read again whole.
 
 Every deployment restarts the server. A run left reading is carried on by the next server from
 its last finished step, and its page says the server continued it.

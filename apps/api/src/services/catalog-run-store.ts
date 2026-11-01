@@ -89,6 +89,7 @@ export function catalogRunStore(dependencies: {
 const STOPPED: Record<NonNullable<CostRecord['stopped']>, StoppedState> = {
   'spending-limit': 'stopped-at-limit',
   'usage-limit': 'stopped-at-usage-limit',
+  'monthly-limit': 'stopped-at-monthly-limit',
   'method-failed': 'stopped-after-failures',
   asked: 'stopped-by-administrator',
 };

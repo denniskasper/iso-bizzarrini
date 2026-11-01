@@ -6,6 +6,7 @@ import type { Box } from '../../src/reading/find-numbers.js';
 import type { CostRecord } from '../../src/reading/cost.js';
 import type { PageSource } from '../../src/reading/read-catalog.js';
 import {
+  MonthlyLimitReached,
   UsageLimitReached,
   type NumberReading,
   type ReadRow,
@@ -105,6 +106,8 @@ export interface FakeMethodOptions {
   translationEstimate?: RequestEstimate;
   /** How many requests it answers before the plan's usage limit is reached. */
   usageLimitAfter?: number;
+  /** How many requests it answers before the provider refuses at the Monthly limit. */
+  monthlyLimitAfter?: number;
   /** What asking which way a drawing's numbers read takes, and is estimated to. Nothing, unless said. */
   orientationTokens?: Tokens;
   orientationEstimate?: RequestEstimate;
@@ -124,6 +127,9 @@ export function fakeReadingMethod(
   const call = (what: string) => {
     if (options.usageLimitAfter !== undefined && calls.length >= options.usageLimitAfter) {
       throw new UsageLimitReached('The subscription’s usage limit was reached: resets at 5pm.');
+    }
+    if (options.monthlyLimitAfter !== undefined && calls.length >= options.monthlyLimitAfter) {
+      throw new MonthlyLimitReached();
     }
     calls.push(what);
   };

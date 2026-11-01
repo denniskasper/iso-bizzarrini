@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createClaudeApiReadingMethod } from '../src/reading/claude-api-method.js';
 import { CLAUDE_MODEL } from '../src/reading/claude-requests.js';
+import { MonthlyLimitReached, ReadingMethodError } from '../src/reading/reading-method.js';
 
 /**
  * **The request the API-key Reading method builds** (issue #31), checked against a stand-in for
@@ -33,6 +34,10 @@ describe('reading with Claude through an API key', () => {
   async function givenTheApi(
     status: number,
     answer: unknown,
+    error: { type: string; message: string } = {
+      type: 'authentication_error',
+      message: 'invalid x-api-key',
+    },
   ): Promise<{ url: string; received: Received[] }> {
     const received: Received[] = [];
     server = createServer((request, response) => {
@@ -61,10 +66,7 @@ describe('reading with Claude through an API key', () => {
                   stop_sequence: null,
                   usage: { input_tokens: 1500, output_tokens: 300 },
                 }
-              : {
-                  type: 'error',
-                  error: { type: 'authentication_error', message: 'invalid x-api-key' },
-                },
+              : { type: 'error', error },
           ),
         );
       });
@@ -235,5 +237,54 @@ describe('reading with Claude through an API key', () => {
     expect((failure as Error).message).toBe('The API key was refused. Check ANTHROPIC_API_KEY.');
     expect(JSON.stringify(failure)).not.toContain(KEY);
     expect(String((failure as Error).stack)).not.toContain(KEY);
+  });
+
+  it('says this month’s limit is reached when the Console’s limit refuses, and asks once', async () => {
+    for (const message of [
+      'You have reached your specified API usage limits. You will regain access on ' +
+        '2026-12-01 at 00:00 UTC.',
+      'You have reached your specified workspace API usage limits. You will regain access on ' +
+        '2026-12-01 at 00:00 UTC.',
+    ]) {
+      const api = await givenTheApi(400, null, { type: 'invalid_request_error', message });
+      const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 2 });
+
+      const failure = await method.identify(await aPage(800)).catch((error: Error) => error);
+
+      expect(failure).toBeInstanceOf(MonthlyLimitReached);
+      expect((failure as Error).message).toMatch(/this month’s limit/i);
+      expect(api.received).toHaveLength(1);
+      await new Promise((resolve) => server?.close(resolve));
+      server = undefined;
+    }
+  });
+
+  it('says the same at the tier’s cap, and does not ask again', async () => {
+    const api = await givenTheApi(429, null, {
+      type: 'enforced_spend_limit_reached',
+      message: 'Your organization has reached its monthly spend limit.',
+    });
+    const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 2 });
+
+    const failure = await method.readTable(await aPage(800), 1).catch((error: Error) => error);
+
+    expect(failure).toBeInstanceOf(MonthlyLimitReached);
+    expect(api.received).toHaveLength(1);
+  });
+
+  it('takes any other refusal for a failure', async () => {
+    for (const [status, type, message] of [
+      [400, 'invalid_request_error', 'messages: field required'],
+      [429, 'rate_limit_error', 'Number of request tokens has exceeded your rate limit.'],
+    ] as const) {
+      const api = await givenTheApi(status, null, { type, message });
+      const method = createClaudeApiReadingMethod({ apiKey: KEY, baseURL: api.url, maxRetries: 0 });
+
+      const failure = await method.identify(await aPage(800)).catch((error: Error) => error);
+
+      expect(failure).toBeInstanceOf(ReadingMethodError);
+      await new Promise((resolve) => server?.close(resolve));
+      server = undefined;
+    }
   });
 });

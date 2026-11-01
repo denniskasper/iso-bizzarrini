@@ -347,6 +347,23 @@ describe('a Proposal’s conversation with Claude through an API key', () => {
     );
   });
 
+  it('reports the tier’s spending cap as paused too, and does not ask again', async () => {
+    const api = await givenTheApi({
+      status: 429,
+      type: 'enforced_spend_limit_reached',
+      message: 'Your organization has reached its monthly spend limit.',
+    });
+    const method = createClaudeApiConversationMethod({
+      apiKey: KEY,
+      documents,
+      baseURL: api.url,
+      maxRetries: 2,
+    });
+
+    await expect(method.summarise(conversation)).rejects.toBeInstanceOf(ConversationPausedError);
+    expect(api.received).toHaveLength(1);
+  });
+
   it('reports anything else as unavailable, and never with the key in it', async () => {
     for (const refusal of [
       { status: 401, type: 'authentication_error', message: 'invalid x-api-key' },

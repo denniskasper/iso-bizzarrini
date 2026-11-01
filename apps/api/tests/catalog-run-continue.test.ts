@@ -73,6 +73,7 @@ describe('a Catalog run that stops', () => {
     await app.reset();
     method.calls.length = 0;
     delete options.usageLimitAfter;
+    delete options.monthlyLimitAfter;
     administrator = (await givenAnAdministrator(app, { name: 'Ada Admin' })).agent;
     model = await givenModel(app.db, { brand: 'Iso', name: 'Rivolta' });
   });
@@ -130,6 +131,26 @@ describe('a Catalog run that stops', () => {
     await expectTavola1Kept(administrator, stopped);
 
     delete options.usageLimitAfter;
+    method.calls.length = 0;
+    await carryOn(administrator, run).expect(202);
+
+    expect(await settled(administrator, run)).toMatchObject({ state: 'finished', spent: 0.24 });
+    expect(method.calls).toEqual(['read 2 1', 'read 2 2']);
+  });
+
+  it('stops at the Monthly limit, keeps what it read, and continues once the month turns', async () => {
+    options.monthlyLimitAfter = READ_TO_TAVOLA_2.length;
+    const run = await estimated(administrator, model);
+    await start(administrator, run, { limit: 1 }).expect(202);
+
+    const stopped = await settled(administrator, run);
+    expect(stopped).toMatchObject({ state: 'stopped-at-monthly-limit', spent: 0.16 });
+    expect(stopped.costs.at(-1)?.stopped).toBe('monthly-limit');
+    await expectTavola1Kept(administrator, stopped);
+    // The refused request is not asked again.
+    expect(method.calls).toEqual(READ_TO_TAVOLA_2);
+
+    delete options.monthlyLimitAfter;
     method.calls.length = 0;
     await carryOn(administrator, run).expect(202);
 
