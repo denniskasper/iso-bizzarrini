@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 test.describe('the application shell', () => {
@@ -57,57 +57,52 @@ test.describe('the application shell', () => {
   });
 
   /**
-   * **Whose archive this is** (issue #107), named from the Club's own record. That what an
-   * Administrator writes there is what the public Legal notice serves is proved at the API seam
-   * and in the legal spec; what is here is the header reading it. The record is answered here
-   * rather than written, because the database is shared and the legal spec writes the same row.
+   * **Whose archive this is** (issue #209, ADR 0020): the Club's own wordmark, white on the
+   * graphite header as on the Club website, with "Ricambi" beside it. The logo ships with the
+   * app, so this system, with nothing mounted, shows it as every other one does.
    */
   test.describe('the header', () => {
-    /** Invented, and long on purpose: a real association's registered name often is. */
-    const CLUB_NAME = 'An Invented Automobile Club of Musterstadt e.V.';
+    const CLUB_NAME = 'ISO Bizzarrini Club Deutschland e.V.';
 
-    function recordClubName(page: Page, name: string | null) {
-      return page.route('**/api/legal-notice', async (route) => {
-        const response = await route.fetch();
-        const body = (await response.json()) as { legalNotice: Record<string, unknown> };
-        await route.fulfill({
-          response,
-          json: { legalNotice: { ...body.legalNotice, name } },
-        });
-      });
-    }
-
-    test('names the Club, with Parts Database beside it', async ({ page }) => {
-      await recordClubName(page, CLUB_NAME);
-      await page.goto('/');
-
-      const home = page.getByRole('banner').getByRole('link', {
-        name: `${CLUB_NAME} Parts Database`,
-        exact: true,
-      });
-      await expect(home).toBeVisible();
-      await expect(home).toContainText('Parts Database');
-      await expect(home.getByTestId('club-name')).toHaveText(CLUB_NAME);
-    });
-
-    test('says Ricambi while the Club has recorded no name', async ({ page }) => {
-      await recordClubName(page, null);
-      await page.goto('/');
-
-      const home = page.getByRole('banner').getByRole('link', { name: 'Ricambi', exact: true });
-      await expect(home).toBeVisible();
-      await expect(home).toHaveText('Ricambi');
-    });
-
-    test("keeps a member's header on one line, shortening the Club's name rather than wrapping", async ({
+    test("shows the Club's wordmark with Ricambi beside it, named for the Club", async ({
       page,
     }) => {
-      await recordClubName(page, CLUB_NAME);
+      await page.goto('/');
+
+      const header = page.getByRole('banner');
+      const logo = header.getByRole('img', { name: CLUB_NAME, exact: true });
+      await expect(logo).toBeVisible();
+      // Loaded, not a broken image with its alternative text standing in.
+      expect(
+        await logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+      ).toBeGreaterThan(0);
+      const home = header.getByRole('link', { name: `${CLUB_NAME} Ricambi`, exact: true });
+      await expect(home).toBeVisible();
+      await expect(home).toHaveAttribute('href', '/');
+      await expect(home).toContainText('Ricambi');
+    });
+
+    test('is graphite whichever theme the page wears, so the white wordmark always reads', async ({
+      page,
+    }) => {
+      await page.goto('/');
+      const header = page.getByRole('banner');
+      const graphite = await header.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      );
+
+      await page.getByRole('button', { name: /Switch to the/ }).click();
+      await expect(header).toHaveCSS('background-color', graphite);
+    });
+
+    test("keeps a member's header on one line, scaling the wordmark down rather than wrapping", async ({
+      page,
+    }) => {
       await signInAs(page, PRACTICE.member);
       await landed(page);
 
       const header = page.getByRole('banner');
-      const home = header.getByRole('link', { name: `${CLUB_NAME} Parts Database` });
+      const home = header.getByRole('link', { name: `${CLUB_NAME} Ricambi` });
       const theme = header.getByRole('button', { name: /Switch to the/ });
       const [homeBox, themeBox] = await Promise.all([home.boundingBox(), theme.boundingBox()]);
       expect(homeBox).not.toBeNull();
@@ -117,6 +112,11 @@ test.describe('the application shell', () => {
       expect(
         await header.evaluate((element) => (element as HTMLElement).offsetHeight),
       ).toBeLessThan(80);
+      // Scaled down, and still big enough to read at arm's length.
+      const logo = await home.getByRole('img', { name: CLUB_NAME }).boundingBox();
+      expect(logo).not.toBeNull();
+      expect(logo!.height).toBeGreaterThanOrEqual(20);
+      expect(logo!.width).toBeGreaterThanOrEqual(80);
       // And nothing was pushed past the edge to get there.
       expect(
         await page.evaluate(
@@ -128,7 +128,6 @@ test.describe('the application shell', () => {
     test("lets an Administrator's header wrap rather than push the page sideways", async ({
       page,
     }) => {
-      await recordClubName(page, CLUB_NAME);
       await signIn(page);
 
       await expect(page.getByRole('banner').getByRole('link', { name: 'Readings' })).toBeVisible();

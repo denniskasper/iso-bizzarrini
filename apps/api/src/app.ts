@@ -483,7 +483,6 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
     visitorService,
     environmentMode: config.environmentMode,
     publicUrl: config.publicUrl,
-    webDistPath: config.webDistPath,
   });
   const sampleController = createSampleController({ gate, sampleService, indexing });
   const checkingController = createCheckingController({

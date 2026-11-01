@@ -16,6 +16,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ContextList,
   FinishedProposal,
@@ -65,16 +66,20 @@ export function Propose({ className }: { className: string }) {
       >
         Propose
       </button>
-      {open && (
-        <ProposalPanel
-          proposalId={proposalId}
-          onOpen={setProposalId}
-          onClose={() => {
-            setOpen(false);
-            setProposalId(null);
-          }}
-        />
-      )}
+      {/* On the page's body rather than in the graphite header the button sits in, so the
+          panel wears the theme the member chose. */}
+      {open &&
+        createPortal(
+          <ProposalPanel
+            proposalId={proposalId}
+            onOpen={setProposalId}
+            onClose={() => {
+              setOpen(false);
+              setProposalId(null);
+            }}
+          />,
+          document.body,
+        )}
     </>
   );
 }

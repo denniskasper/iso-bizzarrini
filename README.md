@@ -15,9 +15,9 @@ deployment. Unhandled errors are logged on the box through pino. The seam a repo
 attach to is kept, and the decision is to be reconsidered at the first deployment that carries
 real members.
 
-**The Club's logo file is deliberately not in this repository.** It carries the association's
-name, and `AGENTS.md` forbids client-identifying material here. The colour and typography *are*
-the Club's, measured from its live site; the logo asset is dropped in at deploy time.
+**The Club's logo is in this repository** (ADR 0020): its identity is not sensitive, so the
+wordmark in the header and the emblem on the icons ship with the app, and nothing is mounted at
+deploy time. The people and the infrastructure stay out (`AGENTS.md`).
 
 ## The club website
 

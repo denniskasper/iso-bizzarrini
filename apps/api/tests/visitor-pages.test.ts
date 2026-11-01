@@ -32,9 +32,8 @@ let distPath: string;
 beforeAll(() => {
   distPath = mkdtempSync(path.join(tmpdir(), 'ricambi-web-dist-'));
   mkdirSync(path.join(distPath, 'assets'), { recursive: true });
+  // Nothing else is dropped into the built app: the landing's picture is one the app ships.
   writeFileSync(path.join(distPath, 'index.html'), indexHtml);
-  // The Club's logo is dropped in at deploy time, never committed; any picture stands in here.
-  writeFileSync(path.join(distPath, 'club-logo.png'), 'not really a picture');
 });
 
 afterAll(() => {
@@ -193,14 +192,16 @@ describe('production', () => {
   });
 
   describe('link previews', () => {
-    it('gives the landing a title, a description and the Club’s logo', async () => {
+    it('gives the landing a title, a description and the Club’s emblem', async () => {
       const html = (await app.request().get('/').expect(200)).text;
 
       expect(html).toContain('<title>Ricambi</title>');
       expect(metaContent(html, 'property', 'og:title')).toBe('Ricambi');
       expect(metaContent(html, 'property', 'og:description')).toMatch(/Iso and Bizzarrini/);
       expect(metaContent(html, 'name', 'description')).toMatch(/Iso and Bizzarrini/);
-      expect(metaContent(html, 'property', 'og:image')).toBe(`${PUBLIC_URL}/club-logo.png`);
+      expect(metaContent(html, 'property', 'og:image')).toBe(`${PUBLIC_URL}/icon-512.png`);
+      expect(metaContent(html, 'property', 'og:image:width')).toBe('512');
+      expect(metaContent(html, 'property', 'og:image:height')).toBe('512');
       expect(metaContent(html, 'property', 'og:url')).toBe(`${PUBLIC_URL}/`);
     });
 
@@ -272,6 +273,14 @@ describe('a non-production environment', () => {
 
     expect(robots.text).toBe('User-agent: *\nDisallow: /\n');
     expect(sitemap.text).not.toContain('<loc>');
+  });
+
+  it('previews the landing with the practice roundel, never the Club’s emblem', async () => {
+    const html = (await app.request().get('/').expect(200)).text;
+
+    expect(metaContent(html, 'property', 'og:image')).toBe(
+      `${PUBLIC_URL}/practice/integration/icon-512.png`,
+    );
   });
 
   it('still previews a shared Sample, marked as practice', async () => {
