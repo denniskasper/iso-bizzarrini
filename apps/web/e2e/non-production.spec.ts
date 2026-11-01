@@ -15,8 +15,8 @@ test.describe('a system that is not the real archive', () => {
 
     const banner = page.getByTestId('environment-banner');
     await expect(banner).toBeVisible();
-    await expect(banner).toContainText(/demo/i);
-    await expect(banner).toContainText(/practice/i);
+    await expect(banner).toContainText(/integration/i);
+    await expect(banner).toContainText(/practice system/i);
 
     await page.goto('/tavola/207');
     await expect(page.getByTestId('environment-banner')).toBeVisible();
@@ -54,11 +54,39 @@ test.describe('a system that is not the real archive', () => {
 
     const mark = page.getByTestId('environment-mark');
     await expect(mark).toBeInViewport();
-    await expect(mark).toContainText(/demo/i);
+    await expect(mark).toContainText(/integration/i);
     await expect(mark.getByRole('button')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Leave full screen' }).click();
     await expect(page.getByTestId('environment-mark')).toHaveCount(0);
+  });
+
+  test('tells Development apart from Integration, in words and in colour', async ({ page }) => {
+    await page.goto('/');
+    const banner = page.getByTestId('environment-banner');
+    const integration = await banner.evaluate((band) => getComputedStyle(band).backgroundColor);
+
+    // Only `vite dev` marks a page Development, and this seam serves the built app: the page is
+    // marked here as Vite would have marked it.
+    await page.route('**/*', async (route) => {
+      if (route.request().resourceType() !== 'document') {
+        return route.continue();
+      }
+      const response = await route.fetch();
+      const html = (await response.text()).replace(
+        /<html\b([^>]*)>/i,
+        '<html$1 data-environment-system="development">',
+      );
+      return route.fulfill({ response, body: html });
+    });
+    await page.goto('/');
+
+    await expect(banner).toContainText(/development/i);
+    await expect(banner).toContainText(/your own machine/i);
+    await expect(banner).not.toContainText(/integration/i);
+    expect(await banner.evaluate((band) => getComputedStyle(band).backgroundColor)).not.toBe(
+      integration,
+    );
   });
 
   for (const colorScheme of ['light', 'dark'] as const) {

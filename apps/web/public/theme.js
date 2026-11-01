@@ -25,7 +25,9 @@
     // The server stamps the title as well as the element; when nothing stamped either, the tab
     // has to be marked here, or this is the one case where the page says DEMO and the tab does
     // not. Prefixed, because a tab truncates from the right.
-    document.title = 'DEMO — ' + document.title;
+    // Development, marked by `vite dev`, says so in the tab too.
+    var development = document.documentElement.dataset.environmentSystem === 'development';
+    document.title = (development ? 'DEV — ' : 'DEMO — ') + document.title;
   }
 
   try {

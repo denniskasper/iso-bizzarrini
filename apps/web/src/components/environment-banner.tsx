@@ -1,4 +1,20 @@
-import { environmentMode } from '@/lib/environment';
+import { environmentSystem, type EnvironmentSystem } from '@/lib/environment';
+
+/**
+ * What each practice system says of itself. Two, so that a developer flicking between their own
+ * machine and Integration always knows which one they are in: the words differ, and so does the
+ * band's colour (`tokens.css`).
+ */
+const STAMP: Record<Exclude<EnvironmentSystem, 'production'>, { name: string; says: string }> = {
+  integration: {
+    name: 'Integration',
+    says: 'Practice system. Everything is invented, and nothing reaches a member.',
+  },
+  development: {
+    name: 'Development',
+    says: 'Your own machine. Nobody else can reach it.',
+  },
+};
 
 /**
  * The proof stamp: the one element in this interface whose job is to be noticed.
@@ -14,9 +30,11 @@ import { environmentMode } from '@/lib/environment';
  * they practise sending an invitation.
  */
 export function EnvironmentBanner() {
-  if (environmentMode() === 'production') {
+  const system = environmentSystem();
+  if (system === 'production') {
     return null;
   }
+  const stamp = STAMP[system];
 
   return (
     <aside aria-label="Environment" data-testid="environment-banner" className="demo-band">
@@ -27,8 +45,10 @@ export function EnvironmentBanner() {
         {/* Set a step above the chrome around it, not below: the one element that must be read
             at arm's length in a garage cannot be the smallest type on the page. */}
         <p className="text-sm">
-          <span className="mr-3 text-xs font-semibold tracking-wordmark uppercase">Demo</span>
-          Practice archive — nothing here is real, and nothing reaches a member.
+          <span className="mr-3 text-xs font-semibold tracking-wordmark uppercase">
+            {stamp.name}
+          </span>
+          {stamp.says}
         </p>
       </div>
     </aside>
@@ -42,14 +62,16 @@ export function EnvironmentBanner() {
  * else uses, and it lets every pointer through to the sheet beneath it.
  */
 export function EnvironmentMark() {
-  if (environmentMode() === 'production') {
+  const system = environmentSystem();
+  if (system === 'production') {
     return null;
   }
+  const stamp = STAMP[system];
 
   return (
     <p data-testid="environment-mark" className="demo-band demo-mark absolute top-3 left-3">
-      <span className="text-sm font-semibold tracking-wordmark uppercase">Demo</span>
-      <span className="sr-only"> — practice archive, nothing here is real</span>
+      <span className="text-sm font-semibold tracking-wordmark uppercase">{stamp.name}</span>
+      <span className="sr-only"> — {stamp.says}</span>
     </p>
   );
 }

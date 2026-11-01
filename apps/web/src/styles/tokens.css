@@ -142,6 +142,18 @@
   --shadow-card: 0 0.75rem 2rem oklch(0.279 0.015 257 / 0.22);
 }
 
+/*
+ * **Development wears its own stamp**: the same band, in a magenta the Club uses nowhere either
+ * (325°, as far from Integration's orange as from the ice blue at 243°), so a developer moving
+ * between their own machine and Integration can tell them apart at a glance, before reading a
+ * word. Same lightness as the orange, so the ink sits on it as well.
+ */
+:root[data-environment-system='development'] {
+  --demo-band: oklch(0.74 0.14 325);
+  --demo-band-ink: oklch(0.25 0.08 325);
+  --demo-hatch: oklch(0.46 0.15 325);
+}
+
 .dark {
   /* Graphite — `surface-raised` is the Club's chrome, measured. */
   --surface: oklch(0.205 0.012 264);
