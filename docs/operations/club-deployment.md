@@ -317,23 +317,36 @@ without it they are all left as invited. Then run its written check.
 
 None of this can be done from the repository, and the archive does not open without it.
 
-- [ ] **The host.** A VPS in an EU region, with Dokploy installed and its panel reachable only
-      over a private network, as the preview's is.
+- [ ] **The board's approval** of the monthly cost and of the providers below, before anything
+      is ordered. Every contract is in the association's name ([ADR 0009](../adr/0009-deployment.md),
+      the Club's own server).
+- [ ] **The host.** A VPS in Germany from `<HOSTING_PROVIDER>`, 4 vCPU and 8 GB to start, with
+      Dokploy installed. The panel on a hostname of its own, every account with two-factor
+      authentication and an administrator's limited to the Club's project. SSH by key only, and
+      the firewall open on 22, 80 and 443. Ubuntu's `unattended-upgrades` on, rebooting at night.
+- [ ] **The password manager** (`<PASSWORD_MANAGER>`), the Club's, holding every login below,
+      the backup key and the two-factor recovery codes.
 - [ ] **The processor agreement with the hosting provider**, signed before any member's data is
       on the host — and the hosting provider named as a Processor on the Club's screen.
 - [ ] **The `infra` repository** in the Club's GitHub organisation, private, holding the host's
       settings as [the section above](#the-clubs-infra-repository) lists, and nobody's secret.
 - [ ] **The Compose services in Dokploy**: the Club's, from `docker/club/compose.yml`, and the
       non-production system's, from `docker/preview/compose.yml`, each with its own secrets.
-- [ ] **DNS**: `<RICAMBI_HOST>` and `<PRACTICE_HOST>` pointing at the host.
+- [ ] **DNS**: `<RICAMBI_HOST>`, `<PRACTICE_HOST>` and the panel's hostname pointing straight at
+      the host, with no proxy in front.
+- [ ] **CI deploys the non-production system** through Dokploy's API, with a token that can
+      deploy it and nothing else, as an organisation secret.
 - [ ] **The e-mail provider**: chosen, with a processor agreement signed and the provider named
       on the Club's screen; and on the sending domain, **SPF, DKIM and DMARC** set as the
       provider says. Prove it with the first Administrator's invitation landing in an inbox,
       not in spam.
 - [ ] **The Club's logo** mounted as `/app/web/club-logo.png`, for the landing's link preview.
-- [ ] **The backup provider**: a different company from the host, with a processor agreement
-      and a key held by named people.
-- [ ] **The error-tracking decision of [ADR 0011](../adr/0011-no-error-tracking-vendor.md)**,
-      which it deferred to the first deployment. Either confirm that errors are only logged on
-      the box and say who reads that log and how often, or choose a provider, sign its
-      agreement and name it on the Club's screen first.
+- [ ] **The backup provider** (`<BACKUP_STORAGE_PROVIDER>`): a different company from the host,
+      with a processor agreement and a key held by named people.
+- [ ] **Monitoring**: `<UPTIME_MONITOR>` calling `https://<RICAMBI_HOST>/api/status` and the
+      website every five minutes; the backup pinging `<BACKUP_MONITOR>` after each run that
+      succeeded; disk use above 80% mailed from the box. Every alert to the operator and an
+      address of the Club's.
+- [ ] **Who reads the log, and how often.** [ADR 0011](../adr/0011-no-error-tracking-vendor.md)
+      deferred the error-tracking decision to the first deployment, and ADR 0009 (the Club's own
+      server) settled it: no vendor, errors logged on the box. Write down who reads that log.
