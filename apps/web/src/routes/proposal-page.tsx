@@ -102,14 +102,14 @@ function Whole({ proposal }: { proposal: Proposal }) {
               screenshots={proposal.turns.flatMap((turn) => turn.screenshots)}
             />
           )}
-          <h2 className="mt-10 text-sm font-semibold text-muted">Started from</h2>
+          <h2 className="mt-10 text-sm text-muted">Started from</h2>
           <div className="mt-2">
             <ContextList context={proposal.context} />
           </div>
         </section>
 
         <section aria-labelledby="conversation-heading">
-          <h2 id="conversation-heading" className="text-sm font-semibold text-muted">
+          <h2 id="conversation-heading" className="text-sm text-muted">
             The conversation
           </h2>
           <ol className="mt-4 space-y-5" data-testid="conversation">
@@ -138,7 +138,7 @@ function Whole({ proposal }: { proposal: Proposal }) {
 /**
  * **What becomes of it**, an Administrator's to decide: Taken up from New, Done from Taken up,
  * and Declined from either with a reason its author will read. The next step along is the one
- * champagne button; declining asks for its reason before it can be pressed.
+ * teal button; declining asks for its reason before it can be pressed.
  */
 function Deciding({ proposal }: { proposal: Proposal }) {
   const decide = useDecide(proposal.id);

@@ -25,35 +25,77 @@ test.describe('the application shell', () => {
     await expect(page.getByRole('link', { name: 'Back to the catalog' })).toBeVisible();
   });
 
+  /**
+   * **Light by default, as the Club website is** (ADR 0020): a white page in the graphite frame,
+   * even on a device set to dark, and dark one press away and kept.
+   */
   test.describe('the theme', () => {
     test.use({ colorScheme: 'dark' });
 
-    test('is graphite when nothing says otherwise, so the drawing is the brightest thing on screen', async ({
-      page,
-    }) => {
+    test('opens light on a first visit, with nothing stored', async ({ page }) => {
       await page.goto('/');
-      await expect(page.locator('html')).toHaveClass(/dark/);
+      await expect(page.locator('html')).not.toHaveClass(/dark/);
+      await expect(page.getByRole('button', { name: 'Switch to the dark theme' })).toBeVisible();
     });
 
-    test('remembers an explicit choice, so nobody re-picks it every visit', async ({ page }) => {
+    test('keeps a choice of dark, so nobody re-picks it every visit', async ({ page }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: 'Switch to the light theme' }).click();
-      await expect(page.locator('html')).not.toHaveClass(/dark/);
+      await page.getByRole('button', { name: 'Switch to the dark theme' }).click();
+      await expect(page.locator('html')).toHaveClass(/dark/);
 
+      await page.reload();
+      await expect(page.locator('html')).toHaveClass(/dark/);
+
+      await page.getByRole('button', { name: 'Switch to the light theme' }).click();
       await page.reload();
       await expect(page.locator('html')).not.toHaveClass(/dark/);
     });
+
+    test('frames the page in graphite in either theme', async ({ page }) => {
+      await page.goto('/');
+      const frame = () =>
+        page.evaluate(() =>
+          ['header', 'footer'].map(
+            (element) => getComputedStyle(document.querySelector(element)!).backgroundColor,
+          ),
+        );
+      const light = await frame();
+      expect(light[0]).toBe(light[1]);
+
+      await page.getByRole('button', { name: 'Switch to the dark theme' }).click();
+      await expect(page.locator('html')).toHaveClass(/dark/);
+      expect(await frame()).toEqual(light);
+    });
   });
 
-  test.describe('a browser asking for light', () => {
-    test.use({ colorScheme: 'light' });
-
-    test('is answered with paper, because a stated preference outranks our default', async ({
-      page,
-    }) => {
-      await page.goto('/');
-      await expect(page.locator('html')).not.toHaveClass(/dark/);
+  /** **Headings in the Club website's face** (ADR 0020), self-hosted, at its one weight. */
+  test('sets headings in Raleway 500, served by the archive itself', async ({ page }) => {
+    const fonts: string[] = [];
+    page.on('request', (request) => {
+      if (request.resourceType() === 'font') {
+        fonts.push(request.url());
+      }
     });
+    await page.goto('/');
+    const heading = page.getByRole('heading', { name: 'The archive is members-only.' });
+    await expect(heading).toBeVisible();
+
+    const face = await heading.evaluate(async (element) => {
+      await document.fonts.ready;
+      const style = getComputedStyle(element);
+      return {
+        family: style.fontFamily,
+        weight: style.fontWeight,
+        loaded: document.fonts.check('500 1em Raleway'),
+      };
+    });
+    expect(face.family).toMatch(/^"?Raleway"?,/);
+    expect(face.weight).toBe('500');
+    expect(face.loaded).toBe(true);
+    expect(fonts.length).toBeGreaterThan(0);
+    for (const url of fonts) {
+      expect(new URL(url).origin).toBe(new URL(page.url()).origin);
+    }
   });
 
   /**

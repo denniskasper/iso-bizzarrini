@@ -26,7 +26,7 @@ export function CategoryPage() {
   if (isError) {
     return (
       <div className="animate-rise">
-        <h1 className="text-3xl font-semibold">That Category is not on the list.</h1>
+        <h1 className="text-3xl">That Category is not on the list.</h1>
         <p className="mt-6 max-w-measure text-pretty text-muted">
           It may have been renamed since the link was made. {error.message}
         </p>

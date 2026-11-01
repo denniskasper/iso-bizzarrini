@@ -7,7 +7,7 @@ import { fraction } from './viewport';
  * shown only when a member asks — by pointing at its name, selecting it, or selecting one of its
  * numbers. A sheet showing every outline at once would bury the numbers a member came to click.
  *
- * It is the pointing ice blue (ADR 0014), as a line with a wash inside it: plainly something the
+ * It is the Mark's ultramarine (ADR 0020), as a line with a wash inside it: plainly something the
  * club drew on the factory's print, and translucent so the print still reads through it.
  *
  * **Under the Marks**, in the same coordinate space: the viewer puts this between the Scan and

@@ -275,10 +275,10 @@ importers:
       '@fontsource-variable/open-sans':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource/barlow-condensed':
+      '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource/ibm-plex-mono':
+      '@fontsource/raleway':
         specifier: ^5.3.0
         version: 5.3.0
       '@radix-ui/react-slot':
@@ -1014,11 +1014,11 @@ packages:
   '@fontsource-variable/open-sans@5.3.0':
     resolution: {integrity: sha512-VOfhZfLIOBVa6K/dTEu7scqQXYdGa4jBX8quFpQ0S6574B+W2EOBJf9PkqyVtMEI7WWIWNEbpvPc3vY1mN2mmQ==}
 
-  '@fontsource/barlow-condensed@5.3.0':
-    resolution: {integrity: sha512-RA7MmIx0v3eQ6Gcf74qLVLOwLB0GpPOzx+eU9iG/AmCnSJGcIWYeU8y6CEMGZ210MGwGg5CZhzLkkvyZdTTk1g==}
-
   '@fontsource/ibm-plex-mono@5.3.0':
     resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
+
+  '@fontsource/raleway@5.3.0':
+    resolution: {integrity: sha512-BTWr1I14Ji0DWpS/KCIq/CXcvxXWgMO73gynWpbYv7A5wlPhLevozgRmdPJvZmUf0fhH+Lju+F4nigJ6Ums24A==}
 
   '@hono/node-server@2.1.5':
     resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
@@ -3827,9 +3827,9 @@ snapshots:
 
   '@fontsource-variable/open-sans@5.3.0': {}
 
-  '@fontsource/barlow-condensed@5.3.0': {}
-
   '@fontsource/ibm-plex-mono@5.3.0': {}
+
+  '@fontsource/raleway@5.3.0': {}
 
   '@hono/node-server@2.1.5(hono@4.13.14)':
     dependencies:

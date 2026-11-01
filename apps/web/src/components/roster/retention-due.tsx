@@ -26,7 +26,7 @@ export function RetentionDue() {
 
   return (
     <section className="mt-20" aria-labelledby="retention-heading">
-      <h2 id="retention-heading" className="text-2xl font-semibold">
+      <h2 id="retention-heading" className="text-2xl">
         {accounts.length === 0
           ? 'Nobody is due to be deleted'
           : accounts.length === 1

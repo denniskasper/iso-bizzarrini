@@ -27,7 +27,7 @@ import { authorOf, writtenOn } from '@/lib/contributions';
  * Everything an Editor can do to it is here, and the screen is arranged around the fact that
  * there is no diff to apply (spec, Out of Scope). A good correction is made on the right, with
  * the same tools the archive has everywhere else, while the words that prompted it stay in view
- * on the left. Deciding is last and is the one champagne button on the screen: by the time it is
+ * on the left. Deciding is last and is the one teal button on the screen: by the time it is
  * pressed, whatever was worth keeping is already in the record.
  */
 export function Reviewing({ waiting }: { waiting: WaitingContribution }) {
@@ -255,7 +255,7 @@ function PartNow({ subject }: { subject: Extract<ContributionSubject, { kind: 'p
 
   return (
     <div className="mt-4">
-      <h3 className="text-xl font-semibold text-pretty">{heading}</h3>
+      <h3 className="text-xl text-pretty">{heading}</h3>
       {part.nameEn && part.nameIt && <p className="mt-1 text-pretty text-muted">{part.nameIt}</p>}
 
       <PartPhotographs photographs={part.photographs} partName={heading} />

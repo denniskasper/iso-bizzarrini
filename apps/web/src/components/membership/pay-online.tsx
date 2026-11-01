@@ -18,7 +18,7 @@ import { useStartSubscription } from '@/lib/membership';
  * moves when it is confirmed and not before. Said here, a member waits; unsaid, they write to
  * the Club office asking where their access is.
  *
- * The one champagne button on whichever screen it is on.
+ * The one teal button on whichever screen it is on.
  */
 export function PayOnline({ membership }: { membership: MembershipStanding }) {
   const start = useStartSubscription();

@@ -46,7 +46,7 @@ export function SubAssemblyPage() {
   if (page.isError) {
     return (
       <div className="animate-rise">
-        <h1 className="text-3xl font-semibold">That sub-assembly is not in the archive.</h1>
+        <h1 className="text-3xl">That sub-assembly is not in the archive.</h1>
         <p className="mt-6 max-w-measure text-pretty text-muted">{page.error.message}</p>
         <Link
           to="/tavole/$tavolaId"
@@ -97,7 +97,7 @@ export function SubAssemblyPage() {
       </p>
 
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h1 className="text-3xl font-semibold text-balance sm:text-4xl">{subAssembly.name}</h1>
+        <h1 className="text-3xl text-balance sm:text-4xl">{subAssembly.name}</h1>
         <CopyLink />
       </div>
       <p className="mt-1 max-w-measure text-pretty text-muted">

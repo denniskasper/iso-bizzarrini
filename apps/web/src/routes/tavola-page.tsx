@@ -406,7 +406,7 @@ export function TavolaPage() {
   if (isError) {
     return (
       <div className="animate-rise">
-        <h1 className="text-3xl font-semibold">That drawing is not in the archive.</h1>
+        <h1 className="text-3xl">That drawing is not in the archive.</h1>
         <p className="mt-6 max-w-measure text-pretty text-muted">{error.message}</p>
         <Link to="/" className="mt-8 inline-block text-accent-ink underline underline-offset-4">
           Back to the catalog
@@ -447,7 +447,7 @@ export function TavolaPage() {
         )}
       </p>
 
-      <h1 className="mt-2 text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
+      <h1 className="mt-2 text-3xl text-balance sm:text-4xl">{tavola.nameIt}</h1>
       <p className="mt-1 flex flex-wrap items-baseline gap-x-3 text-lg text-muted">
         <span>{tavola.nameEn}</span>
         {tavola.nameEnMachineTranslated && <MachineTranslationTag />}
