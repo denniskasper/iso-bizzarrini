@@ -52,17 +52,19 @@ services:
 
       # **What the catalog is read with** (issue #55, ADR 0018). The fake method unless this
       # stack is told otherwise: it reads nothing and invents what it would have read, so a
-      # practice run costs nothing. A real one is `subscription` with CLAUDE_CODE_OAUTH_TOKEN, or
-      # `api-key` with ANTHROPIC_API_KEY, as secrets and never both.
+      # practice run costs nothing. A real one is `api-key` with ANTHROPIC_API_KEY as a secret:
+      # Integration's one key, the same as PROPOSALS_ANTHROPIC_API_KEY below
+      # (`docs/operations/proposals.md`). `subscription` is refused on a server (issue #151).
       READING_METHOD: ${READING_METHOD:-fake}
-      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
       # **What a Proposal's conversation is had with** (issue #155): Claude, through the
       # conversation's own key in a workspace with a monthly limit
-      # (`docs/operations/proposals.md`). Unset, nobody is shown Propose. Never the reading key.
+      # (`docs/operations/proposals.md`). Unset, nobody is shown Propose. On Integration the same
+      # key as ANTHROPIC_API_KEY, set under both names, with the workspace's limit beside it.
       PROPOSALS_METHOD: ${PROPOSALS_METHOD:-}
       PROPOSALS_ANTHROPIC_API_KEY: ${PROPOSALS_ANTHROPIC_API_KEY:-}
+      PROPOSALS_MONTHLY_LIMIT_USD: ${PROPOSALS_MONTHLY_LIMIT_USD:-}
 
       # The scans, on the volume below. Never inside the image: a container that keeps the
       # drawings in its own filesystem loses them on the next deployment.

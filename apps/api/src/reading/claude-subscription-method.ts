@@ -1,7 +1,13 @@
-import { spawn } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import type { SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import sharp from 'sharp';
 import { z } from 'zod';
+import {
+  agentQuery,
+  machineLoginEnvironment,
+  isolatedSessionOptions,
+  USAGE_LIMIT,
+  type AgentQuery,
+} from '../platform/claude-code.js';
 import {
   CLAUDE_MODEL,
   EXPECTED_OUTPUT,
@@ -38,75 +44,31 @@ import {
 } from './reading-method.js';
 
 /**
- * **Claude, reached with a subscription login** — the Reading method that is not billed per use,
- * and draws on the plan's limits instead (ADR 0017, issue #38).
+ * **Claude, reached with the developer's own subscription** — the Reading method that is not
+ * billed per use, and draws on the plan's limits instead (ADR 0017, issues #38, #151). It runs
+ * only in Development: a server refuses to start with it (`loadConfig`), and its image has no
+ * Claude Code.
  *
- * It runs Claude Code headless (`claude -p`), signed in with the plan, and asks exactly what the
- * API-key method asks: the same model, instructions, images and schema. Claude Code would rather
- * read with an API key where it finds one, so **every credential that is not the login is taken
- * out of its environment**, and a run that still reports a key as its source is refused rather
- * than read. A set key never pays for a run meant for the subscription.
+ * It runs Claude Code through the Claude Agent SDK, on the login already on the machine, and asks
+ * exactly what the API-key method asks: the same model, instructions, images and schema. Claude
+ * Code would rather read with an API key where it finds one, so **every credential that is not
+ * the machine's login is taken out of its environment**, and a run that still reports a key as
+ * its source is refused rather than read. A set key never pays for a run meant for the
+ * subscription.
  *
  * Reaching the plan's usage limit is `UsageLimitReached`, which stops the run cleanly.
  */
-export interface ClaudeCliRun {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-}
-
-/** Runs `claude` with these arguments, this standard input and this environment. */
-export type ClaudeCli = (
-  args: string[],
-  options: { input: string; env: NodeJS.ProcessEnv },
-) => Promise<ClaudeCliRun>;
-
 export interface ClaudeSubscriptionOptions {
-  /** Claude Code itself, unless a test stands in for it. */
-  cli?: ClaudeCli;
-  /** The environment it is started from; the API credentials in it are removed. */
+  /** The Agent SDK's `query`, unless a test stands in for it. */
+  query?: AgentQuery;
+  /** The environment Claude Code is started from; every credential in it is removed. */
   env?: NodeJS.ProcessEnv;
 }
 
-/**
- * Everything in the environment that would make Claude Code read with something other than the
- * login: an API key, a bearer token, or a cloud provider billed per use. `CLAUDECODE` goes too, so
- * the command can be started from within a Claude Code session.
- */
-const NOT_THE_LOGIN = [
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CODE_USE_FOUNDRY',
-  'CLAUDECODE',
-];
-
-export function subscriptionEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const kept = { ...env };
-  for (const name of NOT_THE_LOGIN) {
-    delete kept[name];
-  }
-  // `claude -p` takes no max_tokens; this is its ceiling on every answer.
-  kept.CLAUDE_CODE_MAX_OUTPUT_TOKENS = String(MAX_TOKENS);
-  return kept;
-}
-
-/** Whether Claude Code is signed in with a plan, asked with every API credential taken away. */
-export async function subscriptionLoginAvailable(
-  options: ClaudeSubscriptionOptions = {},
-): Promise<boolean> {
-  const cli = options.cli ?? claudeCli();
-  try {
-    const run = await cli(['auth', 'status', '--json'], {
-      input: '',
-      env: subscriptionEnvironment(options.env ?? process.env),
-    });
-    const status = JSON.parse(run.stdout) as { loggedIn?: unknown; authMethod?: unknown };
-    return status.loggedIn === true && !/api.?key/i.test(String(status.authMethod ?? ''));
-  } catch {
-    return false;
-  }
+/** The machine's login alone, with Claude Code's ceiling on every answer. */
+function readingEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  // Claude Code takes no max_tokens; this is its ceiling on every answer.
+  return { ...machineLoginEnvironment(env), CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(MAX_TOKENS) };
 }
 
 /**
@@ -124,8 +86,7 @@ const SYSTEM_PROMPT =
 export function createClaudeSubscriptionReadingMethod(
   options: ClaudeSubscriptionOptions = {},
 ): ReadingMethod {
-  const cli = options.cli ?? claudeCli();
-  const env = subscriptionEnvironment(options.env ?? process.env);
+  const env = readingEnvironment(options.env ?? process.env);
 
   async function ask<Schema extends z.ZodType>(
     schema: Schema,
@@ -134,74 +95,85 @@ export function createClaudeSubscriptionReadingMethod(
     effort: Effort,
     labels: string[] = [],
   ): Promise<Answer<z.infer<Schema>>> {
-    const message = {
+    const message: SDKUserMessage = {
       type: 'user',
       parent_tool_use_id: null,
       message: {
         role: 'user',
         content: [
           ...images.flatMap((image, index) => [
-            ...(labels[index] ? [{ type: 'text', text: labels[index] }] : []),
+            ...(labels[index] ? [{ type: 'text' as const, text: labels[index] }] : []),
             {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/png', data: image.toString('base64') },
+              type: 'image' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: 'image/png' as const,
+                data: image.toString('base64'),
+              },
             },
           ]),
           { type: 'text', text: instruction },
         ],
       },
     };
+    async function* prompt(): AsyncGenerator<SDKUserMessage> {
+      yield message;
+    }
 
-    let run: ClaudeCliRun;
+    const query = options.query ?? (await agentQuery());
+    if (query === null) {
+      throw new ReadingMethodError(
+        'The Claude Agent SDK is not installed here. It is a development dependency, and the ' +
+          'subscription reads only in Development.',
+      );
+    }
+
+    let result: Extract<SDKMessage, { type: 'result' }> | undefined;
     try {
-      run = await cli(
-        [
-          '-p',
-          '--model',
-          CLAUDE_MODEL,
-          '--effort',
+      for await (const line of query({
+        prompt: prompt(),
+        options: {
+          ...isolatedSessionOptions(env),
+          model: CLAUDE_MODEL,
           effort,
-          '--system-prompt',
-          SYSTEM_PROMPT,
-          '--json-schema',
-          JSON.stringify(z.toJSONSchema(schema, { target: 'draft-7' })),
-          '--tools',
-          '',
-          '--safe-mode',
-          '--no-session-persistence',
-          '--input-format',
-          'stream-json',
-          '--output-format',
-          'stream-json',
-          '--verbose',
-        ],
-        { input: `${JSON.stringify(message)}\n`, env },
-      );
-    } catch {
+          systemPrompt: SYSTEM_PROMPT,
+          outputFormat: {
+            type: 'json_schema',
+            schema: z.toJSONSchema(schema, { target: 'draft-7' }) as Record<string, unknown>,
+          },
+        },
+      })) {
+        if (line.type === 'system' && line.subtype === 'init' && line.apiKeySource !== 'none') {
+          throw new ReadingMethodError(
+            'Claude Code was about to read with an API key, not this machine’s login, so ' +
+              'nothing was read with it. Remove the key from its settings, or read with api-key.',
+          );
+        }
+        if (line.type === 'result') {
+          result = line;
+        }
+      }
+    } catch (error) {
+      if (error instanceof ReadingMethodError) {
+        throw error;
+      }
+      const said = error instanceof Error ? firstLine(error.message) : '';
       throw new ReadingMethodError(
-        'Claude Code could not be started. Is `claude` installed, and signed in with `claude auth login`?',
+        'Claude Code could not be started, or stopped without an answer' +
+          (said ? ` (${said})` : '') +
+          '. Is it signed in on this machine with `claude auth login`?',
       );
     }
 
-    const lines = messagesOf(run.stdout);
-    const init = lines.find((line) => line.type === 'system' && line.subtype === 'init');
-    if (init && typeof init.apiKeySource === 'string' && init.apiKeySource !== 'none') {
-      throw new ReadingMethodError(
-        'Claude Code was about to read with an API key, not the subscription login, so nothing ' +
-          'was read with it. Remove the key from its settings, or read with --with api-key.',
-      );
-    }
-
-    const result = lines.findLast((line) => line.type === 'result');
     if (!result) {
-      throw new ReadingMethodError(
-        `Claude Code ended without an answer${run.code ? ` (exit ${run.code})` : ''}: ` +
-          `${firstLine(run.stderr) || 'it said nothing'}.`,
-      );
+      throw new ReadingMethodError('Claude Code ended without an answer.');
     }
-    if (result.is_error === true || result.subtype !== 'success') {
-      const said = firstLine(String(result.result ?? result.subtype ?? ''));
-      if (result.api_error_status === 429 || USAGE_LIMIT.test(said)) {
+    if (result.is_error || result.subtype !== 'success') {
+      const said = firstLine(result.subtype === 'success' ? result.result : result.subtype);
+      if (
+        (result.subtype === 'success' && result.api_error_status === 429) ||
+        USAGE_LIMIT.test(said)
+      ) {
         throw new UsageLimitReached(`The subscription’s usage limit was reached: ${said}`);
       }
       throw new ReadingMethodError(`Claude Code answered with an error: ${said}`);
@@ -215,9 +187,9 @@ export function createClaudeSubscriptionReadingMethod(
       throw new ReadingMethodError('The model’s answer was cut short or could not be read.');
     }
 
-    const usage = (result.usage ?? {}) as Record<string, unknown>;
+    const usage = result.usage as unknown as Record<string, unknown>;
     const count = (name: string): number => {
-      const value = usage[name];
+      const value = usage?.[name];
       return typeof value === 'number' ? value : 0;
     };
     return {
@@ -350,27 +322,6 @@ export function createClaudeSubscriptionReadingMethod(
   };
 }
 
-/** How Claude Code words a plan that will read no more for now. */
-const USAGE_LIMIT = /usage limit|hit your (?:\w+ )?limit|limit reached|out of (?:extra )?usage/i;
-
-type CliMessage = Record<string, unknown>;
-
-/** One JSON object a line; anything else Claude Code prints is not an answer. */
-function messagesOf(stdout: string): CliMessage[] {
-  const messages: CliMessage[] = [];
-  for (const line of stdout.split('\n')) {
-    try {
-      const value: unknown = JSON.parse(line);
-      if (value && typeof value === 'object') {
-        messages.push(value as CliMessage);
-      }
-    } catch {
-      // Not a message.
-    }
-  }
-  return messages;
-}
-
 /** The answer as text, where it did not come back structured: JSON, perhaps fenced. */
 function jsonIn(text: unknown): unknown {
   if (typeof text !== 'string') {
@@ -385,20 +336,4 @@ function jsonIn(text: unknown): unknown {
 
 function firstLine(text: string): string {
   return (text.trim().split('\n')[0] ?? '').slice(0, 200);
-}
-
-/** Claude Code, run in a directory of its own with nothing in it to read. */
-export function claudeCli(command = 'claude'): ClaudeCli {
-  return (args, { input, env }) =>
-    new Promise((resolve, reject) => {
-      const child = spawn(command, args, { env, cwd: tmpdir(), stdio: ['pipe', 'pipe', 'pipe'] });
-      let stdout = '';
-      let stderr = '';
-      child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk));
-      child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
-      child.on('error', reject);
-      child.on('close', (code) => resolve({ code, stdout, stderr }));
-      child.stdin.on('error', () => undefined);
-      child.stdin.end(input);
-    });
 }

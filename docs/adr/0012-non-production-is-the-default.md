@@ -82,9 +82,33 @@ anybody using it there would be using one person's account. Integration and Deve
 `non-production`, and this ADR forbids telling them apart by hostname or name, so the line is
 drawn by the credential's form instead: the subscription method accepts **only the Claude Code
 login already present on the machine** and refuses a token handed in through the environment. A
-server container has no signed-in Claude Code; a developer's machine has one. Catalog reading
-accepts `CLAUDE_CODE_OAUTH_TOKEN` precisely so it can run on a server, which is what Proposals
-must not.
+server container has no signed-in Claude Code; a developer's machine has one.
+
+## Amended: one rule for every use of Claude
+
+Decided on 2026-11-01 (issue #151). Catalog reading follows the same line as Proposals, so that
+the rule is one rule and a developer can have both at once:
+
+| System          | Proposals                                    | Catalog reading                              |
+| --------------- | -------------------------------------------- | -------------------------------------------- |
+| **Development** | the developer's subscription, via Agent SDK  | the developer's subscription, via Agent SDK  |
+| **Integration** | an API key                                   | the same API key                             |
+| **Production**  | none                                         | the Club's own API key                       |
+
+**A subscription is only ever the login already on the developer's machine.** Both
+`subscription` methods run Claude Code through the Agent SDK, a development dependency, with
+every key and token taken out of its environment. Nothing reads a token handed in through the
+environment any more. The image carries no Claude Code.
+
+**A server refuses a subscription Reading method outright.** The image runs with
+`NODE_ENV=production` and has no Claude Code, so `READING_METHOD=subscription` on it could only
+fail; it refuses to start instead, naming `api-key`. This tells a server from a developer's
+machine by what the process is built as, not by its name or hostname, so it does not reopen the
+distinction this ADR forbids between Integration and Development.
+
+**Integration has one key for both**, in its own Console workspace with one monthly limit
+(`docs/operations/proposals.md`). It is set under both names, because Production must still refuse
+the Proposals key while it reads with its own.
 
 ### Considered
 

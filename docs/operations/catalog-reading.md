@@ -11,18 +11,23 @@ correction is made in Ricambi. The decisions and their reasons are in
 
 The server reads with the one **Reading method** its configuration names in `READING_METHOD`:
 
-- **`subscription`**: Claude Code in the server image, signed in with the token
-  `claude setup-token` prints, given as the secret `CLAUDE_CODE_OAUTH_TOKEN`. It is not charged,
-  and it draws on the plan's usage limits. Reading starts here while the Club has no API key.
-- **`api-key`**: the Club's Anthropic API key, given as the secret `ANTHROPIC_API_KEY`. It is
-  billed per use.
+- **`api-key`**: an Anthropic API key, given as the secret `ANTHROPIC_API_KEY`. It is billed per
+  use. This is what a server reads with: Integration with its own key, the one Proposals use there
+  too (`docs/operations/proposals.md`), and Production with the Club's own. **Production reads only
+  once the Club has its own key**; until then nothing is configured, and the Readings section says
+  so.
+- **`subscription`**: the developer's own Claude subscription, through the Claude Agent SDK and
+  the Claude Code login already on their machine (`claude auth login`). It is not charged, and it
+  draws on the plan's usage limits. **Development only**: a server refuses to start with it and
+  says to use `api-key`, and its image has no Claude Code. It runs on the same login as Proposals'
+  conversation, so a developer can have both open at once.
 - **`fake`**: invents what it reads, for the practice environment and the tests. A production
   server refuses to start with it.
 
-Give exactly one credential. With no method, a missing credential, or both credentials, nothing
-can be read, and the Readings section says which and why. A key that happens to be set never
-pays for a subscription's reading: it is taken out of Claude Code's environment, and a reading
-Claude Code still reports making with a key is refused.
+Give exactly one credential. With no method, a missing credential, or a key set beside
+`subscription`, nothing can be read, and the Readings section says which and why. A key that
+happens to be set never pays for a subscription's reading: every key and token is taken out of
+Claude Code's environment, and a reading Claude Code still reports making with a key is refused.
 
 The Readings section says what the server reads with, and whether that is charged. It never shows
 a credential, or whose subscription it is.
@@ -225,8 +230,9 @@ pnpm archive:load -- --source ../catalog-reading --dry-run
 
 - It writes a directory of plain files, which it refuses to put inside this repository: what each
   page was found to be, `cost.json`, the set-aside pages, and a directory for each Tavola.
-- It reads with Claude Code signed in on the machine, or with `ANTHROPIC_API_KEY`. `--with
-  subscription` or `--with api-key` chooses between them where both are there.
+- It reads with the Claude Code login on the machine, through the Agent SDK, or with
+  `ANTHROPIC_API_KEY`. `--with subscription` or `--with api-key` chooses between them where both
+  are there.
 - It needs Poppler's `pdftoppm` (`poppler-utils` on Debian and Ubuntu, `poppler` in Homebrew).
 - `--resume` carries a stopped run on in the same directory.
 - `archive:load` loads the directory as Unchecked Tavole, by the same rules a Catalog run loads

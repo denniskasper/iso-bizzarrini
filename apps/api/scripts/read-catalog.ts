@@ -26,10 +26,8 @@ import { parseArgs } from 'node:util';
 import { loadEnvFile } from '../src/config/env-file.js';
 import { chooseCredential, CredentialChoiceError } from '../src/reading/choose-method.js';
 import { createClaudeApiReadingMethod } from '../src/reading/claude-api-method.js';
-import {
-  createClaudeSubscriptionReadingMethod,
-  subscriptionLoginAvailable,
-} from '../src/reading/claude-subscription-method.js';
+import { machineLoginAvailable } from '../src/platform/claude-code.js';
+import { createClaudeSubscriptionReadingMethod } from '../src/reading/claude-subscription-method.js';
 import { pdfPages } from '../src/reading/pdf-pages.js';
 import { readCatalog } from '../src/reading/read-catalog.js';
 
@@ -67,7 +65,7 @@ const apiKey = process.env.ANTHROPIC_API_KEY;
 let credential;
 try {
   credential = chooseCredential(
-    { subscription: await subscriptionLoginAvailable(), apiKey: !!apiKey },
+    { subscription: await machineLoginAvailable(), apiKey: !!apiKey },
     values.with,
   );
 } catch (error) {

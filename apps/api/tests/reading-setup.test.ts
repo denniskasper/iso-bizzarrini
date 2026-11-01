@@ -13,13 +13,13 @@ import { startTestApp, type TestApp } from './support/test-app.js';
  * and asks what the Readings section says. The credentials are strings this suite made up and
  * looks for in every answer.
  */
-const SUBSCRIPTION_TOKEN = 'sk-ant-oat01-a-subscription-token-this-suite-made-up';
 const API_KEY = 'sk-ant-api03-an-api-key-this-suite-made-up';
 
-function readingFor(env: Record<string, string>) {
+function readingFor(env: Record<string, string>, machineLogin = false) {
   return configureReading(
     loadConfig({ DATABASE_URL: 'postgres://unused-in-tests/the-connection-is-injected', ...env })
       .reading,
+    { machineLogin },
   );
 }
 
@@ -33,12 +33,14 @@ describe('the Reading method an Administrator is shown', () => {
   const cases: {
     title: string;
     env: Record<string, string>;
+    machineLogin?: boolean;
     expected: Omit<ReadingSetup, 'unavailable'>;
     unavailable: RegExp | null;
   }[] = [
     {
-      title: 'a subscription, signed in through its token, and not charged',
-      env: { READING_METHOD: 'subscription', CLAUDE_CODE_OAUTH_TOKEN: SUBSCRIPTION_TOKEN },
+      title: 'a subscription, on the Claude Code login on this machine, and not charged',
+      env: { READING_METHOD: 'subscription' },
+      machineLogin: true,
       expected: { method: 'subscription', charged: false, available: true },
       unavailable: null,
     },
@@ -61,32 +63,37 @@ describe('the Reading method an Administrator is shown', () => {
       unavailable: /No Reading method is configured/,
     },
     {
-      title: 'both credentials present, and why nothing can be read',
-      env: {
-        READING_METHOD: 'subscription',
-        CLAUDE_CODE_OAUTH_TOKEN: SUBSCRIPTION_TOKEN,
-        ANTHROPIC_API_KEY: API_KEY,
-      },
+      title: 'a subscription beside an API key, and why nothing can be read',
+      env: { READING_METHOD: 'subscription', ANTHROPIC_API_KEY: API_KEY },
+      machineLogin: true,
       expected: { method: 'subscription', charged: false, available: false },
-      unavailable: /both a subscription token and an API key/,
+      unavailable: /both ANTHROPIC_API_KEY and/,
     },
     {
-      title: 'a subscription with no token to sign in with',
+      title: 'a subscription where Claude Code is not signed in on this machine',
       env: { READING_METHOD: 'subscription' },
       expected: { method: 'subscription', charged: false, available: false },
-      unavailable: /no subscription token/,
+      unavailable: /not signed in on this machine.*claude auth login/,
     },
     {
-      title: 'an API key that is not there, even where a subscription token is',
-      env: { READING_METHOD: 'api-key', CLAUDE_CODE_OAUTH_TOKEN: SUBSCRIPTION_TOKEN },
+      title: 'an API key that is not there, even where Claude Code is signed in',
+      env: { READING_METHOD: 'api-key' },
+      machineLogin: true,
       expected: { method: 'api-key', charged: true, available: false },
       unavailable: /no API key/,
     },
+    {
+      title: 'an API key, charged, beside a Claude Code login it never uses',
+      env: { READING_METHOD: 'api-key', ANTHROPIC_API_KEY: API_KEY },
+      machineLogin: true,
+      expected: { method: 'api-key', charged: true, available: true },
+      unavailable: null,
+    },
   ];
 
-  for (const { title, env, expected, unavailable } of cases) {
+  for (const { title, env, machineLogin, expected, unavailable } of cases) {
     it(`reports ${title}, and no credential`, async () => {
-      const app = await startTestApp({ reading: readingFor(env) });
+      const app = await startTestApp({ reading: readingFor(env, machineLogin) });
       try {
         const { setup, text } = await setupSeenBy(app);
 
@@ -96,7 +103,6 @@ describe('the Reading method an Administrator is shown', () => {
         } else {
           expect(setup.unavailable).toMatch(unavailable);
         }
-        expect(text).not.toContain(SUBSCRIPTION_TOKEN);
         expect(text).not.toContain(API_KEY);
         expect(text).not.toMatch(/sk-ant/);
       } finally {
@@ -130,5 +136,26 @@ describe('who is told the Reading method', () => {
 
   it('asks somebody who is not signed in to sign in', async () => {
     await app.request().get('/api/reading-method').expect(401);
+  });
+});
+
+describe('a subscription on a server', () => {
+  const server = {
+    DATABASE_URL: 'postgres://unused-in-tests/the-connection-is-injected',
+    NODE_ENV: 'production',
+  };
+
+  it('refuses to start, and says to read with an API key', () => {
+    for (const ENVIRONMENT_MODE of ['non-production', 'production']) {
+      expect(() =>
+        loadConfig({ ...server, ENVIRONMENT_MODE, READING_METHOD: 'subscription' }),
+      ).toThrow(/READING_METHOD is subscription.*READING_METHOD=api-key/s);
+    }
+  });
+
+  it('starts with an API key', () => {
+    expect(
+      loadConfig({ ...server, READING_METHOD: 'api-key', ANTHROPIC_API_KEY: API_KEY }).reading,
+    ).toEqual({ method: 'api-key', apiKey: API_KEY });
   });
 });

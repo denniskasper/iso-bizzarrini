@@ -8,7 +8,8 @@ import {
   createEmailSender,
   createPaymentProvider,
 } from './composition/platform.js';
-import { configureConversation, findMachineLogin } from './composition/conversation.js';
+import { configureConversation } from './composition/conversation.js';
+import { findMachineLogin } from './composition/machine-login.js';
 import { configureReading } from './composition/reading.js';
 import { loadConfig } from './config/config.js';
 import { loadEnvFile } from './config/env-file.js';
@@ -72,11 +73,17 @@ const paymentProvider = createPaymentProvider(config, systemClock);
 const emailSender = createEmailSender(config, logger);
 
 /**
+ * **The developer's own Claude Code login**, which catalog reading and Proposals both run on in
+ * Development (issue #151). Looked for once.
+ */
+const machineLogin = await findMachineLogin(config);
+
+/**
  * **What a Proposal's conversation is had with**, and if nothing, why (issue #156): said once at
  * startup, where the developer running Ricambi on their own machine sees it.
  */
 const conversation = configureConversation(config, {
-  machineLogin: await findMachineLogin(config),
+  machineLogin,
   // One line per request, so what Proposals cost can be read off the log.
   onUsage: (usage) => logger.info(usage, 'A Proposal’s conversation used'),
 });
@@ -93,7 +100,7 @@ const app = createApp({
   emailSender,
   paymentProvider,
   breachedPasswords: createBreachedPasswordCheck(config, logger),
-  reading: configureReading(config.reading),
+  reading: configureReading(config.reading, { machineLogin }),
   conversation,
   fileStore,
   logger,

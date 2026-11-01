@@ -228,18 +228,15 @@ const environmentSchema = z.object({
 
   /**
    * **What this server reads the factory catalog with** (ADR 0018, issue #55): exactly one of
-   * `subscription`, `api-key` or `fake`. Unset means none, and no reading can start. `fake`
-   * invents what it reads, for a practice system and the tests, and production refuses it.
+   * `subscription`, `api-key` or `fake`. Unset means none, and no reading can start.
+   * `subscription` is the developer's own Claude Code login, in Development only: a server
+   * refuses to start with it (issue #151). `fake` invents what it reads, for a practice system
+   * and the tests, and production refuses it.
    */
   READING_METHOD: z.preprocess(
     blankAsUnset,
     z.enum(['subscription', 'api-key', 'fake']).optional(),
   ),
-  /**
-   * The subscription's login, as a secret: the long-lived token `claude setup-token` prints,
-   * which Claude Code in the image signs in with. Never shown, logged or written anywhere.
-   */
-  CLAUDE_CODE_OAUTH_TOKEN: z.preprocess(blankAsUnset, z.string().min(1).optional()),
   /** The Anthropic API key, as a secret. Billed per use. Never shown, logged or written. */
   ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
 
@@ -323,9 +320,10 @@ export interface AppConfig {
   migrateOnStart: boolean;
   seedPracticeArchive: boolean;
   /**
-   * The Reading method named, and the two credentials as they were found. Which of them may read
-   * is `composition/reading.ts`'s to decide, so that none and both are reported rather than
-   * refused at startup: the rest of the archive does not depend on reading.
+   * The Reading method named, and its API key as it was found. Whether it may read is
+   * `composition/reading.ts`'s to decide, so that none and both are reported rather than
+   * refused at startup: the rest of the archive does not depend on reading. Only a subscription
+   * on a server is refused here, because no server can ever have one.
    */
   reading: ReadingSettings;
   /**
@@ -341,11 +339,6 @@ export type ConversationMethodKind = NonNullable<Environment['PROPOSALS_METHOD']
 export interface ProposalSettings {
   method: ConversationMethodKind | undefined;
   apiKey: string | undefined;
-  /**
-   * Whether a subscription token was handed in through the environment. The `subscription`
-   * conversation refuses it, and takes only the machine's own login (ADR 0012, as amended).
-   */
-  tokenInEnvironment: boolean;
   /** The provider's monthly limit for the conversation, in US dollars, where it is told. */
   monthlyLimitUsd: number | null;
 }
@@ -354,7 +347,6 @@ export type ReadingMethodKind = NonNullable<Environment['READING_METHOD']>;
 
 export interface ReadingSettings {
   method: ReadingMethodKind | undefined;
-  subscriptionToken: string | undefined;
   apiKey: string | undefined;
 }
 
@@ -381,6 +373,16 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new ConfigurationError(
       `DEV_SIGN_IN_AS is set and NODE_ENV is ${env.NODE_ENV}. It signs in everybody who can ` +
         'reach the API, and is only for `pnpm dev` on a machine nobody else can reach.',
+    );
+  }
+
+  // A server is the image, which runs with NODE_ENV=production and has no Claude Code: the
+  // subscription is the developer's own, on their own machine (ADR 0012, as amended; #151).
+  if (env.READING_METHOD === 'subscription' && env.NODE_ENV === 'production') {
+    throw new ConfigurationError(
+      'READING_METHOD is subscription and NODE_ENV is production. The subscription is the ' +
+        'developer’s own Claude Code login, for Development only: a server reads with ' +
+        'READING_METHOD=api-key and ANTHROPIC_API_KEY.',
     );
   }
 
@@ -420,13 +422,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     seedPracticeArchive: env.SEED_PRACTICE_ARCHIVE,
     reading: {
       method: env.READING_METHOD,
-      subscriptionToken: env.CLAUDE_CODE_OAUTH_TOKEN,
       apiKey: env.ANTHROPIC_API_KEY,
     },
     proposals: {
       method: env.PROPOSALS_METHOD,
       apiKey: env.PROPOSALS_ANTHROPIC_API_KEY,
-      tokenInEnvironment: env.CLAUDE_CODE_OAUTH_TOKEN !== undefined,
       monthlyLimitUsd: env.PROPOSALS_MONTHLY_LIMIT_USD ?? null,
     },
   };
