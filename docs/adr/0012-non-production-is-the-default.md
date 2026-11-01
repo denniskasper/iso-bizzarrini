@@ -116,3 +116,25 @@ the Proposals key while it reads with its own.
   value it has no use for, to serve one feature.
 - **Leaving the subscription token out of Integration's environment by discipline.** That is
   the "rule an operator can be asked to remember" this ADR exists to avoid.
+
+## Amended: one Monthly limit, which Ricambi is told and does not read
+
+Decided on 2026-11-01. What Ricambi spends on Claude is held by **one Monthly limit per Console
+workspace**, set in the provider's account: on Integration it covers Proposals and catalog
+reading together, on Production catalog reading alone. Ricambi is **told** it, in one setting,
+`ANTHROPIC_MONTHLY_LIMIT_USD`, and shows what it has spent against it. The figures are its own
+estimates at list prices, recorded month by month as the money is spent; the provider's bill
+stays in the Console.
+
+**No admin key on a server.** The provider reads a Console workspace's spend limit through no API
+at all, and its bill only through the Admin API, whose key manages the whole organisation:
+members, keys and limits. A read-only page does not justify a server holding that. So the limit
+is configuration, changed together with the workspace's, and the estimates are close enough to
+act on.
+
+### Considered
+
+- **Reading the bill through the Admin API.** Exact figures, for a credential that can change
+  everything in the organisation, and still no limit to set them against.
+- **A limit per feature** (`PROPOSALS_MONTHLY_LIMIT_USD` until now). The provider stops both at
+  the workspace's one limit, so a per-feature figure showed room that was already spent.
