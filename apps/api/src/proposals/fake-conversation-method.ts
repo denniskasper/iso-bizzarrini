@@ -57,6 +57,7 @@ export function createFakeConversationMethod(): ConversationMethod {
     // Priced, at nothing: so a practice system shows its costs as the real one does, and they
     // are nought.
     priced: true,
+    billed: false,
     async *answer(_conversation, used) {
       for (const piece of FAKE_ANSWER.match(/\S+\s*/g) ?? []) {
         yield piece;

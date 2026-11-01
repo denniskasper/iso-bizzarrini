@@ -126,6 +126,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link to="/readings" className={chromeLink}>
                     Readings
                   </Link>
+                  <Link to="/spending" className={chromeLink} data-testid="spending-link">
+                    Spending
+                  </Link>
                 </>
               )}
               {/* **Propose** (issue #152): on every page, for those an Administrator has let

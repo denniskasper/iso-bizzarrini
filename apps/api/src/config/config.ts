@@ -257,11 +257,14 @@ const environmentSchema = z.object({
    */
   PROPOSALS_ANTHROPIC_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
   /**
-   * The monthly spend limit set on the conversation's workspace at the provider, in US dollars,
-   * so an Administrator is shown this month's estimate against it. Told, not read: Ricambi has
-   * no credential that could read the provider's billing. Unset, the estimate stands alone.
+   * **The Monthly limit** (ADR 0012, "Amended: one Monthly limit"): the spend limit set on this
+   * system's Console workspace, in US dollars, which holds Proposals and catalog reading
+   * together. Told, not read: no API reads it, so it is changed together with the Console's.
+   * Unset, Spending says no Monthly limit is known.
    */
-  PROPOSALS_MONTHLY_LIMIT_USD: z.preprocess(blankAsUnset, z.coerce.number().positive().optional()),
+  ANTHROPIC_MONTHLY_LIMIT_USD: z.preprocess(blankAsUnset, z.coerce.number().positive().optional()),
+  /** Its name until issue #189, refused so a system still set the old way says so. */
+  PROPOSALS_MONTHLY_LIMIT_USD: z.preprocess(blankAsUnset, z.string().optional()),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -332,6 +335,11 @@ export interface AppConfig {
    * `assertSafeForEnvironment`'s.
    */
   proposals: ProposalSettings;
+  /**
+   * **The Monthly limit**, in US dollars: the Console workspace's spend limit as Ricambi is told
+   * it, or null where it is not.
+   */
+  monthlyLimitUsd: number | null;
 }
 
 export type ConversationMethodKind = NonNullable<Environment['PROPOSALS_METHOD']>;
@@ -339,8 +347,6 @@ export type ConversationMethodKind = NonNullable<Environment['PROPOSALS_METHOD']
 export interface ProposalSettings {
   method: ConversationMethodKind | undefined;
   apiKey: string | undefined;
-  /** The provider's monthly limit for the conversation, in US dollars, where it is told. */
-  monthlyLimitUsd: number | null;
 }
 
 export type ReadingMethodKind = NonNullable<Environment['READING_METHOD']>;
@@ -386,6 +392,16 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
+  // One Monthly limit for the workspace now, under a new name (issue #189): the old one, left
+  // in place, would otherwise be ignored and the limit quietly lost.
+  if (env.PROPOSALS_MONTHLY_LIMIT_USD !== undefined) {
+    throw new ConfigurationError(
+      'PROPOSALS_MONTHLY_LIMIT_USD is set, and is no longer read. The Monthly limit is now ' +
+        'ANTHROPIC_MONTHLY_LIMIT_USD, for Proposals and catalog reading together: set the ' +
+        'workspace’s spend limit under that name, and remove the old one.',
+    );
+  }
+
   return {
     nodeEnv: env.NODE_ENV,
     environmentName: env.ENVIRONMENT_NAME,
@@ -427,8 +443,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     proposals: {
       method: env.PROPOSALS_METHOD,
       apiKey: env.PROPOSALS_ANTHROPIC_API_KEY,
-      monthlyLimitUsd: env.PROPOSALS_MONTHLY_LIMIT_USD ?? null,
     },
+    monthlyLimitUsd: env.ANTHROPIC_MONTHLY_LIMIT_USD ?? null,
   };
 }
 

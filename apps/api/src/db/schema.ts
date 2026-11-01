@@ -14,11 +14,13 @@ import type {
   Role,
   SampleEndReason,
   SourceCondition,
+  SpendingPurpose,
   TavolaState,
   TokenPurpose,
 } from '@ricambi/contracts';
 import { relations, sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -28,6 +30,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -1684,16 +1687,35 @@ export const proposals = pgTable(
   ],
 );
 
+export const SPENDING_PURPOSES = [
+  'proposal-conversations',
+] as const satisfies readonly SpendingPurpose[];
+
 /**
- * **What the conversations cost, month by month**, estimated in millionths of a US dollar,
- * added to when each request is answered. Kept apart from the Proposals, so that a Draft
- * discarded afterwards still counts in the month its conversation was paid for.
+ * **The one record of spending by month** (issue #189): what Ricambi spent on Claude in each
+ * calendar month, UTC, for each purpose, billed or only priced at list prices, estimated in
+ * millionths of a US dollar and added to as it is spent. Kept apart from what it was spent on,
+ * so that a month's figure is never reduced: a Draft discarded afterwards still counts in the
+ * month its conversation was paid for. Only ever added to.
  */
-export const proposalMonthlyCosts = pgTable('proposal_monthly_costs', {
-  /** The calendar month, UTC, as `YYYY-MM`. */
-  month: text('month').primaryKey(),
-  estimatedCostMicroUsd: integer('estimated_cost_micro_usd').notNull(),
-});
+export const monthlySpending = pgTable(
+  'monthly_spending',
+  {
+    /** The calendar month, UTC, as `YYYY-MM`. */
+    month: text('month').notNull(),
+    purpose: text('purpose').notNull().$type<SpendingPurpose>(),
+    /** False where it was only priced at list prices, as a subscription's is, and not billed. */
+    billed: boolean('billed').notNull(),
+    estimatedCostMicroUsd: bigint('estimated_cost_micro_usd', { mode: 'number' }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.month, table.purpose, table.billed] }),
+    check(
+      'monthly_spending_purpose_is_known',
+      sql`${table.purpose} in (${oneOf(SPENDING_PURPOSES)})`,
+    ),
+  ],
+);
 
 /** One turn of a Proposal's conversation. Never edited: what was said stays said. */
 export const proposalTurns = pgTable(

@@ -119,6 +119,7 @@ export function createClaudeSubscriptionConversationMethod(
     name: `Claude (${CONVERSATION_MODEL}) with this machine’s Claude Code login`,
     // The subscription is not billed by the request: nothing to keep.
     priced: false,
+    billed: false,
 
     async *answer(conversation) {
       for await (const line of asked(conversation, transcriptOf(conversation.turns), {

@@ -23,6 +23,7 @@ import { createPartRecordController } from './controllers/part-record-controller
 import { createPhotographController } from './controllers/photograph-controller.js';
 import { createPositionController } from './controllers/position-controller.js';
 import { createProposalController } from './controllers/proposal-controller.js';
+import { createSpendingController } from './controllers/spending-controller.js';
 import { createSpecificationListController } from './controllers/specification-list-controller.js';
 import { createSubAssemblyController } from './controllers/sub-assembly-controller.js';
 import { createReadingController } from './controllers/reading-controller.js';
@@ -60,6 +61,7 @@ import { createPartRepository } from './repositories/part-repository.js';
 import { createPhotographRepository } from './repositories/photograph-repository.js';
 import { createPositionRepository } from './repositories/position-repository.js';
 import { createProposalRepository } from './repositories/proposal-repository.js';
+import { createSpendingRepository } from './repositories/spending-repository.js';
 import { createReadingRepository } from './repositories/reading-repository.js';
 import { createCatalogRunRepository } from './repositories/catalog-run-repository.js';
 import { createRetentionRepository } from './repositories/retention-repository.js';
@@ -85,6 +87,7 @@ import { createPartService } from './services/part-service.js';
 import { createPhotographService } from './services/photograph-service.js';
 import { createPositionService } from './services/position-service.js';
 import { createProposalService } from './services/proposal-service.js';
+import { createSpendingService } from './services/spending-service.js';
 import { createSpecificationListService } from './services/specification-list-service.js';
 import { createSubAssemblyService } from './services/sub-assembly-service.js';
 import { createRetentionService } from './services/retention-service.js';
@@ -459,10 +462,19 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       logger,
       conversation: proposalsOpen ? conversation.method : null,
       version: build.version,
-      monthlyLimitUsd: config.proposals.monthlyLimitUsd,
       proposalRepository: createProposalRepository(db),
       modelRepository,
       tavolaRepository,
+    }),
+  });
+  const spendingController = createSpendingController({
+    spendingService: createSpendingService({
+      clock,
+      spendingRepository: createSpendingRepository(db),
+      monthlyLimitUsd: config.monthlyLimitUsd,
+      billedHere:
+        (reading.method !== null && reading.method.charged) ||
+        (proposalsOpen && conversation.method !== null && conversation.method.billed),
     }),
   });
   const indexing = createIndexing(config.environmentMode);
@@ -568,6 +580,7 @@ export function createApp(dependencies: AppDependencies): RicambiApp {
       sampleController,
       checkingController,
       proposalController,
+      spendingController,
     }),
   );
   app.use(API_MOUNT, notFoundHandler);

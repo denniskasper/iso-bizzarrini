@@ -24,6 +24,11 @@ export interface ConversationMethod {
    */
   readonly priced: boolean;
   /**
+   * Whether what it costs is billed, rather than only priced at list prices: the API key's is;
+   * the fake's and a subscription's are not, and what they spend would have cost (issue #189).
+   */
+  readonly billed: boolean;
+  /**
    * The next answer, as it is written. Ends when the answer does. `used` is told what the
    * request used, where it is priced, once the provider has said.
    */

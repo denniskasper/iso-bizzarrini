@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm';
 import type { DbSession } from '../db/client.js';
 import {
-  proposalMonthlyCosts,
+  monthlySpending,
   proposals,
   proposalScreenshots,
   proposalTurns,
@@ -26,6 +26,7 @@ import {
   type ProposalTurnRow,
 } from '../db/schema.js';
 import type { ProposalSpeaker, ProposalStatus, ProposalSummary } from '@ricambi/contracts';
+import { addSpending } from './spending-repository.js';
 
 /** A Proposal from the moment it is handed over: everything but a Draft. */
 export type HandedOverStatus = Exclude<ProposalStatus, 'draft'>;
@@ -64,20 +65,18 @@ export interface ProposalRepository {
   keepSummary(id: string, summary: ProposalSummary): Promise<ProposalRow | null>;
   /**
    * What one request cost, in millionths of a dollar, added to the Proposal's own total and to
-   * the month (`YYYY-MM`, UTC) it was made in.
+   * the month (`YYYY-MM`, UTC) it was made in, as Proposals' conversations, billed or not.
    */
-  addCost(id: string, microUsd: number, month: string): Promise<void>;
+  addCost(id: string, microUsd: number, month: string, billed: boolean): Promise<void>;
   /**
-   * What was spent in two months, and how many of the Proposals started since `since` were
-   * priced: those whose conversation is billed by the request.
+   * What Proposals' conversations spent in `month`, and how many of the Proposals started since
+   * `since` were priced: those whose conversation is billed by the request.
    */
   costs(
-    thisMonth: string,
-    lastMonth: string,
+    month: string,
     since: Date,
   ): Promise<{
-    thisMonthMicroUsd: number;
-    lastMonthMicroUsd: number;
+    microUsd: number;
     conversationsThisMonth: number;
   }>;
   /**
@@ -231,40 +230,38 @@ export function createProposalRepository(db: DbSession): ProposalRepository {
       return row ?? null;
     },
 
-    async addCost(id, microUsd, month) {
-      await db
-        .update(proposals)
-        .set({
-          estimatedCostMicroUsd: sql`coalesce(${proposals.estimatedCostMicroUsd}, 0) + ${microUsd}`,
-        })
-        .where(eq(proposals.id, id));
-      await db
-        .insert(proposalMonthlyCosts)
-        .values({ month, estimatedCostMicroUsd: microUsd })
-        .onConflictDoUpdate({
-          target: proposalMonthlyCosts.month,
-          set: {
-            estimatedCostMicroUsd: sql`${proposalMonthlyCosts.estimatedCostMicroUsd} + ${microUsd}`,
-          },
-        });
+    async addCost(id, microUsd, month, billed) {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(proposals)
+          .set({
+            estimatedCostMicroUsd: sql`coalesce(${proposals.estimatedCostMicroUsd}, 0) + ${microUsd}`,
+          })
+          .where(eq(proposals.id, id));
+        await addSpending(tx, { month, purpose: 'proposal-conversations', billed, microUsd });
+      });
     },
 
-    async costs(thisMonth, lastMonth, since) {
-      const [months, [counted]] = await Promise.all([
+    async costs(month, since) {
+      const [[spent], [counted]] = await Promise.all([
         db
-          .select()
-          .from(proposalMonthlyCosts)
-          .where(inArray(proposalMonthlyCosts.month, [thisMonth, lastMonth])),
+          .select({
+            microUsd: sql<number>`coalesce(sum(${monthlySpending.estimatedCostMicroUsd}), 0)::bigint`,
+          })
+          .from(monthlySpending)
+          .where(
+            and(
+              eq(monthlySpending.month, month),
+              eq(monthlySpending.purpose, 'proposal-conversations'),
+            ),
+          ),
         db
           .select({ count: sql<number>`count(*)::int` })
           .from(proposals)
           .where(and(isNotNull(proposals.estimatedCostMicroUsd), gte(proposals.startedAt, since))),
       ]);
-      const spent = (month: string) =>
-        months.find((row) => row.month === month)?.estimatedCostMicroUsd ?? 0;
       return {
-        thisMonthMicroUsd: spent(thisMonth),
-        lastMonthMicroUsd: spent(lastMonth),
+        microUsd: Number(spent?.microUsd ?? 0),
         conversationsThisMonth: counted?.count ?? 0,
       };
     },

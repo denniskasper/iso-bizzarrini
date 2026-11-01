@@ -38,6 +38,7 @@ import type {
   ProposalRepository,
 } from '../repositories/proposal-repository.js';
 import type { TavolaRepository } from '../repositories/tavola-repository.js';
+import { monthOf } from './spending-service.js';
 import { proposalScreenshotKeyPrefix, type FileStore } from '../storage/file-store.js';
 import { discardImageFiles, openStoredImage, storeImageFiles } from '../storage/stored-images.js';
 
@@ -142,8 +143,6 @@ export function createProposalService(dependencies: {
   conversation: ConversationMethod | null;
   /** The Version this server is, written onto every Draft started on it. */
   version: string;
-  /** The provider's monthly limit for the conversations, as Ricambi is told it, if it is. */
-  monthlyLimitUsd: number | null;
   proposalRepository: ProposalRepository;
   modelRepository: ModelRepository;
   tavolaRepository: TavolaRepository;
@@ -154,7 +153,6 @@ export function createProposalService(dependencies: {
     logger,
     conversation,
     version,
-    monthlyLimitUsd,
     proposalRepository,
     modelRepository,
     tavolaRepository,
@@ -173,7 +171,7 @@ export function createProposalService(dependencies: {
    * `keep` adds it to the Proposal and to this month once the request is over, answered or not,
    * since the provider bills what was sent either way.
    */
-  function paying(proposalId: string) {
+  function paying(proposalId: string, billed: boolean) {
     let microUsd = 0;
     return {
       used: (usage: ConversationUsage) => {
@@ -181,7 +179,7 @@ export function createProposalService(dependencies: {
       },
       keep: async () => {
         if (microUsd > 0) {
-          await proposalRepository.addCost(proposalId, microUsd, monthOf(clock.now()));
+          await proposalRepository.addCost(proposalId, microUsd, monthOf(clock.now()), billed);
         }
       },
     };
@@ -312,17 +310,14 @@ export function createProposalService(dependencies: {
     return { model: null, tavola: null };
   }
 
-  /** This month's and last month's, by the calendar month in UTC. */
+  /** This month's, by the calendar month in UTC. */
   async function costs(): Promise<ProposalCosts> {
     const now = clock.now();
     const thisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-    const spent = await proposalRepository.costs(monthOf(thisMonth), monthOf(lastMonth), thisMonth);
+    const spent = await proposalRepository.costs(monthOf(thisMonth), thisMonth);
     return {
-      thisMonthUsd: spent.thisMonthMicroUsd / 1_000_000,
-      lastMonthUsd: spent.lastMonthMicroUsd / 1_000_000,
+      thisMonthUsd: spent.microUsd / 1_000_000,
       conversationsThisMonth: spent.conversationsThisMonth,
-      monthlyLimitUsd,
     };
   }
 
@@ -384,7 +379,7 @@ export function createProposalService(dependencies: {
       await proposalRepository.sendScreenshots(proposalId, asked.id, sent);
 
       let answer = '';
-      const cost = paying(proposalId);
+      const cost = paying(proposalId, method.billed);
       try {
         for await (const piece of method.answer(await told(proposal), cost.used)) {
           answer += piece;
@@ -469,7 +464,7 @@ export function createProposalService(dependencies: {
       }
 
       let written;
-      const cost = paying(proposalId);
+      const cost = paying(proposalId, method.billed);
       try {
         written = await method.summarise(conversation, cost.used);
       } catch (error) {
@@ -593,11 +588,6 @@ function listingOf(proposer: Proposer, { proposal, opening }: ListedProposal): P
         ? proposal.estimatedCostMicroUsd / 1_000_000
         : null,
   };
-}
-
-/** The calendar month an instant falls in, in UTC, as `YYYY-MM`. */
-function monthOf(instant: Date): string {
-  return instant.toISOString().slice(0, 7);
 }
 
 function turnOf(turn: ProposalTurnRow, screenshots: ProposalScreenshotRow[]): ProposalTurn {

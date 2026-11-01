@@ -1,4 +1,4 @@
-import type { ProposalCosts, ProposalListing, ProposalStatus } from '@ricambi/contracts';
+import type { ProposalListing, ProposalStatus } from '@ricambi/contracts';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Refusal } from '@/components/ui/field';
 import { refusalText } from '@/lib/api';
@@ -15,7 +15,7 @@ const FILTERS: (ProposalStatus | undefined)[] = [undefined, 'new', 'taken-up', '
  * everybody else's. A Draft is not here; it is in the Propose panel, its author's alone.
  */
 export function ProposalsPage() {
-  const { account } = useSession();
+  const { account, isAdministrator } = useSession();
   const { status } = useSearch({ from: '/proposals' });
   const navigate = useNavigate({ from: '/proposals' });
   const proposals = useProposals(status);
@@ -38,7 +38,15 @@ export function ProposalsPage() {
         Every Fix and Idea handed over, and what became of it. New ones are at the top.
       </p>
 
-      {proposals.data?.costs && <Costs costs={proposals.data.costs} />}
+      {isAdministrator && (
+        <p className="mt-4 max-w-measure text-pretty text-muted" data-testid="proposal-spending">
+          What the conversations cost this month, against the Monthly limit, is on{' '}
+          <Link to="/spending" className="text-accent-ink underline underline-offset-4">
+            Spending
+          </Link>
+          .
+        </p>
+      )}
 
       <div
         role="group"
@@ -117,73 +125,6 @@ function ProposalRow({ proposal }: { proposal: ProposalListing }) {
         )}
       </span>
     </Link>
-  );
-}
-
-/**
- * **What the conversations cost**, for an Administrator: this month against the provider's
- * limit where Ricambi is told it, last month beside it, and what one conversation comes to. The
- * one figure that matters gets the one bar; the rest is plain text.
- */
-function Costs({ costs }: { costs: ProposalCosts }) {
-  const { thisMonthUsd, lastMonthUsd, conversationsThisMonth, monthlyLimitUsd } = costs;
-  const share = monthlyLimitUsd === null ? null : Math.min(thisMonthUsd / monthlyLimitUsd, 1);
-  return (
-    <section
-      aria-labelledby="proposal-costs-heading"
-      className="mt-8 max-w-measure border-y border-line py-5"
-      data-testid="proposal-costs"
-    >
-      <h2 id="proposal-costs-heading" className="text-sm font-semibold text-muted">
-        What the conversations cost
-      </h2>
-      <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-4">
-        <div>
-          <dt className="text-sm text-muted">This month</dt>
-          <dd className="mt-1 text-2xl text-text">
-            about <span className="tabular">{usd(thisMonthUsd)}</span>
-            {monthlyLimitUsd !== null && (
-              <span className="text-base text-muted">
-                {' '}
-                of <span className="tabular">{usd(monthlyLimitUsd)}</span>
-              </span>
-            )}
-          </dd>
-          {share !== null && (
-            <dd className="mt-2 h-1 rounded-full bg-line" aria-hidden="true">
-              <span
-                className="block h-1 rounded-full bg-mark"
-                style={{ width: `${Math.max(share * 100, share > 0 ? 2 : 0)}%` }}
-              />
-            </dd>
-          )}
-        </div>
-        <div>
-          <dt className="text-sm text-muted">Last month</dt>
-          <dd className="mt-1 text-2xl text-text">
-            about <span className="tabular">{usd(lastMonthUsd)}</span>
-          </dd>
-        </div>
-        <div className="col-span-2">
-          <dt className="sr-only">Conversations this month</dt>
-          <dd className="text-sm text-muted">
-            <span className="tabular">{conversationsThisMonth}</span>{' '}
-            {conversationsThisMonth === 1 ? 'conversation' : 'conversations'} this month
-            {conversationsThisMonth > 0 && (
-              <>
-                , about{' '}
-                <span className="tabular">{usd(thisMonthUsd / conversationsThisMonth)}</span> each
-              </>
-            )}
-            .
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-3 text-sm text-pretty text-muted">
-        Estimated at list prices from what Ricambi sent. The bill itself is in the Anthropic
-        Console.
-      </p>
-    </section>
   );
 }
 
