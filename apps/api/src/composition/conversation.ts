@@ -1,10 +1,7 @@
 import type { AppConfig } from '../config/config.js';
 import { readBundledDocuments, type BundledDocument } from '../proposals/bundled-documents.js';
 import { createClaudeApiConversationMethod } from '../proposals/claude-api-conversation-method.js';
-import {
-  createClaudeSubscriptionConversationMethod,
-  machineLoginAvailable,
-} from '../proposals/claude-subscription-conversation-method.js';
+import { createClaudeSubscriptionConversationMethod } from '../proposals/claude-subscription-conversation-method.js';
 import type { ConversationMethod, ConversationUsage } from '../proposals/conversation-method.js';
 import { createFakeConversationMethod } from '../proposals/fake-conversation-method.js';
 
@@ -27,7 +24,7 @@ export interface ConfiguredConversation {
 export interface ConversationCredentials {
   /**
    * Whether Claude Code on this machine is signed in with a Claude subscription, found by
-   * {@link findMachineLogin}. A token in the environment never counts.
+   * `findMachineLogin`. A token in the environment never counts.
    */
   machineLogin?: boolean;
   /** The glossary, spec and ADRs, unless a test stands in for the image. */
@@ -38,25 +35,6 @@ export interface ConversationCredentials {
    */
   onUsage?: (usage: ConversationUsage) => void;
 }
-
-/**
- * **Whether this machine's own Claude Code login is there to talk with** (issue #156). Not asked
- * in Production, which has no conversation, nor where the fake one is named.
- */
-export async function findMachineLogin(
-  config: Pick<AppConfig, 'environmentMode' | 'proposals'>,
-): Promise<boolean> {
-  if (config.environmentMode === 'production' || config.proposals.method === 'fake') {
-    return false;
-  }
-  return machineLoginAvailable();
-}
-
-/** Why a token handed in is not the subscription's credential (ADR 0012, as amended). */
-const TOKEN_REFUSED =
-  'CLAUDE_CODE_OAUTH_TOKEN is not accepted for Proposals: the subscription conversation runs ' +
-  'only on the Claude Code login already on this machine, so that nobody’s subscription is ' +
-  'handed to a server.';
 
 export function configureConversation(
   config: Pick<AppConfig, 'environmentMode' | 'proposals'>,
@@ -72,7 +50,7 @@ export function configureConversation(
     return { method: createFakeConversationMethod(), unavailable: null };
   }
 
-  const { apiKey, tokenInEnvironment } = config.proposals;
+  const { apiKey } = config.proposals;
   // Exactly one credential, so which one pays is never a guess (issue #156).
   if (apiKey !== undefined && machineLogin) {
     return {
@@ -96,8 +74,7 @@ export function configureConversation(
         unavailable:
           'No conversation method is configured. Set PROPOSALS_ANTHROPIC_API_KEY as a secret, ' +
           'sign in to Claude Code on this machine with `claude auth login`, or set ' +
-          'PROPOSALS_METHOD=fake.' +
-          (tokenInEnvironment ? ` ${TOKEN_REFUSED}` : ''),
+          'PROPOSALS_METHOD=fake.',
       };
     case 'api-key': {
       if (apiKey === undefined) {
@@ -117,9 +94,6 @@ export function configureConversation(
           };
     }
     case 'subscription': {
-      if (tokenInEnvironment) {
-        return { method: null, unavailable: TOKEN_REFUSED };
-      }
       if (!machineLogin) {
         return {
           method: null,

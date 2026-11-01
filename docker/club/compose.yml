@@ -63,11 +63,10 @@ services:
       RETENTION_YEARS: ${RETENTION_YEARS:-3}
       PAYMENT_RECORD_RETENTION_YEARS: ${PAYMENT_RECORD_RETENTION_YEARS:-10}
 
-      # **What the catalog is read with** (issue #55, ADR 0018): `subscription` with
-      # CLAUDE_CODE_OAUTH_TOKEN, or `api-key` with ANTHROPIC_API_KEY, as secrets and never both.
-      # Unset, nothing can be read and the Readings section says why. `fake` is refused here.
+      # **What the catalog is read with** (issue #55, ADR 0018): `api-key` with the Club's own
+      # ANTHROPIC_API_KEY, as a secret. Unset, nothing can be read and the Readings section says
+      # why. `fake` is refused here, and `subscription` on any server (issue #151).
       READING_METHOD: ${READING_METHOD:-}
-      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
       # The scans and photographs, on the volume below. Never inside the image.

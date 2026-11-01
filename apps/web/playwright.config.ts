@@ -83,7 +83,6 @@ export default defineConfig({
       PRACTICE_MEMBER_PASSWORD: practicePassword,
       // The practice Reading method (issue #55): no model is reached from a test run either.
       READING_METHOD: 'fake',
-      CLAUDE_CODE_OAUTH_TOKEN: '',
       ANTHROPIC_API_KEY: '',
       // The practice conversation (issue #152), which answers fixed text: no model either.
       PROPOSALS_METHOD: 'fake',

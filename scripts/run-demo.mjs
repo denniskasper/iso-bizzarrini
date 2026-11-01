@@ -33,7 +33,6 @@ const environment = {
   // Reads nothing and invents what it would have read (issue #55), so a practice catalog run
   // costs nothing. A laptop with a credential in its environment does not change that.
   READING_METHOD: 'fake',
-  CLAUDE_CODE_OAUTH_TOKEN: '',
   ANTHROPIC_API_KEY: '',
   // Proposals are tried against the practice conversation, which answers fixed text (issue #152).
   PROPOSALS_METHOD: 'fake',

@@ -70,7 +70,7 @@ export function assertSafeForEnvironment(assembled: {
     if (reading?.invented === true) {
       throw new EnvironmentSafetyError(
         `"${config.environmentName}" is production and will not start with READING_METHOD=fake. ` +
-          'The fake method invents what it reads. Configure subscription or api-key, or none.',
+          'The fake method invents what it reads. Configure api-key, or none.',
       );
     }
 

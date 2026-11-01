@@ -1,16 +1,16 @@
 import type { Options, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { describe, expect, it } from 'vitest';
 import {
-  createClaudeSubscriptionConversationMethod,
   machineLoginAvailable,
   type AgentQuery,
-} from '../src/proposals/claude-subscription-conversation-method.js';
+  type ClaudeCli,
+} from '../src/platform/claude-code.js';
+import { createClaudeSubscriptionConversationMethod } from '../src/proposals/claude-subscription-conversation-method.js';
 import {
   ConversationUnavailableError,
   type Conversation,
 } from '../src/proposals/conversation-method.js';
 import { PLAYBOOK } from '../src/proposals/playbook.js';
-import type { ClaudeCli } from '../src/reading/claude-subscription-method.js';
 
 /**
  * **What the `subscription` conversation method asks of Claude Code** (issue #156), checked
@@ -26,7 +26,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
     HOME: '/home/someone',
     ANTHROPIC_API_KEY: KEY,
     ANTHROPIC_AUTH_TOKEN: TOKEN,
-    CLAUDE_CODE_OAUTH_TOKEN: TOKEN,
+    CLAUDE_CODE_OAUTH_REFRESH_TOKEN: TOKEN,
     PROPOSALS_ANTHROPIC_API_KEY: KEY,
   };
 
@@ -161,7 +161,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
     for (const name of [
       'ANTHROPIC_API_KEY',
       'ANTHROPIC_AUTH_TOKEN',
-      'CLAUDE_CODE_OAUTH_TOKEN',
+      'CLAUDE_CODE_OAUTH_REFRESH_TOKEN',
       'PROPOSALS_ANTHROPIC_API_KEY',
     ]) {
       expect(env[name]).toBeUndefined();
@@ -304,7 +304,7 @@ describe('a Proposal’s conversation with Claude through this machine’s login
 
 describe('the machine’s own Claude Code login', () => {
   const TOKEN = 'sk-ant-oat01-test-not-a-real-token';
-  const ENV = { PATH: '/usr/bin', HOME: '/home/someone', CLAUDE_CODE_OAUTH_TOKEN: TOKEN };
+  const ENV = { PATH: '/usr/bin', HOME: '/home/someone', CLAUDE_CODE_OAUTH_REFRESH_TOKEN: TOKEN };
 
   function givenAuthStatus(status: Record<string, unknown>) {
     const started: { args: string[]; env: NodeJS.ProcessEnv }[] = [];
@@ -320,7 +320,7 @@ describe('the machine’s own Claude Code login', () => {
 
     expect(await machineLoginAvailable({ cli: signedIn.cli, env: ENV })).toBe(true);
     expect(signedIn.started[0]?.args).toEqual(['auth', 'status', '--json']);
-    expect(signedIn.started[0]?.env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+    expect(signedIn.started[0]?.env.CLAUDE_CODE_OAUTH_REFRESH_TOKEN).toBeUndefined();
   });
 
   it('is not a token, a key, or nobody signed in', async () => {

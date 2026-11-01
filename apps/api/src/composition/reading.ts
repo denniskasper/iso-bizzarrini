@@ -34,45 +34,48 @@ export const CHARGED: Record<ReadingMethodKind, boolean> = {
   fake: false,
 };
 
+export interface ReadingCredentials {
+  /**
+   * Whether Claude Code on this machine is signed in with a Claude subscription, found by
+   * `findMachineLogin`. Only Development has one (issue #151).
+   */
+  machineLogin?: boolean;
+}
+
 export function configureReading(
   settings: ReadingSettings,
-  env: NodeJS.ProcessEnv = process.env,
+  { machineLogin = false }: ReadingCredentials = {},
 ): ConfiguredReading {
-  const { method: kind, subscriptionToken, apiKey } = settings;
+  const { method: kind, apiKey } = settings;
 
   if (kind === undefined) {
     return unavailable(
       null,
-      'No Reading method is configured. Set READING_METHOD to subscription or api-key, with ' +
-        'its credential as a secret.',
-    );
-  }
-
-  // Exactly one credential, so the one that pays for a run is never a matter of which the
-  // method happens to prefer (issue #38).
-  if (subscriptionToken !== undefined && apiKey !== undefined) {
-    return unavailable(
-      kind,
-      'There are both a subscription token and an API key. Remove the one that is not meant ' +
-        'to read: CLAUDE_CODE_OAUTH_TOKEN for the subscription, ANTHROPIC_API_KEY for the key.',
+      'No Reading method is configured. Set READING_METHOD to api-key, with ANTHROPIC_API_KEY ' +
+        'as a secret; in Development, to subscription, signed in to Claude Code with ' +
+        '`claude auth login`.',
     );
   }
 
   switch (kind) {
     case 'subscription':
-      return subscriptionToken === undefined
-        ? unavailable(
+      // Exactly one credential, so the one that pays for a run is never a matter of which the
+      // method happens to prefer (issue #38).
+      if (apiKey !== undefined) {
+        return unavailable(
+          kind,
+          'There are both ANTHROPIC_API_KEY and the subscription named to read with. Remove the ' +
+            'key, or set READING_METHOD=api-key.',
+        );
+      }
+      return machineLogin
+        ? // The method takes every credential out of Claude Code's environment and keeps only
+          // the machine's login, so a key set by mistake still never pays for this.
+          available(kind, createClaudeSubscriptionReadingMethod())
+        : unavailable(
             kind,
-            'The subscription is configured, and there is no subscription token to sign in ' +
-              'with. Set CLAUDE_CODE_OAUTH_TOKEN as a secret.',
-          )
-        : available(
-            kind,
-            // The method takes every API credential out of Claude Code's environment and keeps
-            // only the login, so a key set by mistake still never pays for this.
-            createClaudeSubscriptionReadingMethod({
-              env: { ...env, CLAUDE_CODE_OAUTH_TOKEN: subscriptionToken },
-            }),
+            'The subscription is configured, and Claude Code is not signed in on this machine ' +
+              'with a Claude subscription. Sign in with `claude auth login`.',
           );
     case 'api-key':
       return apiKey === undefined

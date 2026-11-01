@@ -1,8 +1,13 @@
-import { tmpdir } from 'node:os';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { Options, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import { claudeCli, type ClaudeCli } from '../reading/claude-subscription-method.js';
+import {
+  agentQuery,
+  machineLoginEnvironment,
+  machineLoginOptions,
+  USAGE_LIMIT,
+  type AgentQuery,
+} from '../platform/claude-code.js';
 import type { BundledDocument } from './bundled-documents.js';
 import { CONVERSATION_EFFORT, CONVERSATION_MODEL } from './claude-api-conversation-method.js';
 import {
@@ -39,60 +44,6 @@ export interface ClaudeSubscriptionConversationOptions {
   query?: AgentQuery;
 }
 
-/** What this method needs of the Agent SDK's `query`. */
-export type AgentQuery = (params: {
-  prompt: AsyncIterable<SDKUserMessage>;
-  options: Options;
-}) => AsyncIterable<SDKMessage>;
-
-/**
- * Everything in the environment that would make Claude Code talk with something other than the
- * machine's login: an API key, a token handed in, or a cloud provider billed per use.
- * `CLAUDECODE` goes too, so the server can be started from within a Claude Code session.
- */
-const NOT_THE_MACHINE_LOGIN = [
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_REFRESH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR',
-  'CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CODE_USE_FOUNDRY',
-  'CLAUDECODE',
-  'PROPOSALS_ANTHROPIC_API_KEY',
-];
-
-/** The environment with every credential but the machine's own login taken out. */
-export function machineLoginEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const kept = { ...env };
-  for (const name of NOT_THE_MACHINE_LOGIN) {
-    delete kept[name];
-  }
-  return kept;
-}
-
-/**
- * **Whether Claude Code on this machine is signed in with a Claude subscription**, asked with
- * every key and token taken away, so a token in the environment never counts as the login.
- */
-export async function machineLoginAvailable(
-  options: { cli?: ClaudeCli; env?: NodeJS.ProcessEnv } = {},
-): Promise<boolean> {
-  const cli = options.cli ?? claudeCli();
-  try {
-    const run = await cli(['auth', 'status', '--json'], {
-      input: '',
-      env: machineLoginEnvironment(options.env ?? process.env),
-    });
-    const status = JSON.parse(run.stdout) as { loggedIn?: unknown; authMethod?: unknown };
-    return status.loggedIn === true && status.authMethod === 'claude.ai';
-  } catch {
-    return false;
-  }
-}
-
 export function createClaudeSubscriptionConversationMethod(
   options: ClaudeSubscriptionConversationOptions,
 ): ConversationMethod {
@@ -102,20 +53,18 @@ export function createClaudeSubscriptionConversationMethod(
     .join('\n\n');
 
   async function queryOf(): Promise<AgentQuery> {
-    if (options.query) {
-      return options.query;
-    }
-    try {
-      return (await import('@anthropic-ai/claude-agent-sdk')).query;
-    } catch {
+    const query = options.query ?? (await agentQuery());
+    if (query === null) {
       throw new ConversationUnavailableError(
         'The Claude Agent SDK is not installed here. It is a development dependency.',
       );
     }
+    return query;
   }
 
   function optionsFor(conversation: Conversation): Options {
     return {
+      ...machineLoginOptions(env),
       model: CONVERSATION_MODEL,
       effort: CONVERSATION_EFFORT,
       systemPrompt: [
@@ -123,19 +72,6 @@ export function createClaudeSubscriptionConversationMethod(
         `Ricambi's glossary, product spec and decisions, as of the Version running:\n\n${documents}`,
         factsOf(conversation),
       ],
-      // Nothing but talk: no tool, and nothing of the machine's own configuration that could
-      // bring one back.
-      tools: [],
-      allowedTools: [],
-      permissionMode: 'dontAsk',
-      mcpServers: {},
-      strictMcpConfig: true,
-      settingSources: [],
-      skills: [],
-      plugins: [],
-      persistSession: false,
-      cwd: tmpdir(),
-      env,
     };
   }
 
@@ -277,9 +213,6 @@ function transcriptOf(turns: ConversationTurn[]): Anthropic.ContentBlockParam[] 
   }
   return content;
 }
-
-/** How Claude Code words a plan that will answer no more for now. */
-const USAGE_LIMIT = /usage limit|hit your (?:\w+ )?limit|limit reached|out of (?:extra )?usage/i;
 
 /**
  * A finished request that did not answer is the conversation being unavailable. The plan's usage

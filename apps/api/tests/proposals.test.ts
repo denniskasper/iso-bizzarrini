@@ -10,7 +10,8 @@ import type {
 import sharp from 'sharp';
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { configureConversation, findMachineLogin } from '../src/composition/conversation.js';
+import { configureConversation } from '../src/composition/conversation.js';
+import { findMachineLogin } from '../src/composition/machine-login.js';
 import { loadConfig } from '../src/config/config.js';
 import {
   ConversationPausedError,
@@ -1064,37 +1065,6 @@ describe('a conversation on this machine’s Claude subscription', () => {
       configureConversation(settings({ PROPOSALS_METHOD: 'subscription' }), { machineLogin: true })
         .unavailable,
     ).toBeNull();
-  });
-
-  it('refuses a token handed in through the environment, and says why', () => {
-    const token = 'sk-ant-oat01-test-not-a-real-token';
-
-    for (const env of [
-      { CLAUDE_CODE_OAUTH_TOKEN: token } as Record<string, string>,
-      { CLAUDE_CODE_OAUTH_TOKEN: token, PROPOSALS_METHOD: 'subscription' },
-    ]) {
-      const configured = configureConversation(settings(env), { machineLogin: false });
-      expect(configured.method).toBeNull();
-      expect(configured.unavailable).toMatch(/CLAUDE_CODE_OAUTH_TOKEN is not accepted/);
-      expect(configured.unavailable).toMatch(/login already on this machine/);
-      expect(configured.unavailable).not.toContain(token);
-    }
-    // Not even beside the login: the token is never the conversation's to sign in with.
-    expect(
-      configureConversation(settings({ CLAUDE_CODE_OAUTH_TOKEN: token }), { machineLogin: true }),
-    ).toMatchObject({ method: null, unavailable: expect.stringMatching(/not accepted/) });
-  });
-
-  it('leaves a token alone where the key is the conversation’s credential', () => {
-    const configured = configureConversation(
-      settings({
-        CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-test-not-a-real-token',
-        PROPOSALS_ANTHROPIC_API_KEY: 'sk-ant-test-not-a-key',
-      }),
-    );
-
-    expect(configured.unavailable).toBeNull();
-    expect(configured.method?.name).toBe('Claude (claude-sonnet-5-5) with an API key');
   });
 
   it('is unavailable with both credentials, or neither, and says why', () => {
