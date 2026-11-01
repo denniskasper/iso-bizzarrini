@@ -78,7 +78,7 @@ From [ADR 0009](../adr/0009-deployment.md). Tick each against the real server.
 - [ ] **Encryption in transit.** TLS on both hosts, terminated by the reverse proxy with
       automatically renewed certificates; plain HTTP redirects. The application marks the
       session cookie `Secure` whenever the request arrived over TLS.
-- [ ] **Location.** One server in an EU region, with `<HOSTING_PROVIDER>` under a signed
+- [ ] **Location.** One server in Germany, with `<HOSTING_PROVIDER>` under a signed
       processor agreement.
 - [ ] **Host isolation.** Ricambi on its own subdomain, so the Club's public site never
       receives the session cookie.
@@ -88,9 +88,13 @@ From [ADR 0009](../adr/0009-deployment.md). Tick each against the real server.
 - [ ] **A restore has been performed**, from the offsite copy, onto a clean machine. Date:
       `<RESTORE_TESTED_ON>`.
 - [ ] **Access to the server** is by named individuals with their own keys: `<OPERATORS>`. No
-      shared login.
-- [ ] **Updates.** The operating system and the container images are kept patched by
-      `<OPERATORS>`.
+      shared login. SSH accepts keys only; the firewall opens 22, 80 and 443.
+- [ ] **The deployment panel** is reached by named individuals with their own accounts, each
+      with a strong password and two-factor authentication. An administrator's account reaches
+      the Club's project only.
+- [ ] **Updates.** The operating system installs its security updates by itself. Dokploy and the
+      container images are kept patched by `<OPERATORS>`, monthly and at once for a security
+      fix.
 - [ ] **Log retention** is thirty days and has been checked on the server —
       [log-retention.md](../operations/log-retention.md).
 - [ ] **E-mail** is sent through `<EMAIL_PROVIDER>` with SPF, DKIM and DMARC, never from the

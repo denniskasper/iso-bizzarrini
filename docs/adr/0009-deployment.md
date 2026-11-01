@@ -69,6 +69,8 @@ proxy's `forward_auth` that ADR 0006 once described.
   volume. It cannot reach a member (ADR 0012), and it holds no copy of the archive.
 - **The platform is one more thing to keep patched.** Dokploy and its Traefik are updated from
   Dokploy's panel, which should be reachable only over a private network, as the preview's is.
+  **Superseded below** ("the Club's own server"): the Club's panel is public, behind two-factor
+  authentication.
 
 ## Amended: the server's settings live in the Club's `infra` repository
 
@@ -84,3 +86,48 @@ people who hold it; `infra` holds the names of the variables and where each valu
 the values. This repository still names no host: `infra` is the Club's own and may. The
 procedures stay here, in [`club-deployment.md`](../operations/club-deployment.md) and
 [`log-retention.md`](../operations/log-retention.md); `infra` holds what they produce.
+
+## Amended: the Club's own server, and who holds it
+
+Decided on 2026-11-01, for issue #176. **The Club rents one VPS of its own, in Germany, from
+`<HOSTING_PROVIDER>`, and runs its own Dokploy on it.** Integration, Production and the Club's
+website share it, as above. A managed platform was ruled out: it costs several times as much,
+adds a processor for every service it runs, and takes the files off the box (ADR 0013). So were
+AWS and Google Cloud: three to five times the price of a German VPS of the same size, and a US
+parent in the record of processing for a volunteer-run association to explain.
+
+**Everything is the Club's.** The server, the backup storage, the mail provider and the
+monitoring are contracted in the association's name and paid by it, and each processor
+agreement is signed by the board. The provider account and the backup key are held by one of
+the Club's administrators; the person who runs the server is a delegated user, removable without
+touching anything else. The credentials live in a password manager the Club owns
+(`<PASSWORD_MANAGER>`). Nothing is ordered before the board has approved the cost and the
+agreements can be signed. The server is not managed from anybody's own Dokploy: a Club whose
+deployment is controlled from a member's private box cannot hand it over.
+
+**The panel is public, behind two-factor authentication.** The Club's administrators may need to
+sign in, and a private network is one more thing they would have to run. So the Dokploy panel
+has a hostname of its own under HTTPS; every account has its own strong password and two-factor
+authentication, and an administrator's account reaches the Club's project and nothing else. SSH
+takes keys only, and the provider's firewall opens 22, 80 and 443. A panel on the internet is one
+that has to be kept current: **Dokploy is updated by hand once a month, and at once for a
+security fix.** Ubuntu installs its own security updates and reboots at night when it must.
+
+**CI deploys Integration through Dokploy's API**, with a token that can deploy Integration and
+nothing else, held as a secret of the Club's GitHub organisation. Production is still deployed
+by a person (ADR 0016).
+
+**No proxy in front.** DNS points straight at the server, and Traefik takes its certificates from
+Let's Encrypt. A proxying CDN would read every request in the clear, member sessions and
+passwords included, and become a processor of the archive.
+
+**Backups go to `<BACKUP_STORAGE_PROVIDER>`**, a different company from the host, with restic,
+every night, as above.
+
+**Liveness is checked from outside.** A box cannot report that it is dead. `<UPTIME_MONITOR>`
+calls Production's `/api/status` and the website every five minutes; `/api/status` proves the
+database answers as well. The backup reports the other way round: it pings `<BACKUP_MONITOR>`
+after each run that succeeded, and a ping that does not arrive raises the alert, so a backup
+that stops is noticed. Only what a living box can see about itself is checked on it: disk use
+above 80%, mailed through the Club's mail provider. Every alert reaches the operator and an
+address of the Club's. This settles ADR 0011's deferred decision: no error-tracking vendor.
