@@ -2984,10 +2984,10 @@ export interface ProposalCosts {
 }
 
 /**
- * **What an amount of spending on Claude was for** (issue #189): a Proposal's conversation.
- * Catalog runs join it later.
+ * **What an amount of spending on Claude was for** (issues #189, #191): a Proposal's
+ * conversation, or a Catalog run's reading.
  */
-export type SpendingPurpose = 'proposal-conversations';
+export type SpendingPurpose = 'proposal-conversations' | 'catalog-runs';
 
 /** One calendar month's spending, in UTC, estimated in US dollars at list prices. */
 export interface SpendingMonth {

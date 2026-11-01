@@ -23,6 +23,7 @@ import { withCutOff, type CostRecord } from '../reading/cost.js';
 import type { SheetIdentity } from '../reading/reading-method.js';
 import type { DoneBefore } from '../reading/reading-store.js';
 import type { MachineTranslation } from '../reading/translation.js';
+import { addSpending, monthOf } from './spending-repository.js';
 
 /** A Catalog run with the Model it is for, which is how it is always shown. */
 export interface CatalogRunWithModel {
@@ -118,14 +119,17 @@ export interface CatalogRunRepository {
       at: Date;
     },
   ): Promise<void>;
-  /** The cost record of one time reading, `cost.run`, kept beside the others. */
-  costed(runId: string, cost: CostRecord): Promise<void>;
+  /**
+   * The cost record of one time reading, `cost.run`, kept beside the others, at `at`: what it
+   * adds to the run's total is spent in that month.
+   */
+  costed(runId: string, cost: CostRecord, at: Date): Promise<void>;
   /**
    * Any request the run's records have still awaiting its answer, cut off: kept at the most it
    * could cost, and counted in what the run has spent (issue #66). Asked before a run reads again,
-   * when nothing in this process can still be waiting for one.
+   * when nothing in this process can still be waiting for one. What they add is spent at `at`.
    */
-  cutOff(runId: string): Promise<void>;
+  cutOff(runId: string, at: Date): Promise<void>;
   /** How the run ended. One that ends with no cost record has nothing awaiting an answer. */
   ended(runId: string, end: CatalogRunEnd, at: Date): Promise<void>;
   /** The pages the run put into no Tavola, and why, in place of any it set aside before. */
@@ -156,32 +160,65 @@ export interface TavolaToReadAgain {
 }
 
 export function createCatalogRunRepository(db: DbSession): CatalogRunRepository {
-  async function costsOf(runId: string): Promise<CostRecord[]> {
-    const [row] = await db
-      .select({ costs: catalogRuns.costs })
-      .from(catalogRuns)
-      .where(eq(catalogRuns.id, runId))
-      .limit(1);
-    return [...(row?.costs ?? [])];
-  }
-
   /** The run's records, and the total spent over all of them. */
   function withSpent(costs: CostRecord[]) {
     const spent = costs.reduce((sum, record) => sum + (record?.total ?? 0), 0);
     return { costs, spent: Math.round(spent * 1_000_000) / 1_000_000 };
   }
 
+  /**
+   * The run's records as `change` makes them, with its running total, and what that total grew
+   * by added to the month (`at`, UTC) as Catalog runs, billed as the run is (issue #191). In one
+   * transaction, so the month and the run never disagree. A total never shrinks a month.
+   */
+  async function keepCosts(
+    runId: string,
+    at: Date,
+    change: (costs: CostRecord[]) => CostRecord[],
+    alongside: Partial<NewCatalogRunRow> = {},
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({
+          costs: catalogRuns.costs,
+          spent: catalogRuns.spent,
+          charged: catalogRuns.charged,
+        })
+        .from(catalogRuns)
+        .where(eq(catalogRuns.id, runId))
+        .for('update');
+      if (!row) {
+        return;
+      }
+      const { costs, spent } = withSpent(change([...row.costs]));
+      await tx
+        .update(catalogRuns)
+        .set({ ...alongside, costs, spent })
+        .where(eq(catalogRuns.id, runId));
+      const microUsd = Math.round(spent * 1_000_000) - Math.round(row.spent * 1_000_000);
+      if (microUsd > 0) {
+        await addSpending(tx, {
+          month: monthOf(at),
+          purpose: 'catalog-runs',
+          billed: row.charged,
+          microUsd,
+        });
+      }
+    });
+  }
+
   /** `cost` in its place among the run's records. */
-  async function withCost(runId: string, cost: CostRecord) {
-    const costs = await costsOf(runId);
-    costs[cost.run - 1] = cost;
-    return withSpent(costs);
+  function withCost(cost: CostRecord) {
+    return (costs: CostRecord[]) => {
+      costs[cost.run - 1] = cost;
+      return costs;
+    };
   }
 
   /** The run's records with any request still awaiting its answer cut off. */
-  async function withCutOffs(runId: string) {
+  function withCutOffs(costs: CostRecord[]) {
     // A run's records are kept by the time they were read; one never recorded is a gap.
-    return withSpent((await costsOf(runId)).map((record) => record && withCutOff(record)));
+    return costs.map((record) => record && withCutOff(record));
   }
 
   return {
@@ -423,34 +460,24 @@ export function createCatalogRunRepository(db: DbSession): CatalogRunRepository 
         });
     },
 
-    async costed(runId, cost) {
-      await db
-        .update(catalogRuns)
-        .set(await withCost(runId, cost))
-        .where(eq(catalogRuns.id, runId));
+    async costed(runId, cost, at) {
+      await keepCosts(runId, at, withCost(cost));
     },
 
-    async cutOff(runId) {
-      await db
-        .update(catalogRuns)
-        .set(await withCutOffs(runId))
-        .where(eq(catalogRuns.id, runId));
+    async cutOff(runId, at) {
+      await keepCosts(runId, at, withCutOffs);
     },
 
     async ended(runId, end, at) {
-      await db
-        .update(catalogRuns)
-        .set(
-          'cost' in end
-            ? { state: end.state, ...(await withCost(runId, end.cost)), endedAt: at }
-            : {
-                state: end.state,
-                failure: end.failure,
-                ...(await withCutOffs(runId)),
-                endedAt: at,
-              },
-        )
-        .where(eq(catalogRuns.id, runId));
+      if ('cost' in end) {
+        await keepCosts(runId, at, withCost(end.cost), { state: end.state, endedAt: at });
+      } else {
+        await keepCosts(runId, at, withCutOffs, {
+          state: end.state,
+          failure: end.failure,
+          endedAt: at,
+        });
+      }
     },
 
     async setAside(runId, pages) {

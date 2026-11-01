@@ -101,7 +101,7 @@ async function spending(agent: TestAgent): Promise<SpendingResponse> {
 function month(name: string, proposalConversations: number, billed: boolean): SpendingMonth {
   return {
     month: name,
-    byPurpose: { 'proposal-conversations': proposalConversations },
+    byPurpose: { 'proposal-conversations': proposalConversations, 'catalog-runs': 0 },
     totalUsd: proposalConversations,
     billed,
   };

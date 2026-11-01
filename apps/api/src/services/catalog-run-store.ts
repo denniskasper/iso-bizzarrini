@@ -67,7 +67,7 @@ export function catalogRunStore(dependencies: {
     },
 
     async costed(record) {
-      await catalogRunRepository.costed(runId, record);
+      await catalogRunRepository.costed(runId, record, clock.now());
     },
 
     async ended({ cost, setAside }) {
