@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.12.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.11.0...v0.12.0) (2026-11-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **reading:** a server reads the catalog only with an API key, and Claude Code leaves the image
+
+### New
+
+* **proposals:** a Proposal is worked out with Claude Sonnet 5.5 ([4bf62af](https://github.com/denniskasper/iso-bizzarrini/commit/4bf62afd146096137775d2bf5f6826bd2ea5c27c))
+* **proposals:** an Administrator sees what the conversations cost ([c23d7bd](https://github.com/denniskasper/iso-bizzarrini/commit/c23d7bdda7aa4d492517bafffbba6fd0343f07fd))
+* **reading:** a server reads the catalog only with an API key, and Claude Code leaves the image ([3cf30aa](https://github.com/denniskasper/iso-bizzarrini/commit/3cf30aa050bbd944f00e84b1e4f89a470edca985)), closes [#151](https://github.com/denniskasper/iso-bizzarrini/issues/151)
+
+
+### Fixed
+
+* **proposals:** show the conversation's answers formatted, and empty the field once sent ([0257b06](https://github.com/denniskasper/iso-bizzarrini/commit/0257b06bbc2a83d543ffe5888aca78f09be3d498))
+
 ## [0.11.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.10.0...v0.11.0) (2026-10-31)
 
 
