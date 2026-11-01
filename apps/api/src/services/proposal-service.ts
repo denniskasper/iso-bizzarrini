@@ -590,7 +590,6 @@ function listingOf(proposer: Proposer, { proposal, opening }: ListedProposal): P
   };
 }
 
-/** The calendar month an instant falls in, in UTC, as `YYYY-MM`. */
 function turnOf(turn: ProposalTurnRow, screenshots: ProposalScreenshotRow[]): ProposalTurn {
   return {
     sequence: turn.sequence,
