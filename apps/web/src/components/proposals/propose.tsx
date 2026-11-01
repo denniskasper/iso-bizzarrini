@@ -41,6 +41,7 @@ import {
   useSummarise,
 } from '@/lib/proposals';
 import { cn } from '@/lib/utils';
+import { Written } from '@/components/proposals/written';
 
 /**
  * **Propose**, on every page of a practice system, for those an Administrator has let propose
@@ -294,6 +295,10 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
     if (said === '' || busy) {
       return;
     }
+    // Sent, the words leave the field at once: they are shown in the conversation above, and
+    // left in the field they read as not sent. If sending fails, they come back to be sent again.
+    setText('');
+    const keep = () => setText((current) => (current === '' ? said : current));
     // A screenshot shown after the Proposal was finished carries the conversation on with it.
     if (finished === null || proposal.unsent.length > 0) {
       converse.mutate(
@@ -305,14 +310,12 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
           })),
         },
         {
-          onSuccess: () => {
-            setText('');
-            setNotes({});
-          },
+          onSuccess: () => setNotes({}),
+          onError: keep,
         },
       );
     } else {
-      summarise.mutate(said, { onSuccess: () => setText('') });
+      summarise.mutate(said, { onError: keep });
     }
   }
 
@@ -351,7 +354,7 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
           <Said speaker="conversation">{OPENING_QUESTION[proposal.kind]}</Said>
           {proposal.turns.map((turn) => (
             <Said key={turn.sequence} speaker={turn.speaker}>
-              {turn.text}
+              {turn.speaker === 'conversation' ? <Written text={turn.text} /> : turn.text}
               {turn.screenshots.length > 0 && (
                 <div className="mt-3" data-testid="turn-screenshots">
                   <Screenshots
@@ -366,7 +369,7 @@ function Conversation({ proposal, onDiscarded }: { proposal: Proposal; onDiscard
           {converse.asked !== null && <Said speaker="author">{converse.asked}</Said>}
           {converse.answering !== null && (
             <Said speaker="conversation" live>
-              {converse.answering === '' ? '…' : converse.answering}
+              {converse.answering === '' ? '…' : <Written text={converse.answering} />}
             </Said>
           )}
           {summarise.isPending && (
