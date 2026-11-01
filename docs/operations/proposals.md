@@ -25,6 +25,13 @@ an Idea of about eight answers and a screenshot or two comes to roughly **$0.35*
 more each time the author comes back after more than an hour, when the cache is written again.
 Ten to twenty conversations a month: about **$4–8**.
 
+An **Administrator** sees the estimates on the **Proposals** page: this month's and last month's,
+by the month each request was made in, how many conversations and what one comes to, and each
+Proposal's own beside it. Nobody else let propose sees any of it, and there is nothing to see on
+the developer's subscription, which is not billed by the request. A Draft discarded afterwards
+still counts in its month. Set `PROPOSALS_MONTHLY_LIMIT_USD` to the workspace's limit to show
+this month against it; Ricambi is told the limit and cannot read it, so change both together.
+
 Each request says what it used in the server's log, as `A Proposal’s conversation used`: input,
 cache-write, cache-read and output tokens, and `estimatedUsd` at the list prices in
 `CONVERSATION_PRICES` (`apps/api/src/proposals/claude-api-conversation-method.ts`). Check the
@@ -55,7 +62,8 @@ development dependency and is not in the image.
    month's conversations, several times over. That limit is what stops the conversation, and its cost is known in advance.
 3. **The key.** Create an API key in that workspace, and nowhere else. It is shown once.
 4. **The secret.** In Dokploy, open the Integration service's environment editor and add
-   `PROPOSALS_ANTHROPIC_API_KEY=<the key>`. Never on the Club's Production service, which would
+   `PROPOSALS_ANTHROPIC_API_KEY=<the key>`, and beside it `PROPOSALS_MONTHLY_LIMIT_USD=25`, the
+   limit from step 2. Never on the Club's Production service, which would
    refuse to start; never in this repository, a commit, an issue or a chat (`AGENTS.md`,
    Security).
 5. **Deploy**, and check that Propose appears for somebody let propose.
