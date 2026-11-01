@@ -12,8 +12,11 @@ effort, through the Anthropic API, with the conversation's own key in
 `PROPOSALS_ANTHROPIC_API_KEY`. With the key set, that is the method; `PROPOSALS_METHOD` need not
 be set. Without it, nobody is shown Propose, and the status says why.
 
-The key is **not** the one catalog reading uses (`ANTHROPIC_API_KEY`). The two are billed and
-limited apart, so a long conversation can never stop a Catalog run, nor the other way round.
+On Integration the key is **the same key catalog reading uses**: one key in Integration's own
+workspace, with one monthly limit covering both (below). It is still set under both names,
+`PROPOSALS_ANTHROPIC_API_KEY` and `ANTHROPIC_API_KEY`, because Production must keep refusing the
+Proposals key while it reads with the Club's own. A month whose limit is spent pauses both
+Proposals and Catalog runs until the month turns.
 
 Every request carries the playbook and the glossary, the product spec and the ADRs of the
 Version running, which the image is built with. Those are cached for an hour, so an author who
@@ -49,26 +52,39 @@ costs no API money; it draws on the plan's limits.
 3. Start the API (`pnpm dev`). Its log says `Proposals are open`, or `Proposals are closed` and
    why.
 
-It accepts only that login. A token in `CLAUDE_CODE_OAUTH_TOKEN` is refused, and every key and
-token is taken out of Claude Code's environment, so a server, which has no signed-in Claude Code,
-can never run Proposals on somebody's subscription (ADR 0012, as amended). The Agent SDK is a
-development dependency and is not in the image.
+It accepts only that login: every key and token is taken out of Claude Code's environment, so a
+server, which has no Claude Code at all, can never run Proposals on somebody's subscription (ADR
+0012, as amended). The Agent SDK is a development dependency and is not in the image. Catalog
+reading's `subscription` method runs on the same login, so with `READING_METHOD=subscription`
+both are open at once.
 
 ## Giving Integration the key
 
-1. **A workspace of its own.** In the Anthropic Console of `<ANTHROPIC_ORGANISATION>`, create a
-   workspace for developing Ricambi, `<PROPOSALS_WORKSPACE>`. Nothing else uses it.
-2. **A monthly limit.** Give the workspace a monthly spend limit of **$25** to start with: a busy
-   month's conversations, several times over. That limit is what stops the conversation, and its cost is known in advance.
-3. **The key.** Create an API key in that workspace, and nowhere else. It is shown once.
-4. **The secret.** In Dokploy, open the Integration service's environment editor and add
-   `PROPOSALS_ANTHROPIC_API_KEY=<the key>`, and beside it `PROPOSALS_MONTHLY_LIMIT_USD=25`, the
-   limit from step 2. Never on the Club's Production service, which would
-   refuse to start; never in this repository, a commit, an issue or a chat (`AGENTS.md`,
-   Security).
-5. **Deploy**, and check that Propose appears for somebody let propose.
+Integration has **one key** for Proposals and catalog reading alike.
 
-To withdraw it, delete the key in the Console and remove the line from the environment editor.
+1. **A workspace of its own.** In the Anthropic Console of `<ANTHROPIC_ORGANISATION>`, create a
+   workspace for developing Ricambi, `<INTEGRATION_WORKSPACE>`. Nothing else uses it.
+2. **A monthly limit.** Give the workspace a monthly spend limit of **$100**, covering both
+   Proposals and Catalog runs. That limit is what stops them, and their cost is known in advance.
+3. **The key.** Create an API key in that workspace, and nowhere else. It is shown once.
+4. **The secrets.** In Dokploy, open the Integration service's environment editor and add the
+   key under both names, with the reading method and the limit from step 2:
+
+   ```
+   PROPOSALS_ANTHROPIC_API_KEY=<the key>
+   ANTHROPIC_API_KEY=<the key>
+   READING_METHOD=api-key
+   PROPOSALS_MONTHLY_LIMIT_USD=100
+   ```
+
+   Never `PROPOSALS_ANTHROPIC_API_KEY` on the Club's Production service, which would refuse to
+   start; never in this repository, a commit, an issue or a chat (`AGENTS.md`, Security).
+5. **Deploy**, and check that Propose appears for somebody let propose, and that the Readings
+   section says it reads with an API key.
+
+When Integration moves to the Club's server, the Club pays for it and creates its own key.
+
+To withdraw it, delete the key in the Console and remove both lines from the environment editor.
 
 ## When the month's limit is spent
 

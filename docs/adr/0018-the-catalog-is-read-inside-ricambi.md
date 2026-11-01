@@ -19,8 +19,16 @@ command stays, as a developer tool built on the same reading code.
 
 **"It starts on the subscription ... and moves to an API key" is replaced.** The server reads with
 the one credential it is configured with, as a secret: a subscription login while Ricambi is a
-prototype, and the Club's own API key once the Club has one. Switching is a configuration change,
-not a code change. Neither or both configured means no run can start, and Ricambi says why.
+prototype, and the Club's own API key once the Club has one (amended below: a server reads only
+with an API key). Switching is a configuration change, not a code change. Neither or both
+configured means no run can start, and Ricambi says why.
+
+**Amended 2026-11-01 (issue #151): a server reads only with an API key.** The subscription login
+stays on the developer's machine, for Development, through the Agent SDK and the Claude Code
+login already there; a server refuses to start with it, and its image no longer carries Claude
+Code. Integration reads with its own key, and Production reads only once the Club has its own.
+Until then Production cannot read, which is a configuration that says why, not a fault. The rule
+is set out for every use of Claude in ADR 0012, as amended.
 
 **The Excel correction step is dropped.** Every correction to a Tavola is made in Ricambi, on the
 checking screen, so there is one place where what a Tavola says can change. A doubt is cleared or
