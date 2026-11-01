@@ -4,6 +4,21 @@ The written statement of the direction, so later tickets inherit it rather than 
 from scratch. The tokens that implement it live in `apps/web/src/styles/tokens.css`; this file
 is the reasoning, that file is the source of truth.
 
+## Changing: the Club website's identity (ADR 0020)
+
+Decided on 2026-11-01 (#201), and **not built yet**: until it is, the rest of this document
+describes what is in the code. When it is built, this document is rewritten to match:
+
+- **Teal `#2ba0a3`, the Club website's, is the one accent**, for what is pressed and for links,
+  darkened along its hue where it carries text on white. Champagne and ice blue go.
+- **Marks on a drawing keep a colour of their own**, chosen for the paper of a scan.
+- **Light by default**: a white page in the graphite header and footer (`#24272d`). Dark stays.
+- **Headings in Raleway 500.** Open Sans and IBM Plex Mono stay; Barlow Condensed goes.
+- **The Club's wordmark in the header**, and the Club's emblem on the large icons. The logo files
+  are committed with the build: the Club's identity is no longer kept out of the repository.
+- **Measured from the live site's stylesheets** (WordPress, Avada theme), not a browser capture
+  this time; the prototype is compared with the site side by side before anything is built.
+
 ## The direction
 
 **The Club's own identity, rendered with Apple's restraint and Google's plainness.**
