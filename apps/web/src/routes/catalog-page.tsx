@@ -104,10 +104,8 @@ function ModelIndex({ models }: { models: CatalogModel[] }) {
                   className="catalog-row"
                   aria-label={`${model.brand} ${model.name}`}
                 >
-                  <span className="catalog-name display text-display text-balance">
-                    {model.name}
-                  </span>
-                  <span className="sm:pb-2 sm:text-right">
+                  <span className="catalog-name display text-balance">{model.name}</span>
+                  <span className="sm:text-right">
                     <span className="tabular block text-muted">{model.series ?? ''}</span>
                     <span className="tabular block">{model.modelYears ?? ''}</span>
                   </span>
