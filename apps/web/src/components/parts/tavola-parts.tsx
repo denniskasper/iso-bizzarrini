@@ -1,4 +1,6 @@
+import { useRef } from 'react';
 import { EnglishName } from '@/components/machine-translation';
+import { usePartsJump } from '@/components/parts/parts-jump';
 import { Refusal } from '@/components/ui/field';
 import type { Position, TavolaListing } from '@/lib/api';
 import { useTavolaListings } from '@/lib/parts';
@@ -24,6 +26,7 @@ export function TavolaParts({
   positions,
   selectedPositionId,
   onSelect,
+  head,
 }: {
   tavolaId: string;
   /** The sheet's numbers, which arrive with the drawing and are its own order. */
@@ -31,7 +34,11 @@ export function TavolaParts({
   selectedPositionId: string | null;
   /** Reading a number from the text, which takes the drawing to it. */
   onSelect: (position: Position) => void;
+  /** The head of the facing page this list is on, which a long list jumps back up to. */
+  head: HTMLElement | null;
 }) {
+  const section = useRef<HTMLElement>(null);
+  const jump = usePartsJump(head, section);
   // Read here rather than handed down, for the same reason the reading panel reads its own
   // Listings: what a screen needs is that screen's business, and a page that fetched for both
   // would be the one place a change to either had to be remembered.
@@ -55,7 +62,13 @@ export function TavolaParts({
   }
 
   return (
-    <section aria-labelledby="sheet-parts" data-testid="sheet-parts">
+    <section
+      ref={section}
+      aria-labelledby="sheet-parts"
+      data-testid="sheet-parts"
+      className="parts-jump-target"
+    >
+      {jump.top}
       <h2 id="sheet-parts" className="label">
         The parts on this sheet
       </h2>
@@ -115,6 +128,8 @@ export function TavolaParts({
           </ul>
         </div>
       )}
+
+      {jump.bottom}
     </section>
   );
 }
