@@ -583,11 +583,15 @@ export function TavolaPage() {
                   : undefined
             }
           />
-          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-            {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
-            {isEditor && tavola.scan ? <ScanTurn tavolaId={tavola.id} /> : <span />}
-            <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
-          </div>
+          {/* Turning and replacing the scan are an Editor's: a Member reads the sheet as it
+              is, and the archive would refuse them both (issue #221). */}
+          {isEditor && (
+            <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+              {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
+              {tavola.scan ? <ScanTurn tavolaId={tavola.id} /> : <span />}
+              <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
+            </div>
+          )}
         </div>
 
         <div
