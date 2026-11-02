@@ -27,6 +27,10 @@ describe('the app as it is served', () => {
     distPath = mkdtempSync(path.join(tmpdir(), 'ricambi-web-dist-'));
     mkdirSync(path.join(distPath, 'assets'), { recursive: true });
     writeFileSync(path.join(distPath, 'index.html'), indexHtml);
+    // The web app ships the Club's wordmark under `club/`, which is also the address of the
+    // Administrator's Club screen (issue #209).
+    mkdirSync(path.join(distPath, 'club'));
+    writeFileSync(path.join(distPath, 'club', 'wordmark.png'), 'not really a picture');
   });
 
   afterAll(() => {
@@ -61,6 +65,13 @@ describe('the app as it is served', () => {
 
       expect(response.text).toContain('data-environment-mode="non-production"');
       expect(response.text).toContain('DEMO');
+    });
+
+    it('answers a screen with the app even where a folder of files shares its name', async () => {
+      const response = await app.request().get('/club').expect(200);
+
+      expect(response.text).toContain('<div id="root"></div>');
+      await app.request().get('/club/wordmark.png').expect(200);
     });
   });
 
