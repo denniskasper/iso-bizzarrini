@@ -104,9 +104,9 @@ file fails the deployment before that, naming the variable.
 **Search engines find the landing page and the Samples here, and nothing else** (ADR 0019): in
 this system alone they are served without `noindex`, and `/robots.txt` and `/sitemap.xml` list
 exactly them. A shared link to either is previewed with its title, description and picture. A
-Sample's picture is its public copy; the landing's is the Club's logo, which is not in this
-repository: mount it into the `app` service as `/app/web/club-logo.png` (a PNG, about
-1200 × 630 pixels reads well in a preview). Without it the landing is shared with no picture.
+Sample's picture is its public copy; the landing's is the Club's emblem, the archive's large
+icon, which ships with the app. Nothing is mounted for it, nor for the Club's wordmark in the
+header.
 
 ## Deploying a Release, and going back
 
@@ -340,7 +340,6 @@ None of this can be done from the repository, and the archive does not open with
       on the Club's screen; and on the sending domain, **SPF, DKIM and DMARC** set as the
       provider says. Prove it with the first Administrator's invitation landing in an inbox,
       not in spam.
-- [ ] **The Club's logo** mounted as `/app/web/club-logo.png`, for the landing's link preview.
 - [ ] **The backup provider** (`<BACKUP_STORAGE_PROVIDER>`): a different company from the host,
       with a processor agreement and a key held by named people.
 - [ ] **Monitoring**: `<UPTIME_MONITOR>` calling `https://<RICAMBI_HOST>/api/status` and the

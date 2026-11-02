@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import type { EnvironmentMode, VisitorSampleListed } from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
@@ -34,11 +32,17 @@ export interface VisitorPage {
 }
 
 /**
- * **The Club's logo, as the landing's preview.** It carries the association's name, so it is not
- * in this repository: the deployment drops it into the built web app under this name (README).
- * Without it the landing is shared with no picture rather than with somebody else's.
+ * **The landing's preview is the archive's large icon**, which the web app ships (ADR 0020): the
+ * Club's emblem on graphite in production, and on a practice system the tinted roundel it wears
+ * instead, so a shared link to one can never pass for the archive. An opaque square, legible on a
+ * preview card of either colour, where the Club's white wordmark would vanish on a white one.
+ * Nothing is dropped into the built app at deploy time.
  */
-export const CLUB_LOGO_PATH = '/club-logo.png';
+const LANDING_IMAGE = {
+  production: '/icon-512.png',
+  practice: '/practice/integration/icon-512.png',
+};
+const LANDING_IMAGE_SIZE = 512;
 
 const samplePath = /^\/tavole\/([^/]+)\/?$/;
 const tavolaId = z.uuid();
@@ -54,13 +58,11 @@ export function createVisitorPages(dependencies: {
   visitorService: VisitorService;
   environmentMode: EnvironmentMode;
   publicUrl: string;
-  webDistPath: string | undefined;
 }): VisitorPages {
   const { visitorService, environmentMode } = dependencies;
   const origin = dependencies.publicUrl.replace(/\/+$/, '');
-  const hasLogo =
-    dependencies.webDistPath !== undefined &&
-    existsSync(path.join(path.resolve(dependencies.webDistPath), CLUB_LOGO_PATH));
+  const landingImage =
+    environmentMode === 'production' ? LANDING_IMAGE.production : LANDING_IMAGE.practice;
 
   const addressOf = (sample: VisitorSampleListed) => `/tavole/${sample.tavola.id}`;
 
@@ -128,7 +130,11 @@ export function createVisitorPages(dependencies: {
           title: null,
           description: null,
           url: `${origin}/`,
-          image: hasLogo ? { url: `${origin}${CLUB_LOGO_PATH}`, width: null, height: null } : null,
+          image: {
+            url: `${origin}${landingImage}`,
+            width: LANDING_IMAGE_SIZE,
+            height: LANDING_IMAGE_SIZE,
+          },
         };
       }
 

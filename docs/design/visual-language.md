@@ -178,10 +178,9 @@ A fourth was found later, doing the same arithmetic for the non-production surfa
 which is where it is actually used — the status strip in the footer. It was lifted from 0.625 to
 0.645. **Measure a token against the surface it sits on, not against the page.**
 
-**What is deliberately not here: the Club's logo file.** It carries the association's name, and
-this repository does not hold client-identifying assets (`AGENTS.md`, Security). The *treatment*
-is what makes the two properties look alike, and that is all in `wordmark.tsx` and in these
-tokens; the asset itself is dropped in at deploy time.
+**The Club's logo is here** (ADR 0020, #209): the website's white wordmark, committed under
+`apps/web/public/club/` and set in the graphite header by `wordmark.tsx`. Nothing is dropped in
+at deploy time.
 
 **Capture this again before the Club site is retired.** The measurement above is a snapshot of a
 WordPress theme that is being replaced (club-website tickets 04 and 05). If the rebuild changes

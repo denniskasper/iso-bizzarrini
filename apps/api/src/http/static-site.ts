@@ -46,7 +46,9 @@ export function createStaticSiteHandler(options: {
     }),
   );
 
-  router.use(express.static(root, { index: false, maxAge: '1h' }));
+  // Never redirected to a folder: `/club` is the Administrator's Club screen as well as where the
+  // Club's wordmark is kept (issue #209), and a reload there is owed the app, not `/club/`.
+  router.use(express.static(root, { index: false, redirect: false, maxAge: '1h' }));
 
   // A deep link to a Position must survive a page reload, so unknown paths get the app itself.
   // A Visitor page says what it is in the markup, since a link preview runs no script (issue #133).

@@ -5,9 +5,8 @@ import { Propose } from '@/components/proposals/propose';
 import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { GuidedTour, TourLink } from '@/components/tour/guided-tour';
-import { Wordmark, wordmarkName } from '@/components/wordmark';
+import { Wordmark } from '@/components/wordmark';
 import { ServiceStatusStrip } from '@/components/service-status-strip';
-import { useLegalNotice } from '@/lib/legal';
 import { useWaitingCount } from '@/lib/review';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -20,10 +19,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { account, isAdministrator, isEditor, mayRead, signedIn } = useSession();
   const waiting = useWaitingCount();
   const chrome = useChromeHeight();
-  // The Legal notice's registered name, which is public: the header names the Club for whoever
-  // lands here, signed in or not. A record that could not be read is a record with no name.
-  const notice = useLegalNotice();
-  const clubName = notice.isPending ? undefined : (notice.data?.legalNotice.name ?? null);
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
@@ -57,9 +52,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <a
               href="/"
               className="-mx-2 flex h-control min-w-0 items-center rounded-sm px-2 text-text transition-opacity hover:opacity-70"
-              aria-label={wordmarkName(clubName)}
             >
-              <Wordmark clubName={clubName} />
+              <Wordmark />
             </a>
             {/* Its links wrap too, for an Administrator, and for anybody who may propose: with
                 Readings beside Roster and Club, or Proposals beside Propose, they are wider than
@@ -68,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div
               className={cn(
                 'ml-auto flex items-center gap-1',
-                // Anybody else's links keep their width, and the Club's name gives way to them.
+                // Anybody else's links keep their width, and the Club's wordmark gives way to them.
                 isAdministrator || account?.mayPropose ? 'flex-wrap justify-end' : 'shrink-0',
               )}
             >

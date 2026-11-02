@@ -1,69 +1,49 @@
 import { cn } from '@/lib/utils';
 
+/** The Club's registered name, which its wordmark spells out: what the logo says to a reader. */
+const CLUB_NAME = 'ISO Bizzarrini Club Deutschland e.V.';
+
 /**
- * The wordmark, set the way the Club sets its own: a roundel beside a tall, light, condensed
- * capital in the display face. The Club's lockup is drawn this way, so
- * the archive and the Club site read as one organisation without the archive borrowing the
- * Club's German name — this is the English property.
+ * **The Club's own wordmark, with "Ricambi" beside it** (issue #209, ADR 0020), so a member
+ * recognises the archive as the Club's before reading a word. The logo is the one the Club
+ * website shows in its header, white on transparent, committed under `public/club/` and served
+ * by the app itself: every system shows it, and nothing is mounted at deploy time. It is white,
+ * so it only ever sits on the graphite header.
  *
- * **It names the Club, with "Parts Database" beside it** (issue #107), so a member knows whose
- * archive this is and what it holds. The name is the Club's own record — the registered name the
- * Legal notice prints — and is never written here; while that is blank it says "Ricambi". The
- * name is the one thing in the row allowed to give way: it shortens before the header would wrap
- * on a phone, and "Parts Database" stays whole beside it. `undefined` is "not known yet", which
- * holds the line's height and says nothing, rather than flashing "Ricambi" at every Club.
- *
- * The Club's own logo file is deliberately **not** committed here. It carries the association's
- * name, and this repository does not hold client-identifying assets (`AGENTS.md`, Security);
- * it is dropped in at deploy time. Until it is, the Roundel stands in for it.
+ * "Ricambi" is the product's name in small type until #158 decides it. On a phone it sits under
+ * the logo, so the row keeps its height and its controls their touch size; wherever there is the
+ * room it stands beside it, ruled apart. The logo is the one thing in the row that gives way: it
+ * scales down, keeping its proportions, before the header would wrap.
  */
-export function Wordmark({
-  clubName,
-  className,
-}: {
-  clubName: string | null | undefined;
-  className?: string;
-}) {
+export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex min-w-0 items-center gap-2 sm:gap-3', className)}>
-      <Roundel className="size-6 shrink-0" />
-      {clubName ? (
-        // Stacked on a phone, where a member's row has about ninety pixels for it once Search,
-        // Sign out and the theme are in; side by side, ruled apart, wherever there is the room.
-        <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-          <span
-            className="display min-w-0 truncate text-lg leading-none tracking-wordmark sm:text-2xl"
-            data-testid="club-name"
-          >
-            {clubName}
-          </span>
-          <span className="min-w-0 truncate text-xs text-muted sm:shrink-0 sm:overflow-visible sm:border-l sm:border-line sm:pl-3 sm:text-sm">
-            Parts Database
-          </span>
-        </span>
-      ) : (
-        <span
-          className={cn(
-            'display text-2xl leading-none tracking-wordmark',
-            clubName === undefined && 'invisible',
-          )}
-        >
-          Ricambi
-        </span>
+    <span
+      className={cn(
+        'flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-3',
+        className,
       )}
+    >
+      <img
+        src="/club/wordmark.png"
+        srcSet="/club/wordmark.png 1x, /club/wordmark-retina.png 2x"
+        alt={CLUB_NAME}
+        width={232}
+        height={54}
+        className="h-6 w-auto max-w-full min-w-0 object-contain object-left sm:h-9"
+        data-testid="club-wordmark"
+      />
+      <span className="text-xs leading-none text-muted sm:border-l sm:border-line sm:py-1 sm:pl-3 sm:text-sm">
+        Ricambi
+      </span>
     </span>
   );
-}
-
-/** What the home link is called, which is what the wordmark shows. */
-export function wordmarkName(clubName: string | null | undefined): string {
-  return clubName ? `${clubName} Parts Database` : 'Ricambi';
 }
 
 /**
  * The Club's emblem is a thin-ruled circle quartered by a diagonal cross. Reduced here to its
  * geometry — which doubles as the registration mark a printer aligns a plate with, and every
- * drawing in this archive was printed once.
+ * drawing in this archive was printed once. It stays on the favicon and on empty states; the header
+ * wears the Club's own wordmark.
  */
 export function Roundel({ className }: { className?: string }) {
   return (
