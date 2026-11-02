@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.16.0...v0.17.0) (2026-11-02)
+
+
+### New
+
+* **209:** the header carries the Club's wordmark, with Ricambi beside it ([67da889](https://github.com/denniskasper/iso-bizzarrini/commit/67da889c57e1b35a8cde56f242aafdff376659f1))
+* **parts:** jump to the top or the end of a long parts list ([ce03ea7](https://github.com/denniskasper/iso-bizzarrini/commit/ce03ea71c6ea33a5008cde76ddc96431bcacf055)), closes [#213](https://github.com/denniskasper/iso-bizzarrini/issues/213)
+
+
+### Fixed
+
+* **209:** a reload of the Club screen is answered with the app, not a redirect ([d70aa15](https://github.com/denniskasper/iso-bizzarrini/commit/d70aa15788d0f3297d9f537180f07cd21ef85298))
+
 ## [0.16.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.15.0...v0.16.0) (2026-11-01)
 
 
