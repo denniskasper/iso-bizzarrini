@@ -351,7 +351,8 @@
   --text-display: var(--type-display);
   --text-display--line-height: 1;
 
-  /* The wordmark's tracking, so the one piece of lettering that is a logo is not a literal. */
+  /* The proof stamp's tracking: the one lettering set in capitals, spaced as a stamp is. The
+     Club's wordmark is the Club's own image and sets no type. */
   --tracking-wordmark: 0.12em;
   /* Raleway at size is wide already; drawn in a little, as the website sets its headings. */
   --tracking-display: -0.01em;
