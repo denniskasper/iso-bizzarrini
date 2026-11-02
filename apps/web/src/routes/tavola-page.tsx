@@ -176,6 +176,8 @@ export function TavolaPage() {
   const pointed = pointedAt?.tavolaId === tavolaId ? pointedAt : null;
   /** Where the column keeps the card, once the column is on the page. */
   const [besideHost, setBesideHost] = useState<HTMLDivElement | null>(null);
+  // The head of the facing page, which a long parts list jumps back up to (issue #213).
+  const [panelHead, setPanelHead] = useState<HTMLDivElement | null>(null);
   const beside = useBeside();
   const index = useTavolaListings(tavolaId);
 
@@ -588,7 +590,13 @@ export function TavolaPage() {
           </div>
         </div>
 
-        <div className="relative flex flex-col gap-10" data-testid="part-panel">
+        <div
+          ref={setPanelHead}
+          // `outline-none`: focused by "Back to the top of the parts" to hand on focus, never
+          // tabbed to, so the whole column is not ringed as if it were a control.
+          className="parts-jump-target relative flex flex-col gap-10 outline-none"
+          data-testid="part-panel"
+        >
           {/* Where the card for a pointed-at circle is shown, over the top of this column and
               level with the sheet, so the drawing itself is never covered. */}
           <div ref={setBesideHost} className="absolute inset-x-0 top-0 z-5 h-0" />
@@ -633,6 +641,7 @@ export function TavolaPage() {
             positions={positions}
             selectedPositionId={selectedPosition?.id ?? null}
             onSelect={goTo}
+            head={panelHead}
           />
 
           {/* Last on the facing page, and beside the drawing rather than below it: the numbers
