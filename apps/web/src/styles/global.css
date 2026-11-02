@@ -34,7 +34,9 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Every heading is the Club website's: Raleway 500, the only weight it ships in. */
+  /* Every heading is the Club website's: Raleway 500, the only weight it ships in. Raleway's
+     default figures are old-style, which drop the 3 and 5 of "5300 GT" below the line; a
+     model's number is part of its name, so its figures stand on the line with its letters. */
   h1,
   h2,
   h3,
@@ -43,6 +45,7 @@
   h6 {
     font-family: var(--font-display);
     font-weight: 500;
+    font-variant-numeric: lining-nums;
   }
 
   /* Every number in this archive is an identifier. Tabular figures keep columns of them
@@ -89,6 +92,13 @@
     font-family: var(--font-display);
     font-weight: 500;
     letter-spacing: var(--tracking-display);
+    /* Lining figures, as on the headings above. */
+    font-variant-numeric: lining-nums;
+  }
+
+  /* A display number that is also a column's, such as a sum spent, keeps its tabular figures. */
+  .display.tabular {
+    font-variant-numeric: lining-nums tabular-nums;
   }
 
   /*
@@ -128,9 +138,20 @@
     row-gap: --spacing(3);
     padding-block: --spacing(8);
     border-top: 1px solid var(--line);
+    container-type: inline-size;
   }
 
+  /*
+   * **A car's name is sized by its row, not by the window**, so it stays on one line. The row is
+   * the container: on a desk the list stops widening long before the window does, and on a phone
+   * the poster minimum would push a long name onto a second line. The display size is still
+   * the ceiling. Raleway sets "5300 GT Strada", the longest name, at about seven ems; 13cqi leaves
+   * it room on a phone's single column, and 11cqi room beside the years from `sm` up. A longer
+   * name still wraps, balanced, rather than running off the row.
+   */
   .catalog-row .catalog-name {
+    font-size: min(var(--text-display), 13cqi);
+    line-height: var(--text-display--line-height);
     transition: color 150ms var(--ease-out-quick);
   }
 
@@ -141,7 +162,13 @@
   @media (width >= 40rem) {
     .catalog-row {
       grid-template-columns: 1fr auto;
+      /* The years stand on the name's line, whatever size the name is drawn at. */
+      align-items: last baseline;
       padding-block: --spacing(12);
+    }
+
+    .catalog-row .catalog-name {
+      font-size: min(var(--text-display), 11cqi);
     }
   }
 
