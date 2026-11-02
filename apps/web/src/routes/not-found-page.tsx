@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 export function NotFoundPage() {
   return (
     <div className="animate-rise">
-      <h1 className="text-4xl font-semibold sm:text-5xl">There is nothing here.</h1>
+      <h1 className="text-4xl sm:text-5xl">There is nothing here.</h1>
       <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
         The address you followed does not point at anything in the archive.
       </p>

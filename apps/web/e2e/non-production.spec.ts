@@ -89,9 +89,13 @@ test.describe('a system that is not the real archive', () => {
     );
   });
 
-  for (const colorScheme of ['light', 'dark'] as const) {
-    test.describe(`in the ${colorScheme} theme`, () => {
-      test.use({ colorScheme });
+  for (const theme of ['light', 'dark'] as const) {
+    test.describe(`in the ${theme} theme`, () => {
+      test.beforeEach(async ({ page }) => {
+        await page.addInitScript((chosen) => {
+          window.localStorage.setItem('ricambi.theme', chosen);
+        }, theme);
+      });
 
       test("wears production's surfaces and rules, so the band alone says what it is", async ({
         page,

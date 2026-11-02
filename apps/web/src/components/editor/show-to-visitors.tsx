@@ -37,7 +37,7 @@ export function useShowToVisitors(tavolaId: string, onShown: () => void) {
  * they can do about that: show it, open another number, stop showing it.
  *
  * Plain and quiet, in the dashed band the Unchecked state wears, because it is a statement about
- * who sees the sheet rather than something done to it. The screen's one champagne action stays
+ * who sees the sheet rather than something done to it. The screen's one teal action stays
  * the drawing's; showing it to the public is an outline, chosen deliberately rather than pressed
  * in passing.
  */
@@ -68,7 +68,7 @@ export function ShowToVisitors({
       data-testid="show-to-visitors"
     >
       <div className="max-w-measure">
-        <h2 id="visitors" className="text-lg font-semibold">
+        <h2 id="visitors" className="text-lg">
           Visitors
         </h2>
         {picking ? (

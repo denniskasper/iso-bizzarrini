@@ -5,10 +5,10 @@
  * plainness. The drawing is the hero; this is the instrument around it. See
  * docs/design/visual-language.md for the reasoning behind every value below.
  *
- * **The surfaces, rules and text here are the Club's own, measured from the live Club site**
- * and converted to OKLCH. **The accent is not** (ADR 0014): it is a pair of Ricambi's own —
- * champagne for what is pressed, ice blue for what points at a drawing — chosen against the
- * Club's graphite in the design prototype on the `prototype/ricambi-design` branch.
+ * **Ricambi wears the Club website's identity** (ADR 0020): its graphite frame, its white page,
+ * its teal `#2ba0a3` as the one accent and its heading face, measured from the live site's
+ * stylesheets and converted to OKLCH. **The one colour that is not the website's is the Mark**,
+ * which is chosen for the paper of a scan and never for the brand.
  *
  * Feature code consumes the semantic names (`bg-surface`, `text-muted`, `border-line`) and
  * never the raw values. If a colour, size or radius is written inline in a component, it is a
@@ -20,16 +20,19 @@
 /* ---------------------------------------------------------------------------
  * Theme surfaces
  *
- * Dark is the default, and the Club's own site agrees: its chrome is a cool graphite and its
- * hero is near-black. A scan is black lines on white paper, so graphite chrome also makes the
- * drawing the brightest thing on screen, which is what a phone in a dim garage wants.
- * `surface-raised` is the Club's chrome exactly; the page, and the archive's own header, sit a
- * step below it.
+ * **Light is the default**, as on the Club website: a white page framed by a graphite header
+ * and footer. Dark is one press away, and a member who chose it keeps it (`public/theme.js`).
+ *
+ * The header and footer are graphite in both themes. They are the `.chrome` scope below, which
+ * wears the dark theme's values whatever the page does, so the frame is the website's graphite
+ * (`surface-raised` in dark is `#24272d`, measured) and everything in it is measured against
+ * graphite, as it is in the dark theme.
  * ------------------------------------------------------------------------ */
 
 :root {
-  /* Paper (light) — the Club's site is dark chrome on white. */
-  --surface: oklch(0.985 0.002 264);
+  /* The Club website's white page. Raised surfaces are white too, and are told apart from the
+     page by their rule, which is how the website does it. */
+  --surface: oklch(1 0 0);
   --surface-raised: oklch(1 0 0);
   --surface-sunken: oklch(0.965 0.003 264);
 
@@ -41,7 +44,7 @@
    * Paper. **The one surface that is identical in both themes**, because a factory drawing is
    * black lines on white and the sheet it was printed on does not care what the reader's phone
    * is set to. Every scan sits on this, so the drawing is the brightest thing on a dark screen —
-   * which is the whole argument for dark chrome, made literal.
+   * which is what a phone in a dim garage wants.
    */
   --paper: oklch(1 0 0);
 
@@ -54,56 +57,70 @@
   --scrim: oklch(0.279 0.015 257 / 0.55);
 
   /*
-   * A Mark on a drawing: ice blue, the pointing half of the accent pair. **Not themed**, like
-   * paper, because it only ever sits on paper — so it is the deep end of the ice-blue hue
-   * rather than the pale one the dark chrome uses for text. 4.8:1 on paper, clearing the 3:1 a
-   * mark that carries no text needs.
+   * A Mark on a drawing: **ultramarine, and never the accent** (ADR 0020). Teal says "press
+   * this"; a Mark says "this is the thing on the drawing", and the two must not be confused. It
+   * is chosen for the paper of a scan and for nothing else, against two other candidates
+   * (a violet, `oklch(0.5 0.2 300)`, and the retired deep blue, `oklch(0.55 0.1 243)`):
+   *
+   * - 6.3:1 on paper white and 4.6:1 on an aged sheet (`#e6dcc3`), where the deep blue fell to
+   *   3.5:1. A Position number on a scan is printed in black ink, and a blue at twice the
+   *   chroma of anything else on the page is the colour a yellowed sheet and its ink are not.
+   * - 68 degrees of hue from the teal (266 against 198) at twice its chroma, and darker than the
+   *   teal fill: ΔE (OKLab) 0.24 from it, where the deep blue was 0.12 from the teal for text.
+   * - The violet stood out as well but sits 25 degrees from Development's magenta band.
+   *
+   * **Not themed**, like paper, because it only ever sits on paper.
    *
    * The wash is what makes a ring a *target* rather than another circle the factory printed;
-   * `mark-held` is the same blue at the weight a Position being read deserves, because that is
+   * `mark-held` is the same ultramarine at the weight a Position being read deserves, because that is
    * the one dominant thing on a screen whose dominant thing is otherwise a drawing.
    */
-  --mark: oklch(0.55 0.1 243);
+  --mark: oklch(0.5 0.2 266);
   --mark-wash: color-mix(in oklch, var(--mark) 12%, transparent);
   --mark-held: color-mix(in oklch, var(--mark) 34%, transparent);
   /* What sits on a Mark's own colour, as a chip naming the Position being read: paper white,
-     at the same 4.8:1 the Mark has on paper. */
+     at the same 6.3:1 the Mark has on paper. */
   --mark-contrast: oklch(1 0 0);
   /*
    * A circle that is **not** in the Sub-assembly a member asked to see — the fourth weight the
-   * ice blue has, and the only one that is deliberately below the 3:1 bar every other non-text
-   * mark clears (1.5:1 on paper, measured). It is the navigator's scrim applied to circles rather
+   * Mark has, and the only one that is deliberately below the 3:1 bar every other non-text
+   * mark clears (1.6:1 on paper, measured). It is the navigator's scrim applied to circles rather
    * than to the sheet: what recedes is what the member has just said they are not asking about,
    * it is still there, still hittable at its full touch size, and one press brings it back.
    */
   --mark-receded: color-mix(in oklch, var(--mark) 30%, transparent);
   /*
-   * Inside a Sub-assembly's outline (issue #113): the Mark's blue at a tenth, lighter than the
+   * Inside a Sub-assembly's outline (issue #113): the Mark's ultramarine at a tenth, lighter than the
    * wash in a circle, because an outline can cover a quarter of a sheet and the factory's print
    * has to read straight through it. The line round it is `--mark` itself.
    */
   --outline-fill: color-mix(in oklch, var(--mark) 10%, transparent);
 
-  /* The Club's heading ink and body grey. `faint` clears 4.6:1 on the page. */
+  /* The Club's heading ink and body grey. `faint` clears 5.2:1 on the page and 4.7:1 sunken. */
   --text: oklch(0.279 0.015 257);
   --text-muted: oklch(0.45 0.009 261);
   --text-faint: oklch(0.535 0.009 264);
 
   /*
-   * The accent pair (ADR 0014). `accent` is **champagne**, the fill of the one dominant action;
-   * `accent-ink` is **ice blue**, the colour of anything that points — a link, a Position's
-   * number. Paper is where champagne is weakest, so the light theme takes
-   * both from the deep end of their hues: white sits on the bronze fill at 5.8:1, and the blue
-   * clears 6:1 on every light surface. Hover darkens the fill, which only adds contrast.
+   * **The Club's teal, the one accent** (ADR 0020): the fill of what is pressed, and the colour
+   * of a link.
+   *
+   * - `accent` is the website's `#2ba0a3` exactly, as a fill. White on it is only 3.2:1, so what
+   *   sits on it is the graphite ink, at 4.8:1; the fill itself clears 3:1 on the white page.
+   *   Hover lifts it, which only adds contrast to the ink (5.4:1).
+   * - `accent-ink` is the teal **darkened along its own hue** until it carries text: 5.8:1 on
+   *   white and 5.2:1 on the sunken surface, the lowest it sits on. Two other shades were
+   *   measured, at 0.52 and 0.53 lightness: 4.7:1 and 4.5:1 sunken, which clear the bar with
+   *   nothing to spare for a phone in poor light.
    */
-  --accent: oklch(0.5 0.07 87);
-  --accent-hover: oklch(0.44 0.07 87);
-  --accent-ink: oklch(0.47 0.09 243);
-  --accent-contrast: oklch(0.99 0 0);
+  --accent: oklch(0.645 0.099 197.6);
+  --accent-hover: oklch(0.68 0.1 197.6);
+  --accent-ink: oklch(0.5 0.085 197.6);
+  --accent-contrast: oklch(0.272 0.012 264);
 
   /*
    * The focus ring is **ink**: the text colour, the strongest contrast the surface has, so it is
-   * found in poor light and is never mistaken for either accent. 14.6:1 here, 13.7:1 on graphite.
+   * found in poor light and is never mistaken for the accent or a Mark. 14.6:1 here, 13.7:1 on graphite.
    *
    * A Mark is focused on paper whatever the theme, so it has its own ring, which is this theme's
    * value and is not themed.
@@ -144,7 +161,7 @@
 
 /*
  * **Development wears its own stamp**: the same band, in a magenta the Club uses nowhere either
- * (325°, as far from Integration's orange as from the ice blue at 243°), so a developer moving
+ * (325°, as far from Integration's orange as from the Mark at 266°), so a developer moving
  * between their own machine and Integration can tell them apart at a glance, before reading a
  * word. Same lightness as the orange, so the ink sits on it as well.
  */
@@ -154,8 +171,13 @@
   --demo-hatch: oklch(0.46 0.15 325);
 }
 
-.dark {
-  /* Graphite — `surface-raised` is the Club's chrome, measured. */
+/*
+ * The dark theme, and **the graphite chrome in either theme**: the header and footer are
+ * `.chrome`, so they wear these values on a white page too.
+ */
+.dark,
+.chrome {
+  /* Graphite — `surface-raised` is the Club's chrome, `#24272d`, measured. */
   --surface: oklch(0.205 0.012 264);
   --surface-raised: oklch(0.272 0.012 264);
   --surface-sunken: oklch(0.168 0.011 264);
@@ -169,17 +191,22 @@
      `surface-raised`, which is where it is actually used — the status strip in the footer. */
   --text-faint: oklch(0.645 0.009 264);
 
-  /* Champagne under graphite ink at 9.5:1; ice blue as text at 10:1 on the chrome. Hover lifts
-     the fill, which only adds contrast to the ink on it. */
-  --accent: oklch(0.795 0.06 87);
-  --accent-hover: oklch(0.84 0.06 87);
-  --accent-ink: oklch(0.865 0.045 243);
-  --accent-contrast: oklch(0.2 0.012 264);
+  /* The teal fill is the same as on white: 5.7:1 on the dark page and 4.8:1 on graphite, under
+     the same graphite ink. As text it is lifted along its hue, to 7.2:1 on graphite and 8.7:1 on
+     the page. */
+  --accent-ink: oklch(0.76 0.09 197.6);
 
   --focus: oklch(0.97 0.002 264);
   --alarm: oklch(0.76 0.13 25);
 
   --shadow-card: 0 0.75rem 2rem oklch(0 0 0 / 0.5);
+}
+
+/* Text with no colour of its own inherits the body's, which on a white page is the light ink:
+   in the graphite chrome it takes the chrome's. */
+.chrome {
+  color: var(--text);
+  color-scheme: dark;
 }
 
 /* ---------------------------------------------------------------------------
@@ -282,10 +309,10 @@
   --color-alarm: var(--alarm);
 
   /* ---- Type ------------------------------------------------------------
-   * Two faces and the numbers. **Barlow Condensed** for display and the wordmark — the nearest
-   * open face to the tall, light, condensed capital the Club sets its own lockup in — used only
-   * at size, through the `.display` class. **Open Sans**, the Club's own body face, for
-   * everything that is read, headings included.
+   * Two faces and the numbers, all three the Club website's or additive to it. **Raleway 500**,
+   * the website's heading face, for every heading and for display lettering through the
+   * `.display` class. **Open Sans**, the website's body face, for everything that is read and
+   * for the interface.
    *
    * IBM Plex Mono is ours, and additive: every number the factory printed. Catalog Number,
    * Disegno Origine, Tavola and Position numbers are identifiers to be compared character by
@@ -293,7 +320,7 @@
    * proportional. The Club site has no such need and therefore no opinion.
    * -------------------------------------------------------------------- */
   --font-sans: 'Open Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: 'Barlow Condensed', 'Open Sans Variable', ui-sans-serif, sans-serif;
+  --font-display: 'Raleway', 'Open Sans Variable', ui-sans-serif, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
 
   /* The step itself is in `:root` and its wide-screen companion, above: these only name it. */
@@ -322,12 +349,12 @@
   /* The display face at poster size: a car's name, a front door. Fluid, because a phone and a
      desk both deserve the name to fill the line. Only ever set through `.display`. */
   --text-display: var(--type-display);
-  --text-display--line-height: 0.9;
+  --text-display--line-height: 1;
 
   /* The wordmark's tracking, so the one piece of lettering that is a logo is not a literal. */
   --tracking-wordmark: 0.12em;
-  /* A condensed capital set light needs air between its letters to stay legible at a distance. */
-  --tracking-display: 0.03em;
+  /* Raleway at size is wide already; drawn in a little, as the website sets its headings. */
+  --tracking-display: -0.01em;
 
   /*
    * **The card a Mark shows on a pointer** (issue #35) scales with the screen it is read on, and
@@ -337,7 +364,7 @@
    */
   --text-card: clamp(1rem, 0.7rem + 0.55vw, 1.3rem);
   --text-card--line-height: 1.45;
-  /* Its one larger size: the Position number, read first, on the Mark's own blue. Nothing in
+  /* Its one larger size: the Position number, read first, on the Mark's own ultramarine. Nothing in
      the card is smaller than `--text-card` — a quieter line is muted, not shrunk. */
   --text-card-number: calc(var(--text-card) * 1.6);
   --text-card-number--line-height: 1.25;

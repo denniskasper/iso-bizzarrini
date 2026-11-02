@@ -40,7 +40,7 @@ export function VisitorTavola({ tavolaId }: { tavolaId: string }) {
         className="mb-24 border-b border-line pb-16"
         data-testid="members-only-tavola"
       >
-        <h2 id="for-members" className="text-3xl font-semibold text-balance">
+        <h2 id="for-members" className="text-3xl text-balance">
           This drawing is for members.
         </h2>
         <p className="mt-4 max-w-measure text-lg text-pretty text-muted">
@@ -111,7 +111,7 @@ function SampleView({ sample }: { sample: VisitorSample }) {
           Tavola <span className="tabular text-text">{tavola.number}</span>
         </span>
       </p>
-      <h1 className="mt-2 text-3xl font-semibold text-balance sm:text-4xl">{tavola.nameIt}</h1>
+      <h1 className="mt-2 text-3xl text-balance sm:text-4xl">{tavola.nameIt}</h1>
       <p className="mt-1 text-lg text-muted">{tavola.nameEn}</p>
       <p className="mt-4 max-w-measure text-pretty text-muted">
         A drawing from the Club’s archive, shown with number{' '}
@@ -201,7 +201,7 @@ function ListedPart({ listing }: { listing: VisitorListing }) {
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="text-lg font-semibold text-pretty">{heading}</h3>
+        <h3 className="text-lg text-pretty">{heading}</h3>
         {listing.quantityPerCar !== null && (
           <p className="shrink-0 text-sm text-muted">
             <span className="sr-only">Quantity </span>

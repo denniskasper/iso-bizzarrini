@@ -73,7 +73,7 @@ export function RosterImport() {
 
   return (
     <div className="animate-rise">
-      <h1 className="text-4xl font-semibold text-balance">Load the roster from a spreadsheet</h1>
+      <h1 className="text-4xl text-balance">Load the roster from a spreadsheet</h1>
       <p className="mt-6 max-w-measure text-lg text-pretty text-muted">
         Pick the Club's membership list, saved from your spreadsheet as a CSV. Nothing is recorded
         until you have read what it will do — and nothing an import does can take anybody's access

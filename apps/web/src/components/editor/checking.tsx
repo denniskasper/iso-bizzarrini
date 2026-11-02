@@ -70,7 +70,7 @@ export function ReadingDoubts({
         <p className="text-sm text-muted">No doubts are left to look at.</p>
       ) : (
         <div>
-          <h3 className="text-base font-semibold">
+          <h3 className="text-base">
             {doubts.length === 1 ? '1 doubt' : `${doubts.length} doubts`}
           </h3>
           <p className="mt-1 text-sm text-pretty text-muted">
@@ -238,7 +238,7 @@ export function CheckingSheets({
 
   return (
     <section aria-labelledby="checking-sheets" data-testid="checking-sheets">
-      <h2 id="checking-sheets" className="text-2xl font-semibold">
+      <h2 id="checking-sheets" className="text-2xl">
         The factory’s table sheets
       </h2>
       <p className="mt-2 max-w-measure text-pretty text-muted">

@@ -66,8 +66,8 @@ export function Propose({ className }: { className: string }) {
       >
         Propose
       </button>
-      {/* On the page's body rather than in the graphite header the button sits in, so the
-          panel wears the theme the member chose. */}
+      {/* On the page and not in the header the button sits in: the header is the graphite
+          `.chrome` scope, and the panel wears the theme the page does (ADR 0020). */}
       {open &&
         createPortal(
           <ProposalPanel

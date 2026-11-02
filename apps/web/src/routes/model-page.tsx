@@ -32,7 +32,7 @@ export function ModelPage() {
   if (isError) {
     return (
       <div className="animate-rise">
-        <h1 className="text-3xl font-semibold">That car is not in the archive.</h1>
+        <h1 className="text-3xl">That car is not in the archive.</h1>
         <p className="mt-6 max-w-measure text-pretty text-muted">{error.message}</p>
         <Link to="/" className="mt-8 inline-block text-accent-ink underline underline-offset-4">
           Back to the catalog

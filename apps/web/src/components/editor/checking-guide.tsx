@@ -44,7 +44,7 @@ export function CheckingGuide() {
         </ol>
 
         <div>
-          <h3 className="text-base font-semibold">The doubts you will see most</h3>
+          <h3 className="text-base">The doubts you will see most</h3>
           <dl className="mt-3 flex flex-col gap-4">
             <div>
               <dt className="text-text">

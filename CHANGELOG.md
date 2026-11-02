@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.15.0...v0.16.0) (2026-11-01)
+
+
+### New
+
+* **207:** Ricambi has a favicon and home-screen icons, and a practice system's are tinted ([6c0c105](https://github.com/denniskasper/iso-bizzarrini/commit/6c0c105af1f14beb4dae334374d90ac6f8196d3d))
+* **208:** Ricambi wears the Club's teal, opens on a white page, and sets headings in Raleway ([fae8117](https://github.com/denniskasper/iso-bizzarrini/commit/fae81174c1b9c456fe0e20b13a645cde1ae9b64f))
+
+
+### Fixed
+
+* **208:** the Propose panel wears the page's theme, not the graphite header's ([10d7816](https://github.com/denniskasper/iso-bizzarrini/commit/10d781689d9b2cd6013ab3de4bbc1b69d4892ee4))
+
 ## [0.15.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.14.0...v0.15.0) (2026-11-01)
 
 

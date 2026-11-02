@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
  * ones from: the Contribution that has waited longest is the one on the screen, beside the
  * record it is about, and deciding it brings up the next. That is "nobody's is forgotten" made
  * into the shape of the page rather than left to an Editor's conscience — and it is why there is
- * one champagne button here and not one a Contribution.
+ * one teal button here and not one a Contribution.
  *
  * Everything else still waiting is listed underneath, in order, with its place in the line. An
  * Editor may open one out of turn, because a photograph of a part on somebody's bench is

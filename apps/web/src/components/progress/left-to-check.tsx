@@ -28,7 +28,7 @@ export function LeftToCheck({
       className={cn('tavola-unchecked', className)}
       data-testid="left-to-check"
     >
-      <h2 id="left-to-check" className="text-lg font-semibold">
+      <h2 id="left-to-check" className="text-lg">
         Left to check
       </h2>
       <p className="mt-1 max-w-measure text-pretty text-muted">

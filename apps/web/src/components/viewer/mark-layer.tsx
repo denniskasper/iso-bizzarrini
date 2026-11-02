@@ -8,8 +8,8 @@ import { fraction } from './viewport';
  * *choose your car, open the drawing, click the position, read the part.*
  *
  * **A ring and never a disc.** What a Mark points at is printed underneath it, and a filled dot
- * would cover the very number a member is trying to read. It is ice blue, the pointing
- * half of the accent pair (ADR 0014).
+ * would cover the very number a member is trying to read. It is the Mark's own ultramarine,
+ * chosen for a scan's paper and never the accent (ADR 0020).
  *
  * **The layer knows nothing about zoom.** It positions every circle as a percentage of the
  * drawing, inside the drawing's own coordinate space, so the single transform that pans and

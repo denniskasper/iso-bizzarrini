@@ -214,7 +214,7 @@ function Sending({ plan }: { plan: ReminderPlan }) {
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
     <section className="mt-14">
-      <h2 className="text-2xl font-semibold text-balance">{title}</h2>
+      <h2 className="text-2xl text-balance">{title}</h2>
       {note && <p className="mt-3 text-pretty text-muted">{note}</p>}
       <div className="mt-6">{children}</div>
     </section>
@@ -284,7 +284,7 @@ function Treasurer({ digest, windowDays }: { digest: ReminderPlan['digest']; win
 
   return (
     <section className="mt-20 border-t border-line pt-10">
-      <h2 className="text-2xl font-semibold">For the treasurer</h2>
+      <h2 className="text-2xl">For the treasurer</h2>
       <p className="mt-3 text-pretty text-muted">
         Who is about to run out and who just has, with the reference to look for on the bank
         statement. Sent weekly while reminders are on and there is somebody to list

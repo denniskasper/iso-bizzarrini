@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
  * factory number in this archive, ruled, and wearing the archive's broken rule when the drawing
  * does not print them.
  *
- * Ice blue marks the one being read, which the visual language sanctions for a Mark **and
+ * The Mark's ultramarine marks the one being read, which the visual language sanctions for a Mark **and
  * the Position it belongs to wherever else that Position appears** — the circle on the sheet and
  * this chip are one thing being pointed at.
  */

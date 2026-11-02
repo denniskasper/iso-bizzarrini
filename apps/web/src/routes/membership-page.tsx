@@ -41,7 +41,7 @@ export function MembershipPage() {
     return (
       <div className="mx-auto max-w-measure animate-rise">
         <Roundel className="size-7 text-muted" />
-        <h1 className="mt-8 text-4xl font-semibold text-balance">Sign in first.</h1>
+        <h1 className="mt-8 text-4xl text-balance">Sign in first.</h1>
         <p className="mt-6 text-lg text-pretty text-muted">
           Your Membership is yours to see, and nobody else’s. Signing in is where that starts.
         </p>
@@ -203,7 +203,7 @@ function BankTransfer({ alone }: { alone: boolean }) {
 
   return (
     <div className="mt-14 border-t border-line pt-10">
-      <h2 className="text-2xl font-semibold text-balance">
+      <h2 className="text-2xl text-balance">
         {alone ? 'Paying by bank transfer' : 'Or pay by bank transfer'}
       </h2>
       <HowToPay renewal={renewal.data.renewal} />
@@ -218,7 +218,7 @@ function Payments({ payments }: { payments: MembershipPayment[] }) {
 
   return (
     <section className="mt-14 border-t border-line pt-10">
-      <h2 className="text-2xl font-semibold">What you have paid</h2>
+      <h2 className="text-2xl">What you have paid</h2>
       <ul className="mt-6 border-b border-line" data-testid="payments">
         {payments.map((payment) => (
           <li key={payment.id} className="payment-row">

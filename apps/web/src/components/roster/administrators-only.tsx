@@ -36,7 +36,7 @@ export function AdministratorsOnly({
     return (
       <div className="mx-auto max-w-measure animate-rise">
         <Roundel className="size-7 text-muted" />
-        <h1 className="mt-8 text-4xl font-semibold text-balance">Sign in first.</h1>
+        <h1 className="mt-8 text-4xl text-balance">Sign in first.</h1>
         <p className="mt-6 text-lg text-pretty text-muted">
           {what} is kept by the Club's Administrators. Signing in is where that starts.
         </p>
@@ -51,7 +51,7 @@ export function AdministratorsOnly({
     return (
       <div className="mx-auto max-w-measure animate-rise">
         <Roundel className="size-7 text-muted" />
-        <h1 className="mt-8 text-4xl font-semibold text-balance">{what} is the Club's to keep.</h1>
+        <h1 className="mt-8 text-4xl text-balance">{what} is the Club's to keep.</h1>
         <p className="mt-6 text-lg text-pretty text-muted">
           Only an Administrator can see it. If something about your own Membership is wrong, the
           Club office can put it right.
