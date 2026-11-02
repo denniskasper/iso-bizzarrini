@@ -310,6 +310,43 @@
     gap: 1rem;
   }
 
+  /* Where a jump up or down the parts lands (issue #213): clear of the chrome above, and off the
+     window's foot below, by the same gap the drawing keeps from the chrome. */
+  .parts-jump-target {
+    scroll-margin-top: calc(var(--chrome-height, 0px) + --spacing(6));
+    scroll-margin-bottom: --spacing(6);
+  }
+
+  /* The arrows themselves: each pinned to the edge of the window it goes to and centred on the
+     list. The pin has no height, so it takes no room in the list; the pill hangs inward from it. */
+  .parts-jump {
+    position: sticky;
+    z-index: 5;
+    height: 0;
+  }
+
+  .parts-jump > * {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+  }
+
+  .parts-jump-top {
+    top: calc(var(--chrome-height, 0px) + --spacing(4));
+  }
+
+  .parts-jump-top > * {
+    top: 0;
+  }
+
+  .parts-jump-bottom {
+    bottom: --spacing(4);
+  }
+
+  .parts-jump-bottom > * {
+    bottom: 0;
+  }
+
   /* The column sticks rather than the drawing, so the tools under the sheet stay with it; the
      drawing takes whatever height they leave. */
   @media (width >= 64rem) {
