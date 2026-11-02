@@ -7,6 +7,7 @@ import { ModelProgress } from '@/components/progress/model-progress';
 import { TavolaSheet } from '@/components/tavola-plate';
 import { api } from '@/lib/api';
 import { drawings, filedUnder, filterChoices, UNCATEGORISED } from '@/lib/categories';
+import { useSession } from '@/lib/session';
 
 /**
  * One car, and every drawing the factory made of it.
@@ -19,6 +20,7 @@ import { drawings, filedUnder, filterChoices, UNCATEGORISED } from '@/lib/catego
 export function ModelPage() {
   const { modelId } = useParams({ from: '/models/$modelId' });
   const { category: asked } = useSearch({ from: '/models/$modelId' });
+  const { isEditor } = useSession();
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['model', modelId],
@@ -78,7 +80,8 @@ export function ModelPage() {
 
       <LeftToCheck tavole={tavole} className="mt-12" />
 
-      <NewTavolaForm modelId={modelId} className="mt-12" />
+      {/* Adding a Tavola is an Editor's; a Member reads the ones there are (issue #220). */}
+      {isEditor && <NewTavolaForm modelId={modelId} className="mt-12" />}
 
       {tavole.length > 0 && (
         <div className="mt-16">

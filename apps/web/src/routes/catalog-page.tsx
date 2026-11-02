@@ -17,7 +17,7 @@ export function CatalogPage() {
     queryKey: ['models'],
     queryFn: api.models,
   });
-  const { isAdministrator } = useSession();
+  const { isEditor, isAdministrator } = useSession();
 
   return (
     // On a desk the words that open the archive sit beside its list of cars rather than above
@@ -59,7 +59,8 @@ export function CatalogPage() {
           </Link>
         </p>
 
-        <NewModelForm className="mt-12" />
+        {/* Adding a Model is an Editor's; a Member reads the list (issue #219). */}
+        {isEditor && <NewModelForm className="mt-12" />}
         {isAdministrator && <ShownToVisitors className="mt-12" />}
       </div>
 
