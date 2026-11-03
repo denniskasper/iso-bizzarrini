@@ -1,0 +1,49 @@
+# PROTOTYPE — throwaway. The real site's content model is decided in the Club website's repo.
+backend:
+  name: test-repo
+media_folder: static/images
+public_folder: /images
+collections:
+  - name: seiten
+    label: Seiten
+    files:
+      - name: startseite
+        label: Startseite
+        file: content/seiten/startseite.md
+        fields:
+          - { name: title, label: Überschrift, widget: string }
+          - { name: einleitung, label: Einleitung, widget: text }
+          - { name: bild, label: Titelbild, widget: image, required: false }
+          - { name: body, label: Text, widget: markdown }
+      - name: club
+        label: Über den Club
+        file: content/seiten/club.md
+        fields:
+          - { name: title, label: Überschrift, widget: string }
+          - { name: bild, label: Bild, widget: image, required: false }
+          - { name: body, label: Text, widget: markdown }
+  - name: termine
+    label: Termine
+    label_singular: Termin
+    folder: content/termine
+    create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    summary: "{{datum | date('DD.MM.YYYY')}} – {{title}}"
+    sortable_fields: [datum, title]
+    fields:
+      - { name: title, label: Titel, widget: string }
+      - { name: datum, label: Datum, widget: datetime, time_format: false, date_format: DD.MM.YYYY }
+      - { name: ort, label: Ort, widget: string }
+      - { name: bild, label: Bild, widget: image, required: false }
+      - { name: body, label: Beschreibung, widget: markdown }
+  - name: neuigkeiten
+    label: Neuigkeiten
+    label_singular: Neuigkeit
+    folder: content/neuigkeiten
+    create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    fields:
+      - { name: title, label: Titel, widget: string }
+      - { name: datum, label: Datum, widget: datetime, time_format: false, date_format: DD.MM.YYYY }
+      - { name: bild, label: Bild, widget: image, required: false }
+      - { name: body, label: Text, widget: markdown }

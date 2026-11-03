@@ -1,0 +1,5 @@
+body { font: 17px/1.6 system-ui, "Open Sans", sans-serif; color: #2b2d31; padding: 1.5rem; }
+h1, h2, h3 { color: #2b2d31; line-height: 1.25; }
+h1 { border-bottom: 3px solid #2ba0a3; padding-bottom: .4rem; }
+a { color: #2ba0a3; }
+img { max-width: 100%; height: auto; border-radius: 6px; }
