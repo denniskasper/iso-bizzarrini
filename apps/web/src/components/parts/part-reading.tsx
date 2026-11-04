@@ -8,6 +8,7 @@ import {
   MachineTranslationTag,
 } from '@/components/machine-translation';
 import { PartPhotographs } from '@/components/parts/part-photographs';
+import { TypedByTheClub } from '@/components/viewer/mark-card';
 import { Refusal } from '@/components/ui/field';
 import {
   api,
@@ -18,6 +19,7 @@ import {
   type Position,
 } from '@/lib/api';
 import { usePositionContributions } from '@/lib/contributions';
+import { markOn } from '@/lib/positions';
 import {
   EQUIVALENT_KIND_LABELS,
   SOURCE_CONDITION_LABELS,
@@ -152,6 +154,7 @@ function Reading({
       <p className="mt-3 max-w-measure text-sm text-pretty text-faint">
         {describeMarks(position, markId)}
       </p>
+      {markOn(position, markId)?.illegible && <TypedByTheClub />}
 
       {/*
        * **What belongs with the number, above what sits at it.** Both are facts about this

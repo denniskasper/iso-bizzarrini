@@ -62,7 +62,13 @@ function toPositions(sample: VisitorSample): Position[] {
   return sample.positions.map((position) => ({
     id: position.number,
     number: position.number,
-    marks: position.marks.map((mark, index) => ({ ...mark, id: `${position.number}:${index}` })),
+    // Every circle an ordinary ring: a Sample carries nothing the club added, and a number typed
+    // over an unreadable print is the club's (issue #234).
+    marks: position.marks.map((mark, index) => ({
+      ...mark,
+      id: `${position.number}:${index}`,
+      illegible: false,
+    })),
     subAssemblyId: null,
     related: [],
   }));

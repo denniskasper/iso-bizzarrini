@@ -46,6 +46,23 @@ async function whereOnTheSheet(page: Page, mark: Locator): Promise<{ x: number; 
   return { x: (at.x - sheet.x) / sheet.width, y: (at.y - sheet.y) / sheet.height };
 }
 
+/**
+ * Whether the digits typed over an unreadable print sit inside their ring: narrower than the
+ * inside of the heaviest ring a circle wears (a seventh of it, on the one being read), and
+ * centred on it. Measured on the glass, at whatever magnification it is at.
+ */
+async function digitsFitTheirRing(mark: Locator): Promise<boolean> {
+  return mark.getByTestId('drawing-mark-number').evaluate((disc) => {
+    const range = document.createRange();
+    range.selectNodeContents(disc);
+    const digits = range.getBoundingClientRect();
+    const ring = disc.getBoundingClientRect();
+    const inside = ring.width * (1 - 2 / 7);
+    const centred = Math.abs(digits.x + digits.width / 2 - (ring.x + ring.width / 2)) < 1;
+    return digits.width > 0 && digits.width <= inside && centred;
+  });
+}
+
 test.describe('reading the circles on a drawing', () => {
   /**
    * The headline, and the one thing this ticket is judged on: **a Mark is clickable and lands on
@@ -247,6 +264,87 @@ test.describe('marking up a drawing', () => {
     // The circle is gone and the number is not: a Position with no Mark is listed, not deleted.
     await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
     await expect(page.locator('[data-testid="position-chip"][data-position="1"]')).toBeVisible();
+  });
+
+  /**
+   * **A print nobody can read** (issue #234). The Scan is never touched: the club's typed number
+   * is a disc drawn over it, and the digits are the Position's — three of them have to fit the
+   * ring at every magnification, because the ring is fixed to the sheet.
+   */
+  test('an Editor types the number over a print nobody can read', async ({
+    page,
+    hasTouch,
+  }, info) => {
+    await openADrawingOfYourOwn(page, `illegible-${info.project.name}`);
+    const frame = frameOf(page);
+    const box = await frame.boundingBox();
+    if (!box) {
+      throw new Error('The drawing has no frame.');
+    }
+
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await page.getByTestId('next-number').fill('102');
+    await page.getByTestId('hold-number').check();
+    await frame.click({ position: { x: box.width * 0.3, y: box.height * 0.3 } });
+    await frame.click({ position: { x: box.width * 0.6, y: box.height * 0.6 } });
+    await page.getByTestId('next-number').fill('103');
+    await frame.click({ position: { x: box.width * 0.6, y: box.height * 0.3 } });
+    const [smudged, clear] = [markFor(page, '102').first(), markFor(page, '102').last()];
+    await expect(markFor(page, '102')).toHaveCount(2);
+    await expect(smudged).toHaveText('');
+
+    await smudged.click();
+    await page.getByRole('checkbox', { name: 'Print unreadable' }).check();
+
+    // Only the circle that was chosen: the Position's other print can still be read.
+    await expect(smudged).toHaveText('102');
+    await expect(smudged).toHaveAttribute('data-illegible', 'true');
+    await expect(clear).toHaveText('');
+
+    for (const step of [0, 1, 2, 3]) {
+      if (step > 0) {
+        await page.getByRole('button', { name: 'Zoom in' }).click();
+        await aFrameLater(page);
+      }
+      expect(await digitsFitTheirRing(smudged)).toBe(true);
+    }
+
+    if (!hasTouch) {
+      await page.getByRole('button', { name: 'Fit the whole drawing' }).click();
+      // Another number being read, since the column beside the drawing already reads this one.
+      await markFor(page, '103').click();
+      await smudged.hover();
+      await expect(page.getByTestId('mark-card')).toContainText(
+        'Number typed by the club — the print is unreadable.',
+      );
+    }
+
+    // Moved, it is still the same Mark and still says so.
+    await page.getByRole('button', { name: 'Fit the whole drawing' }).click();
+    await aFrameLater(page);
+    const from = await centreOf(smudged);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 40, from.y + 80, { steps: 8 });
+    await page.mouse.up();
+    await expect(page.locator('[data-testid="drawing-mark"][data-illegible="true"]')).toHaveText(
+      '102',
+    );
+
+    // And where a phone reads it, beside or under the drawing, for the circle being read.
+    await page.locator('[data-testid="drawing-mark"][data-illegible="true"]').click();
+    await expect(page.getByTestId('part-reading')).toContainText(
+      'Number typed by the club — the print is unreadable.',
+    );
+
+    // And taken back: the print was legible after all.
+    await page.locator('[data-testid="drawing-mark"][data-illegible="true"]').click();
+    await page.getByRole('checkbox', { name: 'Print unreadable' }).uncheck();
+    await expect(page.locator('[data-testid="drawing-mark"][data-illegible="true"]')).toHaveCount(
+      0,
+    );
+    await expect(markFor(page, '102').first()).toHaveText('');
+    await expect(page.getByTestId('part-reading')).not.toContainText('Number typed by the club');
   });
 
   test('a number the sheet does not print is listed without a circle', async ({ page }, info) => {

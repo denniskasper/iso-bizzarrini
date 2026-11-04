@@ -504,6 +504,10 @@ export function createApiRouter(dependencies: {
   router.post('/tavole/:tavolaId/positions', positionController.addPosition);
   router.delete('/positions/:positionId', positionController.removePosition);
   router.patch('/marks/:markId', positionController.moveMark);
+  // **A print nobody can read** (issue #234): the club types its Position's number over the Mark.
+  // A write, so the guard above keeps it an Editor's; a Member who notices one says so in a
+  // Contribution.
+  router.put('/marks/:markId/legibility', positionController.markLegibility);
   router.delete('/marks/:markId', positionController.removeMark);
 
   // **What belongs with a number**, in the two shapes it comes in — hung off the Tavola because

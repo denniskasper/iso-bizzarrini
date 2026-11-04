@@ -1,7 +1,7 @@
 import type TestAgent from 'supertest/lib/agent.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { givenModel, givenTavola } from './support/fixtures.js';
-import { givenAnEditor } from './support/roster.js';
+import { givenAMember, givenAnAdministrator, givenAnEditor } from './support/roster.js';
 import { startTestApp, type TestApp } from './support/test-app.js';
 
 /**
@@ -59,7 +59,7 @@ describe('marking up a Tavola', () => {
         {
           id: expect.any(String),
           number: '12',
-          marks: [{ id: expect.any(String), x: 0.25, y: 0.5 }],
+          marks: [{ id: expect.any(String), x: 0.25, y: 0.5, illegible: false }],
           // What belongs *with* the number, which nobody has said anything about yet — and which
           // a fresh Position is entitled to have nothing of.
           subAssemblyId: null,
@@ -211,7 +211,9 @@ describe('marking up a Tavola', () => {
         .send({ x: 0.71, y: 0.62 })
         .expect(200);
 
-      expect(response.body.positions[0].marks).toEqual([{ id: mark.id, x: 0.71, y: 0.62 }]);
+      expect(response.body.positions[0].marks).toEqual([
+        { id: mark.id, x: 0.71, y: 0.62, illegible: false },
+      ]);
     });
 
     it('cannot be moved off the drawing', async () => {
@@ -229,7 +231,7 @@ describe('marking up a Tavola', () => {
       const response = await editor.delete(`/api/marks/${second.id}`).expect(200);
 
       expect(response.body.positions[0].marks).toEqual([
-        { id: expect.any(String), x: 0.2, y: 0.2 },
+        { id: expect.any(String), x: 0.2, y: 0.2, illegible: false },
       ]);
     });
 
@@ -247,6 +249,97 @@ describe('marking up a Tavola', () => {
 
       await app.request().patch(`/api/marks/${mark.id}`).send({ x: 0.5, y: 0.5 }).expect(401);
       await app.request().delete(`/api/marks/${mark.id}`).expect(401);
+    });
+  });
+
+  // Issue #234: the factory's print is faint or smudged, so the club types the Position's number
+  // over it. A yes/no on the Mark, never typed text: the digits are always its Position's.
+  describe('a Mark whose print is unreadable', () => {
+    function legibility(markId: string, illegible: boolean, as: TestAgent = editor) {
+      return as.put(`/api/marks/${markId}/legibility`).send({ illegible });
+    }
+
+    it('is Legible until an Editor says otherwise', async () => {
+      const placed = await place('12', 0.3, 0.3).expect(201);
+
+      expect(placed.body.positions[0].marks).toEqual([
+        { id: expect.any(String), x: 0.3, y: 0.3, illegible: false },
+      ]);
+    });
+
+    it('is flagged on its own, leaving the Position’s other Marks Legible', async () => {
+      await place('12', 0.2, 0.2).expect(201);
+      const placed = await place('12', 0.8, 0.8).expect(201);
+      const [first, second] = placed.body.positions[0].marks;
+
+      const response = await legibility(second.id, true).expect(200);
+
+      expect(response.body.positions[0].marks).toEqual([
+        { id: first.id, x: 0.2, y: 0.2, illegible: false },
+        { id: second.id, x: 0.8, y: 0.8, illegible: true },
+      ]);
+      expect(await positionsOf()).toEqual(response.body.positions);
+    });
+
+    it('is made Legible again', async () => {
+      const placed = await place('12', 0.3, 0.3).expect(201);
+      const [mark] = placed.body.positions[0].marks;
+      await legibility(mark.id, true).expect(200);
+
+      const response = await legibility(mark.id, false).expect(200);
+
+      expect(response.body.positions[0].marks[0].illegible).toBe(false);
+    });
+
+    it('stays Illegible when it is moved', async () => {
+      const placed = await place('12', 0.3, 0.3).expect(201);
+      const [mark] = placed.body.positions[0].marks;
+      await legibility(mark.id, true).expect(200);
+
+      const response = await editor
+        .patch(`/api/marks/${mark.id}`)
+        .send({ x: 0.71, y: 0.62 })
+        .expect(200);
+
+      expect(response.body.positions[0].marks).toEqual([
+        { id: mark.id, x: 0.71, y: 0.62, illegible: true },
+      ]);
+    });
+
+    it('takes a yes or a no and nothing else', async () => {
+      const placed = await place('12', 0.3, 0.3).expect(201);
+      const [mark] = placed.body.positions[0].marks;
+
+      await editor.put(`/api/marks/${mark.id}/legibility`).send({ illegible: '102' }).expect(400);
+      await editor.put(`/api/marks/${mark.id}/legibility`).send({}).expect(400);
+    });
+
+    it('is a 404 for a Mark that is gone', async () => {
+      const placed = await place('12', 0.3, 0.3).expect(201);
+      const [mark] = placed.body.positions[0].marks;
+      await editor.delete(`/api/marks/${mark.id}`).expect(200);
+
+      await legibility(mark.id, true).expect(404);
+    });
+
+    it('is an Editor’s to decide, and a Member’s to read', async () => {
+      const placed = await place('12', 0.3, 0.3).expect(201);
+      const [mark] = placed.body.positions[0].marks;
+      await legibility(mark.id, true).expect(200);
+      const administrator = await givenAnAdministrator(app);
+      const member = (await givenAMember(app, administrator.agent)).agent;
+
+      await legibility(mark.id, false, member).expect(403);
+      await app
+        .request()
+        .put(`/api/marks/${mark.id}/legibility`)
+        .send({ illegible: false })
+        .expect(401);
+
+      const read = await member.get(`/api/tavole/${tavolaId}`).expect(200);
+      expect(read.body.positions[0].marks).toEqual([
+        { id: mark.id, x: 0.3, y: 0.3, illegible: true },
+      ]);
     });
   });
 

@@ -28,6 +28,10 @@ const placeMarkBody = z.object({
 
 const newPositionBody = z.object({ number: required('A Position number is required') });
 const moveMarkBody = z.object(markPoint);
+/** Reads `MarkLegibilityRequest`: a yes or a no, never the digits (issue #234). */
+const legibilityBody = z.object({
+  illegible: z.boolean('Say whether the print under this Mark can be read: true or false.'),
+});
 
 /**
  * Reads `NewSubAssemblyRequest`. **One with no numbers in it is refused**, because it is a name
@@ -70,6 +74,7 @@ export interface PositionController {
   addPosition: RequestHandler;
   removePosition: RequestHandler;
   moveMark: RequestHandler;
+  markLegibility: RequestHandler;
   removeMark: RequestHandler;
   putInSubAssembly: RequestHandler;
   takeOutOfSubAssembly: RequestHandler;
@@ -117,6 +122,14 @@ export function createPositionController(dependencies: {
       const { x, y } = moveMarkBody.parse(request.body);
 
       const body: PositionsResponse = await positionService.moveMark(markId, { x, y });
+      response.json(body);
+    },
+
+    markLegibility: async (request, response) => {
+      const { markId } = markIdParams.parse(request.params);
+      const { illegible } = legibilityBody.parse(request.body);
+
+      const body: PositionsResponse = await positionService.markLegibility(markId, illegible);
       response.json(body);
     },
 

@@ -161,6 +161,16 @@ describe('a Sample a Visitor reads', () => {
       .post(`/api/tavole/${tavolaId}/related-positions`)
       .send({ positionId: seven, otherPositionId: nine })
       .expect(201);
+    // A number the club typed over an unreadable print (issue #234).
+    const sheet = await administrator.get(`/api/tavole/${tavolaId}`).expect(200);
+    for (const position of sheet.body.positions as { marks: { id: string }[] }[]) {
+      for (const mark of position.marks) {
+        await administrator
+          .put(`/api/marks/${mark.id}/legibility`)
+          .send({ illegible: true })
+          .expect(200);
+      }
+    }
   }
 
   describe('on the landing', () => {

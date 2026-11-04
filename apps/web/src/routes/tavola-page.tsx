@@ -553,6 +553,13 @@ export function TavolaPage() {
                 <MarkCard anchor={described.element} beside={besideHost}>
                   <PositionCard
                     position={described.position}
+                    // As the sheet now has it, so the card follows a Mark an Editor has just
+                    // flagged while the pointer is still on it.
+                    mark={
+                      positions
+                        .find((position) => position.id === described.position.id)
+                        ?.marks.find((mark) => mark.id === described.mark.id) ?? described.mark
+                    }
                     listings={
                       index.data?.listings.filter(
                         (listing) => listing.positionId === described.position.id,
