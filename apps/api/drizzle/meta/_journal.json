@@ -302,6 +302,13 @@
       "when": 1793560888637,
       "tag": "0042_catalog_runs_count_by_month",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793829200614,
+      "tag": "0043_marks_know_whether_their_print_is_legible",
+      "breakpoints": true
     }
   ]
 }

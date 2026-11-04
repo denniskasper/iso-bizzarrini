@@ -111,7 +111,12 @@ export function toPosition(row: PositionWithMarks, related: RelatedPosition[]): 
   return {
     id: row.id,
     number: row.number,
-    marks: row.marks.map((mark) => ({ id: mark.id, x: mark.x, y: mark.y })),
+    marks: row.marks.map((mark) => ({
+      id: mark.id,
+      x: mark.x,
+      y: mark.y,
+      illegible: mark.illegible,
+    })),
     // Null is the ordinary case, and says what it looks like: this number is in no Sub-assembly.
     subAssemblyId: row.subAssemblyId,
     related,

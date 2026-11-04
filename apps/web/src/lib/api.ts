@@ -87,6 +87,7 @@ import type {
   CatalogModelResponse,
   CatalogModelsResponse,
   ModelProgressResponse,
+  MarkLegibilityRequest,
   MoveMarkRequest,
   NewMarkRequest,
   NewListingRequest,
@@ -492,6 +493,8 @@ export const api = {
     send<PositionsResponse>('PATCH', `/marks/${markId}`, to),
   removeMark: (markId: string) =>
     request<PositionsResponse>(`/marks/${markId}`, { method: 'DELETE' }),
+  markLegibility: (markId: string, legibility: MarkLegibilityRequest) =>
+    send<PositionsResponse>('PUT', `/marks/${markId}/legibility`, legibility),
 
   /**
    * What belongs *with* a number rather than at it — the named Sub-assembly it sits in, and the

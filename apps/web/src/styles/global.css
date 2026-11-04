@@ -641,6 +641,47 @@
   }
 
   /*
+   * **A print nobody can read** (issue #234), and the one place a Mark is a disc: what it covers
+   * has nothing to read, so it is paper white with the Position's number typed in the Mark's
+   * ultramarine. The ring is kept, so it is still plainly one of the circles.
+   */
+  .drawing-mark[data-illegible='true']::before {
+    background-color: var(--paper);
+  }
+
+  /*
+   * The digits, laid on the ring rather than in the touch area, and sized to it: three of them
+   * (`102`) fill under two thirds of its width, inside even the heavy ring of the one being read,
+   * and a longer number shrinks to fit.
+   * The ring is fixed to the sheet, so they keep their place on it at every magnification.
+   */
+  .drawing-mark-number {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: var(--mark-ring);
+    height: var(--mark-ring);
+    font-family: var(--font-sans);
+    font-size: calc(var(--mark-ring) * 1.1 / var(--mark-digits));
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--mark);
+    pointer-events: none;
+  }
+
+  /* Still white when it is being read or receded, which repaint a ring's inside further down. */
+  .drawing-mark[data-illegible='true'][data-selected='true']::before,
+  .drawing-mark[data-illegible='true'][data-subdued='true']::before {
+    background-color: var(--paper);
+  }
+
+  .drawing-mark[data-illegible='true'][data-subdued='true'] .drawing-mark-number {
+    color: var(--mark-receded);
+  }
+
+  /*
    * The one being read.
    *
    * It fills *and* wears a band outside itself, because on a sheet carrying two hundred rings a

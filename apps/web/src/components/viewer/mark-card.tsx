@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { MachineTranslationTag } from '@/components/machine-translation';
-import type { Position, TavolaListing } from '@/lib/api';
+import type { Mark, Position, TavolaListing } from '@/lib/api';
 
 /**
  * **What is at a Mark, without selecting it** (issue #35): a card for the circle a pointer is
@@ -15,9 +15,12 @@ import type { Position, TavolaListing } from '@/lib/api';
  */
 export function PositionCard({
   position,
+  mark,
   listings,
 }: {
   position: Position;
+  /** The circle pointed at, which may be one whose number the club typed (issue #234). */
+  mark: Mark;
   /** What is listed at this Position, or `null` while the sheet's index is still being read. */
   listings: TavolaListing[] | null;
 }) {
@@ -34,6 +37,7 @@ export function PositionCard({
             was selected, and is back as soon as the pointer leaves. */}
         <span className="text-muted">Pointed at</span>
       </p>
+      {mark.illegible && <TypedByTheClub />}
 
       {listings === null ? (
         <p className="mt-3 text-muted">Reading…</p>
@@ -56,6 +60,19 @@ export function PositionCard({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * **Said wherever a Mark is read whose number the club typed** (issue #234) — on the card, and in
+ * the reading beside the drawing, which is where a phone with no hover reads it. One quiet line,
+ * and nothing on the disc itself.
+ */
+export function TypedByTheClub() {
+  return (
+    <p className="mt-2 text-sm text-pretty text-muted" data-testid="typed-by-the-club">
+      Number typed by the club — the print is unreadable.
+    </p>
   );
 }
 

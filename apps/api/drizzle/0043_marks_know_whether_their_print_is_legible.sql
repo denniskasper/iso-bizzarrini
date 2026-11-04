@@ -1,0 +1,1 @@
+ALTER TABLE "marks" ADD COLUMN "illegible" boolean DEFAULT false NOT NULL;

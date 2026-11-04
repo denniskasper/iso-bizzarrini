@@ -381,7 +381,12 @@ describe('a machine-read catalog, loaded', () => {
       const { positions } = await drawingOf(tavola?.id as string);
       const one = positions.find((position) => position.number === '1');
       expect(one?.marks).toEqual([
-        { id: expect.any(String), x: expect.closeTo(0.2, 2), y: expect.closeTo(0.266, 2) },
+        {
+          id: expect.any(String),
+          x: expect.closeTo(0.2, 2),
+          y: expect.closeTo(0.266, 2),
+          illegible: false,
+        },
       ]);
       expect(positions.find((position) => position.number === '2')?.marks).toEqual([]);
     });
@@ -449,7 +454,12 @@ describe('a machine-read catalog, loaded', () => {
       const tavola = await tavolaNumbered(editor, '84');
       const { positions } = await drawingOf(tavola?.id as string);
       expect(positions.find((position) => position.number === '2')?.marks).toEqual([
-        { id: expect.any(String), x: expect.closeTo(0.6, 1), y: expect.closeTo(0.5, 1) },
+        {
+          id: expect.any(String),
+          x: expect.closeTo(0.6, 1),
+          y: expect.closeTo(0.5, 1),
+          illegible: false,
+        },
       ]);
     });
 

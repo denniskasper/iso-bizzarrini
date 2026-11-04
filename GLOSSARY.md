@@ -86,6 +86,12 @@ A place on the scan where a Position's number appears. A Position may have sever
 the factory printed the same number wherever the part is used, or none at all.
 _Avoid_: Hotspot, pin, annotation, marker
 
+**Legible / Illegible**:
+Whether a Mark's number can be read on the Scan. An Illegible Mark has its Position's number
+typed over the print by the club, and says so; the Scan itself is never altered. Decided by an
+Editor for each Mark on its own, and not shown on a Sample, which carries nothing the club added.
+_Avoid_: Broken, repaired, fixed, restored, retouched
+
 **Sub-assembly**:
 A named group of Positions within one Tavola — *Window Slider*, *Door Lock* — outlined on
 the Scan, with Photographs and a Note of its own, because it is what restorers photograph and

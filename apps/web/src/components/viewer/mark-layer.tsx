@@ -1,4 +1,12 @@
-import { memo, useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+} from 'react';
 import type { Mark, MarkPoint, Position } from '@/lib/api';
 import { MARK_CARD_ID } from './mark-card';
 import { fraction } from './viewport';
@@ -10,6 +18,10 @@ import { fraction } from './viewport';
  * **A ring and never a disc.** What a Mark points at is printed underneath it, and a filled dot
  * would cover the very number a member is trying to read. It is the Mark's own ultramarine,
  * chosen for a scan's paper and never the accent (ADR 0020).
+ *
+ * **Except where the print has nothing to read** (issue #234): an Illegible Mark is a paper-white
+ * disc with its Position's number typed inside, because the smudge it covers is no help to
+ * anyone. The digits come from the Position, so they are always the number the Mark is on.
  *
  * **The layer knows nothing about zoom.** It positions every circle as a percentage of the
  * drawing, inside the drawing's own coordinate space, so the single transform that pans and
@@ -255,6 +267,7 @@ const MarkCircle = memo(function MarkCircle({
       data-current={selected && current}
       // And which of them are not what the drawing was asked about.
       data-subdued={subdued}
+      data-illegible={mark.illegible}
       aria-label={`Position ${position.number}`}
       aria-pressed={selected}
       aria-describedby={described ? MARK_CARD_ID : undefined}
@@ -302,6 +315,18 @@ const MarkCircle = memo(function MarkCircle({
         }
       }}
       onBlur={() => onPoint?.(null)}
-    />
+    >
+      {mark.illegible && (
+        // The number the print should have shown, sized to the ring however many digits it has.
+        <span
+          className="drawing-mark-number"
+          data-testid="drawing-mark-number"
+          aria-hidden
+          style={{ '--mark-digits': Math.max(position.number.length, 3) } as CSSProperties}
+        >
+          {position.number}
+        </span>
+      )}
+    </button>
   );
 });

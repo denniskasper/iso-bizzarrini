@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import type { Position } from '@/lib/api';
@@ -33,6 +33,13 @@ export function MarkingBar({
   const holdId = useId();
   const alreadyOnTheSheet = positions.find((position) => position.number === tool.number.trim());
   const selectedMarkId = selected?.markId ?? null;
+  const selectedMark = selected?.position.marks.find((mark) => mark.id === selectedMarkId) ?? null;
+  const unreadableId = useId();
+  /**
+   * What the Editor just said about the print, shown until the archive answers — the sheet comes
+   * back a moment later, and a box that did not tick when pressed reads as a press that missed.
+   */
+  const [asked, setAsked] = useState<{ markId: string; illegible: boolean } | null>(null);
 
   return (
     <section
@@ -103,6 +110,33 @@ export function MarkingBar({
           )}
         </div>
       </div>
+
+      {/*
+       * A print too faint or smudged to read (issue #234): the club types the Position's number
+       * over this one circle, and leaves the Scan as it is. The Position's other circles keep
+       * their own say.
+       */}
+      {selectedMark && (
+        <label
+          htmlFor={unreadableId}
+          className="mt-6 flex min-h-control items-center gap-3 text-sm text-muted"
+        >
+          <input
+            id={unreadableId}
+            type="checkbox"
+            data-testid="print-unreadable"
+            checked={asked?.markId === selectedMark.id ? asked.illegible : selectedMark.illegible}
+            disabled={tool.busy}
+            onChange={(event) => {
+              const illegible = event.target.checked;
+              setAsked({ markId: selectedMark.id, illegible });
+              tool.markLegibility(selectedMark.id, illegible, () => setAsked(null));
+            }}
+            className="size-5 accent-accent"
+          />
+          Print unreadable
+        </label>
+      )}
 
       <div className="mt-8 flex flex-wrap gap-3 border-t border-line pt-6">
         <Button variant="outline" disabled={tool.busy} onClick={tool.list}>

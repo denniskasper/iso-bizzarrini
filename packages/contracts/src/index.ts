@@ -373,6 +373,12 @@ export interface MarkPoint {
 /** A place on the scan where a Position's number appears. */
 export interface Mark extends MarkPoint {
   id: string;
+  /**
+   * The factory's print under it cannot be read, so the viewer types its Position's number over
+   * it (issue #234). Each Mark on its own, decided by an Editor. Never on a Sample, which carries
+   * nothing the club added.
+   */
+  illegible: boolean;
 }
 
 /**
@@ -1337,6 +1343,14 @@ export interface NewPositionRequest {
 
 /** `PATCH /api/marks/:markId` — a circle an Editor put in the wrong place. */
 export type MoveMarkRequest = MarkPoint;
+
+/**
+ * `PUT /api/marks/:markId/legibility` — whether the print under a Mark can be read (issue #234).
+ * A yes/no and never the digits: those are always the Mark's Position's.
+ */
+export interface MarkLegibilityRequest {
+  illegible: boolean;
+}
 
 /**
  * `POST /api/tavole/:tavolaId/sub-assemblies` — putting numbers into a named one (story 106).

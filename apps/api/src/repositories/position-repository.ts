@@ -47,8 +47,9 @@ export interface PositionRepository {
   }): Promise<{ position: PositionRow; added: boolean }>;
   remove(id: string): Promise<boolean>;
   addMark(row: NewMarkRow): Promise<MarkRow>;
-  /** Both answer with the Mark as it was, so the caller knows which Position to read back. */
+  /** These answer with the Mark, so the caller knows which Position to read back. */
   moveMark(markId: string, at: { x: number; y: number }): Promise<MarkRow | null>;
+  markLegibility(markId: string, illegible: boolean): Promise<MarkRow | null>;
   removeMark(markId: string): Promise<MarkRow | null>;
 
   /** The sheet's Sub-assemblies, by name. Ordered here, so no screen orders a catalog. */
@@ -160,6 +161,15 @@ export function createPositionRepository(db: DbSession): PositionRepository {
         .where(eq(marks.id, markId))
         .returning();
       return moved ?? null;
+    },
+
+    async markLegibility(markId, illegible) {
+      const [marked] = await db
+        .update(marks)
+        .set({ illegible })
+        .where(eq(marks.id, markId))
+        .returning();
+      return marked ?? null;
     },
 
     async removeMark(markId) {

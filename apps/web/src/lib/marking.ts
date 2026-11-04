@@ -60,6 +60,11 @@ export interface MarkingTool {
   /** Answers when the archive has it, so a circle can stay under the thumb until then. */
   moveMark: (markId: string, to: MarkPoint) => Promise<unknown>;
   removeMark: (markId: string) => void;
+  /**
+   * Whether the print under one Mark can be read; the club types the number over it if not.
+   * `settled` is told when the archive has answered, either way.
+   */
+  markLegibility: (markId: string, illegible: boolean, settled?: () => void) => void;
   removePosition: (positionId: string) => void;
   busy: boolean;
   refusal: string | null;
@@ -103,6 +108,11 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     mutationFn: (markId: string) => api.removeMark(markId),
     onSuccess: record,
   });
+  const markLegibility = useMutation({
+    mutationFn: (marked: { markId: string; illegible: boolean }) =>
+      api.markLegibility(marked.markId, { illegible: marked.illegible }),
+    onSuccess: record,
+  });
   const removePosition = useMutation({
     mutationFn: (positionId: string) => api.removePosition(positionId),
     // The sheet, **and its index**: a Position removed does not take its Listings with it — they
@@ -121,7 +131,7 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     },
   });
 
-  const writes = [place, list, moveMark, removeMark, removePosition];
+  const writes = [place, list, moveMark, removeMark, markLegibility, removePosition];
 
   /**
    * `mutate` and not `mutateAsync` everywhere but one: nothing here can *answer* for a refusal
@@ -148,6 +158,8 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     list: () => list.mutate(),
     moveMark: useCallback((markId, to) => move({ markId, to }).catch(() => undefined), [move]),
     removeMark: removeMark.mutate,
+    markLegibility: (markId, illegible, settled) =>
+      markLegibility.mutate({ markId, illegible }, { onSettled: settled }),
     removePosition: removePosition.mutate,
     busy: writes.some((mutation) => mutation.isPending),
     refusal: writes.find((mutation) => mutation.error)?.error?.message ?? null,

@@ -35,6 +35,8 @@ export interface PositionService {
   addPosition(tavolaId: string, number: string): Promise<{ sheet: Sheet; added: boolean }>;
   removePosition(positionId: string): Promise<Sheet>;
   moveMark(markId: string, to: MarkPoint): Promise<Sheet>;
+  /** Whether the print under one Mark can be read (issue #234). The others on its Position stay. */
+  markLegibility(markId: string, illegible: boolean): Promise<Sheet>;
   removeMark(markId: string): Promise<Sheet>;
 
   /** Putting numbers into a named Sub-assembly — one the sheet already has, or a new one. */
@@ -203,6 +205,14 @@ export function createPositionService(dependencies: {
         throw new NotFoundError('No such Mark.');
       }
       return sheetOfPosition(moved.positionId);
+    },
+
+    async markLegibility(markId, illegible) {
+      const marked = await positionRepository.markLegibility(markId, illegible);
+      if (!marked) {
+        throw new NotFoundError('No such Mark.');
+      }
+      return sheetOfPosition(marked.positionId);
     },
 
     async removeMark(markId) {

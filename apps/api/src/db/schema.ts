@@ -406,6 +406,13 @@ export const marks = pgTable(
     x: doublePrecision('x').notNull(),
     /** Down the drawing, `0` at its top edge and `1` at its bottom. */
     y: doublePrecision('y').notNull(),
+    /**
+     * The factory's print under this Mark cannot be read, so the viewer types its Position's
+     * number over it (issue #234). A yes/no and never the digits themselves: those are always the
+     * Position's, so they follow the Mark wherever it is moved and cannot disagree with it. The
+     * Scan is never altered (ADR 0013, ADR 0017).
+     */
+    illegible: boolean('illegible').notNull().default(false),
   },
   (table) => [index('marks_position_id_index').on(table.positionId)],
 );
