@@ -257,6 +257,7 @@ test.describe('a part listed at no number', () => {
     await page.getByRole('button', { name: 'Mark positions' }).click();
     await markFor(page, '1').click();
     await page.getByRole('button', { name: 'Remove Position 1' }).click();
+    await page.getByRole('button', { name: 'Yes, remove it' }).click();
 
     await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
     await expect(page.getByTestId('unplaced-parts')).toContainText('Fixing kit');

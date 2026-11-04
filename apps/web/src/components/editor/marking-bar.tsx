@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import type { Position } from '@/lib/api';
@@ -40,6 +40,38 @@ export function MarkingBar({
    * back a moment later, and a box that did not tick when pressed reads as a press that missed.
    */
   const [asked, setAsked] = useState<{ markId: string; illegible: boolean } | null>(null);
+  /** The Position whose removal has been asked for once, and is waiting for the second press. */
+  const [removing, setRemoving] = useState<string | null>(null);
+  const confirming = selected !== null && removing === selected.position.id;
+
+  /**
+   * **Ctrl+Z, or ⌘Z**, while the tool is open (issue #236) — except in a text field, where it
+   * belongs to the typing, as it does everywhere else.
+   */
+  const undoFromKeyboard = useEffectEvent((event: KeyboardEvent) => {
+    const typing =
+      event.target instanceof HTMLElement &&
+      (event.target.isContentEditable ||
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLInputElement && event.target.type !== 'checkbox'));
+    if (
+      event.key.toLowerCase() === 'z' &&
+      !event.repeat &&
+      !event.defaultPrevented &&
+      (event.ctrlKey || event.metaKey) &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !typing
+    ) {
+      event.preventDefault();
+      tool.undo();
+    }
+  });
+  useEffect(() => {
+    const pressed = (event: KeyboardEvent) => undoFromKeyboard(event);
+    window.addEventListener('keydown', pressed);
+    return () => window.removeEventListener('keydown', pressed);
+  }, []);
 
   return (
     <section
@@ -139,6 +171,16 @@ export function MarkingBar({
       )}
 
       <div className="mt-8 flex flex-wrap gap-3 border-t border-line pt-6">
+        {/* First, so it is in the same place whatever else the row is showing. */}
+        <Button
+          variant="outline"
+          disabled={tool.busy || !tool.canUndo}
+          onClick={tool.undo}
+          title="Take back the last thing the tool did (Ctrl+Z, or ⌘Z on a Mac)"
+        >
+          Undo
+        </Button>
+
         <Button variant="outline" disabled={tool.busy} onClick={tool.list}>
           List without a Mark
         </Button>
@@ -153,14 +195,13 @@ export function MarkingBar({
           </Button>
         )}
 
-        {selected && (
+        {/* Asked twice, because Undo cannot bring it back: the number goes with its circles,
+            its links and its place in a Sub-assembly. */}
+        {selected && !confirming && (
           <Button
             variant="outline"
             disabled={tool.busy}
-            onClick={() => {
-              onDeselect();
-              tool.removePosition(selected.position.id);
-            }}
+            onClick={() => setRemoving(selected.position.id)}
           >
             Remove Position {selected.position.number}
           </Button>
@@ -170,6 +211,35 @@ export function MarkingBar({
           Done
         </Button>
       </div>
+
+      {selected && confirming && (
+        <div
+          className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3"
+          role="group"
+          aria-label={`Remove Position ${selected.position.number}`}
+        >
+          <p className="max-w-measure text-pretty">
+            Remove Position <span className="tabular">{selected.position.number}</span> and its
+            circles? Undo cannot bring it back.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="danger"
+              disabled={tool.busy}
+              onClick={() => {
+                setRemoving(null);
+                onDeselect();
+                tool.removePosition(selected.position.id);
+              }}
+            >
+              {tool.busy ? 'Removing…' : 'Yes, remove it'}
+            </Button>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>
+              Keep it
+            </Button>
+          </div>
+        </div>
+      )}
 
       {tool.refusal && <Refusal>{tool.refusal}</Refusal>}
     </section>
