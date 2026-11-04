@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { inArray, sql } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { AppConfig } from '../config/config.js';
@@ -15,6 +16,7 @@ import {
   relatedPositions,
   sources,
   subAssemblies,
+  tableSheets,
   tavole,
 } from '../db/schema.js';
 import type { Clock } from '../platform/clock.js';
@@ -31,7 +33,7 @@ import { createPartRecordService } from '../services/part-record-service.js';
 import { createPhotographService } from '../services/photograph-service.js';
 import { createSampleServiceOn } from '../services/sample-service.js';
 import { createScanService } from '../services/scan-service.js';
-import type { FileStore } from '../storage/file-store.js';
+import { tableSheetKeyPrefix, type FileStore } from '../storage/file-store.js';
 import { categorySlug, numericPrefixOf } from './naming.js';
 import { standingCategories } from './standing-categories.js';
 
@@ -517,6 +519,12 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     if (tavola && seed.drawn) {
       await scanService.ingest(tavola.id, await inventedDrawing(seed.number, seed.nameIt));
       drawings += 1;
+      if (
+        seed.model === practiceTableSheetOn.model &&
+        seed.number === practiceTableSheetOn.number
+      ) {
+        await writePracticeTableSheet(dependencies, tavola.id, seed.number);
+      }
 
       const recorded = await markPracticeTavola(db, tavola.id);
       marked += recorded.size;
@@ -575,6 +583,60 @@ export async function writePracticeArchive(dependencies: SeedDependencies): Prom
     photographs: photographed,
     unchecked,
   };
+}
+
+/**
+ * **The one Published Tavola with a table sheet** (issue #230), so a reader opening a sheet in
+ * the drawing's viewer can be practised and tested. Only the sheet: no row is read from it, so
+ * every count the rest of this archive is judged by stays as it was.
+ */
+export const practiceTableSheetOn = { model: 'Grifo', number: '2' } as const;
+
+async function writePracticeTableSheet(
+  { db, fileStore, clock }: SeedDependencies,
+  tavolaId: string,
+  number: string,
+): Promise<void> {
+  const contents = await inventedTableSheet(number);
+  const { width, height } = await sharp(contents).metadata();
+  const id = randomUUID();
+  const originalKey = `${tableSheetKeyPrefix(id)}/original.png`;
+  await fileStore.write(originalKey, contents);
+  await db.insert(tableSheets).values({
+    id,
+    tavolaId,
+    sheet: 1,
+    format: 'png',
+    byteSize: contents.byteLength,
+    width: width ?? 0,
+    height: height ?? 0,
+    originalKey,
+    ingestedAt: clock.now(),
+  });
+}
+
+/** A parts table as a factory sheet sets one out, every word of it invented (`AGENTS.md`). */
+function inventedTableSheet(number: string): Promise<Buffer> {
+  const width = 1754;
+  const height = 2480;
+  const rows = practiceNumbers
+    .map((printed, index) => {
+      const y = 420 + index * 90;
+      return `<text x="120" y="${y}">${printed.number}</text><text x="320" y="${y}">Pezzo inventato ${index + 1}</text><text x="1300" y="${y}">1</text>`;
+    })
+    .join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <rect width="100%" height="100%" fill="#ffffff"/>
+    <g font-family="DejaVu Serif, Times New Roman, serif" fill="#111111">
+      <text x="120" y="180" font-size="56">TAVOLA ${number}</text>
+      <g font-size="36">
+        <text x="120" y="320">N.</text><text x="320" y="320">Denominazione</text><text x="1300" y="320">Q.tà</text>
+        ${rows}
+      </g>
+      <text x="120" y="${height - 120}" font-size="28" fill="#888888">Invented for the practice archive — not a factory sheet</text>
+    </g>
+  </svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 /**
@@ -885,8 +947,10 @@ export async function emptyCatalog(db: Db, fileStore: FileStore): Promise<void> 
   // Truncating the tables without taking the files leaves a directory of images nothing points
   // at, growing every time the practice archive is rebuilt. Both kinds of image, because both
   // kinds have files: the Photographs cascade from the Parts named above. So do the catalogs
-  // uploaded to be read, whose Catalog runs cascade from the Models.
+  // uploaded to be read, whose Catalog runs cascade from the Models, and the Table sheets, which
+  // cascade from the Tavole.
   await fileStore.remove('scans');
+  await fileStore.remove('table-sheets');
   await fileStore.remove('photographs');
   await fileStore.remove('catalog-runs');
 }

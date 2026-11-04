@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { MachineTranslationTag } from '@/components/machine-translation';
+import { DrawingViewer } from '@/components/viewer/drawing-viewer';
 import { Button } from '@/components/ui/button';
 import { Refusal, TextArea } from '@/components/ui/field';
 import {
@@ -422,8 +423,16 @@ function CheckedRow({
 /**
  * The factory's table sheets on a Published Tavola, for anybody reading it: the evidence the
  * list beside the drawing was taken from, as private as the drawing itself.
+ *
+ * **A sheet opens here, in the drawing's own viewer** (issue #230), with the same zoom as the
+ * drawing: wheel, pinch, double-tap. A table row is as small as a position number, and leaving
+ * the Tavola for a bare image in a new tab lost the reader their place. One sheet at a time, under
+ * the row of sheets, so pressing the next one swaps it and the page does not grow a viewer each.
  */
 export function TableSheets({ tableSheets }: { tableSheets: TableSheet[] }) {
+  const [openSheet, setOpenSheet] = useState<number | null>(null);
+  const shown = tableSheets.find((sheet) => sheet.sheet === openSheet) ?? null;
+
   return (
     <section aria-labelledby="table-sheets" data-testid="table-sheets">
       <h2 id="table-sheets" className="label">
@@ -432,11 +441,15 @@ export function TableSheets({ tableSheets }: { tableSheets: TableSheet[] }) {
       <ul className="mt-4 flex flex-wrap gap-6">
         {tableSheets.map((sheet) => (
           <li key={sheet.sheet}>
-            <a
-              href={sheet.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex flex-col gap-2 text-sm text-muted hover:text-text"
+            <button
+              type="button"
+              aria-pressed={sheet.sheet === openSheet}
+              aria-controls="table-sheet-viewer"
+              onClick={() => setOpenSheet(sheet.sheet === openSheet ? null : sheet.sheet)}
+              className={cn(
+                'flex flex-col gap-2 text-left text-sm text-muted hover:text-text',
+                sheet.sheet === openSheet && 'text-text',
+              )}
             >
               <img
                 src={sheet.url}
@@ -444,13 +457,36 @@ export function TableSheets({ tableSheets }: { tableSheets: TableSheet[] }) {
                 height={sheet.height}
                 alt=""
                 loading="lazy"
-                className="h-48 w-auto border border-line bg-paper"
+                className={cn(
+                  'h-48 w-auto border bg-paper',
+                  sheet.sheet === openSheet ? 'border-text' : 'border-line',
+                )}
               />
               Sheet {sheet.sheet}
-            </a>
+            </button>
           </li>
         ))}
       </ul>
+
+      {shown && (
+        <div id="table-sheet-viewer" className="mt-6 flex flex-col gap-3">
+          <DrawingViewer
+            scan={{
+              id: `table-sheet-${shown.sheet}`,
+              width: shown.width,
+              height: shown.height,
+              displayUrl: shown.url,
+              previewUrl: shown.url,
+            }}
+            alt={`Table sheet ${shown.sheet}`}
+          />
+          <div>
+            <Button variant="ghost" onClick={() => setOpenSheet(null)}>
+              Close sheet {shown.sheet}
+            </Button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
