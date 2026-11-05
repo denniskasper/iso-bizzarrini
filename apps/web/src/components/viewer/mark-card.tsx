@@ -103,9 +103,14 @@ function CardPart({ listing }: { listing: TavolaListing }) {
 /** Wide enough for the reading to stand beside the drawing: the Tavola page's `lg`. */
 const BESIDE = '(width >= 64rem)';
 
+/** Whether the reading stands beside the drawing at this moment, for a handler to ask. */
+export function besideTheDrawing(): boolean {
+  return matchMedia(BESIDE).matches;
+}
+
 /** Whether the column beside the drawing is there to hold the card. */
 export function useBeside(): boolean {
-  const [beside, setBeside] = useState(() => matchMedia(BESIDE).matches);
+  const [beside, setBeside] = useState(besideTheDrawing);
   useEffect(() => {
     const query = matchMedia(BESIDE);
     const changed = () => setBeside(query.matches);

@@ -21,7 +21,7 @@ import { ReadAgain } from '@/components/readings/read-again';
 import { RemoveTavola } from '@/components/readings/remove-tavola';
 import { ConfirmEnglish, MachineTranslationTag } from '@/components/machine-translation';
 import { PartReading } from '@/components/parts/part-reading';
-import { TavolaParts } from '@/components/parts/tavola-parts';
+import { TavolaParts, type SheetIndex } from '@/components/parts/tavola-parts';
 import { BelongsWith } from '@/components/positions/belongs-with';
 import { PositionJump } from '@/components/positions/position-jump';
 import { PositionList } from '@/components/positions/position-list';
@@ -113,6 +113,8 @@ export function TavolaPage() {
    */
   const [gapsAskedFor, setGapsAskedFor] = useState<string | null>(null);
   const view = useRef<DrawingView>(null);
+  /** The list beside the drawing, which a circle read on the sheet brings its row into view in. */
+  const sheetIndex = useRef<SheetIndex>(null);
   /**
    * **An Administrator choosing the number Visitors may read** (ADR 0019), by pressing its circle.
    * Keyed by the Tavola like everything else held here, so it never follows them onto the next
@@ -305,6 +307,7 @@ export function TavolaPage() {
       // stops being shown — the number's own Sub-assembly, if it has one, takes its place.
       setOutlineSelected(null);
       open(position);
+      sheetIndex.current?.show(position.id);
     },
     [open],
   );
@@ -648,6 +651,7 @@ export function TavolaPage() {
           />
 
           <TavolaParts
+            ref={sheetIndex}
             tavolaId={tavola.id}
             positions={positions}
             selectedPositionId={selectedPosition?.id ?? null}

@@ -1,10 +1,19 @@
-import { useRef } from 'react';
+import { useImperativeHandle, useRef, type Ref } from 'react';
 import { EnglishName } from '@/components/machine-translation';
 import { usePartsJump } from '@/components/parts/parts-jump';
 import { Refusal } from '@/components/ui/field';
+import { besideTheDrawing } from '@/components/viewer/mark-card';
 import type { Position, TavolaListing } from '@/lib/api';
 import { useTavolaListings } from '@/lib/parts';
 import { cn } from '@/lib/utils';
+
+/**
+ * The one way in from outside: **a circle read on the drawing brings its row into view** here, so
+ * a member working down the list does not lose their place in it by reading from the sheet.
+ */
+export interface SheetIndex {
+  show(positionId: string): void;
+}
 
 /**
  * **The facing page of a factory catalog**: the drawing on one side, its numbered table on the
@@ -22,12 +31,14 @@ import { cn } from '@/lib/utils';
  * number on the sheet.
  */
 export function TavolaParts({
+  ref,
   tavolaId,
   positions,
   selectedPositionId,
   onSelect,
   head,
 }: {
+  ref?: Ref<SheetIndex>;
   tavolaId: string;
   /** The sheet's numbers, which arrive with the drawing and are its own order. */
   positions: Position[];
@@ -39,6 +50,54 @@ export function TavolaParts({
 }) {
   const section = useRef<HTMLElement>(null);
   const jump = usePartsJump(head, section);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      show(positionId) {
+        const list = section.current;
+        // Only where the list stands beside the drawing, which stays put as the page scrolls: on
+        // a phone it is under the drawing, and scrolling would take the sheet from the hand on it.
+        // And only while the list is what is being read — a member at the reading above it asked
+        // to read the number there, not to be taken down the page away from it.
+        if (!list || !besideTheDrawing()) {
+          return;
+        }
+        const box = list.getBoundingClientRect();
+        if (box.bottom <= 0 || box.top >= window.innerHeight) {
+          return;
+        }
+        // A frame later, once the page has drawn what selecting the number changed.
+        requestAnimationFrame(() => {
+          const row = list.querySelector<HTMLElement>(
+            `[data-position-id="${CSS.escape(positionId)}"]`,
+          );
+          // A row already in view leaves the list exactly where it is.
+          if (!row || inView(row)) {
+            return;
+          }
+          const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          row.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+          // The reading above the list fills in as what is at the number arrives, which can move
+          // the row while the scroll is still under way. Once it settles the row is looked at
+          // again — once, and only just now, so a member scrolling away later is left alone.
+          const settle = () => {
+            if (!inView(row)) {
+              row.scrollIntoView({ block: 'nearest' });
+            }
+          };
+          if ('onscrollend' in window) {
+            window.addEventListener('scrollend', settle, { once: true });
+            setTimeout(() => window.removeEventListener('scrollend', settle), 2000);
+          } else {
+            setTimeout(settle, 800);
+          }
+        });
+      },
+    }),
+    [],
+  );
+
   // Read here rather than handed down, for the same reason the reading panel reads its own
   // Listings: what a screen needs is that screen's business, and a page that fetched for both
   // would be the one place a change to either had to be remembered.
@@ -134,6 +193,13 @@ export function TavolaParts({
   );
 }
 
+/** Wholly inside the window, below the chrome that stays over the top of it. */
+function inView(element: HTMLElement): boolean {
+  const box = element.getBoundingClientRect();
+  const chrome = document.querySelector('[data-chrome]')?.getBoundingClientRect().bottom ?? 0;
+  return box.top >= chrome && box.bottom <= window.innerHeight;
+}
+
 /**
  * One number, and what sits at it.
  *
@@ -160,6 +226,7 @@ function SheetLine({
       type="button"
       data-testid="sheet-line"
       data-position={position.number}
+      data-position-id={position.id}
       // Whether anything at all is recorded at this number, which is what story 45 asks the list
       // to say — and what the browser seam asserts, since "visibly marked" is not a response
       // body. Absent while the answer is still coming, rather than `false`.
