@@ -107,6 +107,28 @@ describe('a Sample ending', () => {
       ]);
     });
 
+    it('ends just the same when it goes with other numbers, in one removal', async () => {
+      // A run of stray numbers removed at once (issue #240), the open one among them.
+      await editor
+        .delete(`/api/tavole/${tavolaId}/positions`)
+        .send({ positionIds: [nine, seven] })
+        .expect(200);
+
+      const read = await asAdministratorsRead();
+      expect(read.sample).toBeNull();
+      expect(read.endedSample).toMatchObject({ openNumber: '7', reason: 'removed' });
+      await app.request().get(drawingUrl).expect(404);
+    });
+
+    it('goes on when the numbers removed with others are not its open one', async () => {
+      await editor
+        .delete(`/api/tavole/${tavolaId}/positions`)
+        .send({ positionIds: [nine] })
+        .expect(200);
+
+      expect((await asAdministratorsRead()).sample?.open.number).toBe('7');
+    });
+
     it('tells nobody but Administrators', async () => {
       await editor.delete(`/api/positions/${seven}`).expect(200);
 

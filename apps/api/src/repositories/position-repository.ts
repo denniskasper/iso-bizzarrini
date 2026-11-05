@@ -46,6 +46,12 @@ export interface PositionRepository {
     number: string;
   }): Promise<{ position: PositionRow; added: boolean }>;
   remove(id: string): Promise<boolean>;
+  /**
+   * **Several numbers off one sheet, in one write** (issue #240), with whatever Sub-assembly they
+   * leave empty. All or none: `false`, and nothing removed, when any id is not a Position on that
+   * Tavola.
+   */
+  removeAll(tavolaId: string, ids: string[]): Promise<boolean>;
   addMark(row: NewMarkRow): Promise<MarkRow>;
   /** These answer with the Mark, so the caller knows which Position to read back. */
   moveMark(markId: string, at: { x: number; y: number }): Promise<MarkRow | null>;
@@ -144,6 +150,29 @@ export function createPositionRepository(db: DbSession): PositionRepository {
     async remove(id) {
       const removed = await db.delete(positions).where(eq(positions.id, id)).returning();
       return removed.length > 0;
+    },
+
+    async removeAll(tavolaId, ids) {
+      const wanted = new Set(ids);
+      try {
+        await db.transaction(async (write) => {
+          const removed = await write
+            .delete(positions)
+            .where(and(eq(positions.tavolaId, tavolaId), inArray(positions.id, [...wanted])))
+            .returning({ id: positions.id });
+          // One the sheet does not have — another Tavola's, or gone already — undoes the rest.
+          if (removed.length !== wanted.size) {
+            throw new NotAllOnTheSheet();
+          }
+          await emptyOnesGo(write, tavolaId);
+        });
+      } catch (error) {
+        if (error instanceof NotAllOnTheSheet) {
+          return false;
+        }
+        throw error;
+      }
+      return true;
     },
 
     async addMark(row) {
@@ -324,6 +353,9 @@ export function createPositionRepository(db: DbSession): PositionRepository {
     },
   };
 }
+
+/** Thrown to roll a removal back when it named a number the sheet does not have. */
+class NotAllOnTheSheet extends Error {}
 
 /**
  * **A Sub-assembly with nothing in it is not one**, swept in whatever session emptied it — so the

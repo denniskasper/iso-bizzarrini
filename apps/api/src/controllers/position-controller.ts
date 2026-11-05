@@ -27,6 +27,12 @@ const placeMarkBody = z.object({
 });
 
 const newPositionBody = z.object({ number: required('A Position number is required') });
+/** Reads `RemovePositionsRequest`: the numbers picked in the marking tool (issue #240). */
+const removePositionsBody = z.object({
+  positionIds: z
+    .array(z.uuid('That is not a Position id.'))
+    .min(1, 'Choose at least one number to remove.'),
+});
 const moveMarkBody = z.object(markPoint);
 /** Reads `MarkLegibilityRequest`: a yes or a no, never the digits (issue #234). */
 const legibilityBody = z.object({
@@ -73,6 +79,7 @@ export interface PositionController {
   placeMark: RequestHandler;
   addPosition: RequestHandler;
   removePosition: RequestHandler;
+  removePositions: RequestHandler;
   moveMark: RequestHandler;
   markLegibility: RequestHandler;
   removeMark: RequestHandler;
@@ -114,6 +121,13 @@ export function createPositionController(dependencies: {
     removePosition: async (request, response) => {
       const { positionId } = positionIdParams.parse(request.params);
       const body: PositionsResponse = await positionService.removePosition(positionId);
+      response.json(body);
+    },
+
+    removePositions: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+      const { positionIds } = removePositionsBody.parse(request.body);
+      const body: PositionsResponse = await positionService.removePositions(tavolaId, positionIds);
       response.json(body);
     },
 

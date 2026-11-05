@@ -34,6 +34,11 @@ export interface PositionService {
   /** A number the catalog lists but the drawing does not show. */
   addPosition(tavolaId: string, number: string): Promise<{ sheet: Sheet; added: boolean }>;
   removePosition(positionId: string): Promise<Sheet>;
+  /**
+   * Several numbers off one sheet in one write (issue #240). Every id has to be a Position on that
+   * Tavola, or nothing is removed.
+   */
+  removePositions(tavolaId: string, positionIds: string[]): Promise<Sheet>;
   moveMark(markId: string, to: MarkPoint): Promise<Sheet>;
   /** Whether the print under one Mark can be read (issue #234). The others on its Position stay. */
   markLegibility(markId: string, illegible: boolean): Promise<Sheet>;
@@ -58,7 +63,7 @@ export function createPositionService(dependencies: {
   tavolaRepository: TavolaRepository;
   positionRepository: PositionRepository;
   /** A Sample whose open number is removed ends with it (issue #130). */
-  sampleService: Pick<SampleService, 'removingPosition'>;
+  sampleService: Pick<SampleService, 'removingPositions'>;
 }): PositionService {
   const { tavolaRepository, positionRepository, sampleService } = dependencies;
 
@@ -152,6 +157,26 @@ export function createPositionService(dependencies: {
     });
   }
 
+  /**
+   * Taking numbers off the sheet through `remove`, ending the Sample whose open number goes with
+   * them (issue #130).
+   */
+  async function removing(positionIds: string[], remove: () => Promise<void>): Promise<void> {
+    try {
+      await sampleService.removingPositions(positionIds, remove);
+    } catch (error) {
+      if (violates(error, 'contributions_position_id_positions_id_fk')) {
+        // Marks and links go with the number; what a member wrote about it does not.
+        throw new ConflictError(
+          positionIds.length === 1
+            ? 'Members have written Contributions about this number. It stays while they do.'
+            : 'Members have written Contributions about one of these numbers. None of them was removed: those numbers stay while they do.',
+        );
+      }
+      throw error;
+    }
+  }
+
   async function tavolaThatExists(tavolaId: string): Promise<void> {
     if (!(await tavolaRepository.exists(tavolaId))) {
       throw new NotFoundError('No such Tavola.');
@@ -180,22 +205,25 @@ export function createPositionService(dependencies: {
 
     async removePosition(positionId) {
       const tavolaId = await tavolaOfPosition(positionId);
-      try {
-        await sampleService.removingPosition(positionId, async () => {
-          await positionRepository.remove(positionId);
-        });
-      } catch (error) {
-        if (violates(error, 'contributions_position_id_positions_id_fk')) {
-          // Marks and links go with the number; what a member wrote about it does not.
-          throw new ConflictError(
-            'Members have written Contributions about this number. It stays while they do.',
+      await removing([positionId], async () => {
+        await positionRepository.remove(positionId);
+        // A number taken off the sheet takes its links with it — the rows cascade — and may have
+        // been the last one in its Sub-assembly, which then has nothing left to be a name for.
+        await positionRepository.removeEmptySubAssemblies(tavolaId);
+      });
+      return sheet(tavolaId);
+    },
+
+    async removePositions(tavolaId, positionIds) {
+      await tavolaThatExists(tavolaId);
+      await removing(positionIds, async () => {
+        // The Sub-assemblies they leave empty go in the same transaction.
+        if (!(await positionRepository.removeAll(tavolaId, positionIds))) {
+          throw new NotFoundError(
+            'Not every one of those numbers is on this Tavola now, so none of them was removed.',
           );
         }
-        throw error;
-      }
-      // A number taken off the sheet takes its links with it — the rows cascade — and may have
-      // been the last one in its Sub-assembly, which then has nothing left to be a name for.
-      await positionRepository.removeEmptySubAssemblies(tavolaId);
+      });
       return sheet(tavolaId);
     },
 

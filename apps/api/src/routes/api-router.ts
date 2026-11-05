@@ -503,6 +503,9 @@ export function createApiRouter(dependencies: {
   // A number the catalog lists but the drawing does not show.
   router.post('/tavole/:tavolaId/positions', positionController.addPosition);
   router.delete('/positions/:positionId', positionController.removePosition);
+  // Several at once (issue #240): a run of stray clicks, removed with one confirmation. All or
+  // none, so a list naming one number the sheet does not have leaves the sheet as it was.
+  router.delete('/tavole/:tavolaId/positions', positionController.removePositions);
   router.patch('/marks/:markId', positionController.moveMark);
   // **A print nobody can read** (issue #234): the club types its Position's number over the Mark.
   // A write, so the guard above keeps it an Editor's; a Member who notices one says so in a
