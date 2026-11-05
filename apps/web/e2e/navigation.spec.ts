@@ -369,6 +369,61 @@ test.describe('reading from the drawing', () => {
     await expect(markFor(page, '5')).toBeInViewport();
   });
 
+  /**
+   * The first number read on the page fills the reading at the head of the column, which grows
+   * from one line to a whole Part above the row being read and would push it down under the eye
+   * (issue #239). The row stays where it was, through every step of that reading arriving.
+   */
+  test('holds the row still while the first reading fills in above it', async ({
+    page,
+    hasTouch,
+  }, info) => {
+    test.skip(hasTouch, 'On a phone the list is under the drawing, which stays where it is.');
+    await givenALongSheet(page, `follow-hold-${info.project.name}-${info.repeatEachIndex}`);
+    // A Part at the number, written out as a catalog has it, so the reading is a full one.
+    const tavolaId = /\/tavole\/([^/?]+)/.exec(page.url())?.[1];
+    const sheet = (await (await page.request.get(`/api/tavole/${tavolaId}`)).json()) as {
+      positions: { id: string; number: string }[];
+    };
+    const twelve = sheet.positions.find((position) => position.number === '12');
+    const recorded = await page.request.post(`/api/tavole/${tavolaId}/listings`, {
+      data: {
+        positionId: twelve?.id,
+        quantityPerCar: 2,
+        drawn: true,
+        part: {
+          nameEn: 'Yoke with shaft',
+          nameIt: 'Forcella con albero',
+          catalogNumber: `202313-${info.project.name}-${info.repeatEachIndex}`,
+          description: 'The front yoke, with its shaft, as the factory supplied it.',
+          dimensions: '32 x 180 mm',
+          catalogNote: 'K3-02-210-GB 212-1010',
+        },
+      },
+    });
+    expect(recorded.ok()).toBe(true);
+    await page.reload();
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(40);
+    await partWayDown(page, '12');
+    await expect(page.getByTestId('selected-position')).toHaveCount(0);
+    const before = (await lineFor(page, '12').boundingBox())?.y ?? 0;
+
+    // Pressed where it is on the screen, as a mouse does. Playwright's own click first scrolls
+    // its target into view, and for a circle on the drawing held beside the list that scroll is
+    // worked out from where the drawing would be if it were not held — it moves the page by
+    // itself, which is not what a member's hand does.
+    const ring = await markFor(page, '12').boundingBox();
+    if (!ring) throw new Error('The circle for 12 is not on the screen.');
+    await page.mouse.click(ring.x + ring.width / 2, ring.y + ring.height / 2);
+
+    await expect(page.getByTestId('selected-position')).toHaveText('12');
+    await page.waitForLoadState('networkidle');
+    await aFrameLater(page);
+    await aFrameLater(page);
+    const after = (await lineFor(page, '12').boundingBox())?.y ?? 0;
+    expect(Math.abs(after - before)).toBeLessThan(4);
+  });
+
   test('on a phone, leaves the drawing where it is', async ({ page, hasTouch }, info) => {
     test.skip(!hasTouch, 'Only a phone has the list under the drawing.');
     await givenALongSheet(page, `follow-phone-${info.project.name}`);
