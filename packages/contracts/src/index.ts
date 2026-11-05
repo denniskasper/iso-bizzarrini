@@ -1373,6 +1373,16 @@ export interface NewSubAssemblyRequest {
 }
 
 /**
+ * `DELETE /api/tavole/:tavolaId/positions` — **several numbers removed at once** (issue #240): a
+ * run of stray clicks taken off the sheet with one confirmation rather than one each. Every id has
+ * to name a Position on that Tavola, or nothing is removed. Answered with the `Sheet`.
+ */
+export interface RemovePositionsRequest {
+  /** At least one. */
+  positionIds: string[];
+}
+
+/**
  * `GET /api/tavole/:tavolaId/sub-assemblies/:subAssemblyId` — **a Sub-assembly read as one
  * thing** (issue #110): its name, what the club has written about it, and its numbers with what
  * sits at each.

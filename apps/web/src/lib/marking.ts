@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
-import { api, type MarkPoint, type Sheet, type TavolaResponse } from '@/lib/api';
+import { api, type MarkPoint, type Position, type Sheet, type TavolaResponse } from '@/lib/api';
 import {
   findMark,
   placedAt,
@@ -76,6 +76,25 @@ export interface MarkingTool {
    */
   markLegibility: (markId: string, illegible: boolean, settled?: () => void) => void;
   removePosition: (positionId: string) => void;
+  /**
+   * **Picking several numbers to remove together** (issue #240): a run of stray clicks is one
+   * confirmation, not three presses a number. While `selecting`, a press on a number in the strip
+   * or on the drawing toggles it in `picked` instead of reading it.
+   */
+  selecting: boolean;
+  setSelecting: (selecting: boolean) => void;
+  /** The ids picked, in no particular order: the sheet says what order they are in. */
+  picked: ReadonlySet<string>;
+  /**
+   * One number pressed, against the sheet as it is shown. `run` (a Shift+click) picks everything
+   * from the number last pressed to this one, in the sheet's order.
+   */
+  pick: (position: Position, positions: Position[], how: { run: boolean }) => void;
+  /**
+   * Removes every picked number still on the sheet in one request, and stops selecting. One that
+   * somebody else removed meanwhile is left out rather than refusing the rest.
+   */
+  removePicked: () => void;
   /**
    * Taking back the last thing this Editor did with the tool open, newest first (issue #236).
    * Removing a Position is not one of them: it asks first instead.
@@ -217,23 +236,75 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
       remember({ kind: 'legibility', ...marked });
     },
   });
+  /**
+   * After numbers are removed: the sheet, **and its index** — a Position removed does not take its
+   * Listings with it; they stay on the Tavola with no number, which is a line the index beside the
+   * drawing prints under a heading of its own, and leaving it stale would show them at a number
+   * that is gone. And whether Visitors see it: removing the number open to them ends the Sample
+   * (issue #130), which the sheet does not say, so an Administrator would read it as still shown.
+   */
+  const removed = (sheet: Sheet, positionIds: string[]) => {
+    const current = queryClient.getQueryData<TavolaResponse>(['tavola', tavolaId]);
+    record(sheet);
+    void rereadListings();
+    // What was done to the numbers before is gone with them, and can no longer be taken back.
+    setSteps((done) => done.filter((step) => stillOn(step, sheet.positions)));
+    const open = current?.tavola.sample?.open.positionId;
+    if (open !== undefined && positionIds.includes(open)) {
+      void queryClient.invalidateQueries({ queryKey: ['tavola', tavolaId] });
+      void queryClient.invalidateQueries({ queryKey: ['samples'] });
+    }
+  };
   const removePosition = useMutation({
     mutationFn: (positionId: string) => api.removePosition(positionId),
-    // The sheet, **and its index**: a Position removed does not take its Listings with it — they
-    // stay on the Tavola with no number, which is a line the index beside the drawing prints
-    // under a heading of its own. Leaving it stale would show them at a number that is gone.
-    // And whether Visitors see it: removing the number open to them ends the Sample (issue #130),
-    // which the sheet does not say, so an Administrator would read it as still shown.
-    onSuccess: (sheet, positionId) => {
-      const current = queryClient.getQueryData<TavolaResponse>(['tavola', tavolaId]);
-      record(sheet);
-      void rereadListings();
-      // What was done to the number before is gone with it, and can no longer be taken back.
-      setSteps((done) => done.filter((step) => stillOn(step, sheet.positions)));
-      if (current?.tavola.sample?.open.positionId === positionId) {
-        void queryClient.invalidateQueries({ queryKey: ['tavola', tavolaId] });
-        void queryClient.invalidateQueries({ queryKey: ['samples'] });
-      }
+    onSuccess: (sheet, positionId) => removed(sheet, [positionId]),
+  });
+
+  /**
+   * The numbers picked, **on this Tavola**, and the last one pressed — which a Shift+click runs
+   * from. Kept by the Tavola for the same reason the undo steps are.
+   */
+  const [picks, setPicks] = useState<{
+    tavolaId: string;
+    on: boolean;
+    ids: ReadonlySet<string>;
+    anchor: string | null;
+  }>({ tavolaId, on: false, ids: new Set(), anchor: null });
+  // Leaving the Tavola ends selecting there, so coming back does not find it switched on again.
+  if (picks.tavolaId !== tavolaId && picks.on) {
+    setPicks({ tavolaId, on: false, ids: new Set(), anchor: null });
+  }
+  const selecting = picks.tavolaId === tavolaId && picks.on;
+  const picked: ReadonlySet<string> = selecting ? picks.ids : new Set();
+  const setSelecting = useCallback(
+    (on: boolean) => setPicks({ tavolaId, on, ids: new Set(), anchor: null }),
+    [tavolaId],
+  );
+  const pick = useCallback(
+    (position: Position, positions: Position[], how: { run: boolean }) =>
+      setPicks((now) => {
+        const ids = new Set(now.tavolaId === tavolaId ? now.ids : []);
+        const from = positions.findIndex((one) => one.id === now.anchor);
+        const to = positions.findIndex((one) => one.id === position.id);
+        if (how.run && from !== -1 && to !== -1) {
+          // A run is picked, whatever was picked inside it before: 23 to 36 is fourteen numbers.
+          for (const one of positions.slice(Math.min(from, to), Math.max(from, to) + 1)) {
+            ids.add(one.id);
+          }
+        } else if (ids.has(position.id)) {
+          ids.delete(position.id);
+        } else {
+          ids.add(position.id);
+        }
+        return { tavolaId, on: true, ids, anchor: position.id };
+      }),
+    [tavolaId],
+  );
+  const removePositions = useMutation({
+    mutationFn: (positionIds: string[]) => api.removePositions(tavolaId, { positionIds }),
+    onSuccess: (sheet, positionIds) => {
+      removed(sheet, positionIds);
+      setSelecting(false);
     },
   });
 
@@ -263,7 +334,16 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     },
   });
 
-  const writes = [place, list, moveMark, removeMark, markLegibility, removePosition, undo];
+  const writes = [
+    place,
+    list,
+    moveMark,
+    removeMark,
+    markLegibility,
+    removePosition,
+    removePositions,
+    undo,
+  ];
   const busy = writes.some((mutation) => mutation.isPending);
   /** What the last thing the Editor did was refused with, if it was: older refusals are history. */
   const latest = writes.reduce((last, mutation) =>
@@ -290,7 +370,8 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     stop: useCallback(() => {
       setOn(false);
       setSteps(() => []);
-    }, [setSteps]),
+      setSelecting(false);
+    }, [setSteps, setSelecting]),
     number,
     setNumber,
     held,
@@ -302,6 +383,18 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     markLegibility: (markId, illegible, settled) =>
       markLegibility.mutate({ markId, illegible }, { onSettled: settled }),
     removePosition: removePosition.mutate,
+    selecting,
+    setSelecting,
+    picked,
+    pick,
+    removePicked: () => {
+      const still = shown()
+        .filter((position) => picked.has(position.id))
+        .map((position) => position.id);
+      if (still.length > 0) {
+        removePositions.mutate(still);
+      }
+    },
     // Not while anything is in flight: the step it would take back may not be the last one yet.
     undo: () => {
       const last = steps.at(-1);

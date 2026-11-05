@@ -374,6 +374,108 @@ describe('marking up a Tavola', () => {
     });
   });
 
+  describe('a run of numbers that should not be there', () => {
+    // Stray clicks while the number kept advancing (issue #240): fourteen of them were 42 clicks
+    // to remove one at a time, and are one request here.
+    function removeAll(positionIds: string[], agent = editor, onTavola = tavolaId) {
+      return agent.delete(`/api/tavole/${onTavola}/positions`).send({ positionIds });
+    }
+
+    /** Those numbers placed across the sheet, and a way to name each by its id. */
+    async function placed(...numbers: string[]): Promise<(number: string) => string> {
+      const ids = new Map<string, string>();
+      for (const [at, number] of numbers.entries()) {
+        const response = await place(number, 0.1 + at * 0.05, 0.5).expect(201);
+        for (const position of response.body.positions) {
+          ids.set(position.number, position.id);
+        }
+      }
+      return (number) => {
+        const id = ids.get(number);
+        if (id === undefined) {
+          throw new Error(`${number} was not placed.`);
+        }
+        return id;
+      };
+    }
+
+    it('is removed in one request, circles and all, answering with the sheet', async () => {
+      const ids = await placed('22', '23', '24', '25');
+
+      const response = await removeAll([ids('23'), ids('24'), ids('25')]).expect(200);
+
+      expect(numbersOf(response.body.positions)).toEqual(['22']);
+      expect(response.body.subAssemblies).toEqual([]);
+      expect(numbersOf(await positionsOf())).toEqual(['22']);
+    });
+
+    it('takes a Sub-assembly with it when nothing is left in it, and leaves one that has', async () => {
+      const ids = await placed('22', '23', '24');
+      await editor
+        .post(`/api/tavole/${tavolaId}/sub-assemblies`)
+        .send({ name: 'Stray', positionIds: [ids('23'), ids('24')] })
+        .expect(201);
+      await editor
+        .post(`/api/tavole/${tavolaId}/sub-assemblies`)
+        .send({ name: 'Door Lock', positionIds: [ids('22')] })
+        .expect(201);
+
+      const response = await removeAll([ids('23'), ids('24')]).expect(200);
+
+      expect(response.body.subAssemblies.map((one: { name: string }) => one.name)).toEqual([
+        'Door Lock',
+      ]);
+    });
+
+    it('removes nothing when one of them is on another Tavola, and says why', async () => {
+      const ids = await placed('22', '23');
+      const model = await givenModel(app.db, { brand: 'Iso', name: 'Rivolta' });
+      const elsewhere = (await givenTavola(app.db, model.id, { number: '7' })).id;
+      const other = await editor
+        .post(`/api/tavole/${elsewhere}/marks`)
+        .send({ number: '23', x: 0.5, y: 0.5 })
+        .expect(201);
+
+      const response = await removeAll([ids('23'), other.body.positions[0].id]).expect(404);
+
+      expect(response.body.error).toMatchObject({
+        code: 'not_found',
+        message: expect.stringMatching(/none of them was removed/),
+      });
+      expect(numbersOf(await positionsOf())).toEqual(['22', '23']);
+      expect(numbersOf(await positionsOf(elsewhere))).toEqual(['23']);
+    });
+
+    it('removes nothing when one of them is already gone', async () => {
+      const ids = await placed('22', '23', '24');
+      await editor.delete(`/api/positions/${ids('24')}`).expect(200);
+
+      await removeAll([ids('22'), ids('23'), ids('24')]).expect(404);
+
+      expect(numbersOf(await positionsOf())).toEqual(['22', '23']);
+    });
+
+    it('needs at least one number, each of them an id', async () => {
+      await removeAll([]).expect(400);
+      await removeAll(['23']).expect(400);
+    });
+
+    it('is an Editor’s to do, and not a Member’s', async () => {
+      const ids = await placed('22', '23');
+      const administrator = await givenAnAdministrator(app);
+      const member = (await givenAMember(app, administrator.agent)).agent;
+
+      await removeAll([ids('23')], member).expect(403);
+      await app
+        .request()
+        .delete(`/api/tavole/${tavolaId}/positions`)
+        .send({ positionIds: [ids('23')] })
+        .expect(401);
+
+      expect(numbersOf(await positionsOf())).toEqual(['22', '23']);
+    });
+  });
+
   describe('a Tavola nobody has marked up', () => {
     it('reports no Positions rather than nothing at all', async () => {
       expect(await positionsOf()).toEqual([]);

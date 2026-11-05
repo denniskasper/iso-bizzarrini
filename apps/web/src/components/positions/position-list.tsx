@@ -25,11 +25,20 @@ export function PositionList({
   positions,
   selectedPositionId,
   onSelect,
+  picking = null,
   action,
 }: {
   positions: Position[];
   selectedPositionId: string | null;
   onSelect: (position: Position) => void;
+  /**
+   * **Picking numbers to remove together** (issue #240), while an Editor has asked to: a press
+   * toggles a number instead of reading it, and Shift+click picks the run up to it.
+   */
+  picking?: {
+    picked: ReadonlySet<string>;
+    onPick: (position: Position, how: { run: boolean }) => void;
+  } | null;
   /** Whatever this screen offers about the sheet as a whole — the Editor's way in. */
   action?: ReactNode;
 }) {
@@ -59,8 +68,10 @@ export function PositionList({
             <li key={position.id}>
               <PositionChip
                 position={position}
-                selected={position.id === selectedPositionId}
-                onSelect={onSelect}
+                selected={
+                  picking ? picking.picked.has(position.id) : position.id === selectedPositionId
+                }
+                onSelect={picking ? picking.onPick : onSelect}
               />
             </li>
           ))}

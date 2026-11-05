@@ -54,11 +54,12 @@ export interface SampleService {
   endedOf(tavolaId: string): Promise<EndedSample | null>;
   list(): Promise<SamplesResponse>;
   /**
-   * **Removes a Position through `remove`, and ends the Sample it is the open number of** (issue
-   * #130): a Sample with nothing for a Visitor to read is not one. Its public copy is deleted and
-   * Administrators are told that it ended and why. Nothing ends when `remove` is refused.
+   * **Removes Positions through `remove`, and ends the Sample one of them is the open number of**
+   * (issue #130): a Sample with nothing for a Visitor to read is not one. Its public copy is
+   * deleted and Administrators are told that it ended and why. Nothing ends when `remove` is
+   * refused.
    */
-  removingPosition(positionId: string, remove: () => Promise<void>): Promise<void>;
+  removingPositions(positionIds: string[], remove: () => Promise<void>): Promise<void>;
   /**
    * A new copy from the Tavola's current Scan, for a Sample whose Scan was replaced or turned:
    * the copy is of the drawing the Marks are on. Nothing happens for a Tavola that is not shown.
@@ -223,8 +224,12 @@ export function createSampleService(dependencies: {
       };
     },
 
-    async removingPosition(positionId, remove) {
-      const open = await sampleRepository.findByOpenPosition(positionId);
+    async removingPositions(positionIds, remove) {
+      // A Tavola has one Sample, so at most one of these is its open number.
+      const found = await Promise.all(
+        positionIds.map((id) => sampleRepository.findByOpenPosition(id)),
+      );
+      const open = found.find((sample) => sample !== null) ?? null;
       // The Sample's row goes with the Position, which the database sees to.
       await remove();
       if (!open) {

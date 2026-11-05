@@ -22,7 +22,8 @@ export function PositionChip({
 }: {
   position: Position;
   selected: boolean;
-  onSelect: (position: Position) => void;
+  /** `run` is a Shift+click: everything from the last one chosen to this one (issue #240). */
+  onSelect: (position: Position, how: { run: boolean }) => void;
   /** Which list this is one of, for the seam that has to tell the three apart. */
   testId?: string;
 }) {
@@ -34,7 +35,7 @@ export function PositionChip({
       data-testid={testId}
       data-position={position.number}
       aria-pressed={selected}
-      onClick={() => onSelect(position)}
+      onClick={(event) => onSelect(position, { run: event.shiftKey })}
       className={cn(
         'tabular inline-flex h-control min-w-control items-center justify-center px-3',
         'rounded-md border text-sm transition-colors duration-150 ease-[var(--ease-out-quick)]',

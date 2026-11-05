@@ -3,6 +3,39 @@ import { Button } from '@/components/ui/button';
 import { Refusal } from '@/components/ui/field';
 import type { Position } from '@/lib/api';
 import type { MarkingTool } from '@/lib/marking';
+import { useTavolaListings } from '@/lib/parts';
+
+/**
+ * The picked numbers, said the way an Editor reads the sheet: in its order, a run of neighbours
+ * as one range. "23–36", or "4, 9, 23–36" — never fourteen numbers in a row.
+ */
+export function describePicked(positions: Position[], picked: ReadonlySet<string>): string {
+  const runs: Position[][] = [];
+  let run: Position[] = [];
+  for (const position of positions) {
+    if (picked.has(position.id)) {
+      run.push(position);
+    } else if (run.length > 0) {
+      runs.push(run);
+      run = [];
+    }
+  }
+  if (run.length > 0) {
+    runs.push(run);
+  }
+  return runs
+    .map((one) =>
+      one.length === 1
+        ? (one[0]?.number ?? '')
+        : `${one[0]?.number ?? ''}–${one.at(-1)?.number ?? ''}`,
+    )
+    .join(', ');
+}
+
+/** "1 Position", "14 Positions": a count and the word for it, agreeing. */
+function counted(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? '' : 's'}`;
+}
 
 /**
  * The marking tool (stories 96–99), and the shape of it is an argument about time.
@@ -18,11 +51,13 @@ import type { MarkingTool } from '@/lib/marking';
  * it is an identifier being compared against a printed page.
  */
 export function MarkingBar({
+  tavolaId,
   tool,
   positions,
   selected,
   onDeselect,
 }: {
+  tavolaId: string;
   tool: MarkingTool;
   positions: Position[];
   /** What the Editor last pointed at, so a circle in the wrong place can be taken off. */
@@ -43,6 +78,21 @@ export function MarkingBar({
   /** The Position whose removal has been asked for once, and is waiting for the second press. */
   const [removing, setRemoving] = useState<string | null>(null);
   const confirming = selected !== null && removing === selected.position.id;
+
+  /**
+   * **Several numbers at once** (issue #240). What is picked, as the sheet now has it — a number
+   * somebody else removed meanwhile is no longer one to ask about — and how many of those carry
+   * something the club recorded, so a cleanup does not take real work with it unannounced.
+   */
+  const [removingPicked, setRemovingPicked] = useState(false);
+  const listings = useTavolaListings(tavolaId);
+  const picked = positions.filter((position) => tool.picked.has(position.id));
+  const listed = new Set(listings.data?.listings.map((listing) => listing.positionId));
+  const withSomethingRecorded = picked.filter(
+    (position) =>
+      listed.has(position.id) || position.related.length > 0 || position.subAssemblyId !== null,
+  ).length;
+  const confirmingPicked = tool.selecting && removingPicked && picked.length > 0;
 
   /**
    * **Ctrl+Z, or ⌘Z**, while the tool is open (issue #236) — except in a text field, where it
@@ -111,8 +161,9 @@ export function MarkingBar({
             line rather than squeezing the instruction into a column of single words. */}
         <div className="max-w-measure min-w-64 flex-1">
           <p id={`${fieldId}-hint`} className="text-pretty text-muted">
-            Click the drawing to place a Mark. Drag a circle to move it. The number goes up by one
-            each time — type over it for a suffix, or to jump.
+            {tool.selecting
+              ? 'Press numbers below, or circles on the drawing, to select them. Shift+click a number below to select every number up to it.'
+              : 'Click the drawing to place a Mark. Drag a circle to move it. The number goes up by one each time — type over it for a suffix, or to jump.'}
           </p>
 
           {/*
@@ -181,11 +232,32 @@ export function MarkingBar({
           Undo
         </Button>
 
-        <Button variant="outline" disabled={tool.busy} onClick={tool.list}>
-          List without a Mark
+        {/* A switch, so it says which way a press on a number goes; not in the Mark's blue,
+            which here means the numbers picked. */}
+        <Button
+          variant="outline"
+          aria-pressed={tool.selecting}
+          onClick={() => {
+            setRemovingPicked(false);
+            tool.setSelecting(!tool.selecting);
+          }}
+        >
+          {tool.selecting ? 'Stop selecting' : 'Select numbers'}
         </Button>
 
-        {selectedMarkId && (
+        {!tool.selecting && (
+          <Button variant="outline" disabled={tool.busy} onClick={tool.list}>
+            List without a Mark
+          </Button>
+        )}
+
+        {tool.selecting && picked.length > 0 && !confirmingPicked && (
+          <Button variant="outline" disabled={tool.busy} onClick={() => setRemovingPicked(true)}>
+            Remove {counted(picked.length, 'Position')}
+          </Button>
+        )}
+
+        {!tool.selecting && selectedMarkId && (
           <Button
             variant="outline"
             disabled={tool.busy}
@@ -197,7 +269,7 @@ export function MarkingBar({
 
         {/* Asked twice, because Undo cannot bring it back: the number goes with its circles,
             its links and its place in a Sub-assembly. */}
-        {selected && !confirming && (
+        {!tool.selecting && selected && !confirming && (
           <Button
             variant="outline"
             disabled={tool.busy}
@@ -212,7 +284,54 @@ export function MarkingBar({
         </Button>
       </div>
 
-      {selected && confirming && (
+      {tool.selecting && (
+        <p className="mt-6 text-pretty" data-testid="picked-numbers" aria-live="polite">
+          {picked.length === 0 ? (
+            <span className="text-muted">No numbers selected.</span>
+          ) : (
+            <>
+              {counted(picked.length, 'number')}:{' '}
+              <span className="tabular">{describePicked(positions, tool.picked)}</span>
+            </>
+          )}
+        </p>
+      )}
+
+      {/* Asked twice, as one number is — and saying how many carry something recorded, which
+          goes with them: their links and Sub-assembly places, and their Listings' numbers. */}
+      {confirmingPicked && (
+        <div
+          className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3"
+          role="group"
+          aria-label={`Remove ${counted(picked.length, 'Position')}`}
+        >
+          <p className="max-w-measure text-pretty">
+            Remove {counted(picked.length, 'Position')} and their circles?{' '}
+            {withSomethingRecorded > 0 &&
+              (withSomethingRecorded === 1
+                ? '1 of them has something recorded at it — a Listing, a link or a Sub-assembly. '
+                : `${withSomethingRecorded} of them have something recorded at them — Listings, links or a Sub-assembly. `)}
+            Undo cannot bring them back.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="danger"
+              disabled={tool.busy}
+              onClick={() => {
+                setRemovingPicked(false);
+                tool.removePicked();
+              }}
+            >
+              {tool.busy ? 'Removing…' : 'Yes, remove them'}
+            </Button>
+            <Button variant="ghost" onClick={() => setRemovingPicked(false)}>
+              Keep them
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!tool.selecting && selected && confirming && (
         <div
           className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3"
           role="group"
