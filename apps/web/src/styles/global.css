@@ -970,6 +970,9 @@
    * no decoration whatever on a row that is nothing but two facts.
    */
   .sheet-line {
+    /* Brought into view clear of the chrome, when a circle on the drawing is read (`show`). */
+    scroll-margin-top: calc(var(--chrome-height, 0px) + --spacing(6));
+    scroll-margin-bottom: --spacing(6);
     display: grid;
     /* Wide enough for the longest thing a factory ever printed in this column — `210 S`,
        `12 bis` — set in the mono face, because a number that wraps is a number nobody scans. */

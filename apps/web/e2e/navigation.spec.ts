@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { markFor, openADrawingOfYourOwn, openFirstDrawing, placeMarks } from './support/archive.js';
+import {
+  aFrameLater,
+  markFor,
+  openADrawingOfYourOwn,
+  openFirstDrawing,
+  placeMarks,
+} from './support/archive.js';
 
 /**
  * Working the drawing both ways round.
@@ -261,5 +267,81 @@ test.describe('a part listed at no number', () => {
 
     await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
     await expect(page.getByTestId('unplaced-parts')).toContainText('Fixing kit');
+  });
+});
+
+/**
+ * **The other direction, kept in step** — a circle clicked on the drawing brings its row in the
+ * list beside it into view, so a member working down the facing page does not lose their place
+ * in it by reading from the sheet. Only where the list stands beside the drawing: on a phone it is
+ * under it, and scrolling there would take the drawing away from the hand that just used it.
+ */
+test.describe('reading from the drawing', () => {
+  /** Forty numbers, so the list is longer than any window and most of its rows are off it. */
+  async function givenALongSheet(page: Page, named: string): Promise<void> {
+    await openADrawingOfYourOwn(page, named);
+    const tavolaId = /\/tavole\/([^/?]+)/.exec(page.url())?.[1];
+    for (let number = 1; number <= 40; number += 1) {
+      await page.request.post(`/api/tavole/${tavolaId}/marks`, {
+        data: {
+          number: String(number),
+          x: 0.1 + ((number - 1) % 8) * 0.1,
+          y: 0.1 + Math.floor((number - 1) / 8) * 0.15,
+        },
+      });
+    }
+    await page.reload();
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(40);
+  }
+
+  /** A member partway down the list, with that row in the middle of the window. */
+  async function partWayDown(page: Page, number: string): Promise<void> {
+    await lineFor(page, number).evaluate((row) => row.scrollIntoView({ block: 'center' }));
+    await aFrameLater(page);
+  }
+
+  test('a circle clicked brings its row in the list into view', async ({
+    page,
+    hasTouch,
+  }, info) => {
+    test.skip(hasTouch, 'On a phone the list is under the drawing, which stays where it is.');
+    await givenALongSheet(page, `follow-${info.project.name}`);
+
+    // Working down the list: its start in view, and the row for 40 well below the window.
+    await partWayDown(page, '3');
+    await expect(lineFor(page, '40')).not.toBeInViewport();
+
+    await markFor(page, '40').click();
+
+    await expect(lineFor(page, '40')).toBeInViewport();
+    await expect(lineFor(page, '40')).toHaveAttribute('aria-pressed', 'true');
+    // And the drawing is still where the hand left it.
+    await expect(markFor(page, '40')).toBeInViewport();
+  });
+
+  test('keeps a row that is already in view in view', async ({ page, hasTouch }, info) => {
+    test.skip(hasTouch, 'On a phone the list is under the drawing, which stays where it is.');
+    await givenALongSheet(page, `follow-still-${info.project.name}`);
+    await partWayDown(page, '5');
+
+    await markFor(page, '5').click();
+
+    await expect(page.getByTestId('selected-position')).toHaveText('5');
+    await expect(lineFor(page, '5')).toHaveAttribute('aria-pressed', 'true');
+    await expect(lineFor(page, '5')).toBeInViewport();
+    await expect(markFor(page, '5')).toBeInViewport();
+  });
+
+  test('on a phone, leaves the drawing where it is', async ({ page, hasTouch }, info) => {
+    test.skip(!hasTouch, 'Only a phone has the list under the drawing.');
+    await givenALongSheet(page, `follow-phone-${info.project.name}`);
+    await page.getByTestId('drawing-frame').scrollIntoViewIfNeeded();
+    const before = (await page.getByTestId('drawing-frame').boundingBox())?.y ?? 0;
+
+    await markFor(page, '40').click();
+
+    await expect(page.getByTestId('selected-position')).toHaveText('40');
+    await aFrameLater(page);
+    expect((await page.getByTestId('drawing-frame').boundingBox())?.y).toBeCloseTo(before, 0);
   });
 });
