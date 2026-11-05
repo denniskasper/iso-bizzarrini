@@ -24,6 +24,8 @@ async function expectEditorsTools(page: Page, offered: boolean): Promise<void> {
   await page.getByTestId('tavola-plate').first().click();
   await expectTheSheetIsDrawn(drawingOf(page));
   await expect(page.getByText(/^Choose a (new )?scan$/)).toHaveCount(count);
+  // The marking tool, and with it removing numbers one at a time or several at once (#240).
+  await expect(page.getByRole('button', { name: 'Mark positions' })).toHaveCount(count);
 }
 
 test('a Member reads the archive without being offered an Editor’s tools', async ({ page }) => {

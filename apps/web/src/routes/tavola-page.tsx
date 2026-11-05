@@ -522,12 +522,21 @@ export function TavolaPage() {
                 selectedPositionId={selectedPosition?.id ?? null}
                 selectedMarkId={selectedMark?.id ?? null}
                 lit={lit}
+                picked={tool.selecting ? tool.picked : null}
                 onSelect={
-                  picking ? (position: Position) => visitors.show.mutate(position.id) : readMark
+                  picking
+                    ? (position: Position) => visitors.show.mutate(position.id)
+                    : tool.selecting
+                      ? (position: Position) => tool.pick(position, positions, { run: false })
+                      : readMark
                 }
                 onPoint={point}
                 pointedMarkId={described?.mark.id ?? null}
-                onMove={tool.on && !outlineInHand && !picking ? tool.moveMark : undefined}
+                onMove={
+                  tool.on && !outlineInHand && !picking && !tool.selecting
+                    ? tool.moveMark
+                    : undefined
+                }
                 quiet={outlineInHand}
               />
             }
@@ -581,7 +590,7 @@ export function TavolaPage() {
                   ? outlining.add
                   : outlining.reshaping
                     ? outlining.tapWhileReshaping
-                    : tool.on
+                    : tool.on && !tool.selecting
                       ? tool.place
                       : undefined
             }
@@ -718,6 +727,7 @@ export function TavolaPage() {
               a Mark stands aside. */}
           {!outlineInHand && (
             <MarkingBar
+              tavolaId={tavola.id}
               tool={tool}
               positions={positions}
               selected={selected}
@@ -754,10 +764,19 @@ export function TavolaPage() {
             setOutlineSelected(null);
             open(position);
           }}
+          picking={
+            tool.selecting
+              ? {
+                  picked: tool.picked,
+                  onPick: (position, how) => tool.pick(position, positions, how),
+                }
+              : null
+          }
           // A drawing nobody has scanned is not a drawing anybody can click, so the tool that
-          // works by clicking it is not offered.
+          // works by clicking it is not offered. Nor to a Member: every press of it is a write the
+          // archive would refuse them.
           action={
-            tavola.scan && !tool.on ? (
+            isEditor && tavola.scan && !tool.on ? (
               <Button variant="outline" onClick={() => tool.start(positions.at(-1)?.number)}>
                 Mark positions
               </Button>

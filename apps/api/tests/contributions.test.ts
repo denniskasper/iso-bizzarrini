@@ -322,6 +322,31 @@ describe('Contributions', () => {
       await editor.get(`/api/parts/${partId}`).expect(200);
       expect(await readAs(clara.agent)).toHaveLength(1);
     });
+
+    it('keeps every number of a run removed together, when one of them is written about', async () => {
+      // Several numbers at once (issue #240) are all or none, so this one keeps the others too.
+      await clara.agent
+        .post(`/api/positions/${positionId}/contributions`)
+        .send({ text: 'This number is printed twice on my copy of the sheet.' })
+        .expect(201);
+      const sheet = await editor
+        .post(`/api/tavole/${tavolaId}/positions`)
+        .send({ number: '2' })
+        .expect(201);
+      const ids = sheet.body.positions.map((position: { id: string }) => position.id);
+
+      const refused = await editor
+        .delete(`/api/tavole/${tavolaId}/positions`)
+        .send({ positionIds: ids })
+        .expect(409);
+
+      expect(refused.body.error.message).toMatch(/None of them was removed/);
+      const after = await editor.get(`/api/tavole/${tavolaId}`).expect(200);
+      expect(after.body.positions.map((position: { number: string }) => position.number)).toEqual([
+        '1',
+        '2',
+      ]);
+    });
   });
 
   /**

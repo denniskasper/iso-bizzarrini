@@ -76,6 +76,13 @@ export interface MarkLayerProps {
    * member switched on and can switch off, not information taken away from them.
    */
   lit?: ReadonlySet<string> | null;
+  /**
+   * **The numbers an Editor has picked to remove together** (issue #240), or `null` when nobody
+   * is picking. While picking, these are the circles that wear the Mark's blue — several
+   * Positions pointed at at once — and a press on a circle is `onSelect` once, never twice, since
+   * it toggles rather than reads.
+   */
+  picked?: ReadonlySet<string> | null;
   onSelect: (position: Position, mark: Mark) => void;
   /**
    * A pointer that can hover came to rest on a circle, or keyboard focus arrived at one — and
@@ -102,6 +109,7 @@ export function MarkLayer({
   selectedPositionId,
   selectedMarkId,
   lit = null,
+  picked = null,
   onSelect,
   onPoint,
   pointedMarkId = null,
@@ -205,8 +213,9 @@ export function MarkLayer({
             key={mark.id}
             mark={held?.markId === mark.id ? { ...mark, x: held.x, y: held.y } : mark}
             position={position}
-            selected={position.id === selectedPositionId}
-            current={mark.id === selectedMarkId}
+            selected={picked ? picked.has(position.id) : position.id === selectedPositionId}
+            current={picked === null && mark.id === selectedMarkId}
+            picking={picked !== null}
             subdued={lit !== null && !lit.has(position.id)}
             movable={onMove !== undefined}
             described={mark.id === pointedMarkId}
@@ -233,6 +242,7 @@ const MarkCircle = memo(function MarkCircle({
   current,
   subdued,
   movable,
+  picking,
   described,
   onSelect,
   onPoint,
@@ -247,6 +257,8 @@ const MarkCircle = memo(function MarkCircle({
   /** Not one of the numbers the drawing has been asked about, while it has been asked. */
   subdued: boolean;
   movable: boolean;
+  /** A press toggles it in a selection, so it must arrive once, not as a press and a click. */
+  picking: boolean;
   /** A card beside it is saying what is here. */
   described: boolean;
   onSelect: (position: Position, mark: Mark) => void;
@@ -295,8 +307,13 @@ const MarkCircle = memo(function MarkCircle({
       onPointerMove={movable ? (event) => onDragTo(mark, event) : undefined}
       onPointerUp={movable ? (event) => onLetGo(mark, event) : undefined}
       onPointerCancel={movable ? (event) => onLetGo(mark, event) : undefined}
-      // For a keyboard, which produces a click and no press at all.
-      onClick={() => onSelect(position, mark)}
+      // For a keyboard, which produces a click and no press at all. Reading twice is harmless;
+      // toggling twice is no toggle, so while picking only the keyboard's click counts.
+      onClick={(event) => {
+        if (!picking || event.detail === 0) {
+          onSelect(position, mark);
+        }
+      }}
       onPointerEnter={(event) => {
         if (event.pointerType !== 'touch') {
           onPoint?.({ position, mark, element: event.currentTarget });

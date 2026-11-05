@@ -89,6 +89,7 @@ import type {
   ModelProgressResponse,
   MarkLegibilityRequest,
   MoveMarkRequest,
+  RemovePositionsRequest,
   NewMarkRequest,
   NewListingRequest,
   NewModelRequest,
@@ -489,6 +490,9 @@ export const api = {
     send<PositionsResponse>('POST', `/tavole/${tavolaId}/positions`, position),
   removePosition: (positionId: string) =>
     request<PositionsResponse>(`/positions/${positionId}`, { method: 'DELETE' }),
+  /** Several numbers off one sheet, all or none (issue #240). */
+  removePositions: (tavolaId: string, removing: RemovePositionsRequest) =>
+    send<PositionsResponse>('DELETE', `/tavole/${tavolaId}/positions`, removing),
   moveMark: (markId: string, to: MoveMarkRequest) =>
     send<PositionsResponse>('PATCH', `/marks/${markId}`, to),
   removeMark: (markId: string) =>

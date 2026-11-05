@@ -388,6 +388,56 @@ test.describe('marking up a drawing', () => {
   });
 });
 
+test.describe('removing several numbers at once', () => {
+  function chip(page: Page, number: string): Locator {
+    return page.locator(`[data-testid="position-chip"][data-position="${number}"]`);
+  }
+
+  /**
+   * A run of stray numbers (issue #240): fourteen of them were 42 clicks one at a time. Here a
+   * run is two clicks to pick and one confirmation to remove, in one request.
+   */
+  test('an Editor picks a run in the strip, and removes it with one confirmation', async ({
+    page,
+  }, info) => {
+    await openADrawingOfYourOwn(page, `remove-run-${info.project.name}`);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    for (const [at, x] of [0.15, 0.3, 0.45, 0.6, 0.75].entries()) {
+      await clickAt(page, x, 0.5);
+      await expect(page.getByTestId('drawing-mark')).toHaveCount(at + 1);
+    }
+
+    await page.getByRole('button', { name: 'Select numbers' }).click();
+    // While picking, a click on the drawing places nothing.
+    await clickAt(page, 0.5, 0.2);
+    await chip(page, '2').click();
+    await chip(page, '4').click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('picked-numbers')).toHaveText('3 numbers: 2–4');
+    await expect(chip(page, '3')).toHaveAttribute('aria-pressed', 'true');
+    await expect(markFor(page, '3')).toHaveAttribute('data-selected', 'true');
+
+    // A press toggles: 3 off, and a circle on the drawing on.
+    await chip(page, '3').click();
+    await markFor(page, '5').click();
+    await expect(page.getByTestId('picked-numbers')).toHaveText('3 numbers: 2, 4–5');
+
+    await page.getByRole('button', { name: 'Remove 3 Positions' }).click();
+    await expect(page.getByText('Remove 3 Positions and their circles?')).toBeVisible();
+    await page.getByRole('button', { name: 'Keep them' }).click();
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(5);
+
+    await page.getByRole('button', { name: 'Remove 3 Positions' }).click();
+    await page.getByRole('button', { name: 'Yes, remove them' }).click();
+
+    await expect(page.getByTestId('position-chip')).toHaveCount(2);
+    await expect(chip(page, '1')).toBeVisible();
+    await expect(chip(page, '3')).toBeVisible();
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(2);
+    // Done selecting: the tool is back to placing.
+    await expect(page.getByRole('button', { name: 'Select numbers' })).toBeVisible();
+  });
+});
+
 /**
  * **Taking back what the tool just did** (issue #236). One click per circle and nothing to
  * confirm is what makes marking fast, and it is also where the mistakes come from — so the way
