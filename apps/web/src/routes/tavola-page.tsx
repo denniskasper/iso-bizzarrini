@@ -115,6 +115,7 @@ export function TavolaPage() {
   const view = useRef<DrawingView>(null);
   /** The list beside the drawing, which a circle read on the sheet brings its row into view in. */
   const sheetIndex = useRef<SheetIndex>(null);
+  const drawingColumn = useRef<HTMLDivElement>(null);
   /**
    * **An Administrator choosing the number Visitors may read** (ADR 0019), by pressing its circle.
    * Keyed by the Tavola like everything else held here, so it never follows them onto the next
@@ -510,7 +511,7 @@ export function TavolaPage() {
       <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_var(--width-part-panel)]">
         {/* The drawing and the tools that change the sheet itself — its scan, which way up it
             is — travel together, so turning a sheet shows what it did without scrolling to it. */}
-        <div className="drawing-column">
+        <div ref={drawingColumn} className="drawing-column">
           <DrawingViewer
             ref={view}
             className="drawing-beside"
@@ -672,47 +673,10 @@ export function TavolaPage() {
         </div>
       </div>
 
-      {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
-          the factory's drawing, and an Administrator alone is told whether it is one. Under the
-          drawing, as every tool here is, so the drawing is still the first thing on a phone. */}
-      {isAdministrator &&
-        tavola.state === 'published' &&
-        tavola.sample !== undefined &&
-        (tavola.scan || tavola.sample) && (
-          <div className="mt-12">
-            <ShowToVisitors
-              sample={tavola.sample}
-              ended={tavola.endedSample ?? null}
-              picking={picking}
-              onPick={() => {
-                visitors.show.reset();
-                setPickingFor(tavolaId);
-              }}
-              onCancel={() => setPickingFor(null)}
-              actions={visitors}
-            />
-          </div>
-        )}
-
-      {checkingOpen && checking.data && (
-        <div className="mt-16">
-          <CheckingSheets
-            tavolaId={tavola.id}
-            tableSheets={tavola.tableSheets}
-            checking={checking.data}
-            positions={positions}
-            highlighted={followed?.tavolaId === tavola.id ? followed : null}
-          />
-        </div>
-      )}
-      {!checkingOpen && tavola.tableSheets.length > 0 && (
-        <div className="mt-12">
-          <TableSheets tableSheets={tavola.tableSheets} />
-        </div>
-      )}
-
+      {/* The tools for marking the drawing come straight after it, so the numbers and the
+          circles they place are one glance apart. */}
       {tool.on && (
-        <div className="mt-12 flex flex-col gap-8">
+        <div className="mt-8 flex flex-col gap-8">
           {/* Drawing or reshaping an outline is the tool's other mode, and while it is on, a
               click on the drawing is about the outline — so the panel that says a click places
               a Mark stands aside. */}
@@ -728,25 +692,7 @@ export function TavolaPage() {
         </div>
       )}
 
-      {/* Reading is beside the drawing; recording is a panel an Editor opened, under it. There
-          is nothing to record until a number has been chosen. */}
-      {selectedPosition && (
-        <div className="mt-12 flex flex-col gap-8">
-          <ListingPanel tavolaId={tavola.id} position={selectedPosition} positions={positions} />
-          {/* What sits *at* the number, then what goes *with* it — in that order, because a
-              number nobody has recorded a Part at is rarely one anybody is grouping yet.
-              Keyed by the Position, so a name half-typed at one number, or a link half chosen
-              at it, does not follow the Editor to the next one. */}
-          <BelongsWithPanel
-            key={selectedPosition.id}
-            tavolaId={tavola.id}
-            sheet={sheet}
-            position={selectedPosition}
-          />
-        </div>
-      )}
-
-      <div className="mt-12">
+      <div className="mt-8">
         <PositionList
           positions={positions}
           selectedPositionId={selectedPosition?.id ?? null}
@@ -766,6 +712,41 @@ export function TavolaPage() {
         />
       </div>
 
+      {/* Reading is beside the drawing; recording is a panel an Editor opened, under it. There
+          is nothing to record until a number has been chosen. */}
+      {selectedPosition && (
+        <div className="mt-12 flex flex-col gap-8">
+          <ListingPanel tavolaId={tavola.id} position={selectedPosition} positions={positions} />
+          {/* What sits *at* the number, then what goes *with* it — in that order, because a
+              number nobody has recorded a Part at is rarely one anybody is grouping yet.
+              Keyed by the Position, so a name half-typed at one number, or a link half chosen
+              at it, does not follow the Editor to the next one. */}
+          <BelongsWithPanel
+            key={selectedPosition.id}
+            tavolaId={tavola.id}
+            sheet={sheet}
+            position={selectedPosition}
+          />
+        </div>
+      )}
+
+      {checkingOpen && checking.data && (
+        <div className="mt-16">
+          <CheckingSheets
+            tavolaId={tavola.id}
+            tableSheets={tavola.tableSheets}
+            checking={checking.data}
+            positions={positions}
+            highlighted={followed?.tavolaId === tavola.id ? followed : null}
+          />
+        </div>
+      )}
+      {!checkingOpen && tavola.tableSheets.length > 0 && (
+        <div className="mt-12">
+          <TableSheets tableSheets={tavola.tableSheets} />
+        </div>
+      )}
+
       {/* An evening's transcription, rather than one number's. It is below the sheet's own list
           of numbers because it is what an Editor turns to when working from a catalog page
           instead of from the drawing — and it is a panel per sheet, deliberately, since what it
@@ -773,6 +754,35 @@ export function TavolaPage() {
       <div className="mt-12">
         <BulkPaste tavolaId={tavola.id} />
       </div>
+
+      {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
+          the factory's drawing, and an Administrator alone is told whether it is one. At the foot
+          of the page, away from the tools that work on the drawing: it is about who may read the
+          sheet, not about what is on it, and its buttons read wrongly next to theirs. */}
+      {isAdministrator &&
+        tavola.state === 'published' &&
+        tavola.sample !== undefined &&
+        (tavola.scan || tavola.sample) && (
+          <div className="mt-12">
+            <ShowToVisitors
+              sample={tavola.sample}
+              ended={tavola.endedSample ?? null}
+              picking={picking}
+              onPick={() => {
+                visitors.show.reset();
+                setPickingFor(tavolaId);
+                // The panel is at the foot of the page, and the number is picked on the drawing.
+                const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                drawingColumn.current?.scrollIntoView({
+                  block: 'start',
+                  behavior: still ? 'auto' : 'smooth',
+                });
+              }}
+              onCancel={() => setPickingFor(null)}
+              actions={visitors}
+            />
+          </div>
+        )}
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
         <Provenance provenance={tavola.provenance} />
