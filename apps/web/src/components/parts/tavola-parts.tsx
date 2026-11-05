@@ -1,10 +1,12 @@
-import { useImperativeHandle, useRef, type Ref } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useId, useImperativeHandle, useRef, type Ref } from 'react';
 import { EnglishName } from '@/components/machine-translation';
 import { usePartsJump } from '@/components/parts/parts-jump';
 import { Refusal } from '@/components/ui/field';
 import { besideTheDrawing } from '@/components/viewer/mark-card';
-import type { Position, TavolaListing } from '@/lib/api';
-import { useTavolaListings } from '@/lib/parts';
+import { api, type Position, type TavolaListing } from '@/lib/api';
+import { useRereadMovedListing, useTavolaListings } from '@/lib/parts';
+import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 /**
@@ -101,6 +103,7 @@ export function TavolaParts({
   // Read here rather than handed down, for the same reason the reading panel reads its own
   // Listings: what a screen needs is that screen's business, and a page that fetched for both
   // would be the one place a change to either had to be remembered.
+  const { isEditor } = useSession();
   const { data, isPending, error } = useTavolaListings(tavolaId);
   const listings = data?.listings ?? [];
 
@@ -180,8 +183,19 @@ export function TavolaParts({
           </p>
           <ul className="mt-4 border-t border-b border-line" data-testid="unplaced-parts">
             {unplaced.map((listing) => (
-              <li key={listing.id} className="border-b border-line py-3 last:border-b-0">
+              <li
+                key={listing.id}
+                className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-line py-3 last:border-b-0"
+              >
                 <ListedLine listing={listing} />
+                {isEditor && positions.length > 0 && (
+                  <PutAtNumber
+                    tavolaId={tavolaId}
+                    listing={listing}
+                    positions={positions}
+                    empty={positions.filter((position) => !byPosition.has(position.id))}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -302,5 +316,82 @@ function ListedLine({ listing }: { listing: TavolaListing }) {
           alternative — the panel that spells the difference out is one click away. */}
       {!listing.drawn && <span className="tag">Not drawn</span>}
     </span>
+  );
+}
+
+/**
+ * **Giving a part the number the reading could not make out** (issue #242). A row whose number
+ * was too faint to read still arrives as a Listing, with no Position; once an Editor has found
+ * the number on the drawing, this joins the two. Typing the part in again would list it twice.
+ *
+ * The numbers nothing is recorded at come first, because a part without a number and a number
+ * without a part are almost always each other. Choosing one is the whole act: the Listing keeps
+ * its quantity and whether it is drawn, and a slip is undone the way any misplaced Listing is,
+ * from the panel at the number it went to.
+ */
+function PutAtNumber({
+  tavolaId,
+  listing,
+  positions,
+  empty,
+}: {
+  tavolaId: string;
+  listing: TavolaListing;
+  positions: Position[];
+  /** The sheet's numbers with nothing recorded at them yet. */
+  empty: Position[];
+}) {
+  const id = useId();
+  const reread = useRereadMovedListing(tavolaId);
+  const put = useMutation({
+    mutationFn: (positionId: string) =>
+      api.correctListing(listing.id, {
+        positionId,
+        quantityPerCar: listing.quantityPerCar,
+        drawn: listing.drawn,
+      }),
+    onSuccess: () => reread(),
+  });
+  const taken = positions.filter((position) => !empty.includes(position));
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="flex items-center gap-3 text-sm text-muted">
+        Put at
+        <select
+          id={id}
+          data-testid="put-at-number"
+          value=""
+          disabled={put.isPending}
+          onChange={(event) => {
+            if (event.target.value !== '') {
+              put.mutate(event.target.value);
+            }
+          }}
+          className="tabular h-control rounded-md border border-line-strong bg-surface-raised px-3 text-base text-text"
+        >
+          <option value="">{put.isPending ? 'Putting…' : 'Choose a number'}</option>
+          {empty.length > 0 && (
+            <optgroup label="Nothing recorded yet">
+              {empty.map((position) => (
+                <option key={position.id} value={position.id}>
+                  {position.number}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {taken.length > 0 && (
+            <optgroup label="Already has a part">
+              {taken.map((position) => (
+                <option key={position.id} value={position.id}>
+                  {position.number}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+      </label>
+      {put.isError && <Refusal>{put.error.message}</Refusal>}
+    </div>
   );
 }

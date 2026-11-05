@@ -268,6 +268,43 @@ test.describe('a part listed at no number', () => {
     await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
     await expect(page.getByTestId('unplaced-parts')).toContainText('Fixing kit');
   });
+
+  /**
+   * And back again (issue #242): the reading could not make out a row's number, the Editor has
+   * since found it on the drawing, and the part goes to it rather than being typed in twice.
+   */
+  test('an Editor puts it at the number found on the drawing', async ({ page }, info) => {
+    await openADrawingOfYourOwn(page, `put-at-${info.project.name}`);
+    const frame = page.getByTestId('drawing-frame');
+    const box = await boxOf(frame);
+
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await frame.click({ position: { x: box.width * 0.4, y: box.height * 0.4 } });
+    await page.getByRole('button', { name: 'Done' }).click();
+    await markFor(page, '1').click();
+    await page.getByRole('button', { name: 'Record a part here' }).click();
+    await page.getByLabel('Name (English)').fill('Ring nut');
+    await page.getByRole('button', { name: 'Record this part' }).click();
+    await expect(lineFor(page, '1')).toContainText('Ring nut');
+
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await markFor(page, '1').click();
+    await page.getByRole('button', { name: 'Remove Position 1' }).click();
+    await page.getByRole('button', { name: 'Yes, remove it' }).click();
+    await expect(page.getByTestId('unplaced-parts')).toContainText('Ring nut');
+
+    // The number the reading missed, marked on the drawing: nothing is recorded at it yet.
+    await page.getByLabel('Next number').fill('19');
+    await frame.click({ position: { x: box.width * 0.6, y: box.height * 0.6 } });
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(lineFor(page, '19')).toHaveAttribute('data-recorded', 'false');
+
+    await page.getByTestId('put-at-number').selectOption({ label: '19' });
+
+    await expect(lineFor(page, '19')).toContainText('Ring nut');
+    await expect(lineFor(page, '19')).toHaveAttribute('data-recorded', 'true');
+    await expect(page.getByTestId('unplaced-parts')).toHaveCount(0);
+  });
 });
 
 /**
