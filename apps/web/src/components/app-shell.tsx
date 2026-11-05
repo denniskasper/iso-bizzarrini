@@ -4,7 +4,7 @@ import { EnvironmentBanner } from '@/components/environment-banner';
 import { Propose } from '@/components/proposals/propose';
 import { SessionControl } from '@/components/session-control';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { GuidedTour, TourLink } from '@/components/tour/guided-tour';
+import { GuidedTour, TourLink } from '@/components/tour';
 import { Wordmark } from '@/components/wordmark';
 import { ServiceStatusStrip } from '@/components/service-status-strip';
 import { useWaitingCount } from '@/lib/review';
