@@ -8,21 +8,9 @@ import { useCallback, useSyncExternalStore } from 'react';
  * the archive as a Visitor sees it, which means signed out — and a signed-out request is nobody
  * the server could remember a step for.
  */
-/**
- * Which tour: each walks through what was new when it was written. The newest is the one a bare
- * `?tour` link starts; an earlier one is kept for a tester who has not walked it yet.
- */
-export type TourName = 'spending' | 'proposals' | 'reading';
-export const NEWEST_TOUR: TourName = 'spending';
-const TOUR_NAMES: readonly TourName[] = ['spending', 'proposals', 'reading'];
-
-/** The tour a name stands for: an unknown one is the newest. */
-export function tourNamed(name: string | null): TourName {
-  return TOUR_NAMES.find((tour) => tour === name) ?? NEWEST_TOUR;
-}
-
 export interface TourState {
-  tour: TourName;
+  /** Which tour, by its name in `components/tour/tours`; one since retired shows nothing. */
+  tour: string;
   step: number;
   /** Folded down to one line, so the drawing underneath can be read. */
   folded: boolean;
@@ -70,7 +58,7 @@ function parse(raw: string | null): TourState | null {
     // A tour begun before there were two is the reading one, which was the only one then.
     return typeof value.step === 'number'
       ? {
-          tour: TOUR_NAMES.find((tour) => tour === value.tour) ?? 'reading',
+          tour: typeof value.tour === 'string' ? value.tour : 'reading',
           step: value.step,
           folded: value.folded === true,
         }
@@ -85,7 +73,7 @@ export function useTour() {
   const raw = useSyncExternalStore(subscribe, read, () => null);
   const state = parse(raw);
 
-  const start = useCallback((tour: TourName) => write({ tour, step: 0, folded: false }), []);
+  const start = useCallback((tour: string) => write({ tour, step: 0, folded: false }), []);
   const end = useCallback(() => write(null), []);
   const goTo = useCallback((step: number) => {
     const current = parse(read());

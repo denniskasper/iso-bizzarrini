@@ -1,467 +1,30 @@
 import { Link, useRouterState } from '@tanstack/react-router';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { environmentMode } from '@/lib/environment';
 import { useSession } from '@/lib/session';
-import { tourNamed, useTour, type TourName } from '@/lib/tour';
+import { useTour } from '@/lib/tour';
 import { cn } from '@/lib/utils';
+import type { Where } from './tour-steps';
+import { FOOTER_TOURS, tourNamed, tourOrNone } from './tours';
 
 /**
- * **A guided tour of what is new, for a tester on the practice system.** Temporary: delete this
- * folder, `lib/tour.ts` and the one line in the app shell once it has been walked.
+ * **A guided tour of what is new, for a tester on a practice system.** Never in production:
+ * `index.tsx` does not even load this module there.
  *
- * There are three, each of what was new when it was written: Spending, which a link ending in
- * `?tour` starts, and the earlier ones, `?tour=proposals` and `?tour=reading`, kept for a tester
- * who has not walked them yet. Never in production. It waits beside the page rather than over it: each
- * step says what to do on the screen as it is, and moves on by itself once the screen shows it
- * was done, so the tester is using Ricambi and not a slideshow of it.
+ * The tours themselves are in `tours/`, one file each; this walks any of them. It waits beside
+ * the page rather than over it: each step says what to do on the screen as it is, and moves on by
+ * itself once the screen shows it was done, so the tester is using Ricambi and not a slideshow of
+ * it.
  */
-
-type Part = 'read' | 'show' | 'visit' | 'fix' | 'idea' | 'follow' | 'month' | 'start' | 'limit';
-
-interface Where {
-  path: string;
-  signedIn: boolean;
-  /** Whether who this is has been answered yet: signed out is not known until it has. */
-  known: boolean;
-  /** Whether an Administrator has let this Account propose. */
-  mayPropose: boolean;
-  isAdministrator: boolean;
-}
-
-interface Step {
-  part: Part | null;
-  title: string;
-  body: ReactNode | ((where: Where) => ReactNode);
-  /** Somewhere to go for this step, unless already there. */
-  go?: { to: string; label: string; unless: (where: Where) => boolean };
-  /** The screen showing this step was done. Without one, the tester says so. */
-  done?: (where: Where) => boolean;
-  /** What the tester presses to say they are done, where nothing can tell. */
-  next?: string;
-  /** A way on to the next part, for when the archive is not as the step expects. */
-  skip?: string;
-}
-
-const onTavola = (where: Where) => where.path.startsWith('/tavole/');
-
-const READING_STEPS: Step[] = [
-  {
-    part: null,
-    title: 'Three new things to try',
-    body: (
-      <>
-        <p>This tour walks you through them on this practice archive, about fifteen minutes:</p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5">
-          <li>Read a Tavola from the factory catalogue, and check it.</li>
-          <li>Choose a drawing that Visitors may see.</li>
-          <li>See Ricambi as somebody who isn’t a member.</li>
-        </ol>
-        <p className="mt-3">Each step waits here until you’ve done it on the page.</p>
-      </>
-    ),
-    next: 'Start',
-  },
-  {
-    part: 'read',
-    title: 'Start a reading',
-    body: (
-      <ol className="list-decimal space-y-1 pl-5">
-        <li>
-          Choose the PDF <b>Iso Rivolta Parts Catalogue Part2</b>.
-        </li>
-        <li>
-          Model <b>Iso Rivolta IR 300</b>, from page <b className="tabular">1</b> to page{' '}
-          <b className="tabular">2</b>.
-        </li>
-        <li>
-          Press <b>Estimate the cost</b>, enter <b className="tabular">5</b> as the spending limit,
-          then <b>Start reading</b>.
-        </li>
-      </ol>
-    ),
-    go: {
-      to: '/readings',
-      label: 'Go to Readings',
-      unless: (where) => where.path === '/readings',
-    },
-    done: (where) => where.path.startsWith('/readings/runs/'),
-  },
-  {
-    part: 'read',
-    title: 'Wait for it to finish',
-    body: (
-      <p>
-        Reading two pages takes a few minutes. You can leave this page; the reading carries on. When
-        it says <b>Finished</b>, press <b>Open, Unchecked</b> beside Tavola{' '}
-        <b className="tabular">51</b>.
-      </p>
-    ),
-    done: onTavola,
-    // A Tavola 51 somebody has already published is not read again, and leaves nothing to check.
-    skip: 'Tavola 51 wasn’t loaded',
-  },
-  {
-    part: 'read',
-    title: 'Check what was read',
-    body: (
-      <>
-        <p>
-          Press <b>How to check this Tavola</b>, then compare the circles on the drawing and the
-          rows of Parts with the factory sheet. Point at any button to see what it does.
-        </p>
-        <p className="mt-3">
-          Please don’t press <b>Publish</b>: this Tavola stays Unchecked for the next tester.
-        </p>
-      </>
-    ),
-    next: 'I’ve checked it',
-  },
-  {
-    part: 'show',
-    title: 'Show a drawing to Visitors',
-    body: (
-      <>
-        <p>
-          Visitors are people reading Ricambi without signing in. You may show them a few Published
-          drawings, so they can judge the archive before they join.
-        </p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5">
-          <li>Open any Published Tavola from the catalogue.</li>
-          <li>
-            Below the drawing, under <b>Visitors</b>, press <b>Show to Visitors</b>.
-          </li>
-          <li>Click the one number on the drawing Visitors may read.</li>
-        </ol>
-      </>
-    ),
-    go: { to: '/', label: 'Go to the catalogue', unless: onTavola },
-    next: 'It’s shown',
-  },
-  {
-    part: 'visit',
-    title: 'Sign out',
-    body: (
-      <p>
-        Now see Ricambi as a Visitor does. Sign out with the button at the top; this tour carries
-        on.
-      </p>
-    ),
-    done: (where) => where.known && !where.signedIn,
-  },
-  {
-    part: 'visit',
-    title: 'What a Visitor sees',
-    body: (
-      <p>
-        Without signing in, this is all of Ricambi: which cars the archive covers and how much of
-        each, the drawings you chose, and how to join the Club. Open the drawing you just showed.
-      </p>
-    ),
-    go: { to: '/', label: 'Go to the start page', unless: (where) => where.path === '/' },
-    done: (where) => where.known && !where.signedIn && onTavola(where),
-  },
-  {
-    part: 'visit',
-    title: 'One number open',
-    body: (
-      <p>
-        A Visitor reads only what the factory printed, and only at the number you opened: the others
-        are locked. None of the Club’s notes, photographs or cross-references are shown. A member
-        following the same link sees the whole Tavola.
-      </p>
-    ),
-    next: 'Next',
-  },
-  {
-    part: null,
-    title: 'That’s all of it',
-    body: (
-      <p>
-        Sign in again to carry on as before. Anything unclear, slow or wrong along the way: reply to
-        the e-mail this tour came with.
-      </p>
-    ),
-    go: {
-      to: '/sign-in',
-      label: 'Sign in',
-      unless: (where) => where.signedIn || where.path === '/sign-in',
-    },
-    next: 'End the tour',
-  },
-];
-
-const onProposals = (where: Where) => where.path.startsWith('/proposals');
-
-const PROPOSALS_STEPS: Step[] = [
-  {
-    part: null,
-    title: 'Something new: Proposals',
-    body: (where) => (
-      <>
-        <p>
-          You can now hand the developer a <b>Fix</b> or an <b>Idea</b> from inside Ricambi. You
-          talk it through with Claude, who asks until it is clear, and you hand it over when it is.
-          About twenty minutes:
-        </p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5">
-          <li>Propose a Fix, with a screenshot.</li>
-          <li>Work out an Idea.</li>
-          <li>Follow what becomes of them.</li>
-        </ol>
-        <p className="mt-3">Propose is only here, on the practice archive.</p>
-        {where.known && !where.mayPropose && (
-          <p className="mt-3 font-semibold">
-            You don’t see Propose at the top yet. Ask the developer to let you propose, then reload
-            this page.
-          </p>
-        )}
-      </>
-    ),
-    next: 'Start',
-  },
-  {
-    part: 'fix',
-    title: 'Propose a Fix',
-    body: (
-      <>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>
-            Open a page where something is wrong, unclear or slow: a Tavola, the search, anything.
-          </li>
-          <li>
-            Press <b>Propose</b> at the top, and choose <b>Fix</b>.
-          </li>
-          <li>Say what is wrong, in your own words, and answer what Claude asks.</li>
-        </ol>
-        <p className="mt-3">
-          On a phone the conversation fills the screen and this tour waits behind it. Press{' '}
-          <b>Close</b> to come back: what you wrote is kept.
-        </p>
-      </>
-    ),
-    go: { to: '/', label: 'Go to the catalogue', unless: (where) => where.path !== '/proposals' },
-    next: 'I’ve started it',
-  },
-  {
-    part: 'fix',
-    title: 'Show a screenshot',
-    body: (
-      <p>
-        Take a screenshot of what you mean and paste it into the answer box, or press{' '}
-        <b>Add screenshots</b>. Write a note beside it saying what to look at. It is sent with your
-        next answer.
-      </p>
-    ),
-    next: 'It’s sent',
-  },
-  {
-    part: 'fix',
-    title: 'Finish and hand over',
-    body: (
-      <p>
-        When you have said it all, press <b>Finish</b>. Claude writes the Fix out the way the
-        developer reads it, with your own words kept beneath. If something is not right, say so and
-        it is written again. Then press <b>Hand over</b>.
-      </p>
-    ),
-    next: 'It’s handed over',
-  },
-  {
-    part: 'idea',
-    title: 'Work out an Idea',
-    body: (
-      <>
-        <p>
-          Press <b>Propose</b> again and choose <b>Idea</b>: something Ricambi could do, or do
-          differently. Claude asks it through with you: who it is for, what happens today, what it
-          would change, and where it clashes with how Ricambi works. Push back where it is wrong.
-        </p>
-        <p className="mt-3">
-          Stop whenever you like: <b>Close</b> keeps it under <b>Your drafts</b> to carry on later.
-          Finish and hand it over as before.
-        </p>
-      </>
-    ),
-    next: 'It’s handed over',
-  },
-  {
-    part: 'follow',
-    title: 'Follow what becomes of them',
-    body: (
-      <p>
-        <b>Proposals</b> lists what you have handed over. Each is <b>New</b> until the developer
-        takes it up, then <b>Taken up</b>, and in the end <b>Done</b>, or <b>Declined</b> with the
-        reason. Open one to read it as the developer does.
-      </p>
-    ),
-    go: { to: '/proposals', label: 'Go to Proposals', unless: onProposals },
-    done: (where) => where.path.startsWith('/proposals/'),
-  },
-  {
-    part: null,
-    title: 'That’s all of it',
-    body: (
-      <p>
-        Propose stays at the top of every page. Use it whenever something bothers you or an idea
-        comes: there is no wrong one, and the developer reads them all. Anything about this tour
-        itself: reply to the e-mail it came with.
-      </p>
-    ),
-    next: 'End the tour',
-  },
-];
-
-const SPENDING_STEPS: Step[] = [
-  {
-    part: null,
-    title: 'Something new: Spending',
-    body: (where) => (
-      <>
-        <p>
-          What Ricambi spends on Claude, for Proposals’ conversations and for reading the catalogue,
-          is now in one place, against the <b>Monthly limit</b>: the most it may spend in a calendar
-          month. About five minutes:
-        </p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5">
-          <li>Read this month’s spending.</li>
-          <li>See what is left before starting a reading.</li>
-          <li>Learn what happens when the month’s limit is reached.</li>
-        </ol>
-        {where.known && !where.isAdministrator && (
-          <p className="mt-3 font-semibold">
-            Spending is for Administrators only. Sign in as one to walk this tour.
-          </p>
-        )}
-      </>
-    ),
-    next: 'Start',
-  },
-  {
-    part: 'month',
-    title: 'Open Spending',
-    body: (
-      <p>
-        Press <b>Spending</b> at the top. It is there for Administrators only.
-      </p>
-    ),
-    go: {
-      to: '/spending',
-      label: 'Go to Spending',
-      unless: (where) => where.path === '/spending',
-    },
-    done: (where) => where.path === '/spending',
-  },
-  {
-    part: 'month',
-    title: 'This month, at a glance',
-    body: (
-      <>
-        <p>
-          The large figure is what this month has cost so far, with a bar against the Monthly limit.
-          Beneath it, what went to Proposals and what to Catalog runs, and the past twelve months.
-        </p>
-        <p className="mt-3">
-          These are Ricambi’s own estimates at list prices. The bill itself is in the Claude
-          Console, linked at the top. Where nothing is billed, as on a developer’s own subscription,
-          the figures say what it <i>would have cost</i>, and there is no bar.
-        </p>
-      </>
-    ),
-    next: 'Next',
-  },
-  {
-    part: 'start',
-    title: 'Before starting a reading',
-    body: (
-      <>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>
-            Choose any catalogue PDF, a Model and a page or two, and press <b>Estimate the cost</b>.
-          </li>
-          <li>Under the spending limit, read what is left of this month’s Monthly limit.</li>
-          <li>Enter a limit larger than that, and read the warning.</li>
-        </ol>
-        <p className="mt-3">
-          You don’t need to start it: a reading here costs real money. The warning never stops you;
-          the Monthly limit itself does, at the provider.
-        </p>
-        <p className="mt-3 text-muted">
-          Nothing shows where no Monthly limit is known, or where nothing is billed.
-        </p>
-      </>
-    ),
-    go: {
-      to: '/readings',
-      label: 'Go to Readings',
-      unless: (where) => where.path === '/readings',
-    },
-    next: 'I’ve seen it',
-  },
-  {
-    part: 'limit',
-    title: 'When the month runs out',
-    body: (
-      <p>
-        A reading that reaches the Monthly limit stops, as it does at its own limit, and says so:
-        <b> Stopped: this month’s limit on spending with Claude is reached.</b> Everything read so
-        far is kept, and <b>Continue reading</b> carries it on next month, or once the limit is
-        raised.
-      </p>
-    ),
-    next: 'Next',
-  },
-  {
-    part: null,
-    title: 'That’s all of it',
-    body: (
-      <p>
-        Spending stays at the top for Administrators, and the Proposals page links to it. Anything
-        unclear or wrong along the way: reply to the e-mail this tour came with.
-      </p>
-    ),
-    next: 'End the tour',
-  },
-];
-
-const TOURS: Record<TourName, { steps: Step[]; parts: { part: Part; name: string }[] }> = {
-  spending: {
-    steps: SPENDING_STEPS,
-    parts: [
-      { part: 'month', name: 'This month' },
-      { part: 'start', name: 'Starting' },
-      { part: 'limit', name: 'At the limit' },
-    ],
-  },
-  proposals: {
-    steps: PROPOSALS_STEPS,
-    parts: [
-      { part: 'fix', name: 'Fix' },
-      { part: 'idea', name: 'Idea' },
-      { part: 'follow', name: 'Follow' },
-    ],
-  },
-  reading: {
-    steps: READING_STEPS,
-    parts: [
-      { part: 'read', name: 'Read' },
-      { part: 'show', name: 'Show' },
-      { part: 'visit', name: 'Visit' },
-    ],
-  },
-};
 
 export function GuidedTour() {
   const { state, start, end, goTo, fold } = useTour();
-  const { signedIn, isPending, account, isAdministrator } = useSession();
+  const { signedIn, isPending, account, isEditor, isAdministrator } = useSession();
   const path = useRouterState({ select: (router) => router.location.pathname });
 
   // A link ending in `?tour` starts it from the beginning, and is then forgotten, so reloading
   // the page does not start it over.
   useEffect(() => {
-    if (environmentMode() === 'production') {
-      return;
-    }
     const url = new URL(window.location.href);
     if (url.searchParams.has('tour')) {
       start(tourNamed(url.searchParams.get('tour')));
@@ -470,16 +33,25 @@ export function GuidedTour() {
     }
   }, [start]);
 
-  const tour = state ? TOURS[state.tour] : undefined;
+  const tour = state ? tourOrNone(state.tour) : undefined;
   const step = state ? tour?.steps[state.step] : undefined;
   const where: Where = {
     path,
     signedIn,
     known: !isPending,
     mayPropose: account?.mayPropose ?? false,
+    isEditor,
     isAdministrator,
   };
   const finished = step?.done?.(where) ?? false;
+
+  // A tour retired since this browser began it is forgotten, so the footer offers the others.
+  const retired = state !== null && tour === undefined;
+  useEffect(() => {
+    if (retired) {
+      end();
+    }
+  }, [retired, end]);
 
   useEffect(() => {
     if (state && finished) {
@@ -487,7 +59,7 @@ export function GuidedTour() {
     }
   }, [state, finished, goTo]);
 
-  if (environmentMode() === 'production' || !state || !tour || !step) {
+  if (!state || !tour || !step) {
     return null;
   }
   const { steps, parts } = tour;
@@ -604,25 +176,21 @@ export function GuidedTour() {
 
 /**
  * **Taking a tour**, from the footer of a practice system, for whoever ended one, wants to walk
- * it from the start, or has not walked the earlier one yet. Nothing while one is running: the
+ * it from the start, or has not walked an earlier one yet. Nothing while one is running: the
  * panel has its own way to start over.
  */
 export function TourLink({ className }: { className: string }) {
   const { state, start } = useTour();
-  if (environmentMode() === 'production' || state) {
+  if (state) {
     return null;
   }
   return (
     <>
-      <button type="button" className={className} onClick={() => start('spending')}>
-        Tour: Spending
-      </button>
-      <button type="button" className={className} onClick={() => start('proposals')}>
-        Tour: Proposals
-      </button>
-      <button type="button" className={className} onClick={() => start('reading')}>
-        Tour: reading and Visitors
-      </button>
+      {FOOTER_TOURS.map(({ name, footer }) => (
+        <button key={name} type="button" className={className} onClick={() => start(name)}>
+          {footer}
+        </button>
+      ))}
     </>
   );
 }
