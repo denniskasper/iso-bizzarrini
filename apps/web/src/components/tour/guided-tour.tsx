@@ -10,14 +10,27 @@ import { cn } from '@/lib/utils';
  * **A guided tour of what is new, for a tester on the practice system.** Temporary: delete this
  * folder, `lib/tour.ts` and the one line in the app shell once it has been walked.
  *
- * There are three, each of what was new when it was written: Spending, which a link ending in
- * `?tour` starts, and the earlier ones, `?tour=proposals` and `?tour=reading`, kept for a tester
- * who has not walked them yet. Never in production. It waits beside the page rather than over it: each
+ * There are four, each of what was new when it was written: marking a drawing, which a link
+ * ending in `?tour` starts, and the earlier ones, `?tour=spending`, `?tour=proposals` and
+ * `?tour=reading`, kept for a tester who has not walked them yet. Never in production. It waits beside the page rather than over it: each
  * step says what to do on the screen as it is, and moves on by itself once the screen shows it
  * was done, so the tester is using Ricambi and not a slideshow of it.
  */
 
-type Part = 'read' | 'show' | 'visit' | 'fix' | 'idea' | 'follow' | 'month' | 'start' | 'limit';
+type Part =
+  | 'read'
+  | 'show'
+  | 'visit'
+  | 'fix'
+  | 'idea'
+  | 'follow'
+  | 'month'
+  | 'start'
+  | 'limit'
+  | 'look'
+  | 'mark'
+  | 'correct'
+  | 'remove';
 
 interface Where {
   path: string;
@@ -26,6 +39,7 @@ interface Where {
   known: boolean;
   /** Whether an Administrator has let this Account propose. */
   mayPropose: boolean;
+  isEditor: boolean;
   isAdministrator: boolean;
 }
 
@@ -424,7 +438,185 @@ const SPENDING_STEPS: Step[] = [
   },
 ];
 
+/**
+ * On the Rivolta's Tavola 51, the one the reading tour reads, which has a table sheet. Its numbers
+ * run to the thirties, so the tester jumps to 90 for circles of their own, and those are the ones
+ * they remove at the end: the sheet's own numbers stay for the next tester.
+ */
+const MARKING_STEPS: Step[] = [
+  {
+    part: null,
+    title: 'Something new: marking a drawing',
+    body: (where) => (
+      <>
+        <p>
+          Putting numbers on a drawing, and putting them right, is quicker now. About ten minutes,
+          on the Rivolta IR 300’s Tavola 51, the one read from the factory catalogue:
+        </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5">
+          <li>Read the drawing beside its list and its table sheet.</li>
+          <li>Mark a few numbers, and undo one.</li>
+          <li>Type a number over a print nobody can read.</li>
+          <li>Remove several numbers at once.</li>
+        </ol>
+        {where.known && !where.isEditor && (
+          <p className="mt-3 font-semibold">
+            Marking is for Editors. Sign in as an Editor or an Administrator to walk this tour.
+          </p>
+        )}
+      </>
+    ),
+    next: 'Start',
+  },
+  {
+    part: 'look',
+    title: 'Open Tavola 51',
+    body: (
+      <p>
+        From the catalogue, open <b>Iso Rivolta IR 300</b>, then Tavola{' '}
+        <b className="tabular">51</b>, <b>Propeller shaft and wheel half-shafts</b>. Where there is
+        no Tavola 51, any Tavola with a table sheet beneath its parts will do.
+      </p>
+    ),
+    go: { to: '/', label: 'Go to the catalogue', unless: onTavola },
+    done: onTavola,
+  },
+  {
+    part: 'look',
+    title: 'From a circle to its row',
+    body: (
+      <>
+        <p>
+          The numbers now sit right under the drawing, with the marking tool beside them. On a wide
+          screen, where the list stands beside the drawing, click a circle: the page scrolls just
+          far enough to show its row. A row already in view stays put.
+        </p>
+        <p className="mt-3">
+          Further down, under the parts, press <b>Sheet 1</b>. The factory’s table sheet opens on
+          the page, in the drawing’s own viewer, instead of in a new tab: zoom with the wheel, a
+          pinch or a double tap.
+        </p>
+      </>
+    ),
+    next: 'Next',
+  },
+  {
+    part: 'mark',
+    title: 'Mark three numbers',
+    body: (
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          Press <b>Mark positions</b>, under the drawing.
+        </li>
+        <li>
+          Type <b className="tabular">90</b> over the number it offers, so your circles stay well
+          clear of the sheet’s own.
+        </li>
+        <li>
+          Click three empty places on the drawing. They become <b className="tabular">90</b>,{' '}
+          <b className="tabular">91</b> and <b className="tabular">92</b>.
+        </li>
+        <li>Drag one of them somewhere else.</li>
+      </ol>
+    ),
+    next: 'I’ve marked them',
+  },
+  {
+    part: 'mark',
+    title: 'Undo',
+    body: (
+      <>
+        <p>
+          Press <b>Undo</b>, or Ctrl+Z (⌘Z on a Mac). The move goes back; press again and{' '}
+          <b className="tabular">92</b> goes, and is the next number again. Click the drawing to put
+          it back.
+        </p>
+        <p className="mt-3 text-muted">
+          Undo takes back only your own steps on this Tavola, and forgets them when you press{' '}
+          <b>Done</b>.
+        </p>
+      </>
+    ),
+    next: 'Next',
+  },
+  {
+    part: 'correct',
+    title: 'A print nobody can read',
+    body: (
+      <>
+        <p>
+          Where the factory’s number is too faint or smudged to read, the Club types it in. Click
+          circle <b className="tabular">91</b> and tick <b>Print unreadable</b>: it turns into a
+          white disc with the number typed inside. The scan itself is not changed.
+        </p>
+        <p className="mt-3">Untick it again, or press Undo.</p>
+      </>
+    ),
+    next: 'Next',
+  },
+  {
+    part: 'correct',
+    title: 'A part read without its number',
+    body: (
+      <p>
+        When the reading could not make out a row’s number, the part lands under{' '}
+        <b>Listed without a number</b>, below the parts. Find it on the table sheet and the drawing,
+        then choose its number under <b>Put at</b>, which offers the numbers with nothing recorded
+        first. The part moves there. Where nothing is listed without a number, read on.
+      </p>
+    ),
+    next: 'Next',
+  },
+  {
+    part: 'remove',
+    title: 'Remove several at once',
+    body: (
+      <>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>
+            Press <b>Select numbers</b>.
+          </li>
+          <li>
+            Press <b className="tabular">90</b> in the row of numbers, then Shift+click{' '}
+            <b className="tabular">92</b>. The bar says <b>3 numbers: 90–92</b>. A circle on the
+            drawing picks its number too.
+          </li>
+          <li>
+            Press <b>Remove 3 Positions</b>, then <b>Yes, remove them</b>.
+          </li>
+        </ol>
+        <p className="mt-3">
+          Please remove only your own three; the sheet’s own numbers stay for the next tester. Undo
+          cannot bring removed numbers back, which is why it asks first, and says how many have
+          parts recorded.
+        </p>
+      </>
+    ),
+    next: 'They’re removed',
+  },
+  {
+    part: null,
+    title: 'That’s all of it',
+    body: (
+      <p>
+        Press <b>Done</b> to put the marking tool away. Anything unclear, slow or wrong along the
+        way: reply to the e-mail this tour came with.
+      </p>
+    ),
+    next: 'End the tour',
+  },
+];
+
 const TOURS: Record<TourName, { steps: Step[]; parts: { part: Part; name: string }[] }> = {
+  marking: {
+    steps: MARKING_STEPS,
+    parts: [
+      { part: 'look', name: 'Read' },
+      { part: 'mark', name: 'Mark' },
+      { part: 'correct', name: 'Correct' },
+      { part: 'remove', name: 'Remove' },
+    ],
+  },
   spending: {
     steps: SPENDING_STEPS,
     parts: [
@@ -453,7 +645,7 @@ const TOURS: Record<TourName, { steps: Step[]; parts: { part: Part; name: string
 
 export function GuidedTour() {
   const { state, start, end, goTo, fold } = useTour();
-  const { signedIn, isPending, account, isAdministrator } = useSession();
+  const { signedIn, isPending, account, isEditor, isAdministrator } = useSession();
   const path = useRouterState({ select: (router) => router.location.pathname });
 
   // A link ending in `?tour` starts it from the beginning, and is then forgotten, so reloading
@@ -477,6 +669,7 @@ export function GuidedTour() {
     signedIn,
     known: !isPending,
     mayPropose: account?.mayPropose ?? false,
+    isEditor,
     isAdministrator,
   };
   const finished = step?.done?.(where) ?? false;
@@ -614,6 +807,9 @@ export function TourLink({ className }: { className: string }) {
   }
   return (
     <>
+      <button type="button" className={className} onClick={() => start('marking')}>
+        Tour: marking
+      </button>
       <button type="button" className={className} onClick={() => start('spending')}>
         Tour: Spending
       </button>

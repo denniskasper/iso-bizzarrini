@@ -1,11 +1,12 @@
 import type { RosterResponse } from '@ricambi/contracts';
 import { expect, test } from '@playwright/test';
+import { openGrifo } from './support/archive.js';
 import { landed, PRACTICE, signIn, signInAs } from './support/gate.js';
 
 /**
  * **The guided tours** (temporary): a tester's walk through what is new on the practice system,
- * Spending from a bare `?tour` link, and the earlier ones from `?tour=proposals` and
- * `?tour=reading`.
+ * marking a drawing from a bare `?tour` link, and the earlier ones from `?tour=spending`,
+ * `?tour=proposals` and `?tour=reading`.
  * Delete with `components/tour`. What a browser alone can say: that a link starts it, that it
  * waits for the page and moves on by itself, and that it survives signing out, which is how it
  * reaches the archive as a Visitor sees it.
@@ -156,13 +157,13 @@ test('a link starts the Proposals tour, which keeps clear of the answer being wr
   await expect(page.getByRole('button', { name: 'Tour: reading and Visitors' })).toBeVisible();
 });
 
-test('a bare link starts the Spending tour, for Administrators, which moves on at Spending', async ({
+test('a link starts the Spending tour, for Administrators, which moves on at Spending', async ({
   page,
 }, info) => {
   // Somebody who is not an Administrator is told the tour is not for them.
   await signInAs(page, PRACTICE.member);
   await landed(page);
-  await page.goto('/?tour');
+  await page.goto('/?tour=spending');
   const tour = page.getByTestId('tour');
   await expect(tour.getByTestId('tour-step')).toHaveText('Something new: Spending');
   await expect(tour).toContainText('Spending is for Administrators only');
@@ -171,7 +172,7 @@ test('a bare link starts the Spending tour, for Administrators, which moves on a
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
 
   await signIn(page);
-  await page.goto('/?tour');
+  await page.goto('/?tour=spending');
   await expect(tour.getByTestId('tour-step')).toHaveText('Something new: Spending');
   await expect(tour).not.toContainText('Administrators only');
   await tour.getByRole('button', { name: 'Start' }).click();
@@ -193,4 +194,48 @@ test('a bare link starts the Spending tour, for Administrators, which moves on a
   await tour.getByRole('button', { name: 'End the tour' }).click();
   await expect(tour).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Tour: Spending' })).toBeVisible();
+});
+
+test('a bare link starts the marking tour, for Editors, which moves on at a Tavola', async ({
+  page,
+}, info) => {
+  // A Member is told the tour is for Editors.
+  await signInAs(page, PRACTICE.member);
+  await landed(page);
+  await page.goto('/?tour');
+  const tour = page.getByTestId('tour');
+  await expect(tour.getByTestId('tour-step')).toHaveText('Something new: marking a drawing');
+  await expect(tour).toContainText('Marking is for Editors');
+  await tour.getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+
+  await signIn(page);
+  await page.goto('/?tour');
+  await expect(tour.getByTestId('tour-step')).toHaveText('Something new: marking a drawing');
+  await expect(tour).not.toContainText('Marking is for Editors');
+  await tour.getByRole('button', { name: 'Start' }).click();
+
+  await expect(tour.getByTestId('tour-step')).toHaveText('Open Tavola 51');
+  // Tavola 51 is the one a reading loads, which this archive has not had: the Grifo's Tavola 2 is
+  // the other kind the step allows, a Tavola with a table sheet.
+  await openGrifo(page);
+  await page.getByTestId('tavola-plate').first().click();
+  await expect(tour.getByTestId('tour-step')).toHaveText('From a circle to its row');
+  await page.screenshot({ path: info.outputPath('marking.png') });
+
+  // What the steps point at is on the page as they name it.
+  await expect(page.getByRole('button', { name: 'Mark positions' })).toBeVisible();
+  await expect(
+    page.getByTestId('table-sheets').getByRole('button', { name: 'Sheet 1' }),
+  ).toBeVisible();
+
+  for (const next of ['Next', 'I’ve marked them', 'Next', 'Next', 'Next']) {
+    await tour.getByRole('button', { name: next }).click();
+  }
+  await expect(tour.getByTestId('tour-step')).toHaveText('Remove several at once');
+  await tour.getByRole('button', { name: 'They’re removed' }).click();
+  await tour.getByRole('button', { name: 'End the tour' }).click();
+  await expect(tour).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tour: marking' })).toBeVisible();
 });

@@ -10,11 +10,11 @@ import { useCallback, useSyncExternalStore } from 'react';
  */
 /**
  * Which tour: each walks through what was new when it was written. The newest is the one a bare
- * `?tour` link starts; an earlier one is kept for a tester who has not walked it yet.
+ * `?tour` link starts; the earlier ones are kept for a tester who has not walked them yet.
  */
-export type TourName = 'spending' | 'proposals' | 'reading';
-export const NEWEST_TOUR: TourName = 'spending';
-const TOUR_NAMES: readonly TourName[] = ['spending', 'proposals', 'reading'];
+export type TourName = 'marking' | 'spending' | 'proposals' | 'reading';
+export const NEWEST_TOUR: TourName = 'marking';
+const TOUR_NAMES: readonly TourName[] = ['marking', 'spending', 'proposals', 'reading'];
 
 /** The tour a name stands for: an unknown one is the newest. */
 export function tourNamed(name: string | null): TourName {
