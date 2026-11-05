@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useId, useImperativeHandle, useRef, type Ref } from 'react';
+import { useEffect, useId, useImperativeHandle, useRef, type Ref } from 'react';
 import { EnglishName } from '@/components/machine-translation';
 import { usePartsJump } from '@/components/parts/parts-jump';
 import { Refusal } from '@/components/ui/field';
@@ -52,6 +52,8 @@ export function TavolaParts({
 }) {
   const section = useRef<HTMLElement>(null);
   const jump = usePartsJump(head, section);
+  /** The row being held still while the reading above it fills in, if one is. */
+  const holding = useRef<Hold | null>(null);
 
   useImperativeHandle(
     ref,
@@ -69,13 +71,23 @@ export function TavolaParts({
         if (box.bottom <= 0 || box.top >= window.innerHeight) {
           return;
         }
+        const row = list.querySelector<HTMLElement>(
+          `[data-position-id="${CSS.escape(positionId)}"]`,
+        );
+        // **A row in view stays exactly where it is** (issue #239). Measured now, before the
+        // page has drawn anything the selection changes: the reading at the head of the column
+        // fills in above it, and would otherwise push it from under the member's eye.
+        if (row && inView(row)) {
+          if (holding.current?.row !== row) {
+            holding.current?.end();
+            holding.current = holdStill(row, head, () => (holding.current = null));
+          }
+          return;
+        }
+        holding.current?.end();
         // A frame later, once the page has drawn what selecting the number changed.
         requestAnimationFrame(() => {
-          const row = list.querySelector<HTMLElement>(
-            `[data-position-id="${CSS.escape(positionId)}"]`,
-          );
-          // A row already in view leaves the list exactly where it is.
-          if (!row || inView(row)) {
+          if (!row) {
             return;
           }
           const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -97,8 +109,9 @@ export function TavolaParts({
         });
       },
     }),
-    [],
+    [head],
   );
+  useEffect(() => () => holding.current?.end(), []);
 
   // Read here rather than handed down, for the same reason the reading panel reads its own
   // Listings: what a screen needs is that screen's business, and a page that fetched for both
@@ -205,6 +218,71 @@ export function TavolaParts({
       {jump.bottom}
     </section>
   );
+}
+
+interface Hold {
+  row: HTMLElement;
+  end(): void;
+}
+
+/** How long the page has to be quiet before the reading counts as filled in. */
+const SETTLED_AFTER_MS = 1200;
+/** And the longest a row is held for at all, however slowly the reading arrives. */
+const HOLD_AT_MOST_MS = 8000;
+
+/**
+ * **Keeping one row where it is on the screen** while the column above it changes height.
+ *
+ * The browser's own scroll anchoring is meant to do this and does not, here: it picks its own
+ * anchor, and on the first number read it was seen to scroll by half the growth on one run and by
+ * more than all of it on the next. So it is switched off for the page while the row is held, and
+ * every change in the column's height is answered by scrolling the window by however far the row
+ * itself moved — before the browser paints, since a `ResizeObserver` is told between layout and
+ * paint. It lets go once the column has been still for a moment, or as soon as the member scrolls,
+ * types or presses anywhere: the page is theirs again the moment they move it.
+ */
+function holdStill(row: HTMLElement, column: HTMLElement | null, done: () => void): Hold {
+  const top = row.getBoundingClientRect().top;
+  const root = document.documentElement;
+  const anchoring = root.style.overflowAnchor;
+  root.style.overflowAnchor = 'none';
+
+  const keep = () => {
+    const moved = row.getBoundingClientRect().top - top;
+    if (Math.abs(moved) >= 0.5) {
+      window.scrollBy({ top: moved, behavior: 'instant' });
+    }
+  };
+  const observer = new ResizeObserver(() => {
+    keep();
+    clearTimeout(quiet);
+    quiet = setTimeout(end, SETTLED_AFTER_MS);
+  });
+  observer.observe(column ?? document.body);
+  let quiet = setTimeout(end, SETTLED_AFTER_MS);
+  const atMost = setTimeout(end, HOLD_AT_MOST_MS);
+  // The member taking the page back. Not `scroll`, which this itself causes.
+  const letGo = ['wheel', 'touchmove', 'keydown'] as const;
+  for (const event of letGo) {
+    window.addEventListener(event, end, { passive: true });
+  }
+  // A press is the member's own too — but the press that asked for this one is still going up.
+  const pressed = setTimeout(() => window.addEventListener('pointerdown', end), 0);
+
+  function end() {
+    observer.disconnect();
+    clearTimeout(quiet);
+    clearTimeout(atMost);
+    clearTimeout(pressed);
+    for (const event of letGo) {
+      window.removeEventListener(event, end);
+    }
+    window.removeEventListener('pointerdown', end);
+    root.style.overflowAnchor = anchoring;
+    done();
+  }
+
+  return { row, end };
 }
 
 /** Wholly inside the window, below the chrome that stays over the top of it. */
