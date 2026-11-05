@@ -25,6 +25,16 @@ function frameOf(page: Page): Locator {
   return page.getByTestId('drawing-frame');
 }
 
+/** One click on the drawing, at a fraction of its frame. */
+async function clickAt(page: Page, x: number, y: number): Promise<void> {
+  const frame = frameOf(page);
+  const box = await frame.boundingBox();
+  if (!box) {
+    throw new Error('The drawing has no frame.');
+  }
+  await frame.click({ position: { x: box.width * x, y: box.height * y } });
+}
+
 async function centreOf(locator: Locator): Promise<{ x: number; y: number }> {
   const box = await locator.boundingBox();
   if (!box) {
@@ -375,5 +385,162 @@ test.describe('marking up a drawing', () => {
 
     await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
     await expect(page.locator('[data-testid="position-chip"]')).toHaveCount(0);
+  });
+});
+
+/**
+ * **Taking back what the tool just did** (issue #236). One click per circle and nothing to
+ * confirm is what makes marking fast, and it is also where the mistakes come from — so the way
+ * back is one press too, newest first, and only for what this Editor did while the tool was open.
+ */
+test.describe('undoing the marking tool', () => {
+  function undo(page: Page): Locator {
+    return page.getByRole('button', { name: 'Undo' });
+  }
+
+  test('takes back a placed circle, newest first, and the number with it', async ({
+    page,
+  }, info) => {
+    await openADrawingOfYourOwn(page, `undo-place-${info.project.name}`);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await expect(undo(page)).toBeDisabled();
+
+    await clickAt(page, 0.3, 0.3);
+    await clickAt(page, 0.6, 0.6);
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(2);
+    await expect(page.getByTestId('next-number')).toHaveValue('3');
+
+    await undo(page).click();
+
+    // The circle and the number it made are gone, and the field is back on the number, ready
+    // to be placed again where it should have gone.
+    await expect(markFor(page, '2')).toHaveCount(0);
+    await expect(page.locator('[data-testid="position-chip"][data-position="2"]')).toHaveCount(0);
+    await expect(page.getByTestId('next-number')).toHaveValue('2');
+
+    await undo(page).click();
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
+    await expect(page.getByTestId('next-number')).toHaveValue('1');
+    await expect(undo(page)).toBeDisabled();
+  });
+
+  test('takes a second circle off a number, and leaves the number and its first', async ({
+    page,
+  }, info) => {
+    await openADrawingOfYourOwn(page, `undo-held-${info.project.name}`);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await page.getByTestId('hold-number').check();
+    await clickAt(page, 0.3, 0.3);
+    await clickAt(page, 0.6, 0.6);
+    await expect(markFor(page, '1')).toHaveCount(2);
+
+    await undo(page).click();
+
+    await expect(markFor(page, '1')).toHaveCount(1);
+    await expect(page.locator('[data-testid="position-chip"][data-position="1"]')).toBeVisible();
+    await expect(page.getByTestId('next-number')).toHaveValue('1');
+  });
+
+  test('takes back a move, a tick and a removal', async ({ page }, info) => {
+    await openADrawingOfYourOwn(page, `undo-corrections-${info.project.name}`);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await clickAt(page, 0.3, 0.3);
+    const mark = markFor(page, '1');
+    await expect(mark).toHaveCount(1);
+    const placed = await whereOnTheSheet(page, mark);
+
+    // A drag that went too far.
+    const from = await centreOf(mark);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 120, from.y + 60, { steps: 8 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await whereOnTheSheet(page, mark)).x > placed.x + 0.01)
+      .toBe(true);
+    await undo(page).click();
+    await expect.poll(async () => (await whereOnTheSheet(page, mark)).x).toBeCloseTo(placed.x, 3);
+
+    // "Print unreadable" on the wrong circle.
+    await mark.click();
+    await page.getByRole('checkbox', { name: 'Print unreadable' }).check();
+    await expect(mark).toHaveAttribute('data-illegible', 'true');
+    await undo(page).click();
+    await expect(mark).toHaveAttribute('data-illegible', 'false');
+
+    // And a circle taken off that should have stayed: back where it was, as it was.
+    await page.getByRole('checkbox', { name: 'Print unreadable' }).check();
+    await expect(mark).toHaveAttribute('data-illegible', 'true');
+    await page.getByRole('button', { name: 'Remove this Mark' }).click();
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(0);
+    await undo(page).click();
+    await expect(mark).toHaveCount(1);
+    await expect(mark).toHaveAttribute('data-illegible', 'true');
+    const back = await whereOnTheSheet(page, mark);
+    expect(back.x).toBeCloseTo(placed.x, 3);
+    expect(back.y).toBeCloseTo(placed.y, 3);
+  });
+
+  test('is Ctrl+Z on a keyboard, and forgets everything on Done', async ({
+    page,
+    hasTouch,
+  }, info) => {
+    test.skip(hasTouch, 'A phone has no keyboard shortcut; the button is the same undo.');
+    await openADrawingOfYourOwn(page, `undo-keyboard-${info.project.name}`);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await clickAt(page, 0.3, 0.3);
+    await clickAt(page, 0.6, 0.6);
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(2);
+
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(1);
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await expect(undo(page)).toBeDisabled();
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect(page.getByTestId('drawing-mark')).toHaveCount(1);
+  });
+
+  test('refuses a circle somebody else has changed since, and changes nothing', async ({
+    page,
+  }, info) => {
+    await openADrawingOfYourOwn(page, `undo-stale-${info.project.name}`);
+    const tavolaId = /\/tavole\/([^/?]+)/.exec(page.url())?.[1];
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await clickAt(page, 0.3, 0.3);
+    await expect(markFor(page, '1')).toHaveCount(1);
+
+    // Another Editor, at another screen, moves the same circle.
+    const sheet = await (await page.request.get(`/api/tavole/${tavolaId}`)).json();
+    const markId = sheet.positions[0].marks[0].id as string;
+    await page.request.patch(`/api/marks/${markId}`, { data: { x: 0.8, y: 0.8 } });
+
+    await undo(page).click();
+
+    await expect(page.getByText('That Mark has changed since')).toBeVisible();
+    const after = await (await page.request.get(`/api/tavole/${tavolaId}`)).json();
+    expect(after.positions[0].marks).toEqual([{ id: markId, x: 0.8, y: 0.8, illegible: false }]);
+  });
+
+  test('asks before removing a Position, which no undo brings back', async ({ page }, info) => {
+    await openADrawingOfYourOwn(page, `undo-position-${info.project.name}`);
+    await page.getByRole('button', { name: 'Mark positions' }).click();
+    await clickAt(page, 0.3, 0.3);
+    await expect(markFor(page, '1')).toHaveCount(1);
+    await markFor(page, '1').click();
+
+    await page.getByRole('button', { name: 'Remove Position 1' }).click();
+    await expect(markFor(page, '1')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Keep it' }).click();
+    await expect(markFor(page, '1')).toHaveCount(1);
+
+    await page.getByRole('button', { name: 'Remove Position 1' }).click();
+    await page.getByRole('button', { name: 'Yes, remove it' }).click();
+    await expect(page.locator('[data-testid="position-chip"][data-position="1"]')).toHaveCount(0);
+
+    // Not the removal, and nothing done to the number before it, which has nothing left to be
+    // undone on.
+    await expect(undo(page)).toBeDisabled();
   });
 });

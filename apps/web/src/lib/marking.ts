@@ -1,6 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { api, type MarkPoint, type Sheet, type TavolaResponse } from '@/lib/api';
+import {
+  findMark,
+  placedAt,
+  pointOf,
+  Spent,
+  stillOn,
+  undoStep,
+  UNDO_DEPTH,
+  type Step,
+} from '@/lib/marking-undo';
 import { useRereadListings } from '@/lib/parts';
 import { useRecordSheet } from '@/lib/positions';
 
@@ -66,6 +76,12 @@ export interface MarkingTool {
    */
   markLegibility: (markId: string, illegible: boolean, settled?: () => void) => void;
   removePosition: (positionId: string) => void;
+  /**
+   * Taking back the last thing this Editor did with the tool open, newest first (issue #236).
+   * Removing a Position is not one of them: it asks first instead.
+   */
+  undo: () => void;
+  canUndo: boolean;
   busy: boolean;
   refusal: string | null;
 }
@@ -81,6 +97,35 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
   const record = useRecordSheet(tavolaId);
 
   /**
+   * What this Editor can take back, **on this Tavola**: the page stays mounted when it moves on to
+   * another sheet, and a step from the last one would be undone on the wrong drawing.
+   */
+  const [history, setHistory] = useState<{ tavolaId: string; steps: Step[] }>({
+    tavolaId,
+    steps: [],
+  });
+  const steps = history.tavolaId === tavolaId ? history.steps : [];
+  const setSteps = useCallback(
+    (change: (steps: Step[]) => Step[]) =>
+      setHistory((now) => ({
+        tavolaId,
+        steps: change(now.tavolaId === tavolaId ? now.steps : []),
+      })),
+    [tavolaId],
+  );
+  const remember = useCallback(
+    (step: Step) => setSteps((done) => [...done, step].slice(-UNDO_DEPTH)),
+    [setSteps],
+  );
+  /** Set the moment an undo is asked for, so a second press before the screen catches up waits. */
+  const undoing = useRef(false);
+  /** The sheet as this screen has it, which is what each step is worked out against. */
+  const shown = useCallback(
+    () => queryClient.getQueryData<TavolaResponse>(['tavola', tavolaId])?.positions ?? [],
+    [queryClient, tavolaId],
+  );
+
+  /**
    * Placing and listing both consume the number in the field — and only once the archive has
    * it, so that a refused click does not quietly move an Editor's place in the catalog on.
    */
@@ -93,25 +138,84 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
   );
 
   const place = useMutation({
-    mutationFn: (at: MarkPoint) => api.placeMark(tavolaId, { number, ...at }),
-    onSuccess: onward,
+    mutationFn: async (point: MarkPoint) => {
+      const before = shown();
+      const sheet = await api.placeMark(tavolaId, { number, ...point });
+      return { sheet, before, point, placing: number };
+    },
+    onSuccess: ({ sheet, before, point, placing }) => {
+      onward(sheet);
+      const placed = placedAt(sheet, placing, point);
+      if (placed) {
+        remember({
+          kind: 'placed',
+          markId: placed.mark.id,
+          positionId: placed.position.id,
+          number: placed.position.number,
+          at: point,
+          created: !before.some((position) => position.id === placed.position.id),
+        });
+      }
+    },
   });
   const list = useMutation({
-    mutationFn: () => api.addPosition(tavolaId, { number }),
-    onSuccess: onward,
+    mutationFn: async () => {
+      const before = shown();
+      return { sheet: await api.addPosition(tavolaId, { number }), before };
+    },
+    onSuccess: ({ sheet, before }) => {
+      onward(sheet);
+      // A number the sheet already had was not changed, so there is nothing to take back.
+      const listed = sheet.positions.find(
+        (position) => !before.some((known) => known.id === position.id),
+      );
+      if (listed) {
+        remember({ kind: 'listed', positionId: listed.id, number: listed.number });
+      }
+    },
   });
   const moveMark = useMutation({
-    mutationFn: (moved: { markId: string; to: MarkPoint }) => api.moveMark(moved.markId, moved.to),
-    onSuccess: record,
+    mutationFn: async (moved: { markId: string; to: MarkPoint }) => {
+      const was = findMark(shown(), moved.markId)?.mark;
+      return { sheet: await api.moveMark(moved.markId, moved.to), was, moved };
+    },
+    onSuccess: ({ sheet, was, moved }) => {
+      record(sheet);
+      if (was) {
+        remember({
+          kind: 'moved',
+          markId: moved.markId,
+          from: pointOf(was),
+          to: moved.to,
+        });
+      }
+    },
   });
   const removeMark = useMutation({
-    mutationFn: (markId: string) => api.removeMark(markId),
-    onSuccess: record,
+    mutationFn: async (markId: string) => {
+      const was = findMark(shown(), markId);
+      return { sheet: await api.removeMark(markId), was };
+    },
+    onSuccess: ({ sheet, was }) => {
+      record(sheet);
+      if (was) {
+        remember({
+          kind: 'removed',
+          positionId: was.position.id,
+          number: was.position.number,
+          at: pointOf(was.mark),
+          illegible: was.mark.illegible,
+        });
+      }
+    },
   });
   const markLegibility = useMutation({
     mutationFn: (marked: { markId: string; illegible: boolean }) =>
       api.markLegibility(marked.markId, { illegible: marked.illegible }),
-    onSuccess: record,
+    onSuccess: (sheet, marked) => {
+      record(sheet);
+      remember({ kind: 'legibility', ...marked });
+    },
   });
   const removePosition = useMutation({
     mutationFn: (positionId: string) => api.removePosition(positionId),
@@ -124,6 +228,8 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
       const current = queryClient.getQueryData<TavolaResponse>(['tavola', tavolaId]);
       record(sheet);
       void rereadListings();
+      // What was done to the number before is gone with it, and can no longer be taken back.
+      setSteps((done) => done.filter((step) => stillOn(step, sheet.positions)));
       if (current?.tavola.sample?.open.positionId === positionId) {
         void queryClient.invalidateQueries({ queryKey: ['tavola', tavolaId] });
         void queryClient.invalidateQueries({ queryKey: ['samples'] });
@@ -131,7 +237,38 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     },
   });
 
-  const writes = [place, list, moveMark, removeMark, markLegibility, removePosition];
+  const undo = useMutation({
+    mutationFn: (step: Step) => undoStep(tavolaId, step),
+    onSuccess: (sheet, step) => {
+      record(sheet);
+      if (step.kind === 'placed' || step.kind === 'listed') {
+        // Back on the number, ready to be placed again where it should have gone.
+        setNumber(step.number);
+        void rereadListings();
+      }
+    },
+    onError: (error) => {
+      // Done in part, or refused because somebody else changed the sheet: either way this screen
+      // reads it again rather than going on showing what it last believed.
+      if (error instanceof Spent) {
+        void queryClient.invalidateQueries({ queryKey: ['tavola', tavolaId] });
+      }
+    },
+    // A step that no longer applies is spent either way; one the network lost is kept to try again.
+    onSettled: (_sheet, error, step) => {
+      undoing.current = false;
+      if (!error || error instanceof Spent) {
+        setSteps((done) => done.filter((one) => one !== step));
+      }
+    },
+  });
+
+  const writes = [place, list, moveMark, removeMark, markLegibility, removePosition, undo];
+  const busy = writes.some((mutation) => mutation.isPending);
+  /** What the last thing the Editor did was refused with, if it was: older refusals are history. */
+  const latest = writes.reduce((last, mutation) =>
+    mutation.submittedAt > last.submittedAt ? mutation : last,
+  );
 
   /**
    * `mutate` and not `mutateAsync` everywhere but one: nothing here can *answer* for a refusal
@@ -149,7 +286,11 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
         setNumber(nextNumberAfter(resumeAfter));
       }
     }, []),
-    stop: useCallback(() => setOn(false), []),
+    // Done is the end of the sitting, and of what it can take back.
+    stop: useCallback(() => {
+      setOn(false);
+      setSteps(() => []);
+    }, [setSteps]),
     number,
     setNumber,
     held,
@@ -161,7 +302,16 @@ export function useMarkingTool(tavolaId: string): MarkingTool {
     markLegibility: (markId, illegible, settled) =>
       markLegibility.mutate({ markId, illegible }, { onSettled: settled }),
     removePosition: removePosition.mutate,
-    busy: writes.some((mutation) => mutation.isPending),
-    refusal: writes.find((mutation) => mutation.error)?.error?.message ?? null,
+    // Not while anything is in flight: the step it would take back may not be the last one yet.
+    undo: () => {
+      const last = steps.at(-1);
+      if (last && !busy && !undoing.current) {
+        undoing.current = true;
+        undo.mutate(last);
+      }
+    },
+    canUndo: steps.length > 0,
+    busy,
+    refusal: latest.error?.message ?? null,
   };
 }
