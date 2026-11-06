@@ -37,7 +37,10 @@ export interface ComparedSheet {
  *   a drawn Part of the other hand. An empty position cell is read the same way.
  * - A **repeated** position number is drawn alternatives, which needs nothing doing: they are
  *   two rows at one Position, both drawn.
- * - A **range** (`16-17`) is one Part listed at each Position in it.
+ * - A **range** (`16-17`) is one Part listed at each Position in it — when it is short and no
+ *   other row of the Tavola lists a number inside it. A dashed pair that is wide, or that spans
+ *   numbers other rows list, is two Positions and a doubt (issue #204): `13-73` on Tavola 84 is
+ *   the door striker at 13 and at 73, and expanding it invented sixty rows.
  * - Where the *Dal–Al* columns hold **different numbers**, they are separate Parts, each with the
  *   heading of the columns it stood under as its Fitment qualifier.
  *
@@ -47,6 +50,7 @@ export interface ComparedSheet {
 export function interpretTable(sheets: ComparedSheet[]): ReadListing[] {
   const listings: ReadListing[] = [];
   let above: string[] = [];
+  const listed = listedNumbers(sheets);
 
   sheets.forEach((sheet, index) => {
     for (const { row, doubts, notes } of sheet.rows) {
@@ -70,7 +74,18 @@ export function interpretTable(sheets: ComparedSheet[]): ReadListing[] {
           positions = above;
         }
       } else {
-        positions = rangeOf(printed) ?? [printed];
+        const pair = dashedPair(printed);
+        if (!pair) {
+          positions = [printed];
+        } else if (isRange(pair, listed)) {
+          positions = numbersFrom(pair);
+        } else {
+          positions = [String(pair.from), String(pair.to)];
+          rowDoubts.push(
+            `Printed as ${printed}, and read as Positions ${pair.from} and ${pair.to}, not every number between: ` +
+              'other rows list numbers inside it, or it is too wide. If it is a range, add the rest',
+          );
+        }
         above = positions;
       }
 
@@ -97,18 +112,49 @@ export function interpretTable(sheets: ComparedSheet[]): ReadListing[] {
   return listings;
 }
 
-/** `16-17` as `16`, `17`. Anything else — `210 S`, a descending pair — is a number as printed. */
-function rangeOf(printed: string): string[] | null {
+/** The widest dashed pair read as a range: `150-156` is seven, and real ones seen are shorter. */
+const WIDEST_RANGE = 10;
+
+/** `16-17` as 16 and 17. Anything else — `210 S`, a descending pair — is not a pair. */
+function dashedPair(printed: string): { from: number; to: number } | null {
   const match = /^(\d+)\s*-\s*(\d+)$/.exec(printed);
   if (!match) {
     return null;
   }
   const from = Number(match[1]);
   const to = Number(match[2]);
-  if (to <= from) {
-    return null;
+  return to > from ? { from, to } : null;
+}
+
+/** Short, and nothing inside it listed by a row of its own. */
+function isRange(pair: { from: number; to: number }, listed: Set<number>): boolean {
+  if (pair.to - pair.from + 1 > WIDEST_RANGE) {
+    return false;
   }
+  for (let number = pair.from + 1; number < pair.to; number += 1) {
+    if (listed.has(number)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function numbersFrom({ from, to }: { from: number; to: number }): string[] {
   return Array.from({ length: to - from + 1 }, (_, offset) => String(from + offset));
+}
+
+/** Every plain number a Position cell of the Tavola holds, on any of its sheets. */
+function listedNumbers(sheets: ComparedSheet[]): Set<number> {
+  const listed = new Set<number>();
+  for (const sheet of sheets) {
+    for (const { row } of sheet.rows) {
+      const printed = row.position.trim();
+      if (/^\d+$/.test(printed)) {
+        listed.add(Number(printed));
+      }
+    }
+  }
+  return listed;
 }
 
 /**
