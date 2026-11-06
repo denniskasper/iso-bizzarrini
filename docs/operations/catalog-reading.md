@@ -180,7 +180,10 @@ and moves its date.
 - **Where the drawing and the table disagree, it is in doubt**: every Position the table lists
   with no Mark, and every Mark whose number no row lists.
 - **A dash** for a position is the Position above. **A range** (`16-17`) is the Part at each
-  Position. **Different numbers under the Dal–Al columns** are separate Parts, each with the
+  Position, but only when it spans at most ten numbers and no other row of the Tavola lists a
+  number inside it. Otherwise the two numbers are two Positions and the row is in doubt
+  (`13-73` on Tavola 84 is one Part at 13 and at 73); if it really is a range, an Editor adds
+  the rest. **Different numbers under the Dal–Al columns** are separate Parts, each with the
   column heading as its Fitment qualifier.
 
 ## Checking and publishing

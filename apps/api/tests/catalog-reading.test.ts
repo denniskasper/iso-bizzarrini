@@ -165,6 +165,49 @@ describe('reading a scanned catalog', () => {
       ]);
     });
 
+    it('a longer range still lists the Part at each Position in it', async () => {
+      const { out } = await read([
+        aTableSheet('84', [aTable([aRow('150-156', '208550', 'GUIDA')])]),
+      ]);
+
+      expect((await listingsOf(out, '84')).map((row) => row.position)).toEqual([
+        '150',
+        '151',
+        '152',
+        '153',
+        '154',
+        '155',
+        '156',
+      ]);
+    });
+
+    // Issue #204: the door striker on Tavola 84 is printed `13-73`, the one Part at 13 and at 73.
+    it('a dashed pair spanning numbers other rows list is the two Positions, in doubt', async () => {
+      const { out } = await read([
+        aTableSheet('84', [
+          aTable([
+            aRow('13-73', '208513', 'RISCONTRO'),
+            aRow('20', '208520', 'MANIGLIA'),
+            aRow('54', '208554', 'GUARNIZIONE'),
+          ]),
+        ]),
+      ]);
+
+      const listings = await listingsOf(out, '84');
+      expect(listings.map((row) => row.position)).toEqual(['13', '73', '20', '54']);
+      expect(listings[0]?.doubt).toContain('13-73');
+      expect(listings[1]?.doubt).toContain('13-73');
+      expect(listings[2]?.doubt).toBe('');
+    });
+
+    it('a dashed pair too wide to be a range is the two Positions, in doubt', async () => {
+      const { out } = await read([aTableSheet('84', [aTable([aRow('5-60', '208505', 'VITE')])])]);
+
+      const listings = await listingsOf(out, '84');
+      expect(listings.map((row) => row.position)).toEqual(['5', '60']);
+      expect(listings[0]?.doubt).toContain('5-60');
+    });
+
     it('a dash at the top of a Table sheet is the last Position of the sheet before', async () => {
       const { out } = await read([
         aTableSheet('84', [aTable([aRow('30', '208530', 'TUBO')])]),
