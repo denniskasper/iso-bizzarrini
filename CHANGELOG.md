@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.18.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.17.0...v0.18.0) (2026-11-06)
+
+
+### New
+
+* an Editor types a Position's number over an unreadable print ([68d7921](https://github.com/denniskasper/iso-bizzarrini/commit/68d79218f8d3632e642046e443a55df0f81ea787)), closes [#234](https://github.com/denniskasper/iso-bizzarrini/issues/234)
+* **api:** an Editor removes several numbers from a sheet in one request ([577a5b4](https://github.com/denniskasper/iso-bizzarrini/commit/577a5b47e12b0c100cd58d700592683b2fb3f9c7)), closes [#240](https://github.com/denniskasper/iso-bizzarrini/issues/240)
+* **web:** a circle read on the drawing brings its row in the list into view ([778b97a](https://github.com/denniskasper/iso-bizzarrini/commit/778b97af770d7baf188da28c5f3d466fd6543e17))
+* **web:** a Tavola's table sheets open in the drawing's viewer, with zoom ([9821ea9](https://github.com/denniskasper/iso-bizzarrini/commit/9821ea9b5af36946be397e66a92d5502bf08eb2e))
+* **web:** an Editor puts a part listed without a number at its number ([afad9b5](https://github.com/denniskasper/iso-bizzarrini/commit/afad9b5c8b647c99d5a4c6f3e36dae234c20fbe5)), closes [#242](https://github.com/denniskasper/iso-bizzarrini/issues/242)
+* **web:** an Editor selects several numbers and removes them with one confirmation ([1e16429](https://github.com/denniskasper/iso-bizzarrini/commit/1e16429dc4918187f03ad116edebda24df7a3663)), closes [#240](https://github.com/denniskasper/iso-bizzarrini/issues/240)
+* **web:** an Editor undoes the last thing the marking tool did ([de6d1d4](https://github.com/denniskasper/iso-bizzarrini/commit/de6d1d4498a57b7bc4a3b2ad7f4d731e64527d8c)), closes [#236](https://github.com/denniskasper/iso-bizzarrini/issues/236)
+* **web:** the numbers and the marking tool sit right under the drawing ([1ab9785](https://github.com/denniskasper/iso-bizzarrini/commit/1ab978578f37a1f9f75cee4622f6bbb6c9456e2f))
+
+
+### Fixed
+
+* **api:** a dashed Position cell like 13-73 is two Positions in doubt, not a range ([ceb8095](https://github.com/denniskasper/iso-bizzarrini/commit/ceb8095dbd53a67eb8f9d1939a0ba0b2bafc2983))
+* **web:** a car's name fits its row, with its figures on the line ([5e8f147](https://github.com/denniskasper/iso-bizzarrini/commit/5e8f14707ac15801b62d1cd0d47dbf3928a4aa81))
+* **web:** offer adding a Model, a Tavola or a Scan to Editors only ([8216d5f](https://github.com/denniskasper/iso-bizzarrini/commit/8216d5f50368784a51d23662016ef4e084ab4298)), closes [#219](https://github.com/denniskasper/iso-bizzarrini/issues/219) [#220](https://github.com/denniskasper/iso-bizzarrini/issues/220) [#221](https://github.com/denniskasper/iso-bizzarrini/issues/221)
+* **web:** the list holds still while the first reading fills in above it ([787cef9](https://github.com/denniskasper/iso-bizzarrini/commit/787cef946c35838fcf15b7fdc4f5182ac2c6ea37)), closes [#239](https://github.com/denniskasper/iso-bizzarrini/issues/239)
+
 ## [0.17.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.16.0...v0.17.0) (2026-11-02)
 
 
