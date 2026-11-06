@@ -7,7 +7,8 @@ import { landed, PRACTICE, signInAs } from './support/gate.js';
  *
  * The API seam proves an outline is accepted, refused, replaced and turned. Only a browser can
  * say that clicking corners draws one, that it lies on the drawing where it was drawn at every
- * zoom and after a turn, that it stays out of sight until it is asked for, and that the circles
+ * zoom and after a turn, that it stands out only when it is asked for (the rest drawn quietly
+ * while the member's switch is on, issue #231), and that the circles
  * inside it are still what a press lands on.
  *
  * Every test draws on a sheet of its own, so an outline drawn here never shows on a drawing
@@ -206,6 +207,38 @@ test.describe('seeing an outline', () => {
     await markFor(page, '1').click();
     await expect(page.getByTestId('selected-position')).toHaveText('1');
     await expect(outlineOf(page)).toBeVisible();
+  });
+
+  // Issue #231: how the sheet divides, seen before anything is chosen.
+  test('every outline is drawn quietly until the member switches them off, and stays off', async ({
+    page,
+  }) => {
+    const { subAssemblyId } = await aSheetWithADoorLock(page, 'outline-all');
+    await outlined(page, subAssemblyId);
+
+    const quiet = page.getByTestId('sub-assembly-outline-quiet');
+    const all = page.getByTestId('all-outlines');
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
+    await expect(quiet).toHaveCount(1);
+    await expect(outlineOf(page)).toHaveCount(0);
+
+    // The one asked for stands out, and is not drawn twice.
+    await markFor(page, '1').click();
+    await expect(outlineOf(page)).toBeVisible();
+    await expect(quiet).toHaveCount(0);
+
+    await all.click();
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await markFor(page, '2').click();
+    await expect(quiet).toHaveCount(0);
+
+    await page.reload();
+    await expect(markFor(page, '1')).toBeVisible();
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await expect(quiet).toHaveCount(0);
+
+    await all.click();
+    await expect(quiet).toHaveCount(1);
   });
 
   test('leaves a Mark inside it clickable, and opens the Sub-assembly when clicked', async ({

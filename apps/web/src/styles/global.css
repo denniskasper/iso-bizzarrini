@@ -514,6 +514,18 @@
     animation: outline-in 140ms var(--ease-out-quick);
   }
 
+  /* Every other outline (issue #231): the Mark's colour, thin and dashed, with no wash and nothing
+     to press, so it says where a Sub-assembly is without competing with the one asked for. */
+  .outline-quiet {
+    fill: none;
+    stroke: var(--mark);
+    stroke-width: var(--drawing-px, 1px);
+    stroke-dasharray: calc(var(--drawing-px, 1px) * 6) calc(var(--drawing-px, 1px) * 4);
+    stroke-linejoin: round;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
   @keyframes outline-in {
     from {
       opacity: 0;

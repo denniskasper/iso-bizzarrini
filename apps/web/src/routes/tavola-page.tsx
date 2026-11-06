@@ -41,6 +41,7 @@ import {
 } from '@/lib/api';
 import { useMarkingTool } from '@/lib/marking';
 import { outsideTheirOutlines } from '@/lib/outline-geometry';
+import { useAllOutlines } from '@/lib/all-outlines';
 import { useOutlineTool } from '@/lib/outlining';
 import { useTavolaListings } from '@/lib/parts';
 import { markAfter, markOn, positionMatching, positionsIn } from '@/lib/positions';
@@ -126,6 +127,7 @@ export function TavolaPage() {
   const visitors = useShowToVisitors(tavolaId, () => setPickingFor(null));
   const tool = useMarkingTool(tavolaId);
   const outlining = useOutlineTool(tavolaId);
+  const allOutlines = useAllOutlines();
   /**
    * **Which Sub-assembly's outline the drawing shows** (issue #113), asked for in three ways.
    * A name pointed at beside the drawing, for as long as the pointer rests there; a Sub-assembly
@@ -368,6 +370,9 @@ export function TavolaPage() {
     sheet.subAssemblies.find(
       (subAssembly) => subAssembly.id === outlinedId && subAssembly.outline,
     ) ?? null;
+  const outlinedAll = allOutlines.on
+    ? sheet.subAssemblies.filter((subAssembly) => subAssembly.outline)
+    : [];
 
   /** Pointing at a name: shown while the pointer rests on it, gone as it leaves. */
   const pointAtOutline = useCallback(
@@ -546,6 +551,7 @@ export function TavolaPage() {
                 <OutlineLayer
                   size={tavola.scan}
                   shown={outlined}
+                  others={outlinedAll}
                   draft={outlining.drawing ? outlining.corners : null}
                   reshaping={
                     outlining.reshaping
@@ -658,6 +664,7 @@ export function TavolaPage() {
             onPoint={pointAtOutline}
             onSelect={selectOutline}
             outside={isEditor ? outsideTheirOutlines(sheet) : null}
+            allOutlines={allOutlines}
           />
 
           <TavolaParts

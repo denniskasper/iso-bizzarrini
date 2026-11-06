@@ -4,8 +4,9 @@ import { fraction } from './viewport';
 
 /**
  * **Where a Sub-assembly is on the drawing** (issue #113): the outline an Editor drew round it,
- * shown only when a member asks — by pointing at its name, selecting it, or selecting one of its
- * numbers. A sheet showing every outline at once would bury the numbers a member came to click.
+ * shown when a member asks — by pointing at its name, selecting it, or selecting one of its
+ * numbers. The others can be drawn too, quietly, while the member's switch is on (issue #231);
+ * the one asked for is still the one that stands out, and the only one a press opens.
  *
  * It is the Mark's ultramarine (ADR 0020), as a line with a wash inside it: plainly something the
  * club drew on the factory's print, and translucent so the print still reads through it.
@@ -22,6 +23,11 @@ export interface OutlineLayerProps {
   size: { width: number; height: number };
   /** The one Sub-assembly the drawing has been asked to show, if it has an outline. */
   shown: SubAssembly | null;
+  /**
+   * Every other outlined Sub-assembly, drawn quietly (issue #231): a thin dashed line, no wash, and
+   * nothing to press, so the sheet shows how it divides without burying its numbers.
+   */
+  others?: SubAssembly[];
   /** The corners of an outline an Editor is drawing, in the order they were placed. */
   draft?: MarkPoint[] | null;
   /** An outline an Editor is reshaping, with its corners to drag and its sides to add one on. */
@@ -56,12 +62,19 @@ export function closesTheOutline(on: Element | null): boolean {
   return on?.closest('[data-outline-close]') != null;
 }
 
-export function OutlineLayer({ size, shown, draft = null, reshaping = null }: OutlineLayerProps) {
+export function OutlineLayer({
+  size,
+  shown,
+  others = [],
+  draft = null,
+  reshaping = null,
+}: OutlineLayerProps) {
   const points = (corners: MarkPoint[]) =>
     corners.map((corner) => `${corner.x * size.width},${corner.y * size.height}`).join(' ');
 
   const outline = shown?.outline ?? null;
-  if (!outline && !draft && !reshaping) {
+  const quiet = draft || reshaping ? [] : others.filter((other) => other.id !== shown?.id);
+  if (!outline && !draft && !reshaping && quiet.length === 0) {
     return null;
   }
 
@@ -74,6 +87,18 @@ export function OutlineLayer({ size, shown, draft = null, reshaping = null }: Ou
       aria-hidden="true"
       data-testid="drawing-outlines"
     >
+      {quiet.map(
+        (other) =>
+          other.outline && (
+            <polygon
+              key={other.id}
+              className="outline-quiet"
+              data-testid="sub-assembly-outline-quiet"
+              points={points(other.outline)}
+            />
+          ),
+      )}
+
       {outline && shown && !draft && !reshaping && (
         <polygon
           key={shown.id}

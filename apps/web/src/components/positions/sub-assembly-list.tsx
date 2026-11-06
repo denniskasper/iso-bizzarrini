@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { TriangleAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { Position, Sheet } from '@/lib/api';
 import { positionsIn } from '@/lib/positions';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ export function SubAssemblyList({
   onPoint,
   onSelect,
   outside = null,
+  allOutlines = null,
 }: {
   tavolaId: string;
   sheet: Sheet;
@@ -33,6 +35,8 @@ export function SubAssemblyList({
   onSelect?: (subAssemblyId: string | null) => void;
   /** An Editor's warning: by Sub-assembly, its Positions with a Mark outside its outline. */
   outside?: ReadonlyMap<string, Position[]> | null;
+  /** Whether every outline is drawn, quietly (issue #231), and the switch for it. */
+  allOutlines?: { on: boolean; set: (on: boolean) => void } | null;
 }) {
   if (sheet.subAssemblies.length === 0) {
     return null;
@@ -40,9 +44,22 @@ export function SubAssemblyList({
 
   return (
     <section aria-labelledby="sheet-sub-assemblies" data-testid="sheet-sub-assemblies">
-      <h2 id="sheet-sub-assemblies" className="label">
-        Sub-assemblies on this sheet
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <h2 id="sheet-sub-assemblies" className="label">
+          Sub-assemblies on this sheet
+        </h2>
+        {/* Ruled while on and plain while off, like "Show on the drawing", and not the accent. */}
+        {allOutlines && sheet.subAssemblies.some((subAssembly) => subAssembly.outline) && (
+          <Button
+            variant={allOutlines.on ? 'outline' : 'ghost'}
+            data-testid="all-outlines"
+            aria-pressed={allOutlines.on}
+            onClick={() => allOutlines.set(!allOutlines.on)}
+          >
+            {allOutlines.on ? 'Outlines shown' : 'Show outlines'}
+          </Button>
+        )}
+      </div>
       <ul className="mt-4 border-b border-line">
         {sheet.subAssemblies.map((subAssembly) => {
           const selected = subAssembly.id === selectedId;
