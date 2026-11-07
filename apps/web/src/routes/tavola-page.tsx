@@ -13,6 +13,7 @@ import {
 import { FileUnder } from '@/components/editor/file-under';
 import { ListingPanel } from '@/components/editor/listing-panel';
 import { MarkingBar } from '@/components/editor/marking-bar';
+import { TypedNumbersSwitch } from '@/components/editor/typed-numbers-switch';
 import { OutlinePanel } from '@/components/editor/outline-panel';
 import { PublishedBy, UncheckedBand } from '@/components/editor/publication';
 import { ScanUpload } from '@/components/editor/scan-upload';
@@ -29,7 +30,12 @@ import { SubAssemblyList } from '@/components/positions/sub-assembly-list';
 import { WhatIsLeft } from '@/components/progress/what-is-left';
 import { Button } from '@/components/ui/button';
 import { DrawingViewer, type DrawingView } from '@/components/viewer/drawing-viewer';
-import { MarkCard, PositionCard, useBeside } from '@/components/viewer/mark-card';
+import {
+  MarkCard,
+  PositionCard,
+  TypedUprightByTheClub,
+  useBeside,
+} from '@/components/viewer/mark-card';
 import { MarkLayer, type Pointed } from '@/components/viewer/mark-layer';
 import { OutlineLayer, outlineAt } from '@/components/viewer/outline-layer';
 import {
@@ -544,6 +550,9 @@ export function TavolaPage() {
                     : undefined
                 }
                 quiet={outlineInHand}
+                typed={tavola.typedNumbers}
+                // Placing or moving Marks, the print shows through the discs to aim at.
+                seeThrough={tool.on}
               />
             }
             underlay={
@@ -609,12 +618,21 @@ export function TavolaPage() {
                   : undefined
             }
           />
+          {tavola.typedNumbers && <TypedUprightByTheClub />}
           {/* Turning and replacing the scan are an Editor's: a Member reads the sheet as it
               is, and the archive would refuse them both (issue #221). */}
           {isEditor && (
             <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-              {/* A sheet scanned on its side is turned here, its Marks with it (issue #34). */}
-              {tavola.scan ? <ScanTurn tavolaId={tavola.id} /> : <span />}
+              {/* A sheet scanned on its side is turned here, its Marks with it (issue #34); and
+                  one whose numbers alone run sideways has them typed upright (issue #250). */}
+              {tavola.scan ? (
+                <div className="flex flex-col gap-3">
+                  <ScanTurn tavolaId={tavola.id} />
+                  <TypedNumbersSwitch tavolaId={tavola.id} on={tavola.typedNumbers} />
+                </div>
+              ) : (
+                <span />
+              )}
               <ScanUpload tavolaId={tavola.id} hasScan={tavola.scan !== null} />
             </div>
           )}

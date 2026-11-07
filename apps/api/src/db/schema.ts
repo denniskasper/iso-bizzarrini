@@ -158,6 +158,13 @@ export const tavole = pgTable(
      * never does.
      */
     readingMethod: text('reading_method'),
+    /**
+     * **Typed numbers** (issue #250): the drawing stands upright but the factory printed its
+     * numbers sideways to it, so the viewer types every Mark's number upright over the print, as
+     * it does for an Illegible Mark. A yes/no for the whole Tavola, chosen by an Editor and undone
+     * the same way; nothing is turned and the Scan is never altered. Never shown on a Sample.
+     */
+    typedNumbers: boolean('typed_numbers').notNull().default(false),
   },
   (table) => [
     check('tavole_state_is_one_of_two', sql`${table.state} in (${oneOf(TAVOLA_STATES)})`),

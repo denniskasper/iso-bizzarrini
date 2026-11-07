@@ -171,6 +171,11 @@ describe('a Sample a Visitor reads', () => {
           .expect(200);
       }
     }
+    // And every number on the sheet typed upright over a print that runs sideways (issue #250).
+    await administrator
+      .put(`/api/tavole/${tavolaId}/typed-numbers`)
+      .send({ typedNumbers: true })
+      .expect(200);
   }
 
   describe('on the landing', () => {
@@ -330,6 +335,8 @@ describe('a Sample a Visitor reads', () => {
       // number and names.
       expect(JSON.stringify(response.body)).not.toMatch(/CLUB-|Sezione/);
       expect(JSON.stringify(response.body)).not.toContain(partId);
+      // Nor the club's typing of every number upright (issue #250): a Visitor sees the print.
+      expect(JSON.stringify(response.body)).not.toContain('typed');
     });
 
     it('is the whole Tavola to a Member at the same address', async () => {

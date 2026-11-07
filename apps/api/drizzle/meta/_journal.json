@@ -309,6 +309,13 @@
       "when": 1793829200614,
       "tag": "0043_marks_know_whether_their_print_is_legible",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794080160278,
+      "tag": "0044_tavole_can_have_their_numbers_typed",
+      "breakpoints": true
     }
   ]
 }

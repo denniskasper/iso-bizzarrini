@@ -93,6 +93,8 @@ export interface TavolaRepository {
   setCategory(id: string, categoryId: string | null): Promise<boolean>;
   /** The English name as an Editor vouches for it, which is no Machine translation. */
   nameInEnglish(id: string, nameEn: string): Promise<boolean>;
+  /** Whether every Mark's number is typed upright (issue #250). `false` when there is no sheet. */
+  setTypedNumbers(id: string, typedNumbers: boolean): Promise<boolean>;
 }
 
 export function createTavolaRepository(db: DbSession): TavolaRepository {
@@ -235,6 +237,15 @@ export function createTavolaRepository(db: DbSession): TavolaRepository {
       const written = await db
         .update(tavole)
         .set({ nameEn, nameEnMachineTranslated: false })
+        .where(eq(tavole.id, id))
+        .returning({ id: tavole.id });
+      return written.length > 0;
+    },
+
+    async setTypedNumbers(id, typedNumbers) {
+      const written = await db
+        .update(tavole)
+        .set({ typedNumbers })
         .where(eq(tavole.id, id))
         .returning({ id: tavole.id });
       return written.length > 0;

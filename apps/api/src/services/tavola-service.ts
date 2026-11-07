@@ -43,6 +43,11 @@ export interface TavolaService {
    * translation. Publishing the Tavola never does this; it is a judgement of its own.
    */
   nameInEnglish(tavolaId: string, nameEn: string): Promise<TavolaSummary>;
+  /**
+   * **Typed numbers** (issue #250): every Mark's number typed upright over a print that runs
+   * sideways to the drawing, for the whole Tavola, or the factory print again.
+   */
+  typeNumbers(tavolaId: string, typedNumbers: boolean): Promise<boolean>;
 }
 
 function publicationOf(row: TavolaInContext): TavolaPublication | null {
@@ -117,6 +122,7 @@ export function createTavolaService(dependencies: {
             subgroup: row.catalogSubgroup,
           },
           publication: publicationOf(row),
+          typedNumbers: row.typedNumbers,
           // The factory's own table pages, as private as the drawing (issue #34).
           tableSheets: tableSheets.map(toTableSheet),
         },
@@ -181,6 +187,13 @@ export function createTavolaService(dependencies: {
         throw new NotFoundError('No such Tavola.');
       }
       return toTavolaSummary(row);
+    },
+
+    async typeNumbers(tavolaId, typedNumbers) {
+      if (!(await tavolaRepository.setTypedNumbers(tavolaId, typedNumbers))) {
+        throw new NotFoundError('No such Tavola.');
+      }
+      return typedNumbers;
     },
 
     async publish(tavolaId, accountId) {
