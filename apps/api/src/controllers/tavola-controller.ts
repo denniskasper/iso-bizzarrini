@@ -1,4 +1,8 @@
-import type { TavolaPublishedResponse, TavolaResponse } from '@ricambi/contracts';
+import type {
+  TavolaPublishedResponse,
+  TavolaResponse,
+  TypedNumbersRequest,
+} from '@ricambi/contracts';
 import type { RequestHandler } from 'express';
 import type { Gate } from '../access/gate.js';
 import { z } from 'zod';
@@ -33,12 +37,20 @@ const createTavolaBody = z.object({
 /** Reads `TavolaCategoryRequest`. Blank is how a sheet is taken out of its Category. */
 const categoriseBody = z.object({ category: blankToNull() });
 
+/** Reads `TypedNumbersRequest`: a yes or a no for the whole Tavola (issue #250). */
+const typedNumbersBody = z.object({
+  typedNumbers: z.boolean(
+    'Say whether every number on this Tavola is typed upright over the print: true or false.',
+  ),
+});
+
 export interface TavolaController {
   read: RequestHandler;
   create: RequestHandler;
   categorise: RequestHandler;
   publish: RequestHandler;
   nameInEnglish: RequestHandler;
+  typeNumbers: RequestHandler;
 }
 
 export function createTavolaController(dependencies: {
@@ -83,6 +95,15 @@ export function createTavolaController(dependencies: {
       const { nameEn } = englishNameBody.parse(request.body);
       const tavola = await tavolaService.nameInEnglish(tavolaId, nameEn);
       response.json({ tavola });
+    },
+
+    typeNumbers: async (request, response) => {
+      const { tavolaId } = tavolaIdParams.parse(request.params);
+      const { typedNumbers } = typedNumbersBody.parse(request.body);
+      const body: TypedNumbersRequest = {
+        typedNumbers: await tavolaService.typeNumbers(tavolaId, typedNumbers),
+      };
+      response.json(body);
     },
 
     publish: async (request, response) => {

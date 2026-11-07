@@ -653,11 +653,12 @@
   }
 
   /*
-   * **A print nobody can read** (issue #234), and the one place a Mark is a disc: what it covers
-   * has nothing to read, so it is paper white with the Position's number typed in the Mark's
-   * ultramarine. The ring is kept, so it is still plainly one of the circles.
+   * **A typed number**, and the one place a Mark is a disc: an Illegible Mark (issue #234), whose
+   * print has nothing to read, and every Mark on a Tavola with Typed numbers (issue #250), whose
+   * print runs sideways to the drawing. Paper white, with the Position's number typed upright in
+   * the Mark's ultramarine. The ring is kept, so it is still plainly one of the circles.
    */
-  .drawing-mark[data-illegible='true']::before {
+  .drawing-mark[data-typed='true']::before {
     background-color: var(--paper);
   }
 
@@ -684,12 +685,24 @@
   }
 
   /* Still white when it is being read or receded, which repaint a ring's inside further down. */
-  .drawing-mark[data-illegible='true'][data-selected='true']::before,
-  .drawing-mark[data-illegible='true'][data-subdued='true']::before {
+  .drawing-mark[data-typed='true'][data-selected='true']::before,
+  .drawing-mark[data-typed='true'][data-subdued='true']::before {
     background-color: var(--paper);
   }
 
-  .drawing-mark[data-illegible='true'][data-subdued='true'] .drawing-mark-number {
+  .drawing-mark[data-typed='true'][data-subdued='true'] .drawing-mark-number {
+    color: var(--mark-receded);
+  }
+
+  /*
+   * **While an Editor places or moves Marks** (issue #250), the discs let the print through, so
+   * a ring can be aimed at the digits the factory printed underneath. Solid again for reading.
+   */
+  .drawing-marks[data-see-through='true'] .drawing-mark[data-typed='true']::before {
+    background-color: var(--paper-see-through);
+  }
+
+  .drawing-marks[data-see-through='true'] .drawing-mark[data-typed='true'] .drawing-mark-number {
     color: var(--mark-receded);
   }
 

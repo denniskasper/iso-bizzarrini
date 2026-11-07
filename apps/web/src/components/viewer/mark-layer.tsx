@@ -22,6 +22,8 @@ import { fraction } from './viewport';
  * **Except where the print has nothing to read** (issue #234): an Illegible Mark is a paper-white
  * disc with its Position's number typed inside, because the smudge it covers is no help to
  * anyone. The digits come from the Position, so they are always the number the Mark is on.
+ * **And on every Mark of a Tavola with Typed numbers** (issue #250), whose factory numbers run
+ * sideways to the drawing: the same disc, typed upright, so nobody has to turn their head.
  *
  * **The layer knows nothing about zoom.** It positions every circle as a percentage of the
  * drawing, inside the drawing's own coordinate space, so the single transform that pans and
@@ -102,6 +104,16 @@ export interface MarkLayerProps {
    * where a press on a circle is a corner placed on it (issue #113).
    */
   quiet?: boolean;
+  /**
+   * **Typed numbers** (issue #250): every circle is a disc with its Position's number typed
+   * upright, not only an Illegible one. Never on a Sample, which carries nothing the club added.
+   */
+  typed?: boolean;
+  /**
+   * The discs let the print through, while an Editor places or moves Marks, so a ring can be
+   * aimed at the printed digits underneath it. Solid again for reading.
+   */
+  seeThrough?: boolean;
 }
 
 export function MarkLayer({
@@ -115,6 +127,8 @@ export function MarkLayer({
   pointedMarkId = null,
   onMove,
   quiet = false,
+  typed = false,
+  seeThrough = false,
 }: MarkLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
@@ -206,7 +220,13 @@ export function MarkLayer({
   );
 
   return (
-    <div ref={layerRef} className="drawing-marks" data-testid="drawing-marks" data-quiet={quiet}>
+    <div
+      ref={layerRef}
+      className="drawing-marks"
+      data-testid="drawing-marks"
+      data-quiet={quiet}
+      data-see-through={seeThrough}
+    >
       {positions.map((position) =>
         position.marks.map((mark) => (
           <MarkCircle
@@ -217,6 +237,7 @@ export function MarkLayer({
             current={picked === null && mark.id === selectedMarkId}
             picking={picked !== null}
             subdued={lit !== null && !lit.has(position.id)}
+            typed={typed || mark.illegible}
             movable={onMove !== undefined}
             described={mark.id === pointedMarkId}
             onSelect={onSelect}
@@ -241,6 +262,7 @@ const MarkCircle = memo(function MarkCircle({
   selected,
   current,
   subdued,
+  typed,
   movable,
   picking,
   described,
@@ -256,6 +278,8 @@ const MarkCircle = memo(function MarkCircle({
   current: boolean;
   /** Not one of the numbers the drawing has been asked about, while it has been asked. */
   subdued: boolean;
+  /** Drawn as a disc with the number typed in: an Illegible Mark, or a Tavola's Typed numbers. */
+  typed: boolean;
   movable: boolean;
   /** A press toggles it in a selection, so it must arrive once, not as a press and a click. */
   picking: boolean;
@@ -280,6 +304,7 @@ const MarkCircle = memo(function MarkCircle({
       // And which of them are not what the drawing was asked about.
       data-subdued={subdued}
       data-illegible={mark.illegible}
+      data-typed={typed}
       aria-label={`Position ${position.number}`}
       aria-pressed={selected}
       aria-describedby={described ? MARK_CARD_ID : undefined}
@@ -333,8 +358,8 @@ const MarkCircle = memo(function MarkCircle({
       }}
       onBlur={() => onPoint?.(null)}
     >
-      {mark.illegible && (
-        // The number the print should have shown, sized to the ring however many digits it has.
+      {typed && (
+        // The Position's number, typed upright and sized to the ring however many digits it has.
         <span
           className="drawing-mark-number"
           data-testid="drawing-mark-number"

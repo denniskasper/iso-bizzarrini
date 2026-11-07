@@ -279,6 +279,14 @@ export interface EnglishNameRequest {
 }
 
 /**
+ * `PUT /api/tavole/:tavolaId/typed-numbers` — every Mark's number typed upright over the print, or
+ * the factory print again (issue #250). Answered with what the Tavola now has, in the same shape.
+ */
+export interface TypedNumbersRequest {
+  typedNumbers: boolean;
+}
+
+/**
  * What the address and the filter call a Tavola with no Category. Reserved, so no Category can
  * be given a name that would collide with it.
  *
@@ -500,6 +508,12 @@ export interface TavolaResponse extends Sheet {
     model: CatalogModel;
     provenance: CatalogProvenance;
     publication: TavolaPublication | null;
+    /**
+     * **Typed numbers** (issue #250): every Mark shows its Position's number typed upright over
+     * the print, because the factory printed it sideways to the drawing. Chosen by an Editor for
+     * the whole Tavola; the Scan is never altered. Never on a Sample.
+     */
+    typedNumbers: boolean;
     /** Empty for a Tavola recorded by hand, which nobody read off a table. */
     tableSheets: TableSheet[];
     /**

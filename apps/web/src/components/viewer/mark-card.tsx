@@ -76,6 +76,19 @@ export function TypedByTheClub() {
   );
 }
 
+/**
+ * **Said once, beside the drawing, on a Tavola with Typed numbers** (issue #250): every number on
+ * it is the club's typing, because the factory printed them sideways to the drawing. Not on each
+ * Mark's card, where "typed by the club" keeps meaning the print cannot be read.
+ */
+export function TypedUprightByTheClub() {
+  return (
+    <p className="text-sm text-pretty text-muted" data-testid="typed-upright-by-the-club">
+      Numbers typed upright by the club — the factory printed them sideways.
+    </p>
+  );
+}
+
 /** One drawn Part: what it is called in both languages, then what it is ordered by and how many. */
 function CardPart({ listing }: { listing: TavolaListing }) {
   const { part } = listing;

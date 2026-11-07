@@ -92,6 +92,13 @@ typed over the print by the club, and says so; the Scan itself is never altered.
 Editor for each Mark on its own, and not shown on a Sample, which carries nothing the club added.
 _Avoid_: Broken, repaired, fixed, restored, retouched
 
+**Typed numbers**:
+A Tavola whose Marks all show their Positions' numbers typed upright over the print, for a
+drawing whose factory numbers run sideways to it. Chosen by an Editor for the whole Tavola, and
+undone the same way at any time; the Scan itself is never altered. Says so once beside the
+drawing, unlike an Illegible Mark, which says so on its own. Not shown on a Sample.
+_Avoid_: Rotated numbers, turned numbers (the drawing's quarter turn is a different thing)
+
 **Sub-assembly**:
 A named group of Positions within one Tavola — *Window Slider*, *Door Lock* — outlined on
 the Scan, with Photographs and a Note of its own, because it is what restorers photograph and

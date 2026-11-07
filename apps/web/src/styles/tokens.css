@@ -90,6 +90,12 @@
    */
   --mark-receded: color-mix(in oklch, var(--mark) 30%, transparent);
   /*
+   * A typed disc while an Editor places or moves Marks (issue #250): paper at a third, so the
+   * factory's print shows through it and a ring can be aimed at the digits underneath. Paper's
+   * companion, and like paper not themed.
+   */
+  --paper-see-through: color-mix(in oklch, var(--paper) 35%, transparent);
+  /*
    * Inside a Sub-assembly's outline (issue #113): the Mark's ultramarine at a tenth, lighter than the
    * wash in a circle, because an outline can cover a quarter of a sheet and the factory's print
    * has to read straight through it. The line round it is `--mark` itself.

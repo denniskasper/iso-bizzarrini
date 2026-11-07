@@ -482,6 +482,10 @@ export function createApiRouter(dependencies: {
   // **Vouching for an English name is a judgement of its own** (issue #32): confirmed as it
   // stands or rewritten, it is no longer a Machine translation. Publishing never does this.
   router.put('/tavole/:tavolaId/english-name', tavolaController.nameInEnglish);
+  // **Typed numbers** (issue #250): a drawing whose factory numbers run sideways to it has every
+  // Mark's number typed upright, for the whole Tavola. A write, so the guard above keeps it an
+  // Editor's, on an Unchecked Tavola or a Published one.
+  router.put('/tavole/:tavolaId/typed-numbers', tavolaController.typeNumbers);
 
   // **Checking what the machine read** (issue #34): the rows beside the sheets they came from,
   // the doubts and the Reading method. An Editor's out loud, because the Reading method is never

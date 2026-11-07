@@ -1,0 +1,1 @@
+ALTER TABLE "tavole" ADD COLUMN "typed_numbers" boolean DEFAULT false NOT NULL;

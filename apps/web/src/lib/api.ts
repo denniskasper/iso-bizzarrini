@@ -119,6 +119,7 @@ import type {
   TavolaScan,
   TavolaSummary,
   TurnScanRequest,
+  TypedNumbersRequest,
   ReadingDoubt,
   RewriteDoubtRequest,
 } from '@ricambi/contracts';
@@ -825,6 +826,11 @@ export const api = {
     send<{ scan: TavolaScan }>('POST', `/tavole/${tavolaId}/scan/turns`, {
       direction,
     } satisfies TurnScanRequest),
+  /** Every Mark's number typed upright over a print that runs sideways (issue #250), or not. */
+  typeNumbers: (tavolaId: string, typedNumbers: boolean) =>
+    send<TypedNumbersRequest>('PUT', `/tavole/${tavolaId}/typed-numbers`, {
+      typedNumbers,
+    } satisfies TypedNumbersRequest),
 };
 
 export type {
