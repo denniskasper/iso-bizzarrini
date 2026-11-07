@@ -15,6 +15,47 @@ collections:
           - { name: einleitung, label: Einleitung, widget: text }
           - { name: bild, label: Titelbild, widget: image, required: false }
           - { name: body, label: Text, widget: markdown }
+          # Sections the page can be built from. Each type is designed once on the real site;
+          # an editor adds, orders and removes them, but cannot invent a new layout.
+          - name: abschnitte
+            label: Abschnitte
+            label_singular: Abschnitt
+            widget: list
+            required: false
+            types:
+              - name: bild_text
+                label: Bild und Text
+                widget: object
+                summary: "{{ueberschrift}}"
+                fields:
+                  - { name: ueberschrift, label: Überschrift, widget: string }
+                  - { name: bild, label: Bild, widget: image }
+                  - name: bildseite
+                    label: Bild auf der
+                    widget: select
+                    options: [{ label: linken Seite, value: links }, { label: rechten Seite, value: rechts }]
+                    default: links
+                  - { name: text, label: Text, widget: markdown }
+              - name: galerie
+                label: Fotogalerie
+                widget: object
+                summary: "{{ueberschrift}}"
+                fields:
+                  - { name: ueberschrift, label: Überschrift, widget: string }
+                  - name: bilder
+                    label: Bilder
+                    label_singular: Bild
+                    widget: list
+                    fields:
+                      - { name: bild, label: Bild, widget: image }
+                      - { name: unterschrift, label: Bildunterschrift, widget: string, required: false }
+              - name: naechste_termine
+                label: Nächste Termine
+                widget: object
+                summary: "{{ueberschrift}}"
+                fields:
+                  - { name: ueberschrift, label: Überschrift, widget: string, default: Nächste Termine }
+                  - { name: anzahl, label: Wie viele Termine, widget: number, value_type: int, min: 1, max: 6, default: 3 }
       - name: club
         label: Über den Club
         file: content/seiten/club.md
