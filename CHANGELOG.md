@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.18.0...v0.19.0) (2026-11-07)
+
+
+### New
+
+* **250:** an Editor can have a Tavola's numbers typed upright when the print runs sideways ([2ab5d2f](https://github.com/denniskasper/iso-bizzarrini/commit/2ab5d2f27f963d9b2f894b6c4f880782c9be3f9b))
+* **web:** every Sub-assembly's outline is drawn quietly, behind a switch ([a294a38](https://github.com/denniskasper/iso-bizzarrini/commit/a294a387a3cb5d866064d612aed6d41bc6e7adbf))
+
 ## [0.18.0](https://github.com/denniskasper/iso-bizzarrini/compare/v0.17.0...v0.18.0) (2026-11-06)
 
 
