@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Refusal } from '@/components/ui/field';
 import { api, refusalText } from '@/lib/api';
 
@@ -13,6 +13,10 @@ import { api, refusalText } from '@/lib/api';
 export function TypedNumbersSwitch({ tavolaId, on }: { tavolaId: string; on: boolean }) {
   const id = useId();
   const queryClient = useQueryClient();
+  // What the Editor just asked for, held until the Tavola is read back. Set in the same render
+  // as the press, because a controlled box waiting on the mutation's own state is put back by
+  // React first and ticks only a moment later.
+  const [asked, setAsked] = useState<boolean | null>(null);
   const typeNumbers = useMutation({
     mutationFn: (typed: boolean) => api.typeNumbers(tavolaId, typed),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tavola', tavolaId] }),
@@ -25,11 +29,13 @@ export function TypedNumbersSwitch({ tavolaId, on }: { tavolaId: string; on: boo
           id={id}
           type="checkbox"
           data-testid="typed-numbers-switch"
-          // What the Editor just asked for, until the Tavola is read back, so the box ticks when
-          // it is pressed rather than a moment later.
-          checked={typeNumbers.isPending ? typeNumbers.variables : on}
+          checked={asked ?? on}
           disabled={typeNumbers.isPending}
-          onChange={(event) => typeNumbers.mutate(event.target.checked)}
+          onChange={(event) => {
+            const typed = event.target.checked;
+            setAsked(typed);
+            typeNumbers.mutate(typed, { onSettled: () => setAsked(null) });
+          }}
           className="size-5 accent-accent"
         />
         Type the numbers upright
