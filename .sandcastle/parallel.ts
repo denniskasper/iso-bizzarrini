@@ -590,16 +590,21 @@ for (let round = 1; round <= MAX_ROUNDS; round += 1) {
     });
   });
   await merging;
+
+  // Before the stop below, so a build that threw (a missing sandbox image, a failed fetch) is
+  // said, rather than leaving only "Nothing was built".
+  for (const [index, outcome] of settled.entries()) {
+    if (outcome.status === 'rejected') {
+      const scope = `#${issues[index]!.number}`;
+      log(scope, `failed: ${String(outcome.reason)}`);
+      summary.push(`${scope}: failed — ${String(outcome.reason)}`);
+    }
+  }
+
   if (opened === 0) {
     // Planning the same issues again would build them the same way, at the same cost.
     log('round', 'opened no pull request; stopping rather than trying the same again');
     break;
-  }
-
-  for (const [index, outcome] of settled.entries()) {
-    if (outcome.status === 'rejected') {
-      summary.push(`#${issues[index]!.number}: failed — ${String(outcome.reason)}`);
-    }
   }
 }
 
