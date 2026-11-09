@@ -354,6 +354,12 @@ Whoever changes Ricambi itself. May also hold an Account, as anybody may, but be
 grants nothing on the platform.
 _Avoid_: Maintainer, operator, admin
 
+**Ricambi Docs**:
+The public guide to using Ricambi, written for Members, Editors and Administrators. Anybody may
+read it, so everything it shows comes from a Sample or from Integration, never from the archive.
+Says nothing about how Ricambi is built or run.
+_Avoid_: Handbook, manual, help, documentation (that is the developers' own records), tour
+
 **Proposal**:
 What somebody hands the developers about Ricambi itself, worked out in conversation on
 Integration: a **Fix** when something is wrong, an **Idea** when something should be new. Carries
