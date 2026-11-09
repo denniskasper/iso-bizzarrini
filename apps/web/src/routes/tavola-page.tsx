@@ -757,8 +757,9 @@ export function TavolaPage() {
       </div>
 
       {/* Reading is beside the drawing; recording is a panel an Editor opened, under it. There
-          is nothing to record until a number has been chosen. */}
-      {selectedPosition && (
+          is nothing to record until a number has been chosen, and a Member records nothing: the
+          API would refuse them, so they are not offered the forms. */}
+      {isEditor && selectedPosition && (
         <div className="mt-12 flex flex-col gap-8">
           <ListingPanel tavolaId={tavola.id} position={selectedPosition} positions={positions} />
           {/* What sits *at* the number, then what goes *with* it — in that order, because a
@@ -795,9 +796,11 @@ export function TavolaPage() {
           of numbers because it is what an Editor turns to when working from a catalog page
           instead of from the drawing — and it is a panel per sheet, deliberately, since what it
           takes is one drawing's worth of rows and nothing wider (ADR 0005). */}
-      <div className="mt-12">
-        <BulkPaste tavolaId={tavola.id} />
-      </div>
+      {isEditor && (
+        <div className="mt-12">
+          <BulkPaste tavolaId={tavola.id} />
+        </div>
+      )}
 
       {/* Only for a Published drawing with something to copy, or one already shown: a Sample is
           the factory's drawing, and an Administrator alone is told whether it is one. At the foot
@@ -830,7 +833,9 @@ export function TavolaPage() {
 
       <div className="mt-16 grid gap-12 sm:grid-cols-2">
         <Provenance provenance={tavola.provenance} />
-        <FileUnder tavolaId={tavola.id} modelId={tavola.model.id} category={tavola.category} />
+        {isEditor && (
+          <FileUnder tavolaId={tavola.id} modelId={tavola.model.id} category={tavola.category} />
+        )}
       </div>
     </div>
   );
