@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectTheSheetIsDrawn, drawingOf, openGrifo } from './support/archive.js';
+import { expectTheSheetIsDrawn, drawingOf, markFor, openGrifo } from './support/archive.js';
 import { landed, PRACTICE, signInAs } from './support/gate.js';
 
 /**
@@ -26,6 +26,15 @@ async function expectEditorsTools(page: Page, offered: boolean): Promise<void> {
   await expect(page.getByText(/^Choose a (new )?scan$/)).toHaveCount(count);
   // The marking tool, and with it removing numbers one at a time or several at once (#240).
   await expect(page.getByRole('button', { name: 'Mark positions' })).toHaveCount(count);
+  // Filing the drawing, and transcribing a whole table sheet into it.
+  await expect(page.getByRole('heading', { name: 'File this drawing' })).toHaveCount(count);
+  await expect(page.getByRole('heading', { name: 'A whole page at once' })).toHaveCount(count);
+
+  // Recording what sits at a number, and what goes with it, once a number is chosen.
+  await markFor(page, '1').first().click();
+  await expect(page.getByTestId('selected-position')).toHaveText('1');
+  await expect(page.getByRole('heading', { name: /^What sits at/ })).toHaveCount(count);
+  await expect(page.getByRole('heading', { name: /^What goes with/ })).toHaveCount(count);
 }
 
 test('a Member reads the archive without being offered an Editor’s tools', async ({ page }) => {
